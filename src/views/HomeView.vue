@@ -1,14 +1,685 @@
 <template>
-  <div class="home">
-    <h1>Welcome to FmoLogs</h1>
+  <div class="container">
+    <header class="header">
+      <div class="header-left">
+        <h1>FMO 日志查看器</h1>
+        <span class="total-logs"><span class="star">&#11088;</span> <strong>{{ totalLogs }}</strong></span>
+      </div>
+      <button class="settings-btn" title="设置" @click="showSettings = true">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+          <path
+            d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+          />
+        </svg>
+      </button>
+    </header>
+
+    <div class="content-area">
+      <div v-if="loading" class="loading">加载中...</div>
+
+      <div v-if="error" class="error">{{ error }}</div>
+
+      <div class="query-section">
+        <div class="query-row">
+          <div class="query-types">
+            <label v-for="(name, type) in QueryTypeNames" :key="type">
+              <input
+                v-model="currentQueryType"
+                type="radio"
+                :value="type"
+                :disabled="!dbLoaded"
+                @change="handleQueryTypeChange"
+              />
+              {{ name }}
+            </label>
+          </div>
+          <div v-if="currentQueryType === 'all'" class="search-box">
+            <input
+              v-model="searchKeyword"
+              type="text"
+              placeholder="接收方呼号"
+              :disabled="!dbLoaded"
+              @input="onSearchInput"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="result-section">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th v-for="col in displayColumns" :key="col" :class="'col-' + col">
+                {{ ColumnNames[col] || col }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!dbLoaded" class="empty-row">
+              <td :colspan="displayColumns.length" class="empty-cell">
+                请点击右上角设置图标选择日志目录
+              </td>
+            </tr>
+            <tr v-else-if="queryResult && queryResult.data.length === 0" class="empty-row">
+              <td :colspan="displayColumns.length" class="empty-cell">暂无数据</td>
+            </tr>
+            <template v-else-if="queryResult">
+              <tr v-for="(row, index) in queryResult.data" :key="index">
+                <td v-for="col in queryResult.columns" :key="col" :class="'col-' + col">
+                  <template v-if="col === 'timestamp'">
+                    {{ formatTimestamp(row[col]) }}
+                  </template>
+                  <template v-else-if="col === 'freqHz'">
+                    {{ formatFreqHz(row[col]) }}
+                  </template>
+                  <template v-else-if="col === 'relayName'">
+                    <div class="relay-cell">
+                      <div>{{ row.relayName }}</div>
+                      <div class="relay-admin">（{{ row.relayAdmin }}）</div>
+                    </div>
+                  </template>
+                  <template v-else>
+                    {{ row[col] }}
+                  </template>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="currentQueryType === 'all'" class="pagination">
+        <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(1)">首页</button>
+        <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(currentPage - 1)">
+          上一页
+        </button>
+        <span class="page-info">
+          第 {{ currentPage }} / {{ totalPages }} 页 (共 {{ totalRecords }} 条)
+        </span>
+        <button
+          :disabled="!dbLoaded || currentPage === totalPages || totalPages === 0"
+          @click="goToPage(currentPage + 1)"
+        >
+          下一页
+        </button>
+        <button
+          :disabled="!dbLoaded || currentPage === totalPages || totalPages === 0"
+          @click="goToPage(totalPages)"
+        >
+          末页
+        </button>
+      </div>
+    </div>
+
+    <!-- 设置弹框 -->
+    <div v-if="showSettings" class="modal-overlay" @click.self="showSettings = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>设置</h3>
+          <button class="close-btn" @click="showSettings = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-item">
+            <span class="setting-label">日志目录</span>
+            <div class="setting-actions">
+              <button class="btn-primary" @click="selectDirectory">
+                {{ dbLoaded ? '重新选择' : '选择目录' }}
+              </button>
+              <button v-if="dbLoaded" class="btn-secondary" @click="clearDirectory">清除</button>
+            </div>
+          </div>
+          <div v-if="dbLoaded" class="setting-info">已加载 {{ dbCount }} 个数据库文件</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
-<script setup></script>
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  scanDirectory,
+  DatabaseManager,
+  QueryTypes,
+  QueryTypeNames,
+  ColumnNames,
+  formatTimestamp,
+  formatFreqHz,
+  getSavedDirHandle,
+  loadDbFilesFromHandle,
+  clearDirHandle
+} from '../services/db'
+
+const PAGE_SIZE = 10
+
+// 默认列（查看所有模式）
+const DEFAULT_COLUMNS = [
+  'timestamp',
+  'freqHz',
+  'fromCallsign',
+  'fromGrid',
+  'toCallsign',
+  'toGrid',
+  'toComment',
+  'mode',
+  'relayName'
+]
+
+const dbManager = new DatabaseManager()
+
+const dbLoaded = ref(false)
+const dbCount = ref(0)
+const totalLogs = ref(0)
+const loading = ref(false)
+const error = ref(null)
+const currentQueryType = ref(QueryTypes.ALL)
+const currentPage = ref(1)
+const queryResult = ref(null)
+const showSettings = ref(false)
+const searchKeyword = ref('')
+
+// 计算当前显示的列
+const displayColumns = computed(() => {
+  if (queryResult.value) {
+    return queryResult.value.columns
+  }
+  return DEFAULT_COLUMNS
+})
+
+// 计算总页数
+const totalPages = computed(() => {
+  if (queryResult.value && queryResult.value.totalPages) {
+    return queryResult.value.totalPages
+  }
+  return 0
+})
+
+// 计算总记录数
+const totalRecords = computed(() => {
+  if (queryResult.value) {
+    return queryResult.value.total
+  }
+  return 0
+})
+
+// 页面加载时尝试恢复已保存的目录
+onMounted(async () => {
+  await tryRestoreDirectory()
+})
+
+async function tryRestoreDirectory() {
+  try {
+    const savedHandle = await getSavedDirHandle()
+    if (savedHandle) {
+      loading.value = true
+      const dbFiles = await loadDbFilesFromHandle(savedHandle)
+      if (dbFiles.length > 0) {
+        await loadDatabases(dbFiles)
+      }
+      loading.value = false
+    }
+  } catch {
+    // 权限可能已失效，忽略错误
+    loading.value = false
+  }
+}
+
+async function loadDatabases(dbFiles) {
+  dbManager.close()
+  const count = await dbManager.loadDatabases(dbFiles)
+
+  if (count === 0) {
+    error.value = '没有成功加载任何数据库文件'
+    return
+  }
+
+  dbCount.value = count
+  totalLogs.value = dbManager.totalLogs
+  dbLoaded.value = true
+  currentQueryType.value = QueryTypes.ALL
+  currentPage.value = 1
+
+  executeQuery()
+}
+
+async function selectDirectory() {
+  loading.value = true
+  error.value = null
+  queryResult.value = null
+  showSettings.value = false
+
+  try {
+    const dbFiles = await scanDirectory()
+    if (dbFiles === null) {
+      loading.value = false
+      return
+    }
+
+    if (dbFiles.length === 0) {
+      error.value = '所选目录中没有找到 .db 文件'
+      loading.value = false
+      return
+    }
+
+    await loadDatabases(dbFiles)
+  } catch (err) {
+    error.value = `加载失败: ${err.message}`
+  }
+
+  loading.value = false
+}
+
+async function clearDirectory() {
+  await clearDirHandle()
+  dbManager.close()
+  dbLoaded.value = false
+  dbCount.value = 0
+  totalLogs.value = 0
+  queryResult.value = null
+  showSettings.value = false
+  searchKeyword.value = ''
+}
+
+function handleQueryTypeChange() {
+  searchKeyword.value = ''
+  currentPage.value = 1
+  executeQuery()
+}
+
+// 防抖定时器
+let searchTimer = null
+
+function onSearchInput() {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1
+    executeQuery()
+  }, 300)
+}
+
+function executeQuery() {
+  if (!dbLoaded.value) return
+
+  loading.value = true
+  error.value = null
+
+  try {
+    if (currentQueryType.value === QueryTypes.ALL) {
+      queryResult.value = dbManager.query(
+        currentQueryType.value,
+        currentPage.value,
+        PAGE_SIZE,
+        searchKeyword.value.trim()
+      )
+    } else {
+      currentPage.value = 1
+      queryResult.value = dbManager.query(currentQueryType.value)
+    }
+  } catch (err) {
+    error.value = `查询失败: ${err.message}`
+    queryResult.value = null
+  }
+
+  loading.value = false
+}
+
+function goToPage(page) {
+  if (!queryResult.value || page < 1 || page > queryResult.value.totalPages) return
+  currentPage.value = page
+  executeQuery()
+}
+
+onUnmounted(() => {
+  dbManager.close()
+})
+</script>
 
 <style scoped>
-.home {
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.header {
+  flex-shrink: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: white;
+  border-bottom: 1px solid #eee;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header h1 {
+  margin: 0;
+}
+
+.total-logs {
+  font-size: 1.1rem;
+  color: #606266;
+}
+
+.star {
+  font-size: 1.5rem;
+}
+
+.settings-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #606266;
+  border-radius: 4px;
+}
+
+.settings-btn:hover {
+  background: #f5f7fa;
+  color: #409eff;
+}
+
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.query-section {
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.query-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.query-types {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.query-types label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.query-types input:disabled + span {
+  color: #c0c4cc;
+}
+
+.search-box {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.search-box input {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 150px;
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+.loading {
   text-align: center;
   padding: 2rem;
+  color: #666;
+}
+
+.error {
+  padding: 1rem;
+  background: #fef0f0;
+  color: #f56c6c;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.result-section {
+  margin-top: 1rem;
+  flex: 1;
+  overflow: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  table-layout: fixed;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.data-table th {
+  background: #f5f7fa;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* 列宽设置 */
+.col-timestamp {
+  width: 160px;
+}
+.col-freqHz {
+  width: 95px;
+}
+.col-fromCallsign {
+  width: 100px;
+}
+.col-fromGrid {
+  width: 70px;
+}
+.col-toCallsign {
+  width: 100px;
+}
+.col-toGrid {
+  width: 70px;
+}
+.col-toComment {
+  width: auto;
+}
+.col-mode {
+  width: 50px;
+}
+.col-relayName {
+  width: 130px;
+  text-align: center;
+  vertical-align: middle;
+}
+.col-count {
+  width: 60px;
+}
+
+.relay-cell {
+  text-align: center;
+}
+
+.relay-admin {
+  color: #909399;
+  font-size: 0.85rem;
+}
+
+.data-table tbody tr:hover:not(.empty-row) {
+  background: #f5f7fa;
+}
+
+.data-table tbody tr {
+  line-height: 1.6;
+}
+
+.empty-row .empty-cell {
+  text-align: center;
+  color: #909399;
+  padding: 3rem;
+}
+
+.pagination {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  background: white;
+  border-top: 1px solid #eee;
+}
+
+.pagination button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #dcdfe6;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #f5f7fa;
+}
+
+.pagination button:disabled {
+  color: #c0c4cc;
+  cursor: not-allowed;
+}
+
+.page-info {
+  margin: 0 1rem;
+  color: #606266;
+}
+
+/* 弹框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  min-width: 320px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #909399;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  color: #606266;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.setting-label {
+  font-weight: 500;
+}
+
+.setting-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: #409eff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background: #337ecc;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: white;
+  color: #606266;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: #f5f7fa;
+}
+
+.setting-info {
+  margin-top: 1rem;
+  color: #67c23a;
+  font-size: 0.9rem;
 }
 </style>

@@ -8,6 +8,16 @@ export default [
   prettier,
   {
     files: ['**/*.{js,vue}'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        console: 'readonly',
+        document: 'readonly',
+        indexedDB: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly'
+      }
+    },
     rules: {
       'vue/multi-word-component-names': 'off'
     }
