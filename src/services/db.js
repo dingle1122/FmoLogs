@@ -2,11 +2,11 @@ import initSqlJs from 'sql.js'
 
 let SQL = null
 
-// 初始化sql.js
+// 初始化sql.js（使用CDN加载wasm文件）
 async function initSQL() {
   if (!SQL) {
     SQL = await initSqlJs({
-      locateFile: () => '/sql-wasm.wasm'
+      locateFile: () => 'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm'
     })
   }
   return SQL
