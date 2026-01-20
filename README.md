@@ -1,5 +1,36 @@
-# Vue 3 + Vite
+# FMO 日志查看器
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+用于查看本地 FMO 日志的 Web 应用，支持多数据库文件加载和多种查询模式。
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## 功能
+
+- 授权访问本地目录，自动扫描 `.db` 文件
+- 支持 4 种查询模式：查看所有、接收方呼号统计、中继名称统计、接收网格统计
+- 接收方呼号实时模糊搜索
+- 按日期倒序排列，分页展示（每页 10 条）
+- 目录授权自动保存，刷新页面无需重新授权
+
+## 使用方法
+
+1. 点击右上角设置图标
+2. 选择包含 `.db` 日志文件的目录
+3. 授权后自动加载并显示日志
+
+## 本地开发
+
+```bash
+npm install
+npm run dev
+```
+
+## 构建部署
+
+```bash
+npm run build
+```
+
+构建产物位于 `dist/` 目录。
+
+## 浏览器要求
+
+需要支持 File System Access API 的现代浏览器（Chrome/Edge）。
