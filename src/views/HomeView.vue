@@ -171,7 +171,7 @@
       </div>
 
       <div v-if="currentQueryType === 'all'" class="pagination">
-        <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(1)">首页</button>
+        <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(1)" class="hidden-on-small">首页</button>
         <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(currentPage - 1)">
           上一页
         </button>
@@ -187,6 +187,7 @@
         <button
           :disabled="!dbLoaded || currentPage === totalPages || totalPages === 0"
           @click="goToPage(totalPages)"
+          class="hidden-on-small"
         >
           末页
         </button>
@@ -786,6 +787,8 @@ onUnmounted(() => {
   padding: 0.75rem 0;
   background: white;
   border-top: 1px solid #eee;
+  flex-wrap: nowrap;
+  min-height: 50px;
 }
 
 .pagination button {
@@ -794,6 +797,8 @@ onUnmounted(() => {
   background: white;
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .pagination button:hover:not(:disabled) {
@@ -808,6 +813,8 @@ onUnmounted(() => {
 .page-info {
   margin: 0 1rem;
   color: #606266;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* 弹框样式 */
@@ -1112,8 +1119,13 @@ onUnmounted(() => {
     display: none;
   }
 
+  /* 在中等屏幕上隐藏分页的首页和末页按钮 */
+  .pagination .hidden-on-small {
+    display: none;
+  }
+
   .pagination {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.3rem;
   }
   .pagination button {
@@ -1122,9 +1134,6 @@ onUnmounted(() => {
   }
 
   .page-info {
-    width: 100%;
-    text-align: center;
-    margin: 0.3rem 0;
     font-size: 0.85rem;
   }
 }
@@ -1147,9 +1156,18 @@ onUnmounted(() => {
   .col-toGrid {
     display: table-cell;
   }
-}
 
-@media (max-width: 480px) {
+  /* 在小屏幕上隐藏分页的首页和末页按钮 */
+  .pagination .hidden-on-small {
+    display: none;
+  }
+
+  /* 确保分页信息文本适应较小空间 */
+  .page-info {
+    font-size: 0.8rem;
+    margin: 0 0.5rem;
+  }
+
   .header h1 {
     font-size: 1rem;
   }
@@ -1165,11 +1183,6 @@ onUnmounted(() => {
 
   .search-box input {
     width: 100%;
-  }
-
-  .col-freqHz,
-  .col-mode {
-    display: none;
   }
 
   .col-timestamp {
