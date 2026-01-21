@@ -6,7 +6,7 @@ let SQL = null
 async function initSQL() {
   if (!SQL) {
     SQL = await initSqlJs({
-      locateFile: () => 'https://cdn.lzyike.cn/sql-wasm.wasm'
+      locateFile: () => 'https://cdn.lzyike.cn/npm/sql.js@1.13.0/dist/sql-wasm.wasm'
     })
   }
   return SQL
@@ -74,6 +74,7 @@ export async function clearDirHandle() {
 export async function loadDbFilesFromHandle(dirHandle) {
   const dbFiles = []
   const permission = await dirHandle.queryPermission({ mode: 'read' })
+  await initSQL() // 确保SQL已经初始化
 
   if (permission !== 'granted') {
     const newPermission = await dirHandle.requestPermission({ mode: 'read' })
@@ -86,10 +87,33 @@ export async function loadDbFilesFromHandle(dirHandle) {
     if (entry.kind === 'file' && entry.name.endsWith('.db')) {
       const file = await entry.getFile()
       const arrayBuffer = await file.arrayBuffer()
-      dbFiles.push({
-        name: entry.name,
-        data: new Uint8Array(arrayBuffer)
-      })
+      const uint8Array = new Uint8Array(arrayBuffer)
+      
+      try {
+        // 尝试打开数据库以验证其有效性
+        const db = new SQL.Database(uint8Array)
+        
+        // 尝试执行一个简单的查询来确认这是有效的SQLite数据库
+        db.exec('SELECT 1')
+        
+        // 验证数据库是否包含预期的表（例如 qso_logs 表）
+        const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';")
+        const hasQsoLogsTable = tables.some(table => 
+          table.values.some(row => row.includes('qso_logs'))
+        )
+        
+        if (hasQsoLogsTable) {
+          dbFiles.push({
+            name: entry.name,
+            data: uint8Array
+          })
+        }
+        
+        // 关闭临时数据库连接
+        db.close()
+      } catch (err) {
+        console.warn(`跳过无效的数据库文件: ${entry.name}`, err)
+      }
     }
   }
 
@@ -118,13 +142,38 @@ export function supportsDirectoryPicker() {
 // 从File对象列表加载数据库
 export async function loadDbFilesFromFileList(files) {
   const dbFiles = []
+  await initSQL() // 确保SQL已经初始化
+  
   for (const file of files) {
     if (file.name.endsWith('.db')) {
       const arrayBuffer = await file.arrayBuffer()
-      dbFiles.push({
-        name: file.name,
-        data: new Uint8Array(arrayBuffer)
-      })
+      const uint8Array = new Uint8Array(arrayBuffer)
+      
+      try {
+        // 尝试打开数据库以验证其有效性
+        const db = new SQL.Database(uint8Array)
+        
+        // 尝试执行一个简单的查询来确认这是有效的SQLite数据库
+        db.exec('SELECT 1')
+        
+        // 验证数据库是否包含预期的表（例如 qso_logs 表）
+        const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';")
+        const hasQsoLogsTable = tables.some(table => 
+          table.values.some(row => row.includes('qso_logs'))
+        )
+        
+        if (hasQsoLogsTable) {
+          dbFiles.push({
+            name: file.name,
+            data: uint8Array
+          })
+        }
+        
+        // 关闭临时数据库连接
+        db.close()
+      } catch (err) {
+        console.warn(`跳过无效的数据库文件: ${file.name}`, err)
+      }
     }
   }
   return dbFiles
