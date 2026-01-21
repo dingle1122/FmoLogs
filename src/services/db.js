@@ -6,7 +6,7 @@ let SQL = null
 async function initSQL() {
   if (!SQL) {
     SQL = await initSqlJs({
-      locateFile: () => 'https://cdn.jsdelivr.net/npm/sql.js@1.13.0/dist/sql-wasm.wasm'
+      locateFile: () => 'https://cdn.lzyike.cn/sql-wasm.wasm'
     })
   }
   return SQL
