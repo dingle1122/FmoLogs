@@ -3,7 +3,9 @@
     <header class="header">
       <div class="header-left">
         <h1>FMO 日志查看器</h1>
-        <span class="total-logs"><span class="star">&#11088;</span> <strong>{{ totalLogs }}</strong></span>
+        <span class="total-logs"
+          ><span class="star">&#11088;</span> <strong>{{ totalLogs }}</strong></span
+        >
       </div>
       <div class="header-actions">
         <a
@@ -60,7 +62,69 @@
         </div>
       </div>
 
-      <div class="result-section">
+      <!-- TOP20汇总视图 -->
+      <div v-if="currentQueryType === 'top20Summary'" class="top20-container">
+        <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
+        <template v-else-if="top20Result">
+          <div class="top20-card">
+            <h3>接收方呼号 TOP20</h3>
+            <div class="top20-list">
+              <div
+                v-for="(item, index) in top20Result.toCallsign"
+                :key="'callsign-' + index"
+                class="top20-item"
+              >
+                <span class="rank">{{ index + 1 }}</span>
+                <span class="name">{{ item.toCallsign || '-' }}</span>
+                <span class="count"
+                  ><strong>{{ item.count }}</strong></span
+                >
+              </div>
+              <div v-if="top20Result.toCallsign.length === 0" class="empty-item">暂无数据</div>
+            </div>
+          </div>
+          <div class="top20-card">
+            <h3>中继名称 TOP20</h3>
+            <div class="top20-list">
+              <div
+                v-for="(item, index) in top20Result.relayName"
+                :key="'relay-' + index"
+                class="top20-item"
+              >
+                <span class="rank">{{ index + 1 }}</span>
+                <span class="name"
+                  >{{ item.relayName || '-'
+                  }}<span class="relay-admin">（{{ item.relayAdmin }}）</span></span
+                >
+                <span class="count"
+                  ><strong>{{ item.count }}</strong></span
+                >
+              </div>
+              <div v-if="top20Result.relayName.length === 0" class="empty-item">暂无数据</div>
+            </div>
+          </div>
+          <div class="top20-card">
+            <h3>接收网格 TOP20</h3>
+            <div class="top20-list">
+              <div
+                v-for="(item, index) in top20Result.toGrid"
+                :key="'grid-' + index"
+                class="top20-item"
+              >
+                <span class="rank">{{ index + 1 }}</span>
+                <span class="name">{{ item.toGrid || '-' }}</span>
+                <span class="count"
+                  ><strong>{{ item.count }}</strong></span
+                >
+              </div>
+              <div v-if="top20Result.toGrid.length === 0" class="empty-item">暂无数据</div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- 原有表格视图 -->
+      <div v-else class="result-section">
         <table class="data-table">
           <thead>
             <tr>
@@ -79,10 +143,13 @@
               <td :colspan="displayColumns.length" class="empty-cell">暂无数据</td>
             </tr>
             <template v-else-if="queryResult">
-              <tr v-for="(row, index) in queryResult.data" :key="index">
+              <tr v-for="(row, index) in queryResult.data" :key="index" @click="showDetailModal(row)">
                 <td v-for="col in queryResult.columns" :key="col" :class="'col-' + col">
                   <template v-if="col === 'timestamp'">
-                    {{ formatTimestamp(row[col]) }}
+                    <div class="timestamp-div">
+                      <div>{{ formatDatePart(formatTimestamp(row[col])) }}</div>
+                      <div>{{ formatTimePart(formatTimestamp(row[col])) }}</div>
+                    </div>
                   </template>
                   <template v-else-if="col === 'freqHz'">
                     {{ formatFreqHz(row[col]) }}
@@ -126,6 +193,38 @@
       </div>
     </div>
 
+    <!-- 详情弹框 -->
+    <div v-if="showDetailModalFlag" class="modal-overlay" @click.self="showDetailModalFlag = false">
+      <div class="modal modal-detail">
+        <div class="modal-header">
+          <h3>详细信息</h3>
+          <button class="close-btn" @click="showDetailModalFlag = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="detail-item" v-for="(value, key) in filteredSelectedRowData" :key="key">
+            <span class="detail-label">{{ ColumnNames[key] || key }}：</span>
+            <span class="detail-value">
+              <template v-if="key === 'timestamp'">
+                {{ formatTimestamp(value) }}
+              </template>
+              <template v-else-if="key === 'freqHz'">
+                {{ formatFreqHz(value) }}
+              </template>
+              <template v-else-if="key === 'relayName'">
+                <div class="relay-cell">
+                  <div>{{ value }}</div>
+                  <div class="relay-admin" v-if="selectedRowData['relayAdmin']">（{{ selectedRowData['relayAdmin'] }}）</div>
+                </div>
+              </template>
+              <template v-else>
+                {{ value }}
+              </template>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 设置弹框 -->
     <div v-if="showSettings" class="modal-overlay" @click.self="showSettings = false">
       <div class="modal">
@@ -135,10 +234,13 @@
         </div>
         <div class="modal-body">
           <div class="setting-item">
-            <span class="setting-label">日志目录</span>
+            <span class="setting-label">日志文件</span>
             <div class="setting-actions">
-              <button class="btn-primary" @click="selectDirectory">
-                {{ dbLoaded ? '重新选择' : '选择目录' }}
+              <button v-if="canSelectDirectory" class="btn-primary" @click="selectDirectory">
+                {{ dbLoaded ? '重新选择目录' : '选择目录' }}
+              </button>
+              <button class="btn-primary" @click="triggerFileInput">
+                {{ dbLoaded && !canSelectDirectory ? '重新选择文件' : '选择文件' }}
               </button>
               <button v-if="dbLoaded" class="btn-secondary" @click="clearDirectory">清除</button>
             </div>
@@ -147,6 +249,16 @@
         </div>
       </div>
     </div>
+
+    <!-- 隐藏的文件输入 -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".db"
+      multiple
+      style="display: none"
+      @change="handleFileSelect"
+    />
   </div>
 </template>
 
@@ -162,19 +274,21 @@ import {
   formatFreqHz,
   getSavedDirHandle,
   loadDbFilesFromHandle,
-  clearDirHandle
+  clearDirHandle,
+  supportsDirectoryPicker,
+  loadDbFilesFromFileList
 } from '../services/db'
 
 const PAGE_SIZE = 10
 
-// 默认列（查看所有模式）
+/* 默认列（查看所有模式） */
 const DEFAULT_COLUMNS = [
   'timestamp',
+  'toCallsign',
+  'toGrid',
   'freqHz',
   'fromCallsign',
   'fromGrid',
-  'toCallsign',
-  'toGrid',
   'toComment',
   'mode',
   'relayName'
@@ -190,8 +304,29 @@ const error = ref(null)
 const currentQueryType = ref(QueryTypes.ALL)
 const currentPage = ref(1)
 const queryResult = ref(null)
+const top20Result = ref(null)
 const showSettings = ref(false)
 const searchKeyword = ref('')
+const fileInputRef = ref(null)
+const showDetailModalFlag = ref(false)
+const selectedRowData = ref(null)
+
+// 过滤掉不显示在详情中的字段
+const filteredSelectedRowData = computed(() => {
+  if (!selectedRowData.value) return {}
+  
+  const filtered = {}
+  Object.keys(selectedRowData.value).forEach(key => {
+    if (key !== 'logId' && key !== 'relayAdmin') {
+      filtered[key] = selectedRowData.value[key]
+    }
+  })
+  
+  return filtered
+})
+
+// 检测是否支持目录选择
+const canSelectDirectory = supportsDirectoryPicker()
 
 // 计算当前显示的列
 const displayColumns = computed(() => {
@@ -295,6 +430,36 @@ async function clearDirectory() {
   searchKeyword.value = ''
 }
 
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+async function handleFileSelect(event) {
+  const files = event.target.files
+  if (!files || files.length === 0) return
+
+  loading.value = true
+  error.value = null
+  queryResult.value = null
+  showSettings.value = false
+
+  try {
+    const dbFiles = await loadDbFilesFromFileList(files)
+    if (dbFiles.length === 0) {
+      error.value = '所选文件中没有有效的 .db 文件'
+      loading.value = false
+      return
+    }
+
+    await loadDatabases(dbFiles)
+  } catch (err) {
+    error.value = `加载失败: ${err.message}`
+  }
+
+  loading.value = false
+  event.target.value = ''
+}
+
 function handleQueryTypeChange() {
   searchKeyword.value = ''
   currentPage.value = 1
@@ -321,20 +486,26 @@ function executeQuery() {
   error.value = null
 
   try {
-    if (currentQueryType.value === QueryTypes.ALL) {
+    if (currentQueryType.value === QueryTypes.TOP20_SUMMARY) {
+      top20Result.value = dbManager.query(currentQueryType.value)
+      queryResult.value = null
+    } else if (currentQueryType.value === QueryTypes.ALL) {
       queryResult.value = dbManager.query(
         currentQueryType.value,
         currentPage.value,
         PAGE_SIZE,
         searchKeyword.value.trim()
       )
+      top20Result.value = null
     } else {
       currentPage.value = 1
       queryResult.value = dbManager.query(currentQueryType.value)
+      top20Result.value = null
     }
   } catch (err) {
     error.value = `查询失败: ${err.message}`
     queryResult.value = null
+    top20Result.value = null
   }
 
   loading.value = false
@@ -344,6 +515,21 @@ function goToPage(page) {
   if (!queryResult.value || page < 1 || page > queryResult.value.totalPages) return
   currentPage.value = page
   executeQuery()
+}
+
+function formatDatePart(dateTimeStr) {
+  if (!dateTimeStr) return ''
+  return dateTimeStr.split(' ')[0]  // 只返回日期部分 (YYYY-MM-DD)
+}
+
+function formatTimePart(dateTimeStr) {
+  if (!dateTimeStr) return ''
+  return dateTimeStr.split(' ')[1]  // 只返回时间部分 (HH:MM:SS)
+}
+
+function showDetailModal(row) {
+  selectedRowData.value = row
+  showDetailModalFlag.value = true
 }
 
 onUnmounted(() => {
@@ -519,7 +705,7 @@ onUnmounted(() => {
 
 /* 列宽设置 */
 .col-timestamp {
-  width: 160px;
+  width: 120px;
 }
 .col-freqHz {
   width: 95px;
@@ -528,13 +714,13 @@ onUnmounted(() => {
   width: 100px;
 }
 .col-fromGrid {
-  width: 70px;
+  width: 100px;
 }
 .col-toCallsign {
   width: 100px;
 }
 .col-toGrid {
-  width: 70px;
+  width: 100px;
 }
 .col-toComment {
   width: auto;
@@ -551,6 +737,19 @@ onUnmounted(() => {
   width: 60px;
 }
 
+/* 日期单元格样式 */
+.col-timestamp {
+  text-align: center;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+
+.timestamp-div {
+  display: block;
+  white-space: nowrap;
+  text-align: center;
+}
+
 .relay-cell {
   text-align: center;
 }
@@ -558,6 +757,10 @@ onUnmounted(() => {
 .relay-admin {
   color: #909399;
   font-size: 0.85rem;
+}
+
+.modal-detail .relay-cell {
+  text-align: left;
 }
 
 .data-table tbody tr:hover:not(.empty-row) {
@@ -627,6 +830,37 @@ onUnmounted(() => {
   min-width: 320px;
   max-width: 90%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-detail {
+  max-width: 600px;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.detail-item {
+  display: flex;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #eee;
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.detail-label {
+  flex: 0 0 120px;
+  font-weight: 500;
+  color: #606266;
+}
+
+.detail-value {
+  flex: 1;
+  color: #333;
+  word-break: break-all;
 }
 
 .modal-header {
@@ -707,4 +941,241 @@ onUnmounted(() => {
   color: #67c23a;
   font-size: 0.9rem;
 }
+
+/* TOP20汇总样式 */
+.top20-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  flex: 1;
+  overflow: auto;
+  margin-top: 1rem;
+}
+
+.empty-hint {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #909399;
+  padding: 3rem;
+}
+
+.top20-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.top20-card h3 {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #f5f7fa;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #ebeef5;
+  flex-shrink: 0;
+}
+
+.top20-list {
+  padding: 0.5rem 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.top20-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  line-height: 1.6;
+}
+
+.top20-item:hover {
+  background: #f5f7fa;
+}
+
+.top20-item .rank {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  color: #606266;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+}
+
+.top20-item:nth-child(1) .rank {
+  background: #ffd700;
+  color: #fff;
+}
+
+.top20-item:nth-child(2) .rank {
+  background: #c0c0c0;
+  color: #fff;
+}
+
+.top20-item:nth-child(3) .rank {
+  background: #cd7f32;
+  color: #fff;
+}
+
+.top20-item .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top20-item .relay-admin {
+  color: #909399;
+  font-size: 0.85rem;
+}
+
+.top20-item .count {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+  color: #409eff;
+}
+
+.empty-item {
+  text-align: center;
+  color: #909399;
+  padding: 2rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .top20-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0.75rem;
+  }
+
+  .header h1 {
+    font-size: 1.2rem;
+  }
+
+  .header-left {
+    gap: 0.5rem;
+  }
+
+  .total-logs {
+    font-size: 0.95rem;
+  }
+
+  .star {
+    font-size: 1.2rem;
+  }
+
+  .content-area {
+    padding: 0.75rem;
+  }
+
+  .query-types {
+    gap: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .top20-container {
+    grid-template-columns: 1fr;
+  }
+
+  .top20-card {
+    max-height: 50vh;
+  }
+
+  .data-table {
+    font-size: 0.8rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 0.4rem;
+  }
+
+  /* 隐藏部分列 */
+  .col-freqHz,
+  .col-fromCallsign,
+  .col-fromGrid,
+  .col-toComment,
+  .col-mode,
+  .col-relayName {
+    display: none;
+  }
+
+  .pagination {
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .pagination button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85rem;
+  }
+
+  .page-info {
+    width: 100%;
+    text-align: center;
+    margin: 0.3rem 0;
+    font-size: 0.85rem;
+  }
+}
+
+/* 手机端只显示关键列 */
+@media (max-width: 480px) {
+  /* 隐藏除日期、接收方呼号、接收网格外的所有列 */
+  .col-freqHz,
+  .col-fromCallsign,
+  .col-fromGrid,
+  .col-toComment,
+  .col-mode,
+  .col-relayName {
+    display: none;
+  }
+
+  /* 确保只显示日期、接收方呼号、接收网格列 */
+  .col-timestamp,
+  .col-toCallsign,
+  .col-toGrid {
+    display: table-cell;
+  }
+}
+
+@media (max-width: 480px) {
+  .header h1 {
+    font-size: 1rem;
+  }
+
+  .query-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .search-box input {
+    width: 100%;
+  }
+
+  .col-freqHz,
+  .col-mode {
+    display: none;
+  }
+
+  .col-timestamp {
+    width: 90px;
+  }
+}
+
+
 </style>

@@ -110,9 +110,30 @@ export async function scanDirectory() {
   }
 }
 
+// 检测是否支持目录选择API
+export function supportsDirectoryPicker() {
+  return 'showDirectoryPicker' in window
+}
+
+// 从File对象列表加载数据库
+export async function loadDbFilesFromFileList(files) {
+  const dbFiles = []
+  for (const file of files) {
+    if (file.name.endsWith('.db')) {
+      const arrayBuffer = await file.arrayBuffer()
+      dbFiles.push({
+        name: file.name,
+        data: new Uint8Array(arrayBuffer)
+      })
+    }
+  }
+  return dbFiles
+}
+
 // 查询类型定义
 export const QueryTypes = {
   ALL: 'all',
+  TOP20_SUMMARY: 'top20Summary',
   TO_CALLSIGN: 'toCallsign',
   RELAY_NAME: 'relayName',
   TO_GRID: 'toGrid'
@@ -132,9 +153,7 @@ const QUERIES = {
 // 查询类型名称映射
 export const QueryTypeNames = {
   [QueryTypes.ALL]: '查看所有',
-  [QueryTypes.TO_CALLSIGN]: '接收方呼号',
-  [QueryTypes.RELAY_NAME]: '中继名称',
-  [QueryTypes.TO_GRID]: '接收网格'
+  [QueryTypes.TOP20_SUMMARY]: '通联排名'
 }
 
 // 表头中文映射
@@ -219,6 +238,11 @@ export class DatabaseManager {
 
   // 执行查询
   query(queryType, page = 1, pageSize = 20, searchKeyword = '') {
+    // TOP20汇总查询特殊处理
+    if (queryType === QueryTypes.TOP20_SUMMARY) {
+      return this.queryTop20Summary()
+    }
+
     let sql = QUERIES[queryType]
     if (!sql) {
       throw new Error(`未知的查询类型: ${queryType}`)
@@ -319,6 +343,81 @@ export class DatabaseManager {
       data,
       total: data.length,
       columns: [...displayColumns, 'count']
+    }
+  }
+
+  // TOP20汇总查询
+  queryTop20Summary() {
+    const toCallsignResults = []
+    const relayNameResults = []
+    const toGridResults = []
+
+    for (const { db } of this.databases) {
+      try {
+        // 接收方呼号
+        const callsignResult = db.exec(QUERIES[QueryTypes.TO_CALLSIGN])
+        if (callsignResult.length > 0) {
+          for (const row of callsignResult[0].values) {
+            toCallsignResults.push({ toCallsign: row[0], count: row[1] })
+          }
+        }
+
+        // 中继名称
+        const relayResult = db.exec(QUERIES[QueryTypes.RELAY_NAME])
+        if (relayResult.length > 0) {
+          for (const row of relayResult[0].values) {
+            relayNameResults.push({ relayName: row[0], relayAdmin: row[1], count: row[2] })
+          }
+        }
+
+        // 接收网格
+        const gridResult = db.exec(QUERIES[QueryTypes.TO_GRID])
+        if (gridResult.length > 0) {
+          for (const row of gridResult[0].values) {
+            toGridResults.push({ toGrid: row[0], count: row[1] })
+          }
+        }
+      } catch (err) {
+        console.error('查询失败:', err)
+      }
+    }
+
+    // 合并并排序
+    const mergeAndSort = (results, keyField) => {
+      const merged = new Map()
+      for (const row of results) {
+        const key = row[keyField] || ''
+        if (merged.has(key)) {
+          merged.get(key).count += row.count
+        } else {
+          merged.set(key, { ...row })
+        }
+      }
+      return Array.from(merged.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20)
+    }
+
+    // 中继名称特殊合并
+    const mergeRelayResults = (results) => {
+      const merged = new Map()
+      for (const row of results) {
+        const key = `${row.relayName || ''}|${row.relayAdmin || ''}`
+        if (merged.has(key)) {
+          merged.get(key).count += row.count
+        } else {
+          merged.set(key, { ...row })
+        }
+      }
+      return Array.from(merged.values())
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20)
+    }
+
+    return {
+      toCallsign: mergeAndSort(toCallsignResults, 'toCallsign'),
+      relayName: mergeRelayResults(relayNameResults),
+      toGrid: mergeAndSort(toGridResults, 'toGrid')
     }
   }
 
