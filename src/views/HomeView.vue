@@ -84,7 +84,36 @@
             </div>
           </div>
           <div class="top20-card">
-            <h3>中继名称 TOP20</h3>
+            <h3>接收网格 TOP20</h3>
+            <div class="top20-list">
+              <div
+                v-for="(item, index) in top20Result.toGrid"
+                :key="'grid-' + index"
+                class="top20-item"
+              >
+                <span class="rank">{{ index + 1 }}</span>
+                <span class="name">{{ item.toGrid || '-' }}</span>
+                <span class="count"
+                  ><strong>{{ item.count }}</strong></span
+                >
+              </div>
+              <div v-if="top20Result.toGrid.length === 0" class="empty-item">暂无数据</div>
+            </div>
+          </div>
+          <div class="top20-card">
+            <h3>
+              中继名称 TOP20
+              <span class="info-icon" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave" @click="toggleTooltip">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <div v-if="showTooltip" :class="tooltipClass" :style="tooltipStyle" @mouseenter="handleTooltipMouseEnter" @mouseleave="handleTooltipMouseLeave">
+                  中继排名是根据导出的数据库信息进行排序的，存在被后续通联覆盖的情况。仅作娱乐性排名展示使用。
+                </div>
+              </span>
+            </h3>
             <div class="top20-list">
               <div
                 v-for="(item, index) in top20Result.relayName"
@@ -101,23 +130,6 @@
                 >
               </div>
               <div v-if="top20Result.relayName.length === 0" class="empty-item">暂无数据</div>
-            </div>
-          </div>
-          <div class="top20-card">
-            <h3>接收网格 TOP20</h3>
-            <div class="top20-list">
-              <div
-                v-for="(item, index) in top20Result.toGrid"
-                :key="'grid-' + index"
-                class="top20-item"
-              >
-                <span class="rank">{{ index + 1 }}</span>
-                <span class="name">{{ item.toGrid || '-' }}</span>
-                <span class="count"
-                  ><strong>{{ item.count }}</strong></span
-                >
-              </div>
-              <div v-if="top20Result.toGrid.length === 0" class="empty-item">暂无数据</div>
             </div>
           </div>
         </template>
@@ -311,6 +323,16 @@ const searchKeyword = ref('')
 const fileInputRef = ref(null)
 const showDetailModalFlag = ref(false)
 const selectedRowData = ref(null)
+const showTooltip = ref(false)
+const tooltipStyle = ref({})
+const tooltipClass = computed(() => {
+  // 根据样式中的top/bottom值判断位置
+  if (tooltipStyle.value.top && tooltipStyle.value.top !== 'auto') {
+    return 'tooltip tooltip-bottom'
+  } else {
+    return 'tooltip'
+  }
+})
 
 // 过滤掉不显示在详情中的字段
 const filteredSelectedRowData = computed(() => {
@@ -531,6 +553,76 @@ function formatTimePart(dateTimeStr) {
 function showDetailModal(row) {
   selectedRowData.value = row
   showDetailModalFlag.value = true
+}
+
+function toggleTooltip(event) {
+  showTooltip.value = !showTooltip.value
+  // 如果显示提示框，则检测位置
+  if (showTooltip.value) {
+    setTimeout(() => {
+      adjustTooltipPosition(event)
+    }, 0)
+  }
+}
+
+function adjustTooltipPosition(event) {
+  if (!showTooltip.value) return
+  
+  // 这里我们使用setTimeout确保DOM已经更新
+  setTimeout(() => {
+    const iconEl = event?.target?.closest('.info-icon') || event?.target
+    
+    if (iconEl) {
+      const iconRect = iconEl.getBoundingClientRect()
+      
+      // 由于使用fixed定位，直接设置相对于视口的位置
+      const iconCenterX = iconRect.left + iconRect.width / 2
+      
+      // 检查上方是否有足够空间显示提示框
+      if (iconRect.top < 40) { // 预留一定空间
+        // 如果上方空间不足，添加data-position属性让提示框显示在下方
+        // 设置位置在图标下方
+        tooltipStyle.value = {
+          left: `${iconCenterX}px`,
+          top: `${iconRect.bottom + 8}px`,
+          bottom: 'auto',
+        }
+      } else {
+        // 设置位置在图标上方
+        tooltipStyle.value = {
+          left: `${iconCenterX}px`,
+          bottom: `${window.innerHeight - iconRect.top + 8}px`,
+          top: 'auto',
+        }
+      }
+    }
+  }, 10)
+}
+
+function handleMouseEnter(event) {
+  showTooltip.value = true
+  adjustTooltipPosition(event)
+}
+
+function handleMouseLeave() {
+  // 延迟隐藏，让用户有机会将鼠标移到提示框上
+  setTimeout(() => {
+    if (!isMouseOverTooltip) {
+      showTooltip.value = false
+    }
+  }, 300)
+}
+
+// 跟踪鼠标是否在提示框上
+let isMouseOverTooltip = false
+
+function handleTooltipMouseEnter() {
+  isMouseOverTooltip = true
+}
+
+function handleTooltipMouseLeave() {
+  isMouseOverTooltip = false
+  showTooltip.value = false
 }
 
 onUnmounted(() => {
@@ -970,10 +1062,20 @@ onUnmounted(() => {
   background: #fff;
   border: 1px solid #ebeef5;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   max-height: 100%;
+}
+
+.disclaimer {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #909399;
+  font-size: 0.85rem;
+  padding: 1rem 0;
+  margin-top: 1rem;
+  border-top: 1px dashed #ebeef5;
 }
 
 .top20-card h3 {
@@ -983,6 +1085,72 @@ onUnmounted(() => {
   font-size: 0.95rem;
   border-bottom: 1px solid #ebeef5;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+.info-icon {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  margin-left: 0.5rem;
+}
+
+.info-icon svg {
+  color: #909399;
+  transition: color 0.2s ease;
+}
+
+.info-icon:hover svg {
+  color: #409eff;
+}
+
+.tooltip {
+  position: fixed;
+  top: auto;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: normal;
+  z-index: 9999;
+  width: max-content;
+  max-width: 350px;
+  min-width: 200px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* 当上方空间不足时，显示在下方 */
+.tooltip-bottom {
+  top: calc(100% + 8px);
+  bottom: auto;
+  white-space: normal;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.tooltip-bottom::before {
+  top: -12px;
+  border-color: transparent transparent #333 transparent;
+}
+
+.tooltip::before {
+  content: '';
+  position: fixed;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
 }
 
 .top20-list {
