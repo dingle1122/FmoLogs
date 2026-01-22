@@ -289,6 +289,26 @@ export class DatabaseManager {
     return total
   }
 
+  // 获取不重复呼号数量
+  getUniqueCallsignCount() {
+    const allCallsigns = new Set()
+    for (const { db } of this.databases) {
+      try {
+        const result = db.exec('SELECT DISTINCT toCallsign FROM qso_logs')
+        if (result.length > 0) {
+          for (const row of result[0].values) {
+            if (row[0]) {
+              allCallsigns.add(row[0])
+            }
+          }
+        }
+      } catch (err) {
+        console.error('获取呼号数失败:', err)
+      }
+    }
+    return allCallsigns.size
+  }
+
   // 执行查询
   query(queryType, page = 1, pageSize = 20, searchKeyword = '') {
     // TOP20汇总查询特殊处理

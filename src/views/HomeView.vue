@@ -6,6 +6,9 @@
         <span class="total-logs"
           ><span class="star">&#11088;</span> <strong>{{ totalLogs }}</strong></span
         >
+        <span v-if="uniqueCallsigns > 0" class="total-logs"
+          ><span class="callsign-icon">&#128225;</span> <strong>{{ uniqueCallsigns }}</strong></span
+        >
       </div>
       <div class="header-actions">
         <a
@@ -505,6 +508,7 @@ const dbManager = new DatabaseManager()
 const dbLoaded = ref(false)
 const dbCount = ref(0)
 const totalLogs = ref(0)
+const uniqueCallsigns = ref(0)
 const loading = ref(false)
 const error = ref(null)
 const currentQueryType = ref(QueryTypes.ALL)
@@ -629,6 +633,7 @@ async function loadDatabases(dbFiles) {
 
   dbCount.value = count
   totalLogs.value = dbManager.totalLogs
+  uniqueCallsigns.value = dbManager.getUniqueCallsignCount()
   dbLoaded.value = true
   currentQueryType.value = QueryTypes.ALL
   currentPage.value = 1
@@ -669,6 +674,7 @@ async function clearDirectory() {
   dbLoaded.value = false
   dbCount.value = 0
   totalLogs.value = 0
+  uniqueCallsigns.value = 0
   queryResult.value = null
   showSettings.value = false
   searchKeyword.value = ''
@@ -950,6 +956,10 @@ onUnmounted(() => {
 
 .star {
   font-size: 1.5rem;
+}
+
+.callsign-icon {
+  font-size: 1.2rem;
 }
 
 .header-actions {
@@ -1664,6 +1674,10 @@ onUnmounted(() => {
 
   .star {
     font-size: 1.2rem;
+  }
+
+  .callsign-icon {
+    font-size: 1.1rem;
   }
 
   .content-area {
