@@ -88,27 +88,27 @@ export async function loadDbFilesFromHandle(dirHandle) {
       const file = await entry.getFile()
       const arrayBuffer = await file.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
-      
+
       try {
         // 尝试打开数据库以验证其有效性
         const db = new SQL.Database(uint8Array)
-        
+
         // 尝试执行一个简单的查询来确认这是有效的SQLite数据库
         db.exec('SELECT 1')
-        
+
         // 验证数据库是否包含预期的表（例如 qso_logs 表）
         const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';")
-        const hasQsoLogsTable = tables.some(table => 
-          table.values.some(row => row.includes('qso_logs'))
+        const hasQsoLogsTable = tables.some((table) =>
+          table.values.some((row) => row.includes('qso_logs'))
         )
-        
+
         if (hasQsoLogsTable) {
           dbFiles.push({
             name: entry.name,
             data: uint8Array
           })
         }
-        
+
         // 关闭临时数据库连接
         db.close()
       } catch (err) {
@@ -143,32 +143,32 @@ export function supportsDirectoryPicker() {
 export async function loadDbFilesFromFileList(files) {
   const dbFiles = []
   await initSQL() // 确保SQL已经初始化
-  
+
   for (const file of files) {
     if (file.name.endsWith('.db')) {
       const arrayBuffer = await file.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
-      
+
       try {
         // 尝试打开数据库以验证其有效性
         const db = new SQL.Database(uint8Array)
-        
+
         // 尝试执行一个简单的查询来确认这是有效的SQLite数据库
         db.exec('SELECT 1')
-        
+
         // 验证数据库是否包含预期的表（例如 qso_logs 表）
         const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';")
-        const hasQsoLogsTable = tables.some(table => 
-          table.values.some(row => row.includes('qso_logs'))
+        const hasQsoLogsTable = tables.some((table) =>
+          table.values.some((row) => row.includes('qso_logs'))
         )
-        
+
         if (hasQsoLogsTable) {
           dbFiles.push({
             name: file.name,
             data: uint8Array
           })
         }
-        
+
         // 关闭临时数据库连接
         db.close()
       } catch (err) {
@@ -183,6 +183,7 @@ export async function loadDbFilesFromFileList(files) {
 export const QueryTypes = {
   ALL: 'all',
   TOP20_SUMMARY: 'top20Summary',
+  OLD_FRIENDS: 'oldFriends',
   TO_CALLSIGN: 'toCallsign',
   RELAY_NAME: 'relayName',
   TO_GRID: 'toGrid'
@@ -196,13 +197,16 @@ const QUERIES = {
   [QueryTypes.RELAY_NAME]:
     'SELECT relayName, relayAdmin, COUNT(*) as count FROM qso_logs GROUP BY relayName, relayAdmin ORDER BY count DESC',
   [QueryTypes.TO_GRID]:
-    'SELECT toGrid, COUNT(*) as count FROM qso_logs GROUP BY toGrid ORDER BY count DESC'
+    'SELECT toGrid, COUNT(*) as count FROM qso_logs GROUP BY toGrid ORDER BY count DESC',
+  [QueryTypes.OLD_FRIENDS]:
+    'SELECT toCallsign, COUNT(*) as count, MAX(timestamp) as latestTime, MIN(timestamp) as firstTime, toGrid FROM qso_logs GROUP BY toCallsign ORDER BY count DESC'
 }
 
 // 查询类型名称映射
 export const QueryTypeNames = {
   [QueryTypes.ALL]: '查看所有',
-  [QueryTypes.TOP20_SUMMARY]: '通联排名'
+  [QueryTypes.TOP20_SUMMARY]: '通联排名',
+  [QueryTypes.OLD_FRIENDS]: '老朋友'
 }
 
 // 表头中文映射
@@ -290,6 +294,11 @@ export class DatabaseManager {
     // TOP20汇总查询特殊处理
     if (queryType === QueryTypes.TOP20_SUMMARY) {
       return this.queryTop20Summary()
+    }
+
+    // 老朋友查询特殊处理
+    if (queryType === QueryTypes.OLD_FRIENDS) {
+      return this.queryOldFriends(page, pageSize, searchKeyword)
     }
 
     let sql = QUERIES[queryType]
@@ -467,6 +476,131 @@ export class DatabaseManager {
       toCallsign: mergeAndSort(toCallsignResults, 'toCallsign'),
       relayName: mergeRelayResults(relayNameResults),
       toGrid: mergeAndSort(toGridResults, 'toGrid')
+    }
+  }
+
+  // 老朋友查询
+  queryOldFriends(page = 1, pageSize = 20, searchKeyword = '') {
+    let sql = QUERIES[QueryTypes.OLD_FRIENDS]
+
+    // 如果有搜索关键字，修改SQL添加WHERE条件
+    if (searchKeyword) {
+      sql = `SELECT toCallsign, COUNT(*) as count, MAX(timestamp) as latestTime, MIN(timestamp) as firstTime, toGrid FROM qso_logs WHERE toCallsign LIKE '%${searchKeyword}%' GROUP BY toCallsign ORDER BY count DESC`
+    }
+
+    const allResults = []
+
+    for (const { db } of this.databases) {
+      try {
+        const result = db.exec(sql)
+        if (result.length > 0) {
+          const columns = result[0].columns
+          const values = result[0].values
+
+          for (const row of values) {
+            const rowObj = {}
+            columns.forEach((col, index) => {
+              rowObj[col] = row[index]
+            })
+            allResults.push(rowObj)
+          }
+        }
+      } catch (err) {
+        console.error('查询失败:', err)
+      }
+    }
+
+    // 合并来自多个数据库的结果（按toCallsign合并）
+    const merged = new Map()
+    for (const row of allResults) {
+      const key = row.toCallsign || ''
+      if (merged.has(key)) {
+        const existing = merged.get(key)
+        existing.count += row.count
+        // 取最早的首次通联时间
+        if (row.firstTime < existing.firstTime) {
+          existing.firstTime = row.firstTime
+        }
+        // 取最晚的最新通联时间
+        if (row.latestTime > existing.latestTime) {
+          existing.latestTime = row.latestTime
+          existing.toGrid = row.toGrid // 使用最新通联的toGrid
+        }
+      } else {
+        merged.set(key, { ...row })
+      }
+    }
+
+    // 按通联次数降序排序
+    const sortedResults = Array.from(merged.values()).sort((a, b) => b.count - a.count)
+
+    const total = sortedResults.length
+    const totalPages = Math.ceil(total / pageSize)
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    const data = sortedResults.slice(start, end)
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages
+    }
+  }
+
+  // 按呼号查询通联记录
+  queryByCallsign(callsign, page = 1, pageSize = 10) {
+    const sql = `SELECT * FROM qso_logs WHERE toCallsign = '${callsign}' ORDER BY timestamp DESC`
+
+    const allResults = []
+
+    for (const { db } of this.databases) {
+      try {
+        const result = db.exec(sql)
+        if (result.length > 0) {
+          const columns = result[0].columns
+          const values = result[0].values
+
+          for (const row of values) {
+            const rowObj = {}
+            columns.forEach((col, index) => {
+              rowObj[col] = row[index]
+            })
+            allResults.push(rowObj)
+          }
+        }
+      } catch (err) {
+        console.error('查询失败:', err)
+      }
+    }
+
+    // 按时间倒序排序
+    allResults.sort((a, b) => b.timestamp - a.timestamp)
+
+    const total = allResults.length
+    const totalPages = Math.ceil(total / pageSize)
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    const data = allResults.slice(start, end)
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+      totalPages,
+      columns: [
+        'timestamp',
+        'toCallsign',
+        'toGrid',
+        'freqHz',
+        'fromCallsign',
+        'fromGrid',
+        'toComment',
+        'mode',
+        'relayName'
+      ]
     }
   }
 

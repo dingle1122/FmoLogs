@@ -59,6 +59,15 @@
               @input="onSearchInput"
             />
           </div>
+          <div v-if="currentQueryType === 'oldFriends'" class="search-box">
+            <input
+              v-model="oldFriendsSearchKeyword"
+              type="text"
+              placeholder="搜索呼号"
+              :disabled="!dbLoaded"
+              @input="onOldFriendsSearchInput"
+            />
+          </div>
         </div>
       </div>
 
@@ -103,13 +112,34 @@
           <div class="top20-card">
             <h3>
               中继名称 TOP20
-              <span class="info-icon" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave" @click="toggleTooltip">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <span
+                class="info-icon"
+                @mouseenter="handleMouseEnter"
+                @mouseleave="handleMouseLeave"
+                @click="toggleTooltip"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="12" y1="16" x2="12" y2="12"></line>
                   <line x1="12" y1="8" x2="12.01" y2="8"></line>
                 </svg>
-                <div v-if="showTooltip" :class="tooltipClass" :style="tooltipStyle" @mouseenter="handleTooltipMouseEnter" @mouseleave="handleTooltipMouseLeave">
+                <div
+                  v-if="showTooltip"
+                  :class="tooltipClass"
+                  :style="tooltipStyle"
+                  @mouseenter="handleTooltipMouseEnter"
+                  @mouseleave="handleTooltipMouseLeave"
+                >
                   中继排名是根据导出的数据库信息进行排序的，存在被后续通联覆盖的情况。仅作娱乐性排名展示使用。
                 </div>
               </span>
@@ -135,6 +165,35 @@
         </template>
       </div>
 
+      <!-- 老朋友卡片视图 -->
+      <div v-else-if="currentQueryType === 'oldFriends'" class="old-friends-container">
+        <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
+        <template v-else-if="oldFriendsResult && oldFriendsResult.data.length > 0">
+          <div class="old-friends-grid">
+            <div
+              v-for="(item, index) in oldFriendsResult.data"
+              :key="'friend-' + index"
+              class="friend-card"
+              :class="{ 'today-contact': isTodayContact(item.latestTime) }"
+              @click="showCallsignRecords(item.toCallsign)"
+            >
+              <div class="friend-header">
+                <div class="friend-callsign">
+                  {{ item.toCallsign || '-' }}
+                  <span class="contact-count">（{{ item.count }}）</span>
+                </div>
+                <div class="friend-grid">{{ item.toGrid || '-' }}</div>
+              </div>
+              <div class="friend-time">
+                <div class="time-label">首次：{{ formatTimestamp(item.firstTime) }}</div>
+                <div class="time-label">最新：{{ formatTimestamp(item.latestTime) }}</div>
+              </div>
+            </div>
+          </div>
+        </template>
+        <div v-else-if="oldFriendsResult" class="empty-hint">暂无数据</div>
+      </div>
+
       <!-- 原有表格视图 -->
       <div v-else class="result-section">
         <table class="data-table">
@@ -155,7 +214,11 @@
               <td :colspan="displayColumns.length" class="empty-cell">暂无数据</td>
             </tr>
             <template v-else-if="queryResult">
-              <tr v-for="(row, index) in queryResult.data" :key="index" @click="showDetailModal(row)">
+              <tr
+                v-for="(row, index) in queryResult.data"
+                :key="index"
+                @click="showDetailModal(row)"
+              >
                 <td v-for="col in queryResult.columns" :key="col" :class="'col-' + col">
                   <template v-if="col === 'timestamp'">
                     <div class="timestamp-div">
@@ -183,7 +246,13 @@
       </div>
 
       <div v-if="currentQueryType === 'all'" class="pagination">
-        <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(1)" class="hidden-on-small">首页</button>
+        <button
+          :disabled="!dbLoaded || currentPage === 1"
+          class="hidden-on-small"
+          @click="goToPage(1)"
+        >
+          首页
+        </button>
         <button :disabled="!dbLoaded || currentPage === 1" @click="goToPage(currentPage - 1)">
           上一页
         </button>
@@ -198,8 +267,45 @@
         </button>
         <button
           :disabled="!dbLoaded || currentPage === totalPages || totalPages === 0"
-          @click="goToPage(totalPages)"
           class="hidden-on-small"
+          @click="goToPage(totalPages)"
+        >
+          末页
+        </button>
+      </div>
+
+      <div v-if="currentQueryType === 'oldFriends' && oldFriendsResult" class="pagination">
+        <button
+          :disabled="!dbLoaded || oldFriendsPage === 1"
+          class="hidden-on-small"
+          @click="goToOldFriendsPage(1)"
+        >
+          首页
+        </button>
+        <button
+          :disabled="!dbLoaded || oldFriendsPage === 1"
+          @click="goToOldFriendsPage(oldFriendsPage - 1)"
+        >
+          上一页
+        </button>
+        <span class="page-info">
+          第 {{ oldFriendsPage }} / {{ oldFriendsTotalPages }} 页 (共
+          {{ oldFriendsResult.total }} 条)
+        </span>
+        <button
+          :disabled="
+            !dbLoaded || oldFriendsPage === oldFriendsTotalPages || oldFriendsTotalPages === 0
+          "
+          @click="goToOldFriendsPage(oldFriendsPage + 1)"
+        >
+          下一页
+        </button>
+        <button
+          :disabled="
+            !dbLoaded || oldFriendsPage === oldFriendsTotalPages || oldFriendsTotalPages === 0
+          "
+          class="hidden-on-small"
+          @click="goToOldFriendsPage(oldFriendsTotalPages)"
         >
           末页
         </button>
@@ -214,7 +320,7 @@
           <button class="close-btn" @click="showDetailModalFlag = false">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="detail-item" v-for="(value, key) in filteredSelectedRowData" :key="key">
+          <div v-for="(value, key) in filteredSelectedRowData" :key="key" class="detail-item">
             <span class="detail-label">{{ ColumnNames[key] || key }}：</span>
             <span class="detail-value">
               <template v-if="key === 'timestamp'">
@@ -226,13 +332,100 @@
               <template v-else-if="key === 'relayName'">
                 <div class="relay-cell">
                   <div>{{ value }}</div>
-                  <div class="relay-admin" v-if="selectedRowData['relayAdmin']">（{{ selectedRowData['relayAdmin'] }}）</div>
+                  <div v-if="selectedRowData['relayAdmin']" class="relay-admin">
+                    （{{ selectedRowData['relayAdmin'] }}）
+                  </div>
                 </div>
               </template>
               <template v-else>
                 {{ value }}
               </template>
             </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 通联记录弹框 -->
+    <div v-if="showCallsignModal" class="modal-overlay" @click.self="showCallsignModal = false">
+      <div class="modal modal-callsign-records">
+        <div class="modal-header">
+          <h3>与 {{ currentCallsign }} 的通联记录</h3>
+          <button class="close-btn" @click="showCallsignModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="callsignRecords && callsignRecords.data.length > 0" class="record-cards-grid">
+            <div
+              v-for="(record, index) in callsignRecords.data"
+              :key="'record-' + index"
+              class="record-card"
+            >
+              <div class="record-row">
+                <span class="record-label">日期：</span>
+                <span class="record-value">{{ formatTimestamp(record.timestamp) }}</span>
+              </div>
+              <div class="record-row">
+                <span class="record-label">接收方：</span>
+                <span class="record-value"
+                  >{{ record.toCallsign }} / {{ record.toGrid || '-' }}</span
+                >
+              </div>
+              <div class="record-row">
+                <span class="record-label">发送方：</span>
+                <span class="record-value"
+                  >{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span
+                >
+              </div>
+              <div class="record-row">
+                <span class="record-label">频率：</span>
+                <span class="record-value">{{ formatFreqHz(record.freqHz) }} MHz</span>
+              </div>
+              <div class="record-row">
+                <span class="record-label">中继：</span>
+                <span class="record-value"
+                  >{{ record.relayName || '-'
+                  }}<template v-if="record.relayAdmin">（{{ record.relayAdmin }}）</template></span
+                >
+              </div>
+              <div v-if="record.toComment" class="record-row">
+                <span class="record-label">留言：</span>
+                <span class="record-value">{{ record.toComment }}</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-hint">暂无记录</div>
+        </div>
+        <div v-if="callsignRecords && callsignRecords.totalPages > 1" class="modal-footer">
+          <div class="pagination">
+            <button
+              :disabled="callsignRecordsPage === 1"
+              class="hidden-on-small"
+              @click="goToCallsignRecordsPage(1)"
+            >
+              首页
+            </button>
+            <button
+              :disabled="callsignRecordsPage === 1"
+              @click="goToCallsignRecordsPage(callsignRecordsPage - 1)"
+            >
+              上一页
+            </button>
+            <span class="page-info"
+              >第 {{ callsignRecordsPage }} / {{ callsignRecords.totalPages }} 页</span
+            >
+            <button
+              :disabled="callsignRecordsPage === callsignRecords.totalPages"
+              @click="goToCallsignRecordsPage(callsignRecordsPage + 1)"
+            >
+              下一页
+            </button>
+            <button
+              :disabled="callsignRecordsPage === callsignRecords.totalPages"
+              class="hidden-on-small"
+              @click="goToCallsignRecordsPage(callsignRecords.totalPages)"
+            >
+              末页
+            </button>
           </div>
         </div>
       </div>
@@ -325,6 +518,14 @@ const showDetailModalFlag = ref(false)
 const selectedRowData = ref(null)
 const showTooltip = ref(false)
 const tooltipStyle = ref({})
+const oldFriendsResult = ref(null)
+const oldFriendsPage = ref(1)
+const oldFriendsPageSize = 25
+const oldFriendsSearchKeyword = ref('')
+const showCallsignModal = ref(false)
+const currentCallsign = ref('')
+const callsignRecords = ref(null)
+const callsignRecordsPage = ref(1)
 const tooltipClass = computed(() => {
   // 根据样式中的top/bottom值判断位置
   if (tooltipStyle.value.top && tooltipStyle.value.top !== 'auto') {
@@ -337,14 +538,14 @@ const tooltipClass = computed(() => {
 // 过滤掉不显示在详情中的字段
 const filteredSelectedRowData = computed(() => {
   if (!selectedRowData.value) return {}
-  
+
   const filtered = {}
-  Object.keys(selectedRowData.value).forEach(key => {
+  Object.keys(selectedRowData.value).forEach((key) => {
     if (key !== 'logId' && key !== 'relayAdmin') {
       filtered[key] = selectedRowData.value[key]
     }
   })
-  
+
   return filtered
 })
 
@@ -374,6 +575,26 @@ const totalRecords = computed(() => {
   }
   return 0
 })
+
+// 老朋友总页数
+const oldFriendsTotalPages = computed(() => {
+  if (oldFriendsResult.value && oldFriendsResult.value.totalPages) {
+    return oldFriendsResult.value.totalPages
+  }
+  return 0
+})
+
+// 判断是否今日通联（使用UTC时间）
+function isTodayContact(timestamp) {
+  if (!timestamp) return false
+  const contactDate = new Date(timestamp * 1000)
+  const today = new Date()
+  return (
+    contactDate.getUTCFullYear() === today.getUTCFullYear() &&
+    contactDate.getUTCMonth() === today.getUTCMonth() &&
+    contactDate.getUTCDate() === today.getUTCDate()
+  )
+}
 
 // 页面加载时尝试恢复已保存的目录
 onMounted(async () => {
@@ -485,7 +706,9 @@ async function handleFileSelect(event) {
 
 function handleQueryTypeChange() {
   searchKeyword.value = ''
+  oldFriendsSearchKeyword.value = ''
   currentPage.value = 1
+  oldFriendsPage.value = 1
   executeQuery()
 }
 
@@ -512,6 +735,16 @@ function executeQuery() {
     if (currentQueryType.value === QueryTypes.TOP20_SUMMARY) {
       top20Result.value = dbManager.query(currentQueryType.value)
       queryResult.value = null
+      oldFriendsResult.value = null
+    } else if (currentQueryType.value === QueryTypes.OLD_FRIENDS) {
+      oldFriendsResult.value = dbManager.query(
+        currentQueryType.value,
+        oldFriendsPage.value,
+        oldFriendsPageSize,
+        oldFriendsSearchKeyword.value.trim()
+      )
+      queryResult.value = null
+      top20Result.value = null
     } else if (currentQueryType.value === QueryTypes.ALL) {
       queryResult.value = dbManager.query(
         currentQueryType.value,
@@ -520,15 +753,18 @@ function executeQuery() {
         searchKeyword.value.trim()
       )
       top20Result.value = null
+      oldFriendsResult.value = null
     } else {
       currentPage.value = 1
       queryResult.value = dbManager.query(currentQueryType.value)
       top20Result.value = null
+      oldFriendsResult.value = null
     }
   } catch (err) {
     error.value = `查询失败: ${err.message}`
     queryResult.value = null
     top20Result.value = null
+    oldFriendsResult.value = null
   }
 
   loading.value = false
@@ -540,14 +776,58 @@ function goToPage(page) {
   executeQuery()
 }
 
+// 老朋友搜索输入处理
+let oldFriendsSearchTimer = null
+
+function onOldFriendsSearchInput() {
+  if (oldFriendsSearchTimer) {
+    clearTimeout(oldFriendsSearchTimer)
+  }
+  oldFriendsSearchTimer = setTimeout(() => {
+    oldFriendsPage.value = 1
+    executeQuery()
+  }, 300)
+}
+
+// 老朋友分页跳转
+function goToOldFriendsPage(page) {
+  if (!oldFriendsResult.value || page < 1 || page > oldFriendsResult.value.totalPages) return
+  oldFriendsPage.value = page
+  executeQuery()
+}
+
+// 显示呼号通联记录
+function showCallsignRecords(callsign) {
+  currentCallsign.value = callsign
+  callsignRecordsPage.value = 1
+  loadCallsignRecords()
+  showCallsignModal.value = true
+}
+
+// 加载呼号通联记录
+function loadCallsignRecords() {
+  callsignRecords.value = dbManager.queryByCallsign(
+    currentCallsign.value,
+    callsignRecordsPage.value,
+    10
+  )
+}
+
+// 呼号记录分页跳转
+function goToCallsignRecordsPage(page) {
+  if (!callsignRecords.value || page < 1 || page > callsignRecords.value.totalPages) return
+  callsignRecordsPage.value = page
+  loadCallsignRecords()
+}
+
 function formatDatePart(dateTimeStr) {
   if (!dateTimeStr) return ''
-  return dateTimeStr.split(' ')[0]  // 只返回日期部分 (YYYY-MM-DD)
+  return dateTimeStr.split(' ')[0] // 只返回日期部分 (YYYY-MM-DD)
 }
 
 function formatTimePart(dateTimeStr) {
   if (!dateTimeStr) return ''
-  return dateTimeStr.split(' ')[1]  // 只返回时间部分 (HH:MM:SS)
+  return dateTimeStr.split(' ')[1] // 只返回时间部分 (HH:MM:SS)
 }
 
 function showDetailModal(row) {
@@ -567,32 +847,33 @@ function toggleTooltip(event) {
 
 function adjustTooltipPosition(event) {
   if (!showTooltip.value) return
-  
+
   // 这里我们使用setTimeout确保DOM已经更新
   setTimeout(() => {
     const iconEl = event?.target?.closest('.info-icon') || event?.target
-    
+
     if (iconEl) {
       const iconRect = iconEl.getBoundingClientRect()
-      
+
       // 由于使用fixed定位，直接设置相对于视口的位置
       const iconCenterX = iconRect.left + iconRect.width / 2
-      
+
       // 检查上方是否有足够空间显示提示框
-      if (iconRect.top < 40) { // 预留一定空间
+      if (iconRect.top < 40) {
+        // 预留一定空间
         // 如果上方空间不足，添加data-position属性让提示框显示在下方
         // 设置位置在图标下方
         tooltipStyle.value = {
           left: `${iconCenterX}px`,
           top: `${iconRect.bottom + 8}px`,
-          bottom: 'auto',
+          bottom: 'auto'
         }
       } else {
         // 设置位置在图标上方
         tooltipStyle.value = {
           left: `${iconCenterX}px`,
           bottom: `${window.innerHeight - iconRect.top + 8}px`,
-          top: 'auto',
+          top: 'auto'
         }
       }
     }
@@ -1223,10 +1504,144 @@ onUnmounted(() => {
   padding: 2rem;
 }
 
+/* 老朋友卡片样式 */
+.old-friends-container {
+  flex: 1;
+  overflow: auto;
+  margin-top: 1rem;
+}
+
+.old-friends-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+}
+
+.friend-card {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.friend-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.friend-card.today-contact {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.friend-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.friend-callsign {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.contact-count {
+  font-weight: normal;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.friend-grid {
+  font-size: 0.85rem;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.friend-time {
+  font-size: 0.85rem;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.friend-time .time-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 通联记录弹框样式 */
+.modal-callsign-records {
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-callsign-records .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.modal-callsign-records .modal-footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid #eee;
+  background: #fff;
+}
+
+.record-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.record-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.record-row {
+  display: flex;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.record-row:last-child {
+  margin-bottom: 0;
+}
+
+.record-label {
+  color: #6b7280;
+  flex-shrink: 0;
+  width: 60px;
+}
+
+.record-value {
+  color: #333;
+  flex: 1;
+  word-break: break-all;
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .top20-container {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .old-friends-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -1268,6 +1683,10 @@ onUnmounted(() => {
     max-height: 50vh;
   }
 
+  .old-friends-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .data-table {
     font-size: 0.8rem;
   }
@@ -1303,6 +1722,38 @@ onUnmounted(() => {
 
   .page-info {
     font-size: 0.85rem;
+  }
+
+  .record-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-callsign-records {
+    width: 95%;
+    max-height: 80vh;
+  }
+
+  .modal-callsign-records .modal-body {
+    padding: 0.75rem;
+    max-height: calc(80vh - 120px);
+  }
+
+  .modal-callsign-records .modal-footer {
+    padding: 0.5rem;
+  }
+
+  .modal-callsign-records .modal-footer .pagination {
+    gap: 0.25rem;
+  }
+
+  .modal-callsign-records .modal-footer .pagination button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .modal-callsign-records .modal-footer .page-info {
+    font-size: 0.75rem;
+    margin: 0 0.25rem;
   }
 }
 
@@ -1353,10 +1804,29 @@ onUnmounted(() => {
     width: 100%;
   }
 
+  .old-friends-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .friend-card {
+    padding: 0.6rem;
+  }
+
+  .friend-callsign {
+    font-size: 1rem;
+  }
+
+  .friend-grid {
+    font-size: 0.75rem;
+  }
+
+  .friend-time {
+    font-size: 0.8rem;
+  }
+
   .col-timestamp {
     width: 90px;
   }
 }
-
-
 </style>
