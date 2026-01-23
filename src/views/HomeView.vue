@@ -35,7 +35,12 @@
     </header>
 
     <div class="content-area">
-      <div v-if="loading" class="loading">加载中...</div>
+      <div v-if="loading" class="loading">
+        <template v-if="importProgress">
+          正在导入数据... {{ importProgress.current }} / {{ importProgress.total }}
+        </template>
+        <template v-else> 加载中... </template>
+      </div>
 
       <div v-if="error" class="error">{{ error }}</div>
 
@@ -53,23 +58,25 @@
               {{ name }}
             </label>
           </div>
-          <div v-if="currentQueryType === 'all'" class="search-box">
-            <input
-              v-model="searchKeyword"
-              type="text"
-              placeholder="接收方呼号"
-              :disabled="!dbLoaded"
-              @input="onSearchInput"
-            />
-          </div>
-          <div v-if="currentQueryType === 'oldFriends'" class="search-box">
-            <input
-              v-model="oldFriendsSearchKeyword"
-              type="text"
-              placeholder="搜索呼号"
-              :disabled="!dbLoaded"
-              @input="onOldFriendsSearchInput"
-            />
+          <div class="filter-controls">
+            <div v-if="currentQueryType === 'all'" class="search-box">
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="接收方呼号"
+                :disabled="!dbLoaded"
+                @input="onSearchInput"
+              />
+            </div>
+            <div v-if="currentQueryType === 'oldFriends'" class="search-box">
+              <input
+                v-model="oldFriendsSearchKeyword"
+                type="text"
+                placeholder="搜索呼号"
+                :disabled="!dbLoaded"
+                @input="onOldFriendsSearchInput"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -446,15 +453,45 @@
             <span class="setting-label">日志文件</span>
             <div class="setting-actions">
               <button v-if="canSelectDirectory" class="btn-primary" @click="selectDirectory">
-                {{ dbLoaded ? '重新选择目录' : '选择目录' }}
+                {{ dbLoaded ? '追加目录' : '选择目录' }}
               </button>
               <button class="btn-primary" @click="triggerFileInput">
-                {{ dbLoaded && !canSelectDirectory ? '重新选择文件' : '选择文件' }}
+                {{ dbLoaded && !canSelectDirectory ? '追加文件' : '选择文件' }}
               </button>
-              <button v-if="dbLoaded" class="btn-secondary" @click="clearDirectory">清除</button>
+              <button v-if="dbLoaded" class="btn-secondary" @click="clearDirectory">
+                清除授权
+              </button>
             </div>
           </div>
-          <div v-if="dbLoaded" class="setting-info">已加载 {{ dbCount }} 个数据库文件</div>
+          <div v-if="dbLoaded" class="setting-info">
+            已加载 {{ availableFromCallsigns.length }} 个呼号日志
+          </div>
+
+          <div v-if="availableFromCallsigns.length > 0" class="setting-item">
+            <span class="setting-label">发送方呼号</span>
+            <div class="setting-actions">
+              <select
+                v-model="selectedFromCallsign"
+                class="setting-select"
+                @change="handleFromCallsignChange"
+              >
+                <option
+                  v-for="callsign in availableFromCallsigns"
+                  :key="callsign"
+                  :value="callsign"
+                >
+                  {{ callsign }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="dbLoaded" class="setting-item setting-item-danger">
+            <span class="setting-label">数据管理</span>
+            <div class="setting-actions">
+              <button class="btn-danger" @click="handleClearAllData">清空所有数据</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -485,7 +522,16 @@ import {
   loadDbFilesFromHandle,
   clearDirHandle,
   supportsDirectoryPicker,
-  loadDbFilesFromFileList
+  loadDbFilesFromFileList,
+  importDbFilesToIndexedDB,
+  getAvailableFromCallsigns,
+  getTop20StatsFromIndexedDB,
+  getOldFriendsFromIndexedDB,
+  getCallsignRecordsFromIndexedDB,
+  getAllRecordsFromIndexedDB,
+  clearIndexedDBData,
+  getTotalRecordsCountFromIndexedDB,
+  getUniqueCallsignCountFromIndexedDB
 } from '../services/db'
 
 const PAGE_SIZE = 10
@@ -538,6 +584,11 @@ const tooltipClass = computed(() => {
     return 'tooltip'
   }
 })
+
+// IndexedDB模式相关状态
+const availableFromCallsigns = ref([])
+const selectedFromCallsign = ref('') // 空字符串表示"所有呼号"
+const importProgress = ref(null)
 
 // 过滤掉不显示在详情中的字段
 const filteredSelectedRowData = computed(() => {
@@ -615,6 +666,21 @@ async function tryRestoreDirectory() {
         await loadDatabases(dbFiles)
       }
       loading.value = false
+    } else {
+      // 尝试从IndexedDB恢复已有数据
+      const callsigns = await getAvailableFromCallsigns()
+      if (callsigns.length > 0) {
+        availableFromCallsigns.value = callsigns
+        // 默认选择第一个呼号
+        selectedFromCallsign.value = callsigns[0]
+        totalLogs.value = await getTotalRecordsCountFromIndexedDB(selectedFromCallsign.value)
+        uniqueCallsigns.value = await getUniqueCallsignCountFromIndexedDB(
+          selectedFromCallsign.value
+        )
+        dbLoaded.value = true
+        dbCount.value = callsigns.length
+        executeQuery()
+      }
     }
   } catch {
     // 权限可能已失效，忽略错误
@@ -624,16 +690,41 @@ async function tryRestoreDirectory() {
 
 async function loadDatabases(dbFiles) {
   dbManager.close()
-  const count = await dbManager.loadDatabases(dbFiles)
 
-  if (count === 0) {
-    error.value = '没有成功加载任何数据库文件'
-    return
+  // 导入数据到IndexedDB（不清空旧数据，追加合并）
+  importProgress.value = { current: 0, total: 0 }
+  const importResult = await importDbFilesToIndexedDB(dbFiles, (progress) => {
+    importProgress.value = progress
+  })
+  importProgress.value = null
+
+  if (importResult.totalRecords === 0 && importResult.callsigns.length === 0) {
+    // 尝试获取已有数据
+    const existingCallsigns = await getAvailableFromCallsigns()
+    if (existingCallsigns.length === 0) {
+      error.value = '没有成功导入任何数据'
+      return
+    }
+    availableFromCallsigns.value = existingCallsigns
+  } else {
+    // 更新可用的fromCallsign列表（合并新旧）
+    const allCallsigns = await getAvailableFromCallsigns()
+    availableFromCallsigns.value = allCallsigns
   }
 
-  dbCount.value = count
-  totalLogs.value = dbManager.totalLogs
-  uniqueCallsigns.value = dbManager.getUniqueCallsignCount()
+  // 如果没有选择呼号或选择的呼号不在列表中，默认选择第一个
+  if (
+    !selectedFromCallsign.value ||
+    !availableFromCallsigns.value.includes(selectedFromCallsign.value)
+  ) {
+    selectedFromCallsign.value = availableFromCallsigns.value[0]
+  }
+
+  // 获取统计数据
+  totalLogs.value = await getTotalRecordsCountFromIndexedDB(selectedFromCallsign.value)
+  uniqueCallsigns.value = await getUniqueCallsignCountFromIndexedDB(selectedFromCallsign.value)
+
+  dbCount.value = dbFiles.length
   dbLoaded.value = true
   currentQueryType.value = QueryTypes.ALL
   currentPage.value = 1
@@ -671,13 +762,30 @@ async function selectDirectory() {
 async function clearDirectory() {
   await clearDirHandle()
   dbManager.close()
+  showSettings.value = false
+}
+
+// 清空所有数据
+async function handleClearAllData() {
+  if (!window.confirm('确定要清空所有数据吗？此操作不可恢复。')) {
+    return
+  }
+
+  await clearDirHandle()
+  await clearIndexedDBData()
+  dbManager.close()
   dbLoaded.value = false
   dbCount.value = 0
   totalLogs.value = 0
   uniqueCallsigns.value = 0
   queryResult.value = null
+  top20Result.value = null
+  oldFriendsResult.value = null
   showSettings.value = false
   searchKeyword.value = ''
+  oldFriendsSearchKeyword.value = ''
+  availableFromCallsigns.value = []
+  selectedFromCallsign.value = ''
 }
 
 function triggerFileInput() {
@@ -718,6 +826,13 @@ function handleQueryTypeChange() {
   executeQuery()
 }
 
+// 处理fromCallsign选择变化
+function handleFromCallsignChange() {
+  currentPage.value = 1
+  oldFriendsPage.value = 1
+  executeQuery()
+}
+
 // 防抖定时器
 let searchTimer = null
 
@@ -731,41 +846,47 @@ function onSearchInput() {
   }, 300)
 }
 
-function executeQuery() {
-  if (!dbLoaded.value) return
+async function executeQuery() {
+  if (!dbLoaded.value || !selectedFromCallsign.value) return
 
   loading.value = true
   error.value = null
 
   try {
+    const fromCallsign = selectedFromCallsign.value
+
     if (currentQueryType.value === QueryTypes.TOP20_SUMMARY) {
-      top20Result.value = dbManager.query(currentQueryType.value)
+      top20Result.value = await getTop20StatsFromIndexedDB(fromCallsign)
       queryResult.value = null
       oldFriendsResult.value = null
     } else if (currentQueryType.value === QueryTypes.OLD_FRIENDS) {
-      oldFriendsResult.value = dbManager.query(
-        currentQueryType.value,
+      oldFriendsResult.value = await getOldFriendsFromIndexedDB(
         oldFriendsPage.value,
         oldFriendsPageSize,
-        oldFriendsSearchKeyword.value.trim()
+        oldFriendsSearchKeyword.value.trim(),
+        fromCallsign
       )
       queryResult.value = null
       top20Result.value = null
     } else if (currentQueryType.value === QueryTypes.ALL) {
-      queryResult.value = dbManager.query(
-        currentQueryType.value,
+      queryResult.value = await getAllRecordsFromIndexedDB(
         currentPage.value,
         PAGE_SIZE,
-        searchKeyword.value.trim()
+        searchKeyword.value.trim(),
+        fromCallsign
       )
       top20Result.value = null
       oldFriendsResult.value = null
     } else {
       currentPage.value = 1
-      queryResult.value = dbManager.query(currentQueryType.value)
+      queryResult.value = await getAllRecordsFromIndexedDB(1, PAGE_SIZE, '', fromCallsign)
       top20Result.value = null
       oldFriendsResult.value = null
     }
+
+    // 更新统计数据
+    totalLogs.value = await getTotalRecordsCountFromIndexedDB(fromCallsign)
+    uniqueCallsigns.value = await getUniqueCallsignCountFromIndexedDB(fromCallsign)
   } catch (err) {
     error.value = `查询失败: ${err.message}`
     queryResult.value = null
@@ -803,27 +924,28 @@ function goToOldFriendsPage(page) {
 }
 
 // 显示呼号通联记录
-function showCallsignRecords(callsign) {
+async function showCallsignRecords(callsign) {
   currentCallsign.value = callsign
   callsignRecordsPage.value = 1
-  loadCallsignRecords()
+  await loadCallsignRecords()
   showCallsignModal.value = true
 }
 
 // 加载呼号通联记录
-function loadCallsignRecords() {
-  callsignRecords.value = dbManager.queryByCallsign(
+async function loadCallsignRecords() {
+  callsignRecords.value = await getCallsignRecordsFromIndexedDB(
     currentCallsign.value,
     callsignRecordsPage.value,
-    10
+    10,
+    selectedFromCallsign.value
   )
 }
 
 // 呼号记录分页跳转
-function goToCallsignRecordsPage(page) {
+async function goToCallsignRecordsPage(page) {
   if (!callsignRecords.value || page < 1 || page > callsignRecords.value.totalPages) return
   callsignRecordsPage.value = page
-  loadCallsignRecords()
+  await loadCallsignRecords()
 }
 
 function formatDatePart(dateTimeStr) {
@@ -1022,6 +1144,13 @@ onUnmounted(() => {
 
 .query-types input:disabled + span {
   color: #c0c4cc;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -1330,6 +1459,41 @@ onUnmounted(() => {
   margin-top: 1rem;
   color: #67c23a;
   font-size: 0.9rem;
+}
+
+.setting-select {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: white;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.setting-select:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+.setting-item-danger {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.btn-danger {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: #f56c6c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #e64242;
 }
 
 /* TOP20汇总样式 */
