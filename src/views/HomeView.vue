@@ -986,6 +986,14 @@ async function handleSaveFmoAddress() {
 async function syncToday() {
   if (!fmoAddress.value || syncing.value) return
 
+  // 检查地址是否已保存，未保存则先保存
+  let address = fmoAddress.value.trim().replace(/^(https?|wss?):?\/\//, '')
+  const fullAddress = `${protocol.value}://${address}`
+  const savedAddress = await getFmoAddress()
+  if (fullAddress !== savedAddress) {
+    await saveFmoAddress(fullAddress)
+  }
+
   syncing.value = true
   syncStatus.value = '连接 FMO...'
   error.value = null
