@@ -526,10 +526,13 @@
                 <input
                   v-model="fmoAddress"
                   type="text"
-                  placeholder="输入设备IP"
+                  :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
                   class="setting-input-flex"
                 />
               </div>
+            </div>
+            <div v-if="!isMobileDevice" class="setting-note">
+              支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
             </div>
             <div class="setting-item-save">
               <button class="btn-save" @click="handleSaveFmoAddress">保存</button>
@@ -653,7 +656,7 @@ const tooltipClass = computed(() => {
 const availableFromCallsigns = ref([])
 const selectedFromCallsign = ref('') // 空字符串表示"所有呼号"
 const importProgress = ref(null)
-const fmoAddress = ref('')
+const fmoAddress = ref('') // 初始化为空，稍后在onMounted中根据设备类型设置
 const protocol = ref('ws')
 const syncing = ref(false)
 const syncStatus = ref('')
@@ -669,6 +672,11 @@ function showAutoSyncMessage(msg) {
 }
 
 const isHttps = window.location.protocol === 'https:'
+
+// 检测是否为移动设备
+const isMobileDevice = computed(() => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+})
 
 // 过滤掉不显示在详情中的字段
 const filteredSelectedRowData = computed(() => {
@@ -748,6 +756,9 @@ onMounted(async () => {
     } else {
       fmoAddress.value = savedAddress
     }
+  } else {
+    // 如果没有保存的地址，根据设备类型设置默认值
+    fmoAddress.value = isMobileDevice.value ? '' : 'fmo.local'
   }
 
   // 启动定时同步任务
@@ -943,6 +954,14 @@ async function handleSaveFmoAddress() {
   loading.value = true
   try {
     const host = address.replace(/\/+$/, '')
+    
+    // 检查是否为有效的IP地址或域名（包括fmo.local）
+    const client = new FmoApiClient(`${protocol.value}://${host}`)
+    if (!client.isValidAddress(host)) {
+      alert('请输入有效的IP地址或域名')
+      return
+    }
+    
     const wsUrl = `${protocol.value}://${host}/ws`
 
     const isConnected = await new Promise((resolve) => {
@@ -2343,6 +2362,25 @@ onUnmounted(() => {
   .old-friends-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.setting-note {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f0f9ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #606266;
+}
+
+.setting-note code {
+  background-color: #e6f7ff;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: monospace;
+  color: #409eff;
+  border: 1px solid #d9ecff;
 }
 
 @media (max-width: 768px) {
