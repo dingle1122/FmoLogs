@@ -5,6 +5,7 @@ export class FmoApiClient {
     this.pendingRequests = new Map()
     this.reconnectAttempts = 0
     this.maxReconnectAttempts = 3
+    this.connectPromise = null
   }
 
   async connect() {
@@ -12,15 +13,21 @@ export class FmoApiClient {
       return
     }
 
-    let host = this.baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-    const wsUrl = `ws://${host}/ws`
+    if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+      return this.connectPromise
+    }
 
-    return new Promise((resolve, reject) => {
+    let host = this.baseUrl.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+    const wsUrl = `${this.baseUrl.startsWith('wss') ? 'wss' : 'ws'}://${host}/ws`
+
+    this.connectPromise = new Promise((resolve, reject) => {
+      console.log(`Connecting to FMO: ${wsUrl}`)
       this.socket = new WebSocket(wsUrl)
 
       this.socket.onopen = () => {
         console.log('FMO WebSocket connected')
         this.reconnectAttempts = 0
+        this.connectPromise = null
         resolve()
       }
 
@@ -35,13 +42,17 @@ export class FmoApiClient {
 
       this.socket.onerror = (error) => {
         console.error('FMO WebSocket error:', error)
+        this.connectPromise = null
         reject(error)
       }
 
       this.socket.onclose = () => {
         console.log('FMO WebSocket closed')
+        this.connectPromise = null
       }
     })
+
+    return this.connectPromise
   }
 
   handleMessage(message) {
@@ -83,7 +94,7 @@ export class FmoApiClient {
           this.pendingRequests.delete(key)
           reject(new Error(`Request timeout: ${key}`))
         }
-      }, 10000)
+      }, 15000)
     })
   }
 

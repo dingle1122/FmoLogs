@@ -89,7 +89,7 @@
         <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
         <template v-else-if="top20Result">
           <div class="top20-card">
-            <h3>接收方呼号 TOP20</h3>
+            <h3>接收方呼号 TOP100</h3>
             <div class="top20-list">
               <div
                 v-for="(item, index) in top20Result.toCallsign"
@@ -583,7 +583,7 @@ import {
 } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 20
 
 /* 默认列（查看所有模式） */
 const DEFAULT_COLUMNS = [
@@ -619,7 +619,7 @@ const showTooltip = ref(false)
 const tooltipStyle = ref({})
 const oldFriendsResult = ref(null)
 const oldFriendsPage = ref(1)
-const oldFriendsPageSize = 25
+const oldFriendsPageSize = 50
 const oldFriendsSearchKeyword = ref('')
 const showCallsignModal = ref(false)
 const currentCallsign = ref('')
@@ -716,9 +716,10 @@ function isTodayContact(timestamp) {
   )
 }
 
-// 页面加载时尝试恢复已保存的目录
-// 自动同步定时器
+// 自动同步定时器和客户端
 let autoSyncTimer = null
+let autoSyncClient = null
+let isAutoSyncing = false
 
 onMounted(async () => {
   await tryRestoreDirectory()
@@ -744,14 +745,26 @@ async function startAutoSyncTask() {
   if (autoSyncTimer) return
 
   autoSyncTimer = setInterval(async () => {
-    // 如果正在手动同步或未设置地址，则跳过
-    if (syncing.value || !fmoAddress.value || !selectedFromCallsign.value) return
+    // 如果正在手动同步、自动同步已在进行中或未设置地址，则跳过
+    if (isAutoSyncing || syncing.value || !fmoAddress.value || !selectedFromCallsign.value) return
 
-    const client = new FmoApiClient(fmoAddress.value)
+    isAutoSyncing = true
+    
+    // 获取当前完整地址
+    const address = fmoAddress.value.trim()
+    const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+    const fullAddress = `${protocol.value}://${host}`
+
+    // 如果客户端不存在或地址已变更，则创建/重建客户端
+    if (!autoSyncClient || autoSyncClient.baseUrl !== fullAddress) {
+      if (autoSyncClient) autoSyncClient.close()
+      autoSyncClient = new FmoApiClient(fullAddress)
+    }
+
     try {
       // 使用当前选择的 fromCallsign 作为查询条件，每页查询3条数据
       const fromCallsign = selectedFromCallsign.value
-      const response = await client.getQsoList(0, 3, fromCallsign)
+      const response = await autoSyncClient.getQsoList(0, 3, fromCallsign)
       const list = response.list || []
       const newCallsigns = []
 
@@ -762,7 +775,7 @@ async function startAutoSyncTask() {
         const exists = await isQsoExistsInIndexedDB(itemFromCallsign, item.timestamp, item.toCallsign)
         if (!exists) {
           // 不存在则查询详情并插入数据库
-          const detailResponse = await client.getQsoDetail(item.logId)
+          const detailResponse = await autoSyncClient.getQsoDetail(item.logId)
           const qso = detailResponse.log
           if (qso) {
             await saveSingleQsoToIndexedDB(qso)
@@ -785,8 +798,12 @@ async function startAutoSyncTask() {
       }
     } catch (err) {
       console.error('定时同步失败:', err)
+      // 出错时尝试关闭连接，下次同步会重新连接
+      if (autoSyncClient) {
+        autoSyncClient.close()
+      }
     } finally {
-      client.close()
+      isAutoSyncing = false
     }
   }, 10000)
 }
@@ -1323,6 +1340,10 @@ onUnmounted(() => {
     clearInterval(autoSyncTimer)
     autoSyncTimer = null
   }
+  if (autoSyncClient) {
+    autoSyncClient.close()
+    autoSyncClient = null
+  }
   dbManager.close()
 })
 </script>
@@ -1541,7 +1562,12 @@ onUnmounted(() => {
   width: 100px;
 }
 .col-toCallsign {
-  width: 100px;
+  width: 140px;
+}
+
+.data-table tbody .col-toCallsign {
+  font-weight: bold;
+  font-size: 1.1rem;
 }
 .col-toGrid {
   width: 100px;

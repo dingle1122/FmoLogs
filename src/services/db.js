@@ -501,7 +501,7 @@ export class DatabaseManager {
       }
       return Array.from(merged.values())
         .sort((a, b) => b.count - a.count)
-        .slice(0, 20)
+        .slice(0, 100)
     }
 
     // 中继名称特殊合并
@@ -1023,7 +1023,7 @@ export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
   const toCallsign = Array.from(toCallsignMap.entries())
     .map(([toCallsign, count]) => ({ toCallsign, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 20)
+    .slice(0, 100)
 
   // 接收网格统计
   const toGridMap = new Map()
