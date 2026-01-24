@@ -486,6 +486,41 @@
             </div>
           </div>
 
+          <!-- FMO同步设置 -->
+          <div class="setting-group">
+            <div class="setting-item">
+              <span class="setting-label">FMO地址</span>
+              <div class="setting-actions">
+                <input
+                  v-model="fmoAddress"
+                  type="text"
+                  placeholder="输入设备IP"
+                  class="setting-input"
+                />
+                <button class="btn-primary" @click="handleSaveFmoAddress">保存</button>
+              </div>
+            </div>
+            <div class="setting-item-buttons">
+              <button
+                class="btn-secondary"
+                :disabled="!fmoAddress || syncing"
+                @click="syncToday"
+              >
+                {{ syncing ? '正在同步...' : '同步今日通联' }}
+              </button>
+              <button
+                class="btn-secondary"
+                :disabled="!fmoAddress || syncing"
+                @click="backupLogs"
+              >
+                备份FMO日志
+              </button>
+            </div>
+            <div v-if="syncStatus" class="sync-status">
+              {{ syncStatus }}
+            </div>
+          </div>
+
           <div v-if="dbLoaded" class="setting-item setting-item-danger">
             <span class="setting-label">数据管理</span>
             <div class="setting-actions">
@@ -531,8 +566,12 @@ import {
   getAllRecordsFromIndexedDB,
   clearIndexedDBData,
   getTotalRecordsCountFromIndexedDB,
-  getUniqueCallsignCountFromIndexedDB
+  getUniqueCallsignCountFromIndexedDB,
+  saveFmoAddress,
+  getFmoAddress,
+  saveSingleQsoToIndexedDB
 } from '../services/db'
+import { FmoApiClient } from '../services/fmoApi'
 
 const PAGE_SIZE = 10
 
@@ -589,6 +628,9 @@ const tooltipClass = computed(() => {
 const availableFromCallsigns = ref([])
 const selectedFromCallsign = ref('') // 空字符串表示"所有呼号"
 const importProgress = ref(null)
+const fmoAddress = ref('')
+const syncing = ref(false)
+const syncStatus = ref('')
 
 // 过滤掉不显示在详情中的字段
 const filteredSelectedRowData = computed(() => {
@@ -654,6 +696,7 @@ function isTodayContact(timestamp) {
 // 页面加载时尝试恢复已保存的目录
 onMounted(async () => {
   await tryRestoreDirectory()
+  fmoAddress.value = await getFmoAddress()
 })
 
 async function tryRestoreDirectory() {
@@ -763,6 +806,138 @@ async function clearDirectory() {
   await clearDirHandle()
   dbManager.close()
   showSettings.value = false
+}
+
+async function handleSaveFmoAddress() {
+  const address = fmoAddress.value.trim()
+
+  if (!address) {
+    await saveFmoAddress('')
+    alert('设置已保存')
+    return
+  }
+
+  // 校验地址
+  loading.value = true
+  try {
+    // 移除协议头和末尾斜杠
+    const host = address.replace(/^https?:\/\//, '').replace(/\/+$/, '')
+    const wsUrl = `ws://${host}/ws`
+
+    const isConnected = await new Promise((resolve) => {
+      const socket = new WebSocket(wsUrl)
+      const timeout = setTimeout(() => {
+        socket.close()
+        resolve(false)
+      }, 5000) // 5秒超时
+
+      socket.onopen = () => {
+        clearTimeout(timeout)
+        socket.close()
+        resolve(true)
+      }
+
+      socket.onerror = () => {
+        clearTimeout(timeout)
+        socket.close()
+        resolve(false)
+      }
+    })
+
+    if (isConnected) {
+      await saveFmoAddress(address)
+      alert('设置已保存')
+    } else {
+      alert('请确认fmo地址')
+    }
+  } catch (err) {
+    alert('请确认fmo地址')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function syncToday() {
+  if (!fmoAddress.value || syncing.value) return
+
+  syncing.value = true
+  syncStatus.value = '连接 FMO...'
+  error.value = null
+
+  const client = new FmoApiClient(fmoAddress.value)
+  try {
+    const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
+    let page = 0
+    let hasMoreToday = true
+    let totalSynced = 0
+
+    while (hasMoreToday) {
+      syncStatus.value = `获取第 ${page + 1} 页列表...`
+      const response = await client.getQsoList(page, 20)
+      const list = response.list
+
+      if (!list || list.length === 0) break
+
+      for (const item of list) {
+        if (item.timestamp >= todayStart) {
+          syncStatus.value = `获取详情: ${item.toCallsign}...`
+          const detailResponse = await client.getQsoDetail(item.logId)
+          const qso = detailResponse.log
+
+          if (qso) {
+            await saveSingleQsoToIndexedDB(qso)
+            totalSynced++
+          }
+        } else {
+          hasMoreToday = false
+          break
+        }
+      }
+
+      if (list.length < 20) break
+      page++
+    }
+
+    syncStatus.value = `同步完成，共更新 ${totalSynced} 条记录`
+    setTimeout(() => {
+      syncStatus.value = ''
+    }, 3000)
+
+    // 重新加载数据以刷新界面
+    const callsigns = await getAvailableFromCallsigns()
+    availableFromCallsigns.value = callsigns
+    if (callsigns.length > 0 && !selectedFromCallsign.value) {
+      selectedFromCallsign.value = callsigns[0]
+    }
+    await executeQuery()
+  } catch (err) {
+    error.value = `同步失败: ${err.message}`
+  } finally {
+    syncing.value = false
+    client.close()
+  }
+}
+
+function backupLogs() {
+  if (!fmoAddress.value) return
+
+  let address = fmoAddress.value.trim()
+  if (!address.startsWith('http://') && !address.startsWith('https://')) {
+    address = 'http://' + address
+  }
+
+  // 移除末尾斜杠
+  address = address.replace(/\/+$/, '')
+
+  const url = `${address}/api/qso/backup`
+
+  // 创建隐藏链接并触发下载
+  const link = document.createElement('a')
+  link.href = url
+  link.target = '_blank'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
 }
 
 // 清空所有数据
@@ -1416,6 +1591,50 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.setting-input {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  width: 150px;
+}
+
+.setting-input:focus {
+  outline: none;
+  border-color: #409eff;
+}
+
+.setting-group {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.setting-group .setting-item {
+  margin-bottom: 1rem;
+}
+
+.setting-group .setting-item-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 0.8rem;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.sync-status {
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+  color: #409eff;
+  text-align: center;
+}
+
+.setting-item-buttons .btn-secondary {
+  width: 100%;
 }
 
 .setting-label {

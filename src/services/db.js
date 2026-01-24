@@ -70,6 +70,34 @@ export async function clearDirHandle() {
   })
 }
 
+// 保存FMO地址
+export async function saveFmoAddress(address) {
+  const db = await openIndexedDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    const request = store.put(address, 'fmoAddress')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => resolve()
+  })
+}
+
+// 获取FMO地址
+export async function getFmoAddress() {
+  try {
+    const db = await openIndexedDB()
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly')
+      const store = tx.objectStore(STORE_NAME)
+      const request = store.get('fmoAddress')
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result || '')
+    })
+  } catch {
+    return ''
+  }
+}
+
 // 从目录句柄加载数据库文件
 export async function loadDbFilesFromHandle(dirHandle) {
   const dbFiles = []
@@ -1252,4 +1280,22 @@ export async function getUniqueCallsignCountFromIndexedDB(fromCallsign = null) {
   }
 
   return uniqueCallsigns.size
+}
+
+// 保存单个QSO记录到IndexedDB
+export async function saveSingleQsoToIndexedDB(record) {
+  if (!record.fromCallsign) return
+
+  // 确保存储空间存在
+  await openLogsDatabase([record.fromCallsign])
+
+  const storeName = `logs_from_${record.fromCallsign}`
+  await writeRecordsToStore(storeName, [record])
+
+  // 更新已知的fromCallsign列表
+  const currentCallsigns = await getAvailableFromCallsigns()
+  if (!currentCallsigns.includes(record.fromCallsign)) {
+    const newList = [...currentCallsigns, record.fromCallsign]
+    await saveCallsignList(newList)
+  }
 }
