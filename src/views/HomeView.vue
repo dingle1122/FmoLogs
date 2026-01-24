@@ -489,7 +489,17 @@
           <!-- FMO同步设置 -->
           <div class="setting-group">
             <div class="setting-item">
-              <span class="setting-label">FMO地址</span>
+              <span class="setting-label">
+                FMO地址
+                <span
+                  v-if="isHttps && !useWss"
+                  class="https-warning-icon"
+                  @click="showHttpsWarning = !showHttpsWarning"
+                  title="点击查看提示"
+                >
+                  ⚠️
+                </span>
+              </span>
               <div class="setting-actions">
                 <input
                   v-model="fmoAddress"
@@ -497,10 +507,14 @@
                   placeholder="输入设备IP"
                   class="setting-input"
                 />
+                <label class="wss-checkbox">
+                  <input v-model="useWss" type="checkbox" />
+                  <span>WSS</span>
+                </label>
                 <button class="btn-primary" @click="handleSaveFmoAddress">保存</button>
               </div>
             </div>
-            <div v-if="isHttps && !fmoAddress.startsWith('wss://')" class="https-hint">
+            <div v-if="showHttpsWarning" class="https-hint">
               <strong>提示：</strong>由于本站使用 HTTPS，浏览器默认会拦截局域网连接。若无法保存，请点击地址栏左侧图标
               -> 网站设置 -> 找到“不安全内容”并设置为“允许”。
             </div>
@@ -633,8 +647,10 @@ const availableFromCallsigns = ref([])
 const selectedFromCallsign = ref('') // 空字符串表示"所有呼号"
 const importProgress = ref(null)
 const fmoAddress = ref('')
+const useWss = ref(false)
 const syncing = ref(false)
 const syncStatus = ref('')
+const showHttpsWarning = ref(false)
 
 const isHttps = window.location.protocol === 'https:'
 
@@ -702,7 +718,15 @@ function isTodayContact(timestamp) {
 // 页面加载时尝试恢复已保存的目录
 onMounted(async () => {
   await tryRestoreDirectory()
-  fmoAddress.value = await getFmoAddress()
+  const savedAddress = await getFmoAddress()
+  if (savedAddress) {
+    if (savedAddress.startsWith('wss://')) {
+      useWss.value = true
+      fmoAddress.value = savedAddress.replace(/^wss:\/\//, '')
+    } else {
+      fmoAddress.value = savedAddress
+    }
+  }
 })
 
 async function tryRestoreDirectory() {
@@ -815,7 +839,7 @@ async function clearDirectory() {
 }
 
 async function handleSaveFmoAddress() {
-  const address = fmoAddress.value.trim()
+  let address = fmoAddress.value.trim()
 
   if (!address) {
     await saveFmoAddress('')
@@ -823,12 +847,17 @@ async function handleSaveFmoAddress() {
     return
   }
 
+  // 移除协议头（如果用户手动输入了）
+  address = address.replace(/^(https?|wss?):?\/\//, '')
+
+  // 根据 WSS 选项构造完整地址
+  const fullAddress = useWss.value ? `wss://${address}` : address
+
   // 校验地址
   loading.value = true
   try {
-    // 移除协议头和末尾斜杠
-    const host = address.replace(/^https?:\/\//, '').replace(/\/+$/, '')
-    const wsUrl = `ws://${host}/ws`
+    const host = address.replace(/\/+$/, '')
+    const wsUrl = useWss.value ? `wss://${host}/ws` : `ws://${host}/ws`
 
     const isConnected = await new Promise((resolve) => {
       const socket = new WebSocket(wsUrl)
@@ -851,12 +880,12 @@ async function handleSaveFmoAddress() {
     })
 
     if (isConnected) {
-      await saveFmoAddress(address)
+      await saveFmoAddress(fullAddress)
       alert('设置已保存')
     } else {
-      if (isHttps && !address.startsWith('wss://')) {
+      if (isHttps && !useWss.value) {
         alert(
-          '请确认 fmo 地址。提示：HTTPS 网站无法直接连接局域网设备，请按界面提示开启浏览器“不安全内容”访问权限。'
+          '请确认 fmo 地址。提示：HTTPS 网站无法直接连接局域网设备，请按界面提示开启浏览器“不安全内容”访问权限，或勾选 WSS 选项。'
         )
       } else {
         alert('请确认fmo地址')
@@ -1668,6 +1697,29 @@ onUnmounted(() => {
 
 .setting-label {
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.https-warning-icon {
+  font-size: 1.1rem;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s;
+}
+
+.wss-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.wss-checkbox input[type='checkbox'] {
+  cursor: pointer;
 }
 
 .setting-actions {
