@@ -2,24 +2,128 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* 背景色 */
+  --bg-page: #ffffff;
+  --bg-container: #ffffff;
+  --bg-header: #ffffff;
+  --bg-card: #ffffff;
+  --bg-input: #ffffff;
+  --bg-table-header: #f5f7fa;
+  --bg-table-hover: #f5f7fa;
+  --bg-disabled: #f0f2f5;
+  --bg-success-light: #f0f9eb;
+  --bg-warning-light: #fff7ed;
+  --bg-error-light: #fef0f0;
+  --bg-https-hint: #fff7e6;
+
+  /* 文字色 */
+  --text-primary: #333333;
+  --text-secondary: #606266;
+  --text-tertiary: #909399;
+  --text-disabled: #c0c4cc;
+  --text-white: #ffffff;
+
+  /* 边框色 */
+  --border-primary: #dcdfe6;
+  --border-secondary: #ebeef5;
+  --border-light: #eeeeee;
+  --border-table: #dddddd;
+
+  /* 功能色 */
+  --color-primary: #409eff;
+  --color-primary-hover: #337ecc;
+  --color-success: #67c23a;
+  --color-success-border: #e1f3d8;
+  --color-warning: #d46b08;
+  --color-warning-border: #ffd591;
+  --color-danger: #f56c6c;
+  --color-danger-hover: #e64242;
+
+  /* 卡片特殊背景 */
+  --bg-friend-card: #fff7ed;
+  --border-friend-card: #fed7aa;
+  --bg-today-card: #f0fdf4;
+  --border-today-card: #86efac;
+  --bg-record-card: #f9fafb;
+  --border-record-card: #e5e7eb;
+
+  /* 阴影和遮罩 */
+  --shadow-card: rgba(0, 0, 0, 0.1);
+  --shadow-modal: rgba(0, 0, 0, 0.15);
+  --shadow-primary: rgba(64, 158, 255, 0.2);
+  --shadow-primary-hover: rgba(64, 158, 255, 0.3);
+  --overlay-bg: rgba(0, 0, 0, 0.5);
+  --tooltip-bg: #333333;
+
+  /* 默认浅色模式颜色 */
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 背景色 - 分层设计 */
+    --bg-page: #1a1a1a;
+    --bg-container: #242424;
+    --bg-header: #2c2c2c;
+    --bg-card: #2c2c2c;
+    --bg-input: #3a3a3a;
+    --bg-table-header: #363636;
+    --bg-table-hover: #333333;
+    --bg-disabled: #404040;
+    --bg-success-light: #1f3a1f;
+    --bg-warning-light: #3a2e1f;
+    --bg-error-light: #3a1f1f;
+    --bg-https-hint: #3a2e1f;
+
+    /* 文字色 - 高对比度 */
+    --text-primary: #e8e8e8;
+    --text-secondary: #b8b8b8;
+    --text-tertiary: #909399;
+    --text-disabled: #666666;
+
+    /* 边框色 */
+    --border-primary: #404040;
+    --border-secondary: #363636;
+    --border-light: #333333;
+    --border-table: #404040;
+
+    /* 功能色 - 略微调亮悬停色 */
+    --color-primary-hover: #66b1ff;
+    --color-success-border: #2d5a2d;
+    --color-warning-border: #5a4a2d;
+    --color-danger-hover: #f78989;
+
+    /* 卡片特殊背景 */
+    --bg-friend-card: #3a2e1f;
+    --border-friend-card: #5a4a2d;
+    --bg-today-card: #1f3a1f;
+    --border-today-card: #2d5a2d;
+    --bg-record-card: #333333;
+    --border-record-card: #404040;
+
+    /* 阴影和遮罩 */
+    --shadow-card: rgba(0, 0, 0, 0.3);
+    --shadow-modal: rgba(0, 0, 0, 0.5);
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+    --tooltip-bg: #4a4a4a;
+  }
 }
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--color-primary);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--color-primary-hover);
 }
 
 body {
@@ -27,6 +131,8 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
 }
 
 * {
@@ -40,17 +146,19 @@ h1 {
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-primary);
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--bg-container);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: var(--color-primary);
+  background-color: var(--bg-table-hover);
 }
 button:focus,
 button:focus-visible {
@@ -67,17 +175,4 @@ button:focus-visible {
   margin: 0 auto;
   padding: 0;
   text-align: left;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
 }
