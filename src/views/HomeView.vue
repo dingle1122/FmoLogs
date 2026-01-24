@@ -587,7 +587,7 @@ import {
 } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 100
 
 /* 默认列（查看所有模式） */
 const DEFAULT_COLUMNS = [
