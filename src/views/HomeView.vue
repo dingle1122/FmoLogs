@@ -500,6 +500,10 @@
                 <button class="btn-primary" @click="handleSaveFmoAddress">保存</button>
               </div>
             </div>
+            <div v-if="isHttps && !fmoAddress.startsWith('wss://')" class="https-hint">
+              <strong>提示：</strong>由于本站使用 HTTPS，浏览器默认会拦截局域网连接。若无法保存，请点击地址栏左侧图标
+              -> 网站设置 -> 找到“不安全内容”并设置为“允许”。
+            </div>
             <div class="setting-item-buttons">
               <button
                 class="btn-secondary"
@@ -631,6 +635,8 @@ const importProgress = ref(null)
 const fmoAddress = ref('')
 const syncing = ref(false)
 const syncStatus = ref('')
+
+const isHttps = window.location.protocol === 'https:'
 
 // 过滤掉不显示在详情中的字段
 const filteredSelectedRowData = computed(() => {
@@ -848,7 +854,13 @@ async function handleSaveFmoAddress() {
       await saveFmoAddress(address)
       alert('设置已保存')
     } else {
-      alert('请确认fmo地址')
+      if (isHttps && !address.startsWith('wss://')) {
+        alert(
+          '请确认 fmo 地址。提示：HTTPS 网站无法直接连接局域网设备，请按界面提示开启浏览器“不安全内容”访问权限。'
+        )
+      } else {
+        alert('请确认fmo地址')
+      }
     }
   } catch (err) {
     alert('请确认fmo地址')
@@ -899,17 +911,23 @@ async function syncToday() {
     }
 
     syncStatus.value = `同步完成，共更新 ${totalSynced} 条记录`
-    setTimeout(() => {
-      syncStatus.value = ''
-    }, 3000)
 
-    // 重新加载数据以刷新界面
+    // 重新加载数据以刷新界面状态
     const callsigns = await getAvailableFromCallsigns()
     availableFromCallsigns.value = callsigns
-    if (callsigns.length > 0 && !selectedFromCallsign.value) {
-      selectedFromCallsign.value = callsigns[0]
+    if (callsigns.length > 0) {
+      if (!selectedFromCallsign.value) {
+        selectedFromCallsign.value = callsigns[0]
+      }
+      dbLoaded.value = true
+      dbCount.value = callsigns.length
     }
     await executeQuery()
+
+    // 延迟刷新页面，确保用户看到同步成功的提示并刷新完整状态
+    setTimeout(() => {
+      window.location.reload()
+    }, 1500)
   } catch (err) {
     error.value = `同步失败: ${err.message}`
   } finally {
@@ -1631,6 +1649,17 @@ onUnmounted(() => {
   font-size: 0.85rem;
   color: #409eff;
   text-align: center;
+}
+
+.https-hint {
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #d46b08;
+  line-height: 1.5;
 }
 
 .setting-item-buttons .btn-secondary {
