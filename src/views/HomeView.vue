@@ -1716,6 +1716,8 @@ onUnmounted(() => {
   border: 1px solid #dcdfe6;
   border-radius: 4px;
   font-size: 0.9rem;
+  min-width: 0;
+  width: 98%;
 }
 
 .setting-input-flex:focus {
