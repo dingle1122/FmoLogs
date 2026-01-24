@@ -248,6 +248,18 @@
                       <div class="relay-admin">（{{ row.relayAdmin }}）</div>
                     </div>
                   </template>
+                  <template v-else-if="col === 'toCallsign'">
+                    <div class="callsign-with-grid">
+                      <div class="callsign-main">{{ row.toCallsign }}</div>
+                      <div v-if="row.toGrid" class="callsign-grid">{{ row.toGrid }}</div>
+                    </div>
+                  </template>
+                  <template v-else-if="col === 'fromCallsign'">
+                    <div class="callsign-with-grid">
+                      <div>{{ row.fromCallsign }}</div>
+                      <div v-if="row.fromGrid" class="callsign-grid">{{ row.fromGrid }}</div>
+                    </div>
+                  </template>
                   <template v-else>
                     {{ row[col] }}
                   </template>
@@ -510,18 +522,10 @@
               <button class="btn-save" @click="handleSaveFmoAddress">保存</button>
             </div>
             <div class="setting-item-buttons">
-              <button
-                class="btn-secondary"
-                :disabled="!fmoAddress || syncing"
-                @click="syncToday"
-              >
+              <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="syncToday">
                 {{ syncing ? '正在同步...' : '同步今日通联' }}
               </button>
-              <button
-                class="btn-secondary"
-                :disabled="!fmoAddress || syncing"
-                @click="backupLogs"
-              >
+              <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="backupLogs">
                 备份FMO日志
               </button>
             </div>
@@ -589,10 +593,8 @@ const PAGE_SIZE = 20
 const DEFAULT_COLUMNS = [
   'timestamp',
   'toCallsign',
-  'toGrid',
-  'freqHz',
   'fromCallsign',
-  'fromGrid',
+  'freqHz',
   'toComment',
   'mode',
   'relayName'
@@ -749,7 +751,7 @@ async function startAutoSyncTask() {
     if (isAutoSyncing || syncing.value || !fmoAddress.value || !selectedFromCallsign.value) return
 
     isAutoSyncing = true
-    
+
     // 获取当前完整地址
     const address = fmoAddress.value.trim()
     const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
@@ -772,7 +774,11 @@ async function startAutoSyncTask() {
         // 判断记录是否已存在（根据 fromCallsign, timestamp, toCallsign）
         // 如果列表项中没有 fromCallsign，使用当前选择的 fromCallsign
         const itemFromCallsign = item.fromCallsign || fromCallsign
-        const exists = await isQsoExistsInIndexedDB(itemFromCallsign, item.timestamp, item.toCallsign)
+        const exists = await isQsoExistsInIndexedDB(
+          itemFromCallsign,
+          item.timestamp,
+          item.toCallsign
+        )
         if (!exists) {
           // 不存在则查询详情并插入数据库
           const detailResponse = await autoSyncClient.getQsoDetail(item.logId)
@@ -789,10 +795,10 @@ async function startAutoSyncTask() {
         // 更新呼号列表（可能有新的 fromCallsign）
         const callsigns = await getAvailableFromCallsigns()
         availableFromCallsigns.value = callsigns
-        
+
         // 重新查询当前页数据
         await executeQuery()
-        
+
         // 提示同步到的通联
         showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
       }
@@ -1546,6 +1552,7 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 1;
+  text-align: center;
 }
 
 /* 列宽设置 */
@@ -1564,11 +1571,6 @@ onUnmounted(() => {
 .col-toCallsign {
   width: 140px;
 }
-
-.data-table tbody .col-toCallsign {
-  font-weight: bold;
-  font-size: 1.1rem;
-}
 .col-toGrid {
   width: 100px;
 }
@@ -1576,7 +1578,7 @@ onUnmounted(() => {
   width: auto;
 }
 .col-mode {
-  width: 50px;
+  width: 80px;
 }
 .col-relayName {
   width: 130px;
@@ -1607,6 +1609,24 @@ onUnmounted(() => {
 .relay-admin {
   color: #909399;
   font-size: 0.85rem;
+}
+
+/* 呼号+网格合并显示样式 */
+.callsign-with-grid {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.callsign-main {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.callsign-grid {
+  font-size: 0.85rem;
+  color: #606266;
+  font-weight: normal;
 }
 
 .modal-detail .relay-cell {
@@ -2331,7 +2351,6 @@ onUnmounted(() => {
   /* 隐藏部分列 */
   .col-freqHz,
   .col-fromCallsign,
-  .col-fromGrid,
   .col-toComment,
   .col-mode,
   .col-relayName {
@@ -2391,20 +2410,18 @@ onUnmounted(() => {
 
 /* 手机端只显示关键列 */
 @media (max-width: 480px) {
-  /* 隐藏除日期、接收方呼号、接收网格外的所有列 */
+  /* 隐藏除日期、接收方呼号外的所有列 */
   .col-freqHz,
   .col-fromCallsign,
-  .col-fromGrid,
   .col-toComment,
   .col-mode,
   .col-relayName {
     display: none;
   }
 
-  /* 确保只显示日期、接收方呼号、接收网格列 */
+  /* 确保只显示日期、接收方呼号列 */
   .col-timestamp,
-  .col-toCallsign,
-  .col-toGrid {
+  .col-toCallsign {
     display: table-cell;
   }
 

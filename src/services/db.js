@@ -1201,11 +1201,9 @@ export async function getAllRecordsFromIndexedDB(
     totalPages,
     columns: [
       'timestamp',
-      'freqHz',
-      'fromCallsign',
-      'fromGrid',
       'toCallsign',
-      'toGrid',
+      'fromCallsign',
+      'freqHz',
       'toComment',
       'mode',
       'relayName'
