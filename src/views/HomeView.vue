@@ -239,6 +239,18 @@
                       <div>{{ formatTimePart(formatTimestamp(row[col])) }}</div>
                     </div>
                   </template>
+                  <template v-else-if="col === 'dailyIndex'">
+                    <div class="daily-index-cell">
+                      <span
+                        class="daily-index"
+                        :class="{
+                          'rank-1': row.dailyIndex === 1,
+                          'rank-2': row.dailyIndex === 2,
+                          'rank-3': row.dailyIndex === 3
+                        }"
+                      >{{ row.dailyIndex }}</span>
+                    </div>
+                  </template>
                   <template v-else-if="col === 'freqHz'">
                     {{ formatFreqHz(row[col]) }}
                   </template>
@@ -663,7 +675,7 @@ const filteredSelectedRowData = computed(() => {
 
   const filtered = {}
   Object.keys(selectedRowData.value).forEach((key) => {
-    if (key !== 'logId' && key !== 'relayAdmin') {
+    if (key !== 'logId' && key !== 'relayAdmin' && key !== 'dailyIndex') {
       filtered[key] = selectedRowData.value[key]
     }
   })
@@ -1559,6 +1571,11 @@ onUnmounted(() => {
 .col-timestamp {
   width: 120px;
 }
+.col-dailyIndex {
+  width: 60px;
+  text-align: center;
+  vertical-align: middle;
+}
 .col-freqHz {
   width: 95px;
 }
@@ -1627,6 +1644,39 @@ onUnmounted(() => {
   font-size: 0.85rem;
   color: #606266;
   font-weight: normal;
+}
+
+.daily-index {
+  display: inline-block;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #606266;
+  background: #f0f2f5;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  min-width: 1.8rem;
+  text-align: center;
+}
+
+.daily-index.rank-1 {
+  color: #fff;
+  background: linear-gradient(135deg, #f7c247, #e6a23c);
+}
+
+.daily-index.rank-2 {
+  color: #fff;
+  background: linear-gradient(135deg, #a8b0ba, #909399);
+}
+
+.daily-index.rank-3 {
+  color: #fff;
+  background: linear-gradient(135deg, #cd8c52, #b87333);
+}
+
+.daily-index-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .modal-detail .relay-cell {

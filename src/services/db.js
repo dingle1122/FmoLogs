@@ -239,6 +239,7 @@ export const QueryTypeNames = {
 
 // 表头中文映射
 export const ColumnNames = {
+  dailyIndex: '序号',
   timestamp: '日期',
   freqHz: '频率(MHz)',
   fromCallsign: '发送方呼号',
@@ -1161,6 +1162,29 @@ export async function getCallsignRecordsFromIndexedDB(
   }
 }
 
+// 计算每日通联序号（根据UTC日期分组，按时间顺序编号，从1开始）
+function calculateDailyIndex(records) {
+  // 按UTC日期分组
+  const groupedByDate = new Map()
+  for (const record of records) {
+    const utcDate = timestampToUTCDate(record.timestamp)
+    if (!groupedByDate.has(utcDate)) {
+      groupedByDate.set(utcDate, [])
+    }
+    groupedByDate.get(utcDate).push(record)
+  }
+
+  // 在每个日期组内按时间戳升序排序，并分配序号
+  for (const [, dayRecords] of groupedByDate) {
+    dayRecords.sort((a, b) => a.timestamp - b.timestamp)
+    dayRecords.forEach((record, index) => {
+      record.dailyIndex = index + 1
+    })
+  }
+
+  return records
+}
+
 // 获取所有记录
 export async function getAllRecordsFromIndexedDB(
   page = 1,
@@ -1175,6 +1199,9 @@ export async function getAllRecordsFromIndexedDB(
   } else {
     allRecords = await getConsolidatedDataFromIndexedDB()
   }
+
+  // 计算每日序号（在过滤前计算，确保序号基于完整数据）
+  calculateDailyIndex(allRecords)
 
   // 搜索过滤
   let filtered = allRecords
@@ -1201,6 +1228,7 @@ export async function getAllRecordsFromIndexedDB(
     totalPages,
     columns: [
       'timestamp',
+      'dailyIndex',
       'toCallsign',
       'fromCallsign',
       'freqHz',
