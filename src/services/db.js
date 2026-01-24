@@ -1282,6 +1282,29 @@ export async function getUniqueCallsignCountFromIndexedDB(fromCallsign = null) {
   return uniqueCallsigns.size
 }
 
+// 检查QSO记录是否已存在
+export async function isQsoExistsInIndexedDB(fromCallsign, timestamp, toCallsign) {
+  if (!fromCallsign) return false
+
+  const db = await openLogsDatabase()
+  const storeName = `logs_from_${fromCallsign}`
+
+  if (!db.objectStoreNames.contains(storeName)) {
+    return false
+  }
+
+  const utcDate = timestampToUTCDate(timestamp)
+  const dedupKey = `${utcDate}_${toCallsign || ''}`
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly')
+    const store = tx.objectStore(storeName)
+    const request = store.get(dedupKey)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => resolve(!!request.result)
+  })
+}
+
 // 保存单个QSO记录到IndexedDB
 export async function saveSingleQsoToIndexedDB(record) {
   if (!record.fromCallsign) return

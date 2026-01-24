@@ -87,8 +87,12 @@ export class FmoApiClient {
     })
   }
 
-  async getQsoList(page = 0, pageSize = 20) {
-    return this.sendRequest('qso', 'getList', { page, pageSize })
+  async getQsoList(page = 0, pageSize = 20, fromCallsign = '') {
+    const params = { page, pageSize }
+    if (fromCallsign) {
+      params.fromCallsign = fromCallsign
+    }
+    return this.sendRequest('qso', 'getList', params)
   }
 
   async getQsoDetail(logId) {

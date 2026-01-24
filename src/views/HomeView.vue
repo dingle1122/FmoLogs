@@ -35,6 +35,9 @@
     </header>
 
     <div class="content-area">
+      <div v-if="autoSyncMessage" class="auto-sync-hint">
+        {{ autoSyncMessage }}
+      </div>
       <div v-if="loading" class="loading">
         <template v-if="importProgress">
           正在导入数据... {{ importProgress.current }} / {{ importProgress.total }}
@@ -575,6 +578,7 @@ import {
   getUniqueCallsignCountFromIndexedDB,
   saveFmoAddress,
   getFmoAddress,
+  isQsoExistsInIndexedDB,
   saveSingleQsoToIndexedDB
 } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
@@ -638,6 +642,16 @@ const fmoAddress = ref('')
 const protocol = ref('ws')
 const syncing = ref(false)
 const syncStatus = ref('')
+const autoSyncMessage = ref('')
+let autoSyncMessageTimer = null
+
+function showAutoSyncMessage(msg) {
+  autoSyncMessage.value = msg
+  if (autoSyncMessageTimer) clearTimeout(autoSyncMessageTimer)
+  autoSyncMessageTimer = setTimeout(() => {
+    autoSyncMessage.value = ''
+  }, 5000)
+}
 
 const isHttps = window.location.protocol === 'https:'
 
@@ -703,6 +717,9 @@ function isTodayContact(timestamp) {
 }
 
 // 页面加载时尝试恢复已保存的目录
+// 自动同步定时器
+let autoSyncTimer = null
+
 onMounted(async () => {
   await tryRestoreDirectory()
   const savedAddress = await getFmoAddress()
@@ -717,7 +734,62 @@ onMounted(async () => {
       fmoAddress.value = savedAddress
     }
   }
+
+  // 启动定时同步任务
+  startAutoSyncTask()
 })
+
+// 定时同步任务：每10s同步第一页3条数据
+async function startAutoSyncTask() {
+  if (autoSyncTimer) return
+
+  autoSyncTimer = setInterval(async () => {
+    // 如果正在手动同步或未设置地址，则跳过
+    if (syncing.value || !fmoAddress.value || !selectedFromCallsign.value) return
+
+    const client = new FmoApiClient(fmoAddress.value)
+    try {
+      // 使用当前选择的 fromCallsign 作为查询条件，每页查询3条数据
+      const fromCallsign = selectedFromCallsign.value
+      const response = await client.getQsoList(0, 3, fromCallsign)
+      const list = response.list || []
+      const newCallsigns = []
+
+      for (const item of list) {
+        // 判断记录是否已存在（根据 fromCallsign, timestamp, toCallsign）
+        // 如果列表项中没有 fromCallsign，使用当前选择的 fromCallsign
+        const itemFromCallsign = item.fromCallsign || fromCallsign
+        const exists = await isQsoExistsInIndexedDB(itemFromCallsign, item.timestamp, item.toCallsign)
+        if (!exists) {
+          // 不存在则查询详情并插入数据库
+          const detailResponse = await client.getQsoDetail(item.logId)
+          const qso = detailResponse.log
+          if (qso) {
+            await saveSingleQsoToIndexedDB(qso)
+            newCallsigns.push(qso.toCallsign)
+          }
+        }
+      }
+
+      // 如果有新数据插入，重新查询并提示
+      if (newCallsigns.length > 0) {
+        // 更新呼号列表（可能有新的 fromCallsign）
+        const callsigns = await getAvailableFromCallsigns()
+        availableFromCallsigns.value = callsigns
+        
+        // 重新查询当前页数据
+        await executeQuery()
+        
+        // 提示同步到的通联
+        showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
+      }
+    } catch (err) {
+      console.error('定时同步失败:', err)
+    } finally {
+      client.close()
+    }
+  }, 10000)
+}
 
 async function tryRestoreDirectory() {
   try {
@@ -1247,6 +1319,10 @@ function handleTooltipMouseLeave() {
 }
 
 onUnmounted(() => {
+  if (autoSyncTimer) {
+    clearInterval(autoSyncTimer)
+    autoSyncTimer = null
+  }
   dbManager.close()
 })
 </script>
@@ -1326,6 +1402,29 @@ onUnmounted(() => {
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.auto-sync-hint {
+  background: #f0f9eb;
+  color: #67c23a;
+  padding: 8px 16px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  border: 1px solid #e1f3d8;
+  font-size: 14px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .query-section {
