@@ -86,7 +86,9 @@ export class FmoApiClient {
         data
       }
 
-      this.socket.send(JSON.stringify(message))
+      const payload = JSON.stringify(message)
+      console.log(`[FmoApi] 发送数据 (${type}:${subType}):`, message)
+      this.socket.send(payload)
 
       // 设置超时
       setTimeout(() => {

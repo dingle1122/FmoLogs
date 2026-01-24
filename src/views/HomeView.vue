@@ -730,9 +730,8 @@ function isTodayContact(timestamp) {
   )
 }
 
-// 自动同步定时器和客户端
+// 自动同步定时器和状态锁
 let autoSyncTimer = null
-let autoSyncClient = null
 let isAutoSyncing = false
 
 onMounted(async () => {
@@ -769,22 +768,18 @@ async function startAutoSyncTask() {
     const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
     const fullAddress = `${protocol.value}://${host}`
 
-    // 如果客户端不存在或地址已变更，则创建/重建客户端
-    if (!autoSyncClient || autoSyncClient.baseUrl !== fullAddress) {
-      if (autoSyncClient) autoSyncClient.close()
-      autoSyncClient = new FmoApiClient(fullAddress)
-    }
+    // 每次同步创建一个新的客户端
+    const client = new FmoApiClient(fullAddress)
 
     try {
       // 使用当前选择的 fromCallsign 作为查询条件，每页查询3条数据
       const fromCallsign = selectedFromCallsign.value
-      const response = await autoSyncClient.getQsoList(0, 3, fromCallsign)
+      const response = await client.getQsoList(0, 3, fromCallsign)
       const list = response.list || []
       const newCallsigns = []
 
       for (const item of list) {
         // 判断记录是否已存在（根据 fromCallsign, timestamp, toCallsign）
-        // 如果列表项中没有 fromCallsign，使用当前选择的 fromCallsign
         const itemFromCallsign = item.fromCallsign || fromCallsign
         const exists = await isQsoExistsInIndexedDB(
           itemFromCallsign,
@@ -793,7 +788,7 @@ async function startAutoSyncTask() {
         )
         if (!exists) {
           // 不存在则查询详情并插入数据库
-          const detailResponse = await autoSyncClient.getQsoDetail(item.logId)
+          const detailResponse = await client.getQsoDetail(item.logId)
           const qso = detailResponse.log
           if (qso) {
             await saveSingleQsoToIndexedDB(qso)
@@ -804,23 +799,16 @@ async function startAutoSyncTask() {
 
       // 如果有新数据插入，重新查询并提示
       if (newCallsigns.length > 0) {
-        // 更新呼号列表（可能有新的 fromCallsign）
         const callsigns = await getAvailableFromCallsigns()
         availableFromCallsigns.value = callsigns
-
-        // 重新查询当前页数据
         await executeQuery()
-
-        // 提示同步到的通联
         showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
       }
     } catch (err) {
       console.error('定时同步失败:', err)
-      // 出错时尝试关闭连接，下次同步会重新连接
-      if (autoSyncClient) {
-        autoSyncClient.close()
-      }
     } finally {
+      // 完成后关闭连接
+      client.close()
       isAutoSyncing = false
     }
   }, 10000)
@@ -1357,10 +1345,6 @@ onUnmounted(() => {
   if (autoSyncTimer) {
     clearInterval(autoSyncTimer)
     autoSyncTimer = null
-  }
-  if (autoSyncClient) {
-    autoSyncClient.close()
-    autoSyncClient = null
   }
   dbManager.close()
 })
