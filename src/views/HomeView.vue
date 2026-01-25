@@ -789,6 +789,9 @@ async function startAutoSyncTask() {
       const client = new FmoApiClient(fullAddress)
 
       try {
+        // 检查插入前数据库是否为空
+        const wasEmpty = !dbLoaded.value || totalLogs.value === 0
+
         // 使用当前选择的 fromCallsign 作为查询条件，每页查询10条数据
         const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
         const fromCallsign = selectedFromCallsign.value
@@ -841,6 +844,13 @@ async function startAutoSyncTask() {
           if (!selectedFromCallsign.value && callsigns.length > 0) {
             selectedFromCallsign.value = callsigns[0]
           }
+          
+          // 如果插入前数据库为空，重新加载页面
+          if (wasEmpty) {
+            window.location.reload()
+            return
+          }
+          
           await executeQuery()
           showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
         }
