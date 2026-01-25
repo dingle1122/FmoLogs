@@ -765,67 +765,92 @@ onMounted(async () => {
   startAutoSyncTask()
 })
 
-// 定时同步任务：每10s同步第一页20条数据
+// 定时同步任务：每10s同步第一页10条数据
 async function startAutoSyncTask() {
   if (autoSyncTimer) return
 
   autoSyncTimer = setInterval(async () => {
     // 如果正在手动同步、自动同步已在进行中或未设置地址，则跳过
-    if (isAutoSyncing || syncing.value || !fmoAddress.value || !selectedFromCallsign.value) return
+    if (isAutoSyncing || syncing.value || !fmoAddress.value) {
+      return
+    }
 
     isAutoSyncing = true
 
-    // 获取当前完整地址
-    const address = fmoAddress.value.trim()
-    const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
-    const fullAddress = `${protocol.value}://${host}`
-
-    // 每次同步创建一个新的客户端
-    const client = new FmoApiClient(fullAddress)
-
     try {
-      // 使用当前选择的 fromCallsign 作为查询条件，每页查询20条数据
-      const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
-      const fromCallsign = selectedFromCallsign.value
-      const response = await client.getQsoList(0, 20, fromCallsign)
-      const list = response.list || []
-      const newCallsigns = []
+      // 获取当前完整地址
+      const address = fmoAddress.value.trim()
+      const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+      const fullAddress = `${protocol.value}://${host}`
 
-      for (const item of list) {
-        // 跳过今天之前的数据
-        if (item.timestamp < todayStart) continue
+      // 每次同步创建一个新的客户端
+      const client = new FmoApiClient(fullAddress)
 
-        // 判断记录是否已存在（根据 timestamp, toCallsign）
-        const exists = await isQsoExistsInIndexedDB(
-          fromCallsign,
-          item.timestamp,
-          item.toCallsign
-        )
-        if (!exists) {
-          // 不存在则查询详情并插入数据库
-          const detailResponse = await client.getQsoDetail(item.logId)
-          const qso = detailResponse.log
+      try {
+        // 使用当前选择的 fromCallsign 作为查询条件，每页查询10条数据
+        const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
+        const fromCallsign = selectedFromCallsign.value
+        const response = await client.getQsoList(0, 10, fromCallsign)
+        const list = response.list || []
+        const newCallsigns = []
+
+        for (const item of list) {
+          // 跳过今天之前的数据
+          if (item.timestamp < todayStart) continue
+
+          let qso = null
+          if (fromCallsign) {
+            // 已有选择，先检查是否存在
+            const exists = await isQsoExistsInIndexedDB(
+              fromCallsign,
+              item.timestamp,
+              item.toCallsign
+            )
+            if (!exists) {
+              const detailResponse = await client.getQsoDetail(item.logId)
+              qso = detailResponse.log
+              if (qso && qso.fromCallsign !== fromCallsign) qso = null
+            }
+          } else {
+            // 未选择，通过详情获取呼号并插入
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+            if (qso) {
+              const exists = await isQsoExistsInIndexedDB(
+                qso.fromCallsign,
+                qso.timestamp,
+                qso.toCallsign
+              )
+              if (exists) qso = null
+            }
+          }
+
           if (qso) {
-            // 判断fromCallsign是否匹配
-            if (qso.fromCallsign !== fromCallsign) continue
             await saveSingleQsoToIndexedDB(qso)
             newCallsigns.push(qso.toCallsign)
           }
         }
-      }
 
-      // 如果有新数据插入，重新查询并提示
-      if (newCallsigns.length > 0) {
-        const callsigns = await getAvailableFromCallsigns()
-        availableFromCallsigns.value = callsigns
-        await executeQuery()
-        showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
+        // 如果有新数据插入，重新查询并提示
+        if (newCallsigns.length > 0) {
+          const callsigns = await getAvailableFromCallsigns()
+          availableFromCallsigns.value = callsigns
+          // 如果之前没有选择呼号，默认选择第一个
+          if (!selectedFromCallsign.value && callsigns.length > 0) {
+            selectedFromCallsign.value = callsigns[0]
+          }
+          await executeQuery()
+          showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
+        }
+      } catch (err) {
+        console.error('定时同步失败:', err)
+      } finally {
+        // 完成后关闭连接
+        client.close()
       }
     } catch (err) {
-      console.error('定时同步失败:', err)
+      console.error('定时同步初始化失败:', err)
     } finally {
-      // 完成后关闭连接
-      client.close()
       isAutoSyncing = false
     }
   }, 10000)
@@ -1032,18 +1057,41 @@ async function syncToday() {
 
     while (hasMoreToday) {
       syncStatus.value = `获取第 ${page + 1} 页列表...`
-      const response = await client.getQsoList(page, 20)
+      const currentFromCallsign = selectedFromCallsign.value
+      const response = await client.getQsoList(page, 20, currentFromCallsign)
       const list = response.list
 
       if (!list || list.length === 0) break
 
       for (const item of list) {
         if (item.timestamp >= todayStart) {
-          syncStatus.value = `获取详情: ${item.toCallsign}...`
-          const detailResponse = await client.getQsoDetail(item.logId)
-          const qso = detailResponse.log
+          let qso = null
+          if (currentFromCallsign) {
+            const exists = await isQsoExistsInIndexedDB(
+              currentFromCallsign,
+              item.timestamp,
+              item.toCallsign
+            )
+            if (!exists) {
+              const detailResponse = await client.getQsoDetail(item.logId)
+              qso = detailResponse.log
+              if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+            }
+          } else {
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+            if (qso) {
+              const exists = await isQsoExistsInIndexedDB(
+                qso.fromCallsign,
+                qso.timestamp,
+                qso.toCallsign
+              )
+              if (exists) qso = null
+            }
+          }
 
           if (qso) {
+            syncStatus.value = `保存记录: ${qso.toCallsign}...`
             await saveSingleQsoToIndexedDB(qso)
             totalSynced++
           }

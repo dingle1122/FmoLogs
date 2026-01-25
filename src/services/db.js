@@ -668,6 +668,7 @@ const LOGS_DB_NAME = 'FmoLogsData'
 const META_STORE_NAME = 'meta'
 
 let logsDbInstance = null
+let logsDbPromise = null
 
 // 将时间戳转换为UTC日期字符串（用于去重）
 function timestampToUTCDate(timestamp) {
@@ -693,41 +694,55 @@ function getCurrentDbVersion() {
 
 // 打开或升级日志数据库
 async function openLogsDatabase(newCallsigns = []) {
-  // 如果已有连接且不需要新增存储，直接返回
-  if (logsDbInstance && newCallsigns.length === 0) {
-    // 检查所有需要的存储是否都存在
-    const allExist = newCallsigns.every((callsign) =>
-      logsDbInstance.objectStoreNames.contains(`logs_from_${callsign}`)
-    )
-    if (allExist || newCallsigns.length === 0) {
-      return logsDbInstance
+  // 如果已经有一个打开过程在进行，或者已经打开了，先等待它
+  if (logsDbPromise) {
+    try {
+      const db = await logsDbPromise
+      // 检查当前已打开的实例是否满足所有需要的 newCallsigns
+      const allExist = newCallsigns.every((callsign) =>
+        db.objectStoreNames.contains(`logs_from_${callsign}`)
+      )
+      if (allExist) {
+        return db
+      }
+      // 如果不满足，需要关闭并重新打开（升级）
+    } catch (err) {
+      // 如果之前的打开失败了，清除 promise 重新尝试
+      logsDbPromise = null
     }
   }
 
-  // 关闭现有连接
-  if (logsDbInstance) {
-    logsDbInstance.close()
-    logsDbInstance = null
-  }
+  // 开启新的打开过程
+  logsDbPromise = (async () => {
+    // 关闭现有连接
+    if (logsDbInstance) {
+      try {
+        logsDbInstance.close()
+      } catch (e) {}
+      logsDbInstance = null
+    }
 
-  // 获取当前版本
-  const currentVersion = await getCurrentDbVersion()
+    // 获取当前版本
+    const currentVersion = await getCurrentDbVersion()
 
-  // 检查是否需要创建新的对象存储
-  let needsUpgrade = false
-  if (newCallsigns.length > 0) {
+    // 检查是否需要创建新的对象存储
+    let needsUpgrade = false
     const checkRequest = indexedDB.open(LOGS_DB_NAME)
     await new Promise((resolve) => {
       checkRequest.onsuccess = () => {
         const db = checkRequest.result
-        for (const callsign of newCallsigns) {
-          if (!db.objectStoreNames.contains(`logs_from_${callsign}`)) {
-            needsUpgrade = true
-            break
-          }
-        }
+        // 检查 meta 存储
         if (!db.objectStoreNames.contains(META_STORE_NAME)) {
           needsUpgrade = true
+        }
+        // 检查 callsign 存储
+        if (!needsUpgrade && newCallsigns.length > 0) {
+          for (const callsign of newCallsigns) {
+            if (!db.objectStoreNames.contains(`logs_from_${callsign}`)) {
+              needsUpgrade = true
+              break
+            }
+          }
         }
         db.close()
         resolve()
@@ -737,46 +752,57 @@ async function openLogsDatabase(newCallsigns = []) {
         resolve()
       }
     })
-  }
 
-  // 确定要使用的版本
-  const version = needsUpgrade ? currentVersion + 1 : Math.max(currentVersion, 1)
+    // 确定要使用的版本
+    const version = needsUpgrade ? currentVersion + 1 : Math.max(currentVersion, 1)
 
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(LOGS_DB_NAME, version)
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(LOGS_DB_NAME, version)
 
-    request.onerror = () => reject(request.error)
-
-    request.onsuccess = () => {
-      logsDbInstance = request.result
-      resolve(logsDbInstance)
-    }
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result
-
-      // 创建元数据存储
-      if (!db.objectStoreNames.contains(META_STORE_NAME)) {
-        db.createObjectStore(META_STORE_NAME)
+      request.onerror = () => {
+        logsDbPromise = null // 错误时允许下次重试
+        reject(request.error)
       }
 
-      // 为每个新的fromCallsign创建对象存储
-      for (const callsign of newCallsigns) {
-        const storeName = `logs_from_${callsign}`
-        if (!db.objectStoreNames.contains(storeName)) {
-          const store = db.createObjectStore(storeName, {
-            keyPath: 'dedupKey'
-          })
-          // 创建索引
-          store.createIndex('timestamp', 'timestamp', { unique: false })
-          store.createIndex('toCallsign', 'toCallsign', { unique: false })
-          store.createIndex('toGrid', 'toGrid', { unique: false })
-          store.createIndex('relayName', 'relayName', { unique: false })
-          store.createIndex('utcDate', 'utcDate', { unique: false })
+      request.onsuccess = () => {
+        logsDbInstance = request.result
+        // 处理连接断开的情况
+        logsDbInstance.onversionchange = () => {
+          logsDbInstance.close()
+          logsDbInstance = null
+          logsDbPromise = null
+        }
+        resolve(logsDbInstance)
+      }
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result
+
+        // 创建元数据存储
+        if (!db.objectStoreNames.contains(META_STORE_NAME)) {
+          db.createObjectStore(META_STORE_NAME)
+        }
+
+        // 为每个新的fromCallsign创建对象存储
+        for (const callsign of newCallsigns) {
+          const storeName = `logs_from_${callsign}`
+          if (!db.objectStoreNames.contains(storeName)) {
+            const store = db.createObjectStore(storeName, {
+              keyPath: 'dedupKey'
+            })
+            // 创建索引
+            store.createIndex('timestamp', 'timestamp', { unique: false })
+            store.createIndex('toCallsign', 'toCallsign', { unique: false })
+            store.createIndex('toGrid', 'toGrid', { unique: false })
+            store.createIndex('relayName', 'relayName', { unique: false })
+            store.createIndex('utcDate', 'utcDate', { unique: false })
+          }
         }
       }
-    }
-  })
+    })
+  })()
+
+  return logsDbPromise
 }
 
 // 将db文件数据导入到IndexedDB
@@ -863,9 +889,18 @@ export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
 
 // 将记录写入指定存储（基于UTC日期+toCallsign去重，重复时覆盖）
 async function writeRecordsToStore(storeName, records) {
-  const db = await openLogsDatabase()
+  // 从存储名称中提取呼号 (logs_from_CALLSIGN)
+  const fromCallsign = storeName.replace('logs_from_', '')
+  // 确保存储空间存在
+  const db = await openLogsDatabase([fromCallsign])
 
   return new Promise((resolve, reject) => {
+    // 再次检查 store 是否真的存在，避免并发导致的问题
+    if (!db.objectStoreNames.contains(storeName)) {
+      reject(new Error(`Object store ${storeName} not found`))
+      return
+    }
+
     const tx = db.transaction(storeName, 'readwrite')
     const store = tx.objectStore(storeName)
 
