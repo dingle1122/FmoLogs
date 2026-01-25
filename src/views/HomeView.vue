@@ -765,7 +765,7 @@ onMounted(async () => {
   startAutoSyncTask()
 })
 
-// 定时同步任务：每10s同步第一页3条数据
+// 定时同步任务：每10s同步第一页20条数据
 async function startAutoSyncTask() {
   if (autoSyncTimer) return
 
@@ -784,17 +784,20 @@ async function startAutoSyncTask() {
     const client = new FmoApiClient(fullAddress)
 
     try {
-      // 使用当前选择的 fromCallsign 作为查询条件，每页查询3条数据
+      // 使用当前选择的 fromCallsign 作为查询条件，每页查询20条数据
+      const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
       const fromCallsign = selectedFromCallsign.value
-      const response = await client.getQsoList(0, 3, fromCallsign)
+      const response = await client.getQsoList(0, 20, fromCallsign)
       const list = response.list || []
       const newCallsigns = []
 
       for (const item of list) {
-        // 判断记录是否已存在（根据 fromCallsign, timestamp, toCallsign）
-        const itemFromCallsign = item.fromCallsign || fromCallsign
+        // 跳过今天之前的数据
+        if (item.timestamp < todayStart) continue
+
+        // 判断记录是否已存在（根据 timestamp, toCallsign）
         const exists = await isQsoExistsInIndexedDB(
-          itemFromCallsign,
+          fromCallsign,
           item.timestamp,
           item.toCallsign
         )
@@ -803,6 +806,8 @@ async function startAutoSyncTask() {
           const detailResponse = await client.getQsoDetail(item.logId)
           const qso = detailResponse.log
           if (qso) {
+            // 判断fromCallsign是否匹配
+            if (qso.fromCallsign !== fromCallsign) continue
             await saveSingleQsoToIndexedDB(qso)
             newCallsigns.push(qso.toCallsign)
           }
