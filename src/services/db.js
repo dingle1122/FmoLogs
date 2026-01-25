@@ -1296,43 +1296,41 @@ export async function clearIndexedDBData() {
 
 // 获取IndexedDB中的总记录数
 export async function getTotalRecordsCountFromIndexedDB(fromCallsign = null) {
-  if (fromCallsign) {
-    const data = await getDataFromIndexedDB(fromCallsign)
-    return data.length
+  if (!fromCallsign) return 0
+
+  const data = await getDataFromIndexedDB(fromCallsign)
+  return data.length
+}
+
+// 获取今日通联数（UTC时间）
+export async function getTodayRecordsCountFromIndexedDB(fromCallsign = null) {
+  if (!fromCallsign) return 0
+
+  const now = new Date()
+  const utcDate = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+
+  const db = await openLogsDatabase()
+  const storeName = `logs_from_${fromCallsign}`
+
+  if (db.objectStoreNames.contains(storeName)) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly')
+      const store = tx.objectStore(storeName)
+      const index = store.index('utcDate')
+      const request = index.count(IDBKeyRange.only(utcDate))
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
   }
 
-  const callsigns = await getAvailableFromCallsigns()
-  let total = 0
-
-  for (const callsign of callsigns) {
-    const db = await openLogsDatabase()
-    const storeName = `logs_from_${callsign}`
-
-    if (db.objectStoreNames.contains(storeName)) {
-      const count = await new Promise((resolve, reject) => {
-        const tx = db.transaction(storeName, 'readonly')
-        const store = tx.objectStore(storeName)
-        const request = store.count()
-        request.onerror = () => reject(request.error)
-        request.onsuccess = () => resolve(request.result)
-      })
-      total += count
-    }
-  }
-
-  return total
+  return 0
 }
 
 // 获取不重复呼号数量
 export async function getUniqueCallsignCountFromIndexedDB(fromCallsign = null) {
-  let allRecords = []
+  if (!fromCallsign) return 0
 
-  if (fromCallsign) {
-    allRecords = await getDataFromIndexedDB(fromCallsign)
-  } else {
-    allRecords = await getConsolidatedDataFromIndexedDB()
-  }
-
+  const allRecords = await getDataFromIndexedDB(fromCallsign)
   const uniqueCallsigns = new Set()
   for (const record of allRecords) {
     if (record.toCallsign) {

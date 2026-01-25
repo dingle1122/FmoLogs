@@ -4,7 +4,7 @@
       <div class="header-left">
         <h1>FMO 日志查看器</h1>
         <span class="total-logs"
-          ><span class="star">&#11088;</span> <strong>{{ totalLogs }}</strong></span
+          ><span class="star">&#11088;</span> <strong>{{ todayLogs }}/{{ totalLogs }}</strong></span
         >
         <span v-if="uniqueCallsigns > 0" class="total-logs"
           ><span class="callsign-icon">&#128225;</span> <strong>{{ uniqueCallsigns }}</strong></span
@@ -595,6 +595,7 @@ import {
   getAllRecordsFromIndexedDB,
   clearIndexedDBData,
   getTotalRecordsCountFromIndexedDB,
+  getTodayRecordsCountFromIndexedDB,
   getUniqueCallsignCountFromIndexedDB,
   saveFmoAddress,
   getFmoAddress,
@@ -621,6 +622,7 @@ const dbManager = new DatabaseManager()
 const dbLoaded = ref(false)
 const dbCount = ref(0)
 const totalLogs = ref(0)
+const todayLogs = ref(0)
 const uniqueCallsigns = ref(0)
 const loading = ref(false)
 const error = ref(null)
@@ -874,6 +876,7 @@ async function tryRestoreDirectory() {
         // 默认选择第一个呼号
         selectedFromCallsign.value = callsigns[0]
         totalLogs.value = await getTotalRecordsCountFromIndexedDB(selectedFromCallsign.value)
+        todayLogs.value = await getTodayRecordsCountFromIndexedDB(selectedFromCallsign.value)
         uniqueCallsigns.value = await getUniqueCallsignCountFromIndexedDB(
           selectedFromCallsign.value
         )
@@ -922,6 +925,7 @@ async function loadDatabases(dbFiles) {
 
   // 获取统计数据
   totalLogs.value = await getTotalRecordsCountFromIndexedDB(selectedFromCallsign.value)
+  todayLogs.value = await getTodayRecordsCountFromIndexedDB(selectedFromCallsign.value)
   uniqueCallsigns.value = await getUniqueCallsignCountFromIndexedDB(selectedFromCallsign.value)
 
   dbCount.value = dbFiles.length
@@ -1165,6 +1169,7 @@ async function handleClearAllData() {
   dbLoaded.value = false
   dbCount.value = 0
   totalLogs.value = 0
+  todayLogs.value = 0
   uniqueCallsigns.value = 0
   queryResult.value = null
   top20Result.value = null
@@ -1274,6 +1279,7 @@ async function executeQuery() {
 
     // 更新统计数据
     totalLogs.value = await getTotalRecordsCountFromIndexedDB(fromCallsign)
+    todayLogs.value = await getTodayRecordsCountFromIndexedDB(fromCallsign)
     uniqueCallsigns.value = await getUniqueCallsignCountFromIndexedDB(fromCallsign)
   } catch (err) {
     error.value = `查询失败: ${err.message}`
