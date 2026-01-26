@@ -230,6 +230,7 @@
               <tr
                 v-for="(row, index) in queryResult.data"
                 :key="index"
+                :class="{ 'row-today': isTodayContact(row.timestamp) }"
                 @click="showDetailModal(row)"
               >
                 <td v-for="col in queryResult.columns" :key="col" :class="'col-' + col">
@@ -397,6 +398,7 @@
               v-for="(record, index) in callsignRecords.data"
               :key="'record-' + index"
               class="record-card"
+              :class="{ 'today-record': isTodayContact(record.timestamp) }"
             >
               <div class="record-row">
                 <span class="record-label">日期：</span>
@@ -1766,6 +1768,10 @@ onUnmounted(() => {
   text-align: left;
 }
 
+.data-table tbody tr.row-today {
+  background: var(--bg-today-card);
+}
+
 .data-table tbody tr:hover:not(.empty-row) {
   background: var(--bg-table-hover);
 }
@@ -2420,6 +2426,11 @@ onUnmounted(() => {
   color: var(--text-primary);
   flex: 1;
   word-break: break-all;
+}
+
+.record-card.today-record {
+  background: var(--bg-today-card);
+  border-color: var(--border-today-card);
 }
 
 /* 响应式设计 */
