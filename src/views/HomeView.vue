@@ -474,88 +474,152 @@
     <!-- 设置弹框 -->
     <div v-if="showSettings" class="modal-overlay" @click.self="showSettings = false">
       <div class="modal">
-        <div class="modal-header">
-          <h3>设置</h3>
+        <div class="modal-header settings-header">
+          <div class="modal-tabs">
+            <button
+              class="tab-btn"
+              :class="{ active: settingsActiveTab === 'general' }"
+              @click="settingsActiveTab = 'general'"
+            >
+              常规设置
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: settingsActiveTab === 'links' }"
+              @click="settingsActiveTab = 'links'"
+            >
+              友情链接
+            </button>
+          </div>
           <button class="close-btn" @click="showSettings = false">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="setting-item">
-            <span class="setting-label">日志文件</span>
-            <div class="setting-actions">
-              <button v-if="canSelectDirectory" class="btn-primary" @click="selectDirectory">
-                {{ dbLoaded ? '追加目录' : '选择目录' }}
-              </button>
-              <button class="btn-primary" @click="triggerFileInput">
-                {{ dbLoaded && !canSelectDirectory ? '追加文件' : '选择文件' }}
-              </button>
-              <button v-if="dbLoaded" class="btn-secondary" @click="clearDirectory">
-                清除授权
-              </button>
-            </div>
-          </div>
-          <div v-if="dbLoaded" class="setting-info">
-            已加载 {{ availableFromCallsigns.length }} 个呼号日志
-          </div>
-
-          <div v-if="availableFromCallsigns.length > 0" class="setting-item">
-            <span class="setting-label">发送方呼号</span>
-            <div class="setting-actions">
-              <select
-                v-model="selectedFromCallsign"
-                class="setting-select"
-                @change="handleFromCallsignChange"
-              >
-                <option
-                  v-for="callsign in availableFromCallsigns"
-                  :key="callsign"
-                  :value="callsign"
-                >
-                  {{ callsign }}
-                </option>
-              </select>
-            </div>
-          </div>
-
-          <!-- FMO同步设置 -->
-          <div class="setting-group">
+          <div v-if="settingsActiveTab === 'general'" class="tab-content">
             <div class="setting-item">
-              <span class="setting-label">FMO地址</span>
-              <div class="setting-input-group">
-                <select v-model="protocol" class="protocol-select">
-                  <option value="ws">ws://</option>
-                  <option value="wss">wss://</option>
-                </select>
-                <input
-                  v-model="fmoAddress"
-                  type="text"
-                  :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
-                  class="setting-input-flex"
-                />
+              <span class="setting-label">日志文件</span>
+              <div class="setting-actions">
+                <button v-if="canSelectDirectory" class="btn-primary" @click="selectDirectory">
+                  {{ dbLoaded ? '追加目录' : '选择目录' }}
+                </button>
+                <button class="btn-primary" @click="triggerFileInput">
+                  {{ dbLoaded && !canSelectDirectory ? '追加文件' : '选择文件' }}
+                </button>
+                <button v-if="dbLoaded" class="btn-secondary" @click="clearDirectory">
+                  清除授权
+                </button>
               </div>
             </div>
-            <div v-if="!isMobileDevice" class="setting-note">
-              支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
+            <div v-if="dbLoaded" class="setting-info">
+              已加载 {{ availableFromCallsigns.length }} 个呼号日志
             </div>
-            <div class="setting-item-save">
-              <button class="btn-save" @click="handleSaveFmoAddress">保存</button>
+
+            <div v-if="availableFromCallsigns.length > 0" class="setting-item">
+              <span class="setting-label">发送方呼号</span>
+              <div class="setting-actions">
+                <select
+                  v-model="selectedFromCallsign"
+                  class="setting-select"
+                  @change="handleFromCallsignChange"
+                >
+                  <option
+                    v-for="callsign in availableFromCallsigns"
+                    :key="callsign"
+                    :value="callsign"
+                  >
+                    {{ callsign }}
+                  </option>
+                </select>
+              </div>
             </div>
-            <div class="setting-item-buttons">
-              <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="syncToday">
-                {{ syncing ? '正在同步...' : '同步今日通联' }}
-              </button>
-              <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="backupLogs">
-                备份FMO日志
-              </button>
+
+            <!-- FMO同步设置 -->
+            <div class="setting-group">
+              <div class="setting-item">
+                <span class="setting-label">FMO地址</span>
+                <div class="setting-input-group">
+                  <select v-model="protocol" class="protocol-select">
+                    <option value="ws">ws://</option>
+                    <option value="wss">wss://</option>
+                  </select>
+                  <input
+                    v-model="fmoAddress"
+                    type="text"
+                    :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
+                    class="setting-input-flex"
+                  />
+                </div>
+              </div>
+              <div v-if="!isMobileDevice" class="setting-note">
+                支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
+              </div>
+              <div class="setting-item-save">
+                <button class="btn-save" @click="handleSaveFmoAddress">保存</button>
+              </div>
+              <div class="setting-item-buttons">
+                <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="syncToday">
+                  {{ syncing ? '正在同步...' : '同步今日通联' }}
+                </button>
+                <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="backupLogs">
+                  备份FMO日志
+                </button>
+              </div>
+              <div v-if="syncStatus" class="sync-status">
+                {{ syncStatus }}
+              </div>
             </div>
-            <div v-if="syncStatus" class="sync-status">
-              {{ syncStatus }}
+
+            <div v-if="dbLoaded" class="setting-item setting-item-danger">
+              <span class="setting-label">数据管理</span>
+              <div class="setting-actions">
+                <button class="btn-danger" @click="handleClearAllData">清空所有数据</button>
+              </div>
             </div>
           </div>
 
-          <div v-if="dbLoaded" class="setting-item setting-item-danger">
-            <span class="setting-label">数据管理</span>
-            <div class="setting-actions">
-              <button class="btn-danger" @click="handleClearAllData">清空所有数据</button>
+          <div v-else-if="settingsActiveTab === 'links'" class="tab-content">
+            <div class="links-section">
+              <div class="links-card-grid">
+                <a
+                  href="https://map.srv.ink/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link-card"
+                >
+                  <div class="link-icon">🗺️</div>
+                  <div class="link-info">
+                    <div class="link-name">FMO 地图</div>
+                    <div class="link-url">map.srv.ink</div>
+                  </div>
+                  <div class="link-arrow">→</div>
+                </a>
+                <a
+                  href="https://bg5esn.com/docs/fmo-user-shares/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link-card"
+                >
+                  <div class="link-icon">📖</div>
+                  <div class="link-info">
+                    <div class="link-name">FMO实践分享</div>
+                    <div class="link-url">bg5esn.com</div>
+                  </div>
+                  <div class="link-arrow">→</div>
+                </a>
+                <a
+                  href="https://bg5esn.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link-card"
+                >
+                  <div class="link-icon">⚓</div>
+                  <div class="link-info">
+                    <div class="link-name">大船地下室</div>
+                    <div class="link-url">bg5esn.com</div>
+                  </div>
+                  <div class="link-arrow">→</div>
+                </a>
+                <!-- 可以继续添加更多友链 -->
+              </div>
             </div>
           </div>
         </div>
@@ -633,6 +697,7 @@ const currentPage = ref(1)
 const queryResult = ref(null)
 const top20Result = ref(null)
 const showSettings = ref(false)
+const settingsActiveTab = ref('general')
 const searchKeyword = ref('')
 const fileInputRef = ref(null)
 const showDetailModalFlag = ref(false)
@@ -1843,7 +1908,7 @@ onUnmounted(() => {
 .modal {
   background: var(--bg-card);
   border-radius: 8px;
-  min-width: 320px;
+  width: 650px;
   max-width: 90%;
   box-shadow: 0 4px 20px var(--shadow-modal);
 }
@@ -1906,6 +1971,8 @@ onUnmounted(() => {
 
 .modal-body {
   padding: 1.5rem;
+  height: 450px;
+  overflow-y: auto;
 }
 
 .setting-item {
@@ -2114,6 +2181,151 @@ onUnmounted(() => {
 
 .btn-danger:hover {
   background: var(--color-danger-hover);
+}
+
+/* 设置弹窗选项卡样式 */
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem !important;
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tab-btn {
+  padding: 0.4rem 0.8rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tab-btn:hover {
+  background: var(--bg-table-hover);
+  color: var(--color-primary);
+}
+
+.tab-btn.active {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -0.5rem;
+  left: 0.8rem;
+  right: 0.8rem;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
+
+.tab-content {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 友情链接卡片化样式 */
+.links-section {
+  padding: 0.5rem 0;
+}
+
+.links-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.link-card {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.link-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 16px var(--shadow-card);
+  background: var(--bg-table-hover);
+}
+
+.link-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  border-radius: 10px;
+  font-size: 1.4rem;
+  margin-right: 1rem;
+  flex-shrink: 0;
+  border: 1px solid var(--border-light);
+}
+
+.link-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.link-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-url {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-family: monospace;
+}
+
+.link-arrow {
+  font-size: 1.2rem;
+  color: var(--text-disabled);
+  transition: all 0.3s;
+  margin-left: 0.5rem;
+  opacity: 0.3;
+}
+
+.link-card:hover .link-arrow {
+  color: var(--color-primary);
+  transform: translateX(3px);
+  opacity: 1;
+}
+
+.tag-icon {
+  font-size: 1rem;
 }
 
 /* TOP20汇总样式 */
