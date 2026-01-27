@@ -593,6 +593,20 @@
                   <div class="link-arrow">→</div>
                 </a>
                 <a
+                  :href="remoteControlUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link-card"
+                  :class="{ disabled: !fmoAddress }"
+                >
+                  <div class="link-icon">📻</div>
+                  <div class="link-info">
+                    <div class="link-name">FMO远程控制</div>
+                    <div class="link-url">{{ fmoAddress || '未设置地址' }}</div>
+                  </div>
+                  <div class="link-arrow">→</div>
+                </a>
+                <a
                   href="https://bg5esn.com/docs/fmo-user-shares/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -726,6 +740,11 @@ const availableFromCallsigns = ref([])
 const selectedFromCallsign = ref('') // 空字符串表示"所有呼号"
 const importProgress = ref(null)
 const fmoAddress = ref('') // 初始化为空，稍后在onMounted中根据设备类型设置
+const remoteControlUrl = computed(() => {
+  if (!fmoAddress.value) return '#'
+  const host = fmoAddress.value.trim().replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+  return `http://${host}/remote.html`
+})
 const protocol = ref('ws')
 const syncing = ref(false)
 const syncStatus = ref('')
@@ -2277,6 +2296,12 @@ onUnmounted(() => {
   border-color: var(--color-primary);
   box-shadow: 0 8px 16px var(--shadow-card);
   background: var(--bg-table-hover);
+}
+
+.link-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .link-icon {
