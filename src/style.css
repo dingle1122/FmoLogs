@@ -64,6 +64,11 @@
   --overlay-bg: rgba(0, 0, 0, 0.5);
   --tooltip-bg: #333333;
 
+  /* 发言状态条 */
+  --color-speaking: #22c55e;
+  --bg-speaking-bar: #f0fdf4;
+  --border-speaking-bar: #86efac;
+
   /* 默认浅色模式颜色 */
   color: var(--text-primary);
   background-color: var(--bg-page);
@@ -118,6 +123,11 @@
     --shadow-modal: rgba(0, 0, 0, 0.5);
     --overlay-bg: rgba(0, 0, 0, 0.7);
     --tooltip-bg: #4a4a4a;
+
+    /* 发言状态条 */
+    --color-speaking: #4ade80;
+    --bg-speaking-bar: #1f3a1f;
+    --border-speaking-bar: #2d5a2d;
   }
 }
 

@@ -34,6 +34,25 @@
       </div>
     </header>
 
+    <!-- 发言状态条 -->
+    <div
+      v-if="fmoAddress && (currentSpeaker || speakingHistory.length > 0)"
+      class="speaking-bar"
+      @click="showSpeakingHistory = true"
+    >
+      <div class="speaking-bar-content">
+        <span v-if="currentSpeaker" class="speaking-indicator speaking"></span>
+        <span v-else class="speaking-indicator idle"></span>
+        <span class="speaking-text">
+          <template v-if="currentSpeaker">
+            正在发言: <strong>{{ currentSpeaker }}</strong>
+          </template>
+          <template v-else> 当前无人发言 </template>
+        </span>
+        <span class="speaking-expand">点击展开</span>
+      </div>
+    </div>
+
     <div class="content-area">
       <div v-if="autoSyncMessage" class="auto-sync-hint">
         {{ autoSyncMessage }}
@@ -559,7 +578,11 @@
                 <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="syncToday">
                   {{ syncing ? '正在同步...' : '同步今日通联' }}
                 </button>
-                <button class="btn-secondary" :disabled="!fmoAddress || syncing" @click="backupLogs">
+                <button
+                  class="btn-secondary"
+                  :disabled="!fmoAddress || syncing"
+                  @click="backupLogs"
+                >
                   备份FMO日志
                 </button>
               </div>
@@ -649,6 +672,37 @@
       style="display: none"
       @change="handleFileSelect"
     />
+
+    <!-- 发言历史弹框 -->
+    <div v-if="showSpeakingHistory" class="modal-overlay" @click.self="showSpeakingHistory = false">
+      <div class="modal modal-speaking-history">
+        <div class="modal-header">
+          <h3>30分钟内发言记录</h3>
+          <button class="close-btn" @click="showSpeakingHistory = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="speakingHistory.length > 0" class="speaking-history-list">
+            <div
+              v-for="(record, index) in speakingHistory"
+              :key="index"
+              class="speaking-history-item"
+              :class="{ 'is-speaking': !record.endTime }"
+            >
+              <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
+              <span class="history-callsign">{{ record.callsign }}</span>
+              <span class="history-time">
+                <template v-if="!record.endTime">正在发言</template>
+                <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
+              </span>
+            </div>
+          </div>
+          <div v-else class="speaking-history-empty">
+            <div class="empty-divider"></div>
+            <div class="empty-text">暂无30分钟内的发言记录</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -742,7 +796,10 @@ const importProgress = ref(null)
 const fmoAddress = ref('') // 初始化为空，稍后在onMounted中根据设备类型设置
 const remoteControlUrl = computed(() => {
   if (!fmoAddress.value) return '#'
-  const host = fmoAddress.value.trim().replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+  const host = fmoAddress.value
+    .trim()
+    .replace(/^(https?|wss?):?\/\//, '')
+    .replace(/\/+$/, '')
   return `http://${host}/remote.html`
 })
 const protocol = ref('ws')
@@ -751,12 +808,155 @@ const syncStatus = ref('')
 const autoSyncMessage = ref('')
 let autoSyncMessageTimer = null
 
+// 发言状态相关
+const currentSpeaker = ref('') // 当前发言的呼号
+const speakingHistory = ref([]) // 30分钟内发言历史 [{callsign, startTime, endTime}]
+const showSpeakingHistory = ref(false) // 是否显示历史弹框
+let eventWs = null // WebSocket 实例
+let eventWsReconnectTimer = null // 重连定时器
+let speakingHistoryCleanupTimer = null // 历史清理定时器
+
 function showAutoSyncMessage(msg) {
   autoSyncMessage.value = msg
   if (autoSyncMessageTimer) clearTimeout(autoSyncMessageTimer)
   autoSyncMessageTimer = setTimeout(() => {
     autoSyncMessage.value = ''
   }, 5000)
+}
+
+// 连接事件 WebSocket
+function connectEventWs() {
+  if (!fmoAddress.value) return
+  if (eventWs && eventWs.readyState === WebSocket.OPEN) return
+
+  const host = fmoAddress.value
+    .trim()
+    .replace(/^(https?|wss?):?\/\//, '')
+    .replace(/\/+$/, '')
+  const wsUrl = `${protocol.value}://${host}/events`
+
+  eventWs = new WebSocket(wsUrl)
+
+  eventWs.onopen = () => {
+    // 连接成功，清除重连定时器
+    if (eventWsReconnectTimer) {
+      clearTimeout(eventWsReconnectTimer)
+      eventWsReconnectTimer = null
+    }
+  }
+
+  eventWs.onmessage = (event) => {
+    handleEventMessage(event.data)
+  }
+
+  eventWs.onclose = () => {
+    // 断线重连（5秒后）
+    if (!eventWsReconnectTimer && fmoAddress.value) {
+      eventWsReconnectTimer = setTimeout(() => {
+        eventWsReconnectTimer = null
+        connectEventWs()
+      }, 5000)
+    }
+  }
+
+  eventWs.onerror = () => {
+    eventWs?.close()
+  }
+}
+
+// 断开事件 WebSocket
+function disconnectEventWs() {
+  if (eventWsReconnectTimer) {
+    clearTimeout(eventWsReconnectTimer)
+    eventWsReconnectTimer = null
+  }
+  if (eventWs) {
+    eventWs.close()
+    eventWs = null
+  }
+  currentSpeaker.value = ''
+}
+
+// 处理事件消息
+function handleEventMessage(data) {
+  // 可能有多条消息连在一起，需要分割处理
+  const messages = data.split('}{').map((msg, index, arr) => {
+    if (arr.length === 1) return msg
+    if (index === 0) return msg + '}'
+    if (index === arr.length - 1) return '{' + msg
+    return '{' + msg + '}'
+  })
+
+  for (const msgStr of messages) {
+    try {
+      const msg = JSON.parse(msgStr)
+      if (msg.type === 'qso' && msg.subType === 'callsign' && msg.data) {
+        const { callsign, isSpeaking } = msg.data
+        const now = Date.now()
+
+        if (isSpeaking && callsign) {
+          // 开始发言 - 先结束之前所有未结束的记录
+          speakingHistory.value.forEach((h) => {
+            if (!h.endTime) {
+              h.endTime = now
+            }
+          })
+          currentSpeaker.value = callsign
+          // 查找该呼号是否已有记录
+          const existingIndex = speakingHistory.value.findIndex((h) => h.callsign === callsign)
+          if (existingIndex >= 0) {
+            // 更新已有记录并移到最前面
+            const existing = speakingHistory.value.splice(existingIndex, 1)[0]
+            existing.startTime = now
+            existing.endTime = null
+            speakingHistory.value.unshift(existing)
+          } else {
+            // 添加新的发言记录
+            speakingHistory.value.unshift({
+              callsign,
+              startTime: now,
+              endTime: null
+            })
+          }
+        } else {
+          // 结束发言 - 关闭所有未结束的记录
+          speakingHistory.value.forEach((h) => {
+            if (!h.endTime) {
+              h.endTime = now
+            }
+          })
+          currentSpeaker.value = ''
+        }
+      }
+    } catch {
+      // 忽略解析错误
+    }
+  }
+}
+
+// 清理超过30分钟的发言历史
+function cleanupSpeakingHistory() {
+  const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+  speakingHistory.value = speakingHistory.value.filter((h) => {
+    const time = h.endTime || h.startTime
+    return time > thirtyMinutesAgo
+  })
+}
+
+// 启动发言历史清理定时器
+function startSpeakingHistoryCleanup() {
+  if (speakingHistoryCleanupTimer) return
+  speakingHistoryCleanupTimer = setInterval(cleanupSpeakingHistory, 60000) // 每分钟清理一次
+}
+
+// 格式化时间为"X分钟前"
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return ''
+  const diff = Date.now() - timestamp
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return '刚刚'
+  if (minutes === 1) return '1分钟前'
+  return `${minutes}分钟前`
 }
 
 const isHttps = window.location.protocol === 'https:'
@@ -844,6 +1044,8 @@ onMounted(async () => {
     } else {
       fmoAddress.value = savedAddress
     }
+    // 已配置地址，连接事件 WebSocket
+    connectEventWs()
   } else {
     // 如果没有保存的地址，根据设备类型设置默认值
     fmoAddress.value = isMobileDevice.value ? '' : 'fmo.local'
@@ -851,6 +1053,8 @@ onMounted(async () => {
 
   // 启动定时同步任务
   startAutoSyncTask()
+  // 启动发言历史清理定时器
+  startSpeakingHistoryCleanup()
 })
 
 // 定时同步任务：每10s同步第一页10条数据
@@ -930,13 +1134,13 @@ async function startAutoSyncTask() {
           if (!selectedFromCallsign.value && callsigns.length > 0) {
             selectedFromCallsign.value = callsigns[0]
           }
-          
+
           // 如果插入前数据库为空，重新加载页面
           if (wasEmpty) {
             window.location.reload()
             return
           }
-          
+
           await executeQuery()
           showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
         }
@@ -1084,14 +1288,14 @@ async function handleSaveFmoAddress() {
   loading.value = true
   try {
     const host = address.replace(/\/+$/, '')
-    
+
     // 检查是否为有效的IP地址或域名（包括fmo.local）
     const client = new FmoApiClient(`${protocol.value}://${host}`)
     if (!client.isValidAddress(host)) {
       alert('请输入有效的IP地址或域名')
       return
     }
-    
+
     const wsUrl = `${protocol.value}://${host}/ws`
 
     const isConnected = await new Promise((resolve) => {
@@ -1116,6 +1320,9 @@ async function handleSaveFmoAddress() {
 
     if (isConnected) {
       await saveFmoAddress(fullAddress)
+      // 重新连接事件 WebSocket
+      disconnectEventWs()
+      connectEventWs()
       alert('设置已保存')
     } else {
       if (isHttps && protocol.value === 'ws') {
@@ -1529,6 +1736,11 @@ onUnmounted(() => {
     clearInterval(autoSyncTimer)
     autoSyncTimer = null
   }
+  if (speakingHistoryCleanupTimer) {
+    clearInterval(speakingHistoryCleanupTimer)
+    speakingHistoryCleanupTimer = null
+  }
+  disconnectEventWs()
   dbManager.close()
 })
 </script>
@@ -1563,6 +1775,7 @@ onUnmounted(() => {
 
 .header h1 {
   margin: 0;
+  font-size: 1.1rem;
 }
 
 .total-logs {
@@ -2710,7 +2923,7 @@ onUnmounted(() => {
   }
 
   .header h1 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
 
   .header-left {
@@ -2887,6 +3100,211 @@ onUnmounted(() => {
 
   .col-timestamp {
     width: 90px;
+  }
+}
+
+/* 发言状态条样式 */
+.speaking-bar {
+  flex-shrink: 0;
+  background: var(--bg-speaking-bar);
+  border-bottom: 2px solid var(--border-speaking-bar);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.speaking-bar:hover {
+  background: var(--bg-today-card);
+}
+
+.speaking-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.speaking-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.speaking-indicator.speaking {
+  background: var(--color-speaking);
+  animation: pulse 1.5s infinite;
+}
+
+.speaking-indicator.idle {
+  background: var(--text-disabled);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.speaking-text {
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.speaking-text strong {
+  color: var(--color-speaking);
+  font-weight: 600;
+}
+
+.speaking-expand {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+/* 发言历史弹框样式 */
+.modal-speaking-history {
+  width: 400px;
+  max-width: 90%;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-speaking-history .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  height: auto;
+}
+
+.speaking-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.speaking-history-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.speaking-history-item:hover {
+  background: var(--bg-table-hover);
+}
+
+.speaking-history-item.is-speaking {
+  background: var(--bg-speaking-bar);
+  border-color: var(--border-speaking-bar);
+}
+
+.history-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-disabled);
+  flex-shrink: 0;
+}
+
+.history-indicator.speaking {
+  background: var(--color-speaking);
+  animation: pulse 1.5s infinite;
+}
+
+.history-callsign {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.speaking-history-item.is-speaking .history-callsign {
+  font-weight: 600;
+  color: var(--color-speaking);
+}
+
+.history-time {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.speaking-history-item.is-speaking .history-time {
+  color: var(--color-speaking);
+}
+
+.speaking-history-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.empty-divider {
+  border-top: 1px dashed var(--border-secondary);
+  margin-bottom: 1rem;
+}
+
+.empty-text {
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+/* 响应式：移动端状态条样式 */
+@media (max-width: 768px) {
+  .speaking-bar {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .speaking-text {
+    font-size: 0.85rem;
+  }
+
+  .speaking-expand {
+    font-size: 0.75rem;
+  }
+
+  .modal-speaking-history {
+    width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  .speaking-bar-content {
+    gap: 0.4rem;
+  }
+
+  .speaking-indicator {
+    width: 8px;
+    height: 8px;
+  }
+
+  .speaking-text {
+    font-size: 0.8rem;
+  }
+
+  .speaking-expand {
+    display: none;
+  }
+
+  .speaking-history-item {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .history-callsign {
+    font-size: 0.9rem;
+  }
+
+  .history-time {
+    font-size: 0.8rem;
   }
 }
 </style>

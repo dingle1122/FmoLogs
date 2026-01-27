@@ -15,7 +15,13 @@ export default [
         document: 'readonly',
         indexedDB: 'readonly',
         setTimeout: 'readonly',
-        clearTimeout: 'readonly'
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        WebSocket: 'readonly',
+        alert: 'readonly',
+        navigator: 'readonly',
+        IDBKeyRange: 'readonly'
       }
     },
     rules: {
