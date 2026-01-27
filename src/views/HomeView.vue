@@ -1081,6 +1081,7 @@ async function loadTodayContactedCallsigns() {
 // 自动同步定时器和状态锁
 let autoSyncTimer = null
 let isAutoSyncing = false
+let lastFullSyncTime = 0 // 上次全量同步时间戳
 
 // 监听发言历史弹框打开，加载今日通联呼号
 watch(showSpeakingHistory, async (newValue) => {
@@ -1122,7 +1123,7 @@ onMounted(async () => {
   startSpeakingHistoryCleanup()
 })
 
-// 定时同步任务：每10s同步第一页10条数据
+// 定时同步任务：每10s同步第一页10条数据，利用发言历史优化
 async function startAutoSyncTask() {
   if (autoSyncTimer) return
 
@@ -1135,90 +1136,27 @@ async function startAutoSyncTask() {
     isAutoSyncing = true
 
     try {
-      // 获取当前完整地址
-      const address = fmoAddress.value.trim()
-      const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
-      const fullAddress = `${protocol.value}://${host}`
-
-      // 每次同步创建一个新的客户端
-      const client = new FmoApiClient(fullAddress)
-
-      try {
-        // 检查插入前数据库是否为空
-        const wasEmpty = !dbLoaded.value || totalLogs.value === 0
-
-        // 使用当前选择的 fromCallsign 作为查询条件，每页查询10条数据
-        const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
-        const fromCallsign = selectedFromCallsign.value
-        const response = await client.getQsoList(0, 10, fromCallsign)
-        const list = response.list || []
-        const newCallsigns = []
-
-        for (const item of list) {
-          // 跳过今天之前的数据
-          if (item.timestamp < todayStart) continue
-
-          let qso = null
-          if (fromCallsign) {
-            // 已有选择，先检查是否存在
-            const exists = await isQsoExistsInIndexedDB(
-              fromCallsign,
-              item.timestamp,
-              item.toCallsign
-            )
-            if (!exists) {
-              const detailResponse = await client.getQsoDetail(item.logId)
-              qso = detailResponse.log
-              if (qso && qso.fromCallsign !== fromCallsign) qso = null
-            }
-          } else {
-            // 未选择，通过详情获取呼号并插入
-            const detailResponse = await client.getQsoDetail(item.logId)
-            qso = detailResponse.log
-            if (qso) {
-              const exists = await isQsoExistsInIndexedDB(
-                qso.fromCallsign,
-                qso.timestamp,
-                qso.toCallsign
-              )
-              if (exists) qso = null
-            }
-          }
-
-          if (qso) {
-            await saveSingleQsoToIndexedDB(qso)
-            newCallsigns.push(qso.toCallsign)
-          }
+      const now = Date.now()
+      const oneHour = 60 * 60 * 1000 // 1小时毫秒数
+      
+      // 判断是否需要全量同步（每小时一次）
+      const needsFullSync = now - lastFullSyncTime >= oneHour
+      
+      if (needsFullSync) {
+        // 每小时同步今日完整数据
+        console.log('执行每小时今日数据同步')
+        await performTodaySync()
+        lastFullSyncTime = now
+      } else {
+        // 增量同步：检查发言历史，优化同步策略
+        const shouldSync = checkShouldSync()
+        
+        if (shouldSync) {
+          // 执行增量同步
+          await performIncrementalSync()
+        } else {
+          console.log('当前呼号5分钟内未发言，跳过本次同步')
         }
-
-        // 如果有新数据插入，重新查询并提示
-        if (newCallsigns.length > 0) {
-          const callsigns = await getAvailableFromCallsigns()
-          availableFromCallsigns.value = callsigns
-          // 如果之前没有选择呼号，默认选择第一个
-          if (!selectedFromCallsign.value && callsigns.length > 0) {
-            selectedFromCallsign.value = callsigns[0]
-          }
-
-          // 如果插入前数据库为空，重新加载页面
-          if (wasEmpty) {
-            window.location.reload()
-            return
-          }
-
-          await executeQuery()
-          showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
-          
-          // 如果发言历史弹框已打开，刷新今日通联呼号
-          if (showSpeakingHistory.value) {
-            await loadTodayContactedCallsigns()
-          }
-        }
-      } catch (err) {
-        console.error('定时同步失败:', err)
-      } finally {
-        // 完成后关闭连接
-        client.close()
       }
     } catch (err) {
       console.error('定时同步初始化失败:', err)
@@ -1226,6 +1164,197 @@ async function startAutoSyncTask() {
       isAutoSyncing = false
     }
   }, 10000)
+}
+
+// 检查是否应该执行同步
+function checkShouldSync() {
+  // 如果没有发言历史数据，默认执行同步
+  if (!speakingHistory.value || speakingHistory.value.length === 0) {
+    return true
+  }
+  
+  // 获取当前选择的呼号
+  const currentCallsign = selectedFromCallsign.value
+  if (!currentCallsign) {
+    return true
+  }
+  
+  // 检查5分钟内是否有该呼号的发言记录
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+  const hasRecentSpeaking = speakingHistory.value.some((h) => {
+    const time = h.endTime || h.startTime
+    return h.callsign === currentCallsign && time > fiveMinutesAgo
+  })
+  
+  return hasRecentSpeaking
+}
+
+// 核心同步逻辑：同步今日所有数据
+// statusCallback: 可选的状态回调函数，用于更新同步状态提示
+async function syncTodayData(client, statusCallback = null) {
+  const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
+  let page = 0
+  let hasMoreToday = true
+  let totalSynced = 0
+  const currentFromCallsign = selectedFromCallsign.value
+
+  while (hasMoreToday) {
+    if (statusCallback) {
+      statusCallback(`获取第 ${page + 1} 页列表...`)
+    }
+    
+    const response = await client.getQsoList(page, 20, currentFromCallsign)
+    const list = response.list
+
+    if (!list || list.length === 0) break
+
+    for (const item of list) {
+      if (item.timestamp >= todayStart) {
+        const qso = await processSingleQsoItem(item, todayStart, currentFromCallsign, client)
+        if (qso) {
+          if (statusCallback) {
+            statusCallback(`保存记录: ${qso.toCallsign}...`)
+          }
+          totalSynced++
+        }
+      } else {
+        hasMoreToday = false
+        break
+      }
+    }
+
+    if (list.length < 20) break
+    page++
+  }
+
+  return totalSynced
+}
+
+// 核心同步逻辑：处理单条QSO记录的检查和保存
+async function processSingleQsoItem(item, todayStart, currentFromCallsign, client) {
+  // 跳过今天之前的数据
+  if (item.timestamp < todayStart) return null
+
+  let qso = null
+  if (currentFromCallsign) {
+    // 已有选择，先检查是否存在
+    const exists = await isQsoExistsInIndexedDB(
+      currentFromCallsign,
+      item.timestamp,
+      item.toCallsign
+    )
+    if (!exists) {
+      const detailResponse = await client.getQsoDetail(item.logId)
+      qso = detailResponse.log
+      if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+    }
+  } else {
+    // 未选择，通过详情获取呼号并插入
+    const detailResponse = await client.getQsoDetail(item.logId)
+    qso = detailResponse.log
+    if (qso) {
+      const exists = await isQsoExistsInIndexedDB(
+        qso.fromCallsign,
+        qso.timestamp,
+        qso.toCallsign
+      )
+      if (exists) qso = null
+    }
+  }
+
+  if (qso) {
+    await saveSingleQsoToIndexedDB(qso)
+  }
+  
+  return qso
+}
+
+// 同步后的数据更新逻辑
+async function updateAfterSync(wasEmpty, syncedCount, message) {
+  if (syncedCount === 0) return
+
+  const callsigns = await getAvailableFromCallsigns()
+  availableFromCallsigns.value = callsigns
+  if (callsigns.length > 0) {
+    if (!selectedFromCallsign.value) {
+      selectedFromCallsign.value = callsigns[0]
+    }
+    dbLoaded.value = true
+    dbCount.value = callsigns.length
+  }
+
+  // 如果插入前数据库为空，重新加载页面
+  if (wasEmpty) {
+    window.location.reload()
+    return
+  }
+
+  await executeQuery()
+  if (message) {
+    showAutoSyncMessage(message)
+  }
+  
+  // 如果发言历史弹框已打开，刷新今日通联呼号
+  if (showSpeakingHistory.value) {
+    await loadTodayContactedCallsigns()
+  }
+}
+
+// 执行增量同步（原逻辑：同步第一页10条）
+async function performIncrementalSync() {
+  const address = fmoAddress.value.trim()
+  const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+  const fullAddress = `${protocol.value}://${host}`
+  const client = new FmoApiClient(fullAddress)
+
+  try {
+    const wasEmpty = !dbLoaded.value || totalLogs.value === 0
+    const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
+    const currentFromCallsign = selectedFromCallsign.value
+    const response = await client.getQsoList(0, 10, currentFromCallsign)
+    const list = response.list || []
+    const newCallsigns = []
+
+    for (const item of list) {
+      const qso = await processSingleQsoItem(item, todayStart, currentFromCallsign, client)
+      if (qso) {
+        newCallsigns.push(qso.toCallsign)
+      }
+    }
+
+    await updateAfterSync(wasEmpty, newCallsigns.length, 
+      newCallsigns.length > 0 ? `同步到和 ${newCallsigns.join(', ')} 的通联` : null)
+  } catch (err) {
+    console.error('增量同步失败:', err)
+  } finally {
+    client.close()
+  }
+}
+
+// 执行今日数据同步（每小时一次，同步今日通联数据，不刷新页面）
+async function performTodaySync() {
+  const address = fmoAddress.value.trim()
+  const host = address.replace(/^(https?|wss?):?\/\//, '').replace(/\/+$/, '')
+  const fullAddress = `${protocol.value}://${host}`
+  const client = new FmoApiClient(fullAddress)
+
+  try {
+    const wasEmpty = !dbLoaded.value || totalLogs.value === 0
+    
+    // 调用公共同步函数
+    const totalSynced = await syncTodayData(client)
+
+    await updateAfterSync(wasEmpty, totalSynced, 
+      totalSynced > 0 ? `每小时同步完成，共更新 ${totalSynced} 条记录` : null)
+    
+    if (totalSynced === 0) {
+      console.log('每小时同步完成，无新数据')
+    }
+  } catch (err) {
+    console.error('今日数据同步失败:', err)
+  } finally {
+    client.close()
+  }
 }
 
 async function tryRestoreDirectory() {
@@ -1432,60 +1561,10 @@ async function syncToday() {
 
   const client = new FmoApiClient(fmoAddress.value)
   try {
-    const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
-    let page = 0
-    let hasMoreToday = true
-    let totalSynced = 0
-
-    while (hasMoreToday) {
-      syncStatus.value = `获取第 ${page + 1} 页列表...`
-      const currentFromCallsign = selectedFromCallsign.value
-      const response = await client.getQsoList(page, 20, currentFromCallsign)
-      const list = response.list
-
-      if (!list || list.length === 0) break
-
-      for (const item of list) {
-        if (item.timestamp >= todayStart) {
-          let qso = null
-          if (currentFromCallsign) {
-            const exists = await isQsoExistsInIndexedDB(
-              currentFromCallsign,
-              item.timestamp,
-              item.toCallsign
-            )
-            if (!exists) {
-              const detailResponse = await client.getQsoDetail(item.logId)
-              qso = detailResponse.log
-              if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
-            }
-          } else {
-            const detailResponse = await client.getQsoDetail(item.logId)
-            qso = detailResponse.log
-            if (qso) {
-              const exists = await isQsoExistsInIndexedDB(
-                qso.fromCallsign,
-                qso.timestamp,
-                qso.toCallsign
-              )
-              if (exists) qso = null
-            }
-          }
-
-          if (qso) {
-            syncStatus.value = `保存记录: ${qso.toCallsign}...`
-            await saveSingleQsoToIndexedDB(qso)
-            totalSynced++
-          }
-        } else {
-          hasMoreToday = false
-          break
-        }
-      }
-
-      if (list.length < 20) break
-      page++
-    }
+    // 调用公共同步函数，传入状态回调
+    const totalSynced = await syncTodayData(client, (status) => {
+      syncStatus.value = status
+    })
 
     syncStatus.value = `同步完成，共更新 ${totalSynced} 条记录`
 
