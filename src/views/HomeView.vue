@@ -689,7 +689,10 @@
               :class="{ 'is-speaking': !record.endTime }"
             >
               <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
-              <span class="history-callsign">{{ record.callsign }}</span>
+              <span class="history-callsign">
+                {{ record.callsign }}
+                <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star">⭐</span>
+              </span>
               <span class="history-time">
                 <template v-if="!record.endTime">正在发言</template>
                 <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
@@ -707,7 +710,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import {
   scanDirectory,
   DatabaseManager,
@@ -812,6 +815,7 @@ let autoSyncMessageTimer = null
 const currentSpeaker = ref('') // 当前发言的呼号
 const speakingHistory = ref([]) // 30分钟内发言历史 [{callsign, startTime, endTime}]
 const showSpeakingHistory = ref(false) // 是否显示历史弹框
+const todayContactedCallsigns = ref(new Set()) // 今日通联过的呼号集合
 let eventWs = null // WebSocket 实例
 let eventWsReconnectTimer = null // 重连定时器
 let speakingHistoryCleanupTimer = null // 历史清理定时器
@@ -827,7 +831,21 @@ function showAutoSyncMessage(msg) {
 // 连接事件 WebSocket
 function connectEventWs() {
   if (!fmoAddress.value) return
-  if (eventWs && eventWs.readyState === WebSocket.OPEN) return
+  
+  // 检查是否已有连接或正在连接
+  if (eventWs) {
+    const state = eventWs.readyState
+    // 如果已经是打开或正在连接状态，不重复连接
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+      return
+    }
+    // 如果正在关闭，等待关闭完成
+    if (state === WebSocket.CLOSING) {
+      // 延迟重试
+      setTimeout(() => connectEventWs(), 500)
+      return
+    }
+  }
 
   const host = fmoAddress.value
     .trim()
@@ -860,20 +878,29 @@ function connectEventWs() {
   }
 
   eventWs.onerror = () => {
-    eventWs?.close()
+    // 发生错误时，不需要手动close，onclose会自动触发
+    // 移除 eventWs?.close() 避免重复关闭
   }
 }
 
 // 断开事件 WebSocket
 function disconnectEventWs() {
+  // 清除重连定时器
   if (eventWsReconnectTimer) {
     clearTimeout(eventWsReconnectTimer)
     eventWsReconnectTimer = null
   }
+  
+  // 关闭 WebSocket 连接
   if (eventWs) {
-    eventWs.close()
+    const state = eventWs.readyState
+    // 只有在连接中或已打开时才需要关闭
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+      eventWs.close()
+    }
     eventWs = null
   }
+  
   currentSpeaker.value = ''
 }
 
@@ -1027,9 +1054,47 @@ function isTodayContact(timestamp) {
   )
 }
 
+// 查询今日通联过的呼号
+async function loadTodayContactedCallsigns() {
+  if (!selectedFromCallsign.value) {
+    todayContactedCallsigns.value = new Set()
+    return
+  }
+
+  try {
+    const allRecords = await getAllRecordsFromIndexedDB(1, 999999, '', selectedFromCallsign.value)
+    const callsigns = new Set()
+    
+    for (const record of allRecords.data) {
+      if (isTodayContact(record.timestamp) && record.toCallsign) {
+        callsigns.add(record.toCallsign)
+      }
+    }
+    
+    todayContactedCallsigns.value = callsigns
+  } catch (error) {
+    console.error('查询今日通联呼号失败:', error)
+    todayContactedCallsigns.value = new Set()
+  }
+}
+
 // 自动同步定时器和状态锁
 let autoSyncTimer = null
 let isAutoSyncing = false
+
+// 监听发言历史弹框打开，加载今日通联呼号
+watch(showSpeakingHistory, async (newValue) => {
+  if (newValue) {
+    await loadTodayContactedCallsigns()
+  }
+})
+
+// 监听呼号选择变化，如果弹框已打开则刷新今日通联呼号
+watch(selectedFromCallsign, async () => {
+  if (showSpeakingHistory.value) {
+    await loadTodayContactedCallsigns()
+  }
+})
 
 onMounted(async () => {
   await tryRestoreDirectory()
@@ -1143,6 +1208,11 @@ async function startAutoSyncTask() {
 
           await executeQuery()
           showAutoSyncMessage(`同步到和 ${newCallsigns.join(', ')} 的通联`)
+          
+          // 如果发言历史弹框已打开，刷新今日通联呼号
+          if (showSpeakingHistory.value) {
+            await loadTodayContactedCallsigns()
+          }
         }
       } catch (err) {
         console.error('定时同步失败:', err)
@@ -1234,6 +1304,11 @@ async function loadDatabases(dbFiles) {
   currentPage.value = 1
 
   executeQuery()
+  
+  // 如果发言历史弹框已打开，刷新今日通联呼号
+  if (showSpeakingHistory.value) {
+    await loadTodayContactedCallsigns()
+  }
 }
 
 async function selectDirectory() {
@@ -3153,17 +3228,18 @@ onUnmounted(() => {
 
 .speaking-text {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   color: var(--text-primary);
 }
 
 .speaking-text strong {
   color: var(--color-speaking);
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 .speaking-expand {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   color: var(--text-tertiary);
 }
 
@@ -3224,17 +3300,28 @@ onUnmounted(() => {
 
 .history-callsign {
   flex: 1;
-  font-weight: 500;
+  font-weight: 700;
+  font-size: 1.3rem;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.today-star {
+  font-size: 1rem;
+  line-height: 1.3rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .speaking-history-item.is-speaking .history-callsign {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-speaking);
 }
 
 .history-time {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-tertiary);
 }
 
