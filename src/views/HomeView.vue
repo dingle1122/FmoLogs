@@ -1834,7 +1834,11 @@ onUnmounted(() => {
 }
 
 .data-table tbody tr.row-today {
-  background: var(--bg-today-card);
+  background-color: var(--bg-today-row);
+}
+
+.data-table tbody tr.row-today td {
+  border-color: var(--border-today-row);
 }
 
 .data-table tbody tr:hover:not(.empty-row) {

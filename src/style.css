@@ -50,6 +50,8 @@
   --bg-friend-card: #fff7ed;
   --border-friend-card: #fed7aa;
   --bg-today-card: #f0fdf4;
+  --bg-today-row: #c2e7b0;
+  --border-today-row: #95d475;
   --border-today-card: #86efac;
   --bg-record-card: #f9fafb;
   --border-record-card: #e5e7eb;
@@ -105,6 +107,8 @@
     --bg-friend-card: #3a2e1f;
     --border-friend-card: #5a4a2d;
     --bg-today-card: #1f3a1f;
+    --bg-today-row: #1e4d1e;
+    --border-today-row: #2d5a2d;
     --border-today-card: #2d5a2d;
     --bg-record-card: #333333;
     --border-record-card: #404040;
