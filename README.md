@@ -5,8 +5,7 @@
 ## ✨ 主要功能
 
 ### 📁 数据导入
-- **桌面端**：授权访问本地目录，自动扫描所有 `.db` 文件
-- **移动端**：支持直接选择多个 `.db` 文件（无需目录权限）
+- **导入 FMO 日志**：点击"导入FMO日志"按钮，选择一个或多个 `.db` 文件导入
 - **FMO 同步**：支持通过 WebSocket 实时同步 FMO 设备的今日通联记录
 - 数据导入到 IndexedDB，刷新页面无需重新导入
 - 按发送方呼号（fromCallsign）分类存储
@@ -63,15 +62,9 @@
 
 在桌面浏览器中，默认会预填充 `fmo.local`，而在移动浏览器中则会隐藏 mDNS 提示，因为大多数移动设备不支持 mDNS 服务。
 
-### 桌面端（Chrome/Edge）
+### 导入日志
 1. 点击右上角设置图标
-2. 点击“选择目录”，选择包含 `.db` 日志文件的目录
-3. 授权后自动扫描、导入并显示日志
-4. 数据会自动保存，下次访问无需重新导入
-
-### 移动端/其他浏览器
-1. 点击右上角设置图标
-2. 点击“选择文件”，选择一个或多个 `.db` 文件
+2. 点击"导入FMO日志"，选择一个或多个 `.db` 日志文件
 3. 自动导入并显示日志
 4. 数据会自动保存，下次访问无需重新导入
 
@@ -80,11 +73,11 @@
     1. 在设置中输入 FMO 设备 IP 或域名（如 `192.168.1.100` 或 `fmo.local`）并点击保存（系统将自动校验连通性）
       - 桌面浏览器：默认预填充 `fmo.local`，可直接使用
       - 移动浏览器：隐藏 mDNS 提示，需手动输入 IP 地址
-    2. 点击“同步今日通联”，应用将通过 WebSocket 获取今日最新的通联详情并保存至本地
-- **日志备份**：点击“备份FMO日志”可直接下载设备端的日志备份文件
+    2. 点击"同步今日通联"，应用将通过 WebSocket 获取今日最新的通联详情并保存至本地
+- **日志备份**：点击"备份FMO日志"可直接下载设备端的日志备份文件
 - **查看不同呼号**：在设置中选择不同的发送方呼号，切换数据源
 - **添加新数据**：重复导入操作，新数据会自动合并（去重）
-- **清除数据**：在设置中点击“清除所有数据”按钮
+- **清除数据**：在设置中点击"清除所有数据"按钮
 
 ## 🛠️ 本地开发
 
@@ -112,7 +105,7 @@ npm run build
 
 ## 🌐 浏览器支持
 
-- **推荐**：Chrome/Edge 最新版（支持 File System Access API，可选择目录）
+- **推荐**：Chrome/Edge 最新版
 - **兼容**：所有现代浏览器（通过文件选择器导入）
 - **移动端**：iOS Safari、Android Chrome 等
 
@@ -130,16 +123,27 @@ npm run build
 ```
 FmoLogs/
 ├── src/
-│   ├── components/     # Vue 组件
-│   ├── router/         # 路由配置
-│   ├── services/       # 核心业务逻辑
-│   │   ├── db.js       # 数据库管理、查询、IndexedDB 存储
-   │   └── fmoApi.js   # FMO 设备 WebSocket API 封装
-│   ├── stores/         # Pinia 状态管理
-│   ├── views/          # 页面组件
-│   ├── App.vue         # 根组件
-│   ├── main.js         # 入口文件
-│   └── style.css       # 全局样式
+│   ├── components/        # Vue 组件
+│   │   └── home/          # 首页模块化组件
+│   │       ├── modals/    # 弹框组件
+│   │       └── constants.js  # 常量与工具函数
+│   ├── composables/       # Vue 组合式函数
+│   │   ├── useDbManager.js      # 数据库管理
+│   │   ├── useDataQuery.js      # 数据查询
+│   │   ├── useFmoSync.js        # FMO 同步
+│   │   ├── useSettings.js       # 设置管理
+│   │   └── useSpeakingStatus.js # 发言状态
+│   ├── router/            # 路由配置
+│   ├── services/          # 核心业务逻辑
+│   │   ├── db.js          # 数据库管理、查询、IndexedDB 存储
+│   │   └── fmoApi.js      # FMO 设备 WebSocket API 封装
+│   ├── stores/            # Pinia 状态管理
+│   ├── utils/             # 工具函数
+│   │   └── urlUtils.js    # URL 处理工具
+│   ├── views/             # 页面组件
+│   ├── App.vue            # 根组件
+│   ├── main.js            # 入口文件
+│   └── style.css          # 全局样式
 ├── package.json
 ├── vite.config.js
 └── README.md

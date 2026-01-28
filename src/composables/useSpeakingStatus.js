@@ -1,0 +1,168 @@
+import { ref, onUnmounted } from 'vue'
+import { formatTimeAgo } from '../components/home/constants'
+import { normalizeHost } from '../utils/urlUtils'
+
+export function useSpeakingStatus() {
+  const currentSpeaker = ref('')
+  const speakingHistory = ref([])
+
+  let eventWs = null
+  let eventWsReconnectTimer = null
+  let speakingHistoryCleanupTimer = null
+
+  // 连接事件 WebSocket
+  function connectEventWs(fmoAddress, protocol) {
+    if (!fmoAddress) return
+
+    // 检查是否已有连接或正在连接
+    if (eventWs) {
+      const state = eventWs.readyState
+      if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+        return
+      }
+      if (state === WebSocket.CLOSING) {
+        setTimeout(() => connectEventWs(fmoAddress, protocol), 500)
+        return
+      }
+    }
+
+    const host = normalizeHost(fmoAddress)
+    const wsUrl = `${protocol}://${host}/events`
+
+    eventWs = new WebSocket(wsUrl)
+
+    eventWs.onopen = () => {
+      if (eventWsReconnectTimer) {
+        clearTimeout(eventWsReconnectTimer)
+        eventWsReconnectTimer = null
+      }
+    }
+
+    eventWs.onmessage = (event) => {
+      handleEventMessage(event.data)
+    }
+
+    eventWs.onclose = () => {
+      if (!eventWsReconnectTimer && fmoAddress) {
+        eventWsReconnectTimer = setTimeout(() => {
+          eventWsReconnectTimer = null
+          connectEventWs(fmoAddress, protocol)
+        }, 5000)
+      }
+    }
+
+    eventWs.onerror = () => {
+      // onclose 会自动触发
+    }
+  }
+
+  // 断开事件 WebSocket
+  function disconnectEventWs() {
+    if (eventWsReconnectTimer) {
+      clearTimeout(eventWsReconnectTimer)
+      eventWsReconnectTimer = null
+    }
+
+    if (eventWs) {
+      const state = eventWs.readyState
+      if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+        eventWs.close()
+      }
+      eventWs = null
+    }
+
+    currentSpeaker.value = ''
+  }
+
+  // 处理事件消息
+  function handleEventMessage(data) {
+    const messages = data.split('}{').map((msg, index, arr) => {
+      if (arr.length === 1) return msg
+      if (index === 0) return msg + '}'
+      if (index === arr.length - 1) return '{' + msg
+      return '{' + msg + '}'
+    })
+
+    for (const msgStr of messages) {
+      try {
+        const msg = JSON.parse(msgStr)
+        if (msg.type === 'qso' && msg.subType === 'callsign' && msg.data) {
+          const { callsign, isSpeaking } = msg.data
+          const now = Date.now()
+
+          if (isSpeaking && callsign) {
+            // 开始发言 - 先结束之前所有未结束的记录
+            speakingHistory.value.forEach((h) => {
+              if (!h.endTime) {
+                h.endTime = now
+              }
+            })
+            currentSpeaker.value = callsign
+            const existingIndex = speakingHistory.value.findIndex((h) => h.callsign === callsign)
+            if (existingIndex >= 0) {
+              const existing = speakingHistory.value.splice(existingIndex, 1)[0]
+              existing.startTime = now
+              existing.endTime = null
+              speakingHistory.value.unshift(existing)
+            } else {
+              speakingHistory.value.unshift({
+                callsign,
+                startTime: now,
+                endTime: null
+              })
+            }
+          } else {
+            // 结束发言
+            speakingHistory.value.forEach((h) => {
+              if (!h.endTime) {
+                h.endTime = now
+              }
+            })
+            currentSpeaker.value = ''
+          }
+        }
+      } catch {
+        // 忽略解析错误
+      }
+    }
+  }
+
+  // 清理超过30分钟的发言历史
+  function cleanupSpeakingHistory() {
+    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+    speakingHistory.value = speakingHistory.value.filter((h) => {
+      const time = h.endTime || h.startTime
+      return time > thirtyMinutesAgo
+    })
+  }
+
+  // 启动发言历史清理定时器
+  function startSpeakingHistoryCleanup() {
+    if (speakingHistoryCleanupTimer) return
+    speakingHistoryCleanupTimer = setInterval(cleanupSpeakingHistory, 60000)
+  }
+
+  // 停止清理定时器
+  function stopSpeakingHistoryCleanup() {
+    if (speakingHistoryCleanupTimer) {
+      clearInterval(speakingHistoryCleanupTimer)
+      speakingHistoryCleanupTimer = null
+    }
+  }
+
+  // 组件卸载时清理
+  onUnmounted(() => {
+    stopSpeakingHistoryCleanup()
+    disconnectEventWs()
+  })
+
+  return {
+    currentSpeaker,
+    speakingHistory,
+    connectEventWs,
+    disconnectEventWs,
+    startSpeakingHistoryCleanup,
+    stopSpeakingHistoryCleanup,
+    formatTimeAgo
+  }
+}

@@ -271,6 +271,13 @@ export function formatTimestamp(timestamp) {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
+// SQL 安全转义函数 - 防止 SQL 注入
+function escapeSqlString(str) {
+  if (!str) return ''
+  // 转义单引号和特殊字符
+  return str.replace(/'/g, "''").replace(/\\/g, '\\\\')
+}
+
 // 数据库管理类
 export class DatabaseManager {
   constructor() {
@@ -357,7 +364,8 @@ export class DatabaseManager {
 
     // 如果有搜索关键字，修改SQL添加WHERE条件
     if (searchKeyword && queryType === QueryTypes.ALL) {
-      sql = `SELECT * FROM qso_logs WHERE toCallsign LIKE '%${searchKeyword}%' ORDER BY timestamp DESC`
+      const safeKeyword = escapeSqlString(searchKeyword)
+      sql = `SELECT * FROM qso_logs WHERE toCallsign LIKE '%${safeKeyword}%' ORDER BY timestamp DESC`
     }
 
     const allResults = []
@@ -534,7 +542,8 @@ export class DatabaseManager {
 
     // 如果有搜索关键字，修改SQL添加WHERE条件
     if (searchKeyword) {
-      sql = `SELECT toCallsign, COUNT(*) as count, MAX(timestamp) as latestTime, MIN(timestamp) as firstTime, toGrid FROM qso_logs WHERE toCallsign LIKE '%${searchKeyword}%' GROUP BY toCallsign ORDER BY count DESC`
+      const safeKeyword = escapeSqlString(searchKeyword)
+      sql = `SELECT toCallsign, COUNT(*) as count, MAX(timestamp) as latestTime, MIN(timestamp) as firstTime, toGrid FROM qso_logs WHERE toCallsign LIKE '%${safeKeyword}%' GROUP BY toCallsign ORDER BY count DESC`
     }
 
     const allResults = []
@@ -706,7 +715,7 @@ async function openLogsDatabase(newCallsigns = []) {
         return db
       }
       // 如果不满足，需要关闭并重新打开（升级）
-    } catch (err) {
+    } catch {
       // 如果之前的打开失败了，清除 promise 重新尝试
       logsDbPromise = null
     }
@@ -718,7 +727,9 @@ async function openLogsDatabase(newCallsigns = []) {
     if (logsDbInstance) {
       try {
         logsDbInstance.close()
-      } catch (e) {}
+      } catch {
+        // 忽略关闭错误
+      }
       logsDbInstance = null
     }
 
