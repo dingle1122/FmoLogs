@@ -147,6 +147,7 @@
       :history="speakingStatus.speakingHistory.value"
       :today-contacted-callsigns="settings.todayContactedCallsigns.value"
       @close="showSpeakingHistory = false"
+      @show-callsign-records="handleShowCallsignRecords"
     />
   </div>
 </template>
@@ -206,6 +207,10 @@ const fmoSync = useFmoSync({
       await executeQuery()
       if (showSpeakingHistory.value) {
         await settings.loadTodayContactedCallsigns(dbManager.selectedFromCallsign.value)
+      }
+      // 如果通联记录弹框正在打开，自动刷新数据
+      if (callsignRecords.showCallsignModal.value) {
+        await callsignRecords.loadCallsignRecords(dbManager.selectedFromCallsign.value)
       }
     }
   },

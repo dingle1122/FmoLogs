@@ -12,6 +12,7 @@
             :key="index"
             class="speaking-history-item"
             :class="{ 'is-speaking': !record.endTime }"
+            @click="$emit('show-callsign-records', record.callsign)"
           >
             <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
             <span class="history-callsign">
@@ -53,7 +54,7 @@ defineProps({
   }
 })
 
-defineEmits(['close'])
+defineEmits(['close', 'show-callsign-records'])
 </script>
 
 <style scoped>
@@ -131,6 +132,7 @@ defineEmits(['close'])
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
   transition: background 0.2s;
+  cursor: pointer;
 }
 
 .speaking-history-item:hover {
