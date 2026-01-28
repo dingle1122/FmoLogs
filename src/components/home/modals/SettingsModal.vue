@@ -27,6 +27,13 @@
             <span class="setting-label">日志文件</span>
             <div class="setting-actions">
               <button class="btn-primary" @click="$emit('select-files')">导入FMO日志</button>
+              <button
+                class="btn-secondary"
+                :disabled="!dbLoaded"
+                @click="$emit('export-data')"
+              >
+                导出数据文件
+              </button>
             </div>
           </div>
           <div v-if="dbLoaded" class="setting-info">
@@ -216,6 +223,7 @@ const props = defineProps({
 defineEmits([
   'close',
   'select-files',
+  'export-data',
   'save-fmo-address',
   'sync-today',
   'backup-logs',

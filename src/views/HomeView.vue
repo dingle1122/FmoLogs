@@ -121,6 +121,7 @@
       :sync-status="fmoSync.syncStatus.value"
       @close="showSettings = false"
       @select-files="triggerFileInput"
+      @export-data="handleExportData"
       @save-fmo-address="handleSaveFmoAddress"
       @sync-today="handleSyncToday"
       @backup-logs="settings.backupLogs()"
@@ -172,6 +173,7 @@ import { useFmoSync } from '../composables/useFmoSync'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
 import { useSettings } from '../composables/useSettings'
+import { exportDataToDbFile } from '../services/db'
 
 // 常量
 import { DEFAULT_COLUMNS } from '../components/home/constants'
@@ -308,6 +310,30 @@ async function handleClearAllData() {
   dataQuery.searchKeyword.value = ''
   dataQuery.oldFriendsSearchKeyword.value = ''
   showSettings.value = false
+}
+
+// 导出数据
+async function handleExportData() {
+  try {
+    dbManager.loading.value = true
+    const result = await exportDataToDbFile(dbManager.selectedFromCallsign.value)
+    
+    // 创建 Blob 并下载
+    const blob = new Blob([result.data], { type: 'application/x-sqlite3' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = result.filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    
+    dbManager.loading.value = false
+  } catch (err) {
+    dbManager.loading.value = false
+    alert(`导出失败: ${err.message}`)
+  }
 }
 
 // FMO 设置操作

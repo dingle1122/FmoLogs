@@ -1392,3 +1392,62 @@ export async function saveSingleQsoToIndexedDB(record) {
     await saveCallsignList(newList)
   }
 }
+
+// 导出IndexedDB数据到SQLite数据库文件
+export async function exportDataToDbFile(fromCallsign) {
+  if (!fromCallsign) {
+    throw new Error('必须指定呼号才能导出')
+  }
+
+  await initSQL()
+
+  // 获取指定呼号的数据
+  const allRecords = await getDataFromIndexedDB(fromCallsign)
+
+  if (allRecords.length === 0) {
+    throw new Error('没有数据可导出')
+  }
+
+  // 创建新的SQLite数据库
+  const db = new SQL.Database()
+
+  // 创建qso_logs表（导出时包含logId主键）
+  db.run('CREATE TABLE qso_logs (logId INTEGER PRIMARY KEY,timestamp INTEGER,freqHz INTEGER,fromCallsign TEXT,fromGrid TEXT,toCallsign TEXT,toGrid TEXT,toComment TEXT,mode TEXT,relayName TEXT,relayAdmin TEXT)')
+
+  // 插入数据（logId自动递增）
+  const insertStmt = db.prepare(`
+    INSERT INTO qso_logs (
+      timestamp, freqHz, fromCallsign, fromGrid, toCallsign, 
+      toGrid, toComment, mode, relayName, relayAdmin
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  for (const record of allRecords) {
+    insertStmt.run([
+      record.timestamp || null,
+      record.freqHz || null,
+      record.fromCallsign || null,
+      record.fromGrid || null,
+      record.toCallsign || null,
+      record.toGrid || null,
+      record.toComment || null,
+      record.mode || null,
+      record.relayName || null,
+      record.relayAdmin || null
+    ])
+  }
+  insertStmt.free()
+
+  // 导出为Uint8Array
+  const data = db.export()
+  db.close()
+
+  // 生成文件名：呼号-fmo-logs-秒时间戳.db
+  const timestamp = Math.floor(Date.now() / 1000)
+  const filename = `${fromCallsign}-fmo-logs-${timestamp}.db`
+
+  return {
+    data,
+    filename
+  }
+}
