@@ -1559,7 +1559,8 @@ async function syncToday() {
   syncStatus.value = '连接 FMO...'
   error.value = null
 
-  const client = new FmoApiClient(fmoAddress.value)
+  // 使用完整的协议地址创建客户端
+  const client = new FmoApiClient(fullAddress)
   try {
     // 调用公共同步函数，传入状态回调
     const totalSynced = await syncTodayData(client, (status) => {
