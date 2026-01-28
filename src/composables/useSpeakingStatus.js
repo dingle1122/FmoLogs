@@ -2,13 +2,48 @@ import { ref, onUnmounted } from 'vue'
 import { formatTimeAgo } from '../components/home/constants'
 import { normalizeHost } from '../utils/urlUtils'
 
+const STORAGE_KEY = 'fmo_speaking_history'
+
 export function useSpeakingStatus() {
   const currentSpeaker = ref('')
-  const speakingHistory = ref([])
+  const speakingHistory = ref(loadSpeakingHistoryFromStorage())
 
   let eventWs = null
   let eventWsReconnectTimer = null
   let speakingHistoryCleanupTimer = null
+
+  // 从 localStorage 加载发言历史
+  function loadSpeakingHistoryFromStorage() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        const history = JSON.parse(stored)
+        // 过滤掉超过30分钟的记录
+        const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+        const filteredHistory = history.filter((h) => {
+          const time = h.endTime || h.startTime
+          return time > thirtyMinutesAgo
+        })
+        // 将所有记录标记为已结束（设置 endTime）
+        return filteredHistory.map((h) => ({
+          ...h,
+          endTime: h.endTime || h.startTime
+        }))
+      }
+    } catch (err) {
+      console.error('加载发言历史失败:', err)
+    }
+    return []
+  }
+
+  // 保存发言历史到 localStorage
+  function saveSpeakingHistoryToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(speakingHistory.value))
+    } catch (err) {
+      console.error('保存发言历史失败:', err)
+    }
+  }
 
   // 连接事件 WebSocket
   function connectEventWs(fmoAddress, protocol) {
@@ -111,6 +146,8 @@ export function useSpeakingStatus() {
                 endTime: null
               })
             }
+            // 保存到 localStorage
+            saveSpeakingHistoryToStorage()
           } else {
             // 结束发言
             speakingHistory.value.forEach((h) => {
@@ -119,6 +156,8 @@ export function useSpeakingStatus() {
               }
             })
             currentSpeaker.value = ''
+            // 保存到 localStorage
+            saveSpeakingHistoryToStorage()
           }
         }
       } catch {
@@ -130,10 +169,15 @@ export function useSpeakingStatus() {
   // 清理超过30分钟的发言历史
   function cleanupSpeakingHistory() {
     const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+    const oldLength = speakingHistory.value.length
     speakingHistory.value = speakingHistory.value.filter((h) => {
       const time = h.endTime || h.startTime
       return time > thirtyMinutesAgo
     })
+    // 如果有记录被清理，更新 localStorage
+    if (oldLength !== speakingHistory.value.length) {
+      saveSpeakingHistoryToStorage()
+    }
   }
 
   // 启动发言历史清理定时器

@@ -130,8 +130,12 @@ defineEmits(['click'])
     font-size: 0.8rem;
   }
 
+  .speaking-text strong {
+    font-size: 0.8rem;
+  }
+
   .speaking-expand {
-    display: none;
+    font-size: 0.7rem;
   }
 }
 </style>
