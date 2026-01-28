@@ -8,15 +8,32 @@ export class FmoApiClient {
     this.connectPromise = null
   }
 
-  // 检查是否为有效的IP地址或域名
+  // 检查是否为有效的IP地址或域名（可带端口号）
   isValidAddress(address) {
+    // 分离主机名和端口号
+    let host = address
+    let port = null
+    
+    // 检查是否包含端口号
+    const portMatch = address.match(/^(.+):(\d+)$/)
+    if (portMatch) {
+      host = portMatch[1]
+      port = parseInt(portMatch[2], 10)
+      
+      // 验证端口号范围
+      if (port < 1 || port > 65535) {
+        return false
+      }
+    }
+    
     // 检查是否为IPv4地址
     const ipv4Regex =
       /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
     // 检查是否为域名（包括.fmo.local等）
     const domainRegex =
       /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9])*$/
-    return ipv4Regex.test(address) || domainRegex.test(address)
+    
+    return ipv4Regex.test(host) || domainRegex.test(host)
   }
 
   async connect() {
