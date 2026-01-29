@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import {
-  DatabaseManager,
   loadDbFilesFromFileList,
   importDbFilesToIndexedDB,
   getAvailableFromCallsigns,
@@ -11,7 +10,6 @@ import {
 } from '../services/db'
 
 export function useDbManager() {
-  const dbManager = new DatabaseManager()
   const dbLoaded = ref(false)
   const dbCount = ref(0)
   const availableFromCallsigns = ref([])
@@ -26,8 +24,6 @@ export function useDbManager() {
   const uniqueCallsigns = ref(0)
 
   async function loadDatabases(dbFiles) {
-    dbManager.close()
-
     importProgress.value = { current: 0, total: 0 }
     const importResult = await importDbFilesToIndexedDB(dbFiles, (progress) => {
       importProgress.value = progress
@@ -111,7 +107,6 @@ export function useDbManager() {
 
   async function clearAllData() {
     await clearIndexedDBData()
-    dbManager.close()
     dbLoaded.value = false
     dbCount.value = 0
     totalLogs.value = 0
@@ -121,12 +116,7 @@ export function useDbManager() {
     selectedFromCallsign.value = ''
   }
 
-  function close() {
-    dbManager.close()
-  }
-
   return {
-    dbManager,
     dbLoaded,
     dbCount,
     availableFromCallsigns,
@@ -137,11 +127,9 @@ export function useDbManager() {
     totalLogs,
     todayLogs,
     uniqueCallsigns,
-    loadDatabases,
     updateStats,
     tryRestoreDirectory,
     selectFiles,
-    clearAllData,
-    close
+    clearAllData
   }
 }

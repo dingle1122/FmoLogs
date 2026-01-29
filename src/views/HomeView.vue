@@ -2,9 +2,9 @@
   <div class="container">
     <!-- 标题栏 -->
     <AppHeader
-      :today-logs="dbManager.todayLogs.value"
-      :total-logs="dbManager.totalLogs.value"
-      :unique-callsigns="dbManager.uniqueCallsigns.value"
+      :today-logs="todayLogs"
+      :total-logs="totalLogs"
+      :unique-callsigns="uniqueCallsigns"
       @open-settings="showSettings = true"
     />
 
@@ -23,17 +23,17 @@
       </div>
 
       <!-- 加载状态 -->
-      <div v-if="dbManager.loading.value || dataQuery.loading.value" class="loading">
-        <template v-if="dbManager.importProgress.value">
-          正在导入数据... {{ dbManager.importProgress.value.current }} /
-          {{ dbManager.importProgress.value.total }}
+      <div v-if="loading || dataQuery.loading.value" class="loading">
+        <template v-if="importProgress">
+          正在导入数据... {{ importProgress.current }} /
+          {{ importProgress.total }}
         </template>
         <template v-else> 加载中... </template>
       </div>
 
       <!-- 错误提示 -->
-      <div v-if="dbManager.error.value || dataQuery.error.value" class="error">
-        {{ dbManager.error.value || dataQuery.error.value }}
+      <div v-if="error || dataQuery.error.value" class="error">
+        {{ error || dataQuery.error.value }}
       </div>
 
       <!-- 查询区域 -->
@@ -41,7 +41,7 @@
         v-model:current-query-type="dataQuery.currentQueryType.value"
         v-model:search-keyword="dataQuery.searchKeyword.value"
         v-model:old-friends-search-keyword="dataQuery.oldFriendsSearchKeyword.value"
-        :db-loaded="dbManager.dbLoaded.value"
+        :db-loaded="dbLoaded"
         @update:current-query-type="handleQueryTypeChange"
         @update:search-keyword="onSearchInput"
         @update:old-friends-search-keyword="onOldFriendsSearchInput"
@@ -51,14 +51,14 @@
       <Top20Summary
         v-if="dataQuery.currentQueryType.value === 'top20Summary'"
         :top20-result="dataQuery.top20Result.value"
-        :db-loaded="dbManager.dbLoaded.value"
+        :db-loaded="dbLoaded"
       />
 
       <!-- 老朋友卡片视图 -->
       <OldFriendsList
         v-else-if="dataQuery.currentQueryType.value === 'oldFriends'"
         :old-friends-result="dataQuery.oldFriendsResult.value"
-        :db-loaded="dbManager.dbLoaded.value"
+        :db-loaded="dbLoaded"
         @show-records="handleShowCallsignRecords"
       />
 
@@ -67,7 +67,7 @@
         v-else
         :query-result="dataQuery.queryResult.value"
         :display-columns="displayColumns"
-        :db-loaded="dbManager.dbLoaded.value"
+        :db-loaded="dbLoaded"
         @show-detail="showDetailModal"
       />
 
@@ -77,7 +77,7 @@
         :current-page="dataQuery.currentPage.value"
         :total-pages="dataQuery.totalPages.value"
         :total-records="dataQuery.totalRecords.value"
-        :disabled="!dbManager.dbLoaded.value"
+        :disabled="!dbLoaded"
         @page-change="handlePageChange"
       />
 
@@ -87,7 +87,7 @@
         :current-page="dataQuery.oldFriendsPage.value"
         :total-pages="dataQuery.oldFriendsTotalPages.value"
         :total-records="dataQuery.oldFriendsResult.value?.total"
-        :disabled="!dbManager.dbLoaded.value"
+        :disabled="!dbLoaded"
         @page-change="handleOldFriendsPageChange"
       />
     </div>
@@ -112,11 +112,11 @@
     <!-- 设置弹框 -->
     <SettingsModal
       :visible="showSettings"
-      :db-loaded="dbManager.dbLoaded.value"
+      :db-loaded="dbLoaded"
       :fmo-address="settings.fmoAddress.value"
       :protocol="settings.protocol.value"
-      :available-from-callsigns="dbManager.availableFromCallsigns.value"
-      :selected-from-callsign="dbManager.selectedFromCallsign.value"
+      :available-from-callsigns="availableFromCallsigns"
+      :selected-from-callsign="selectedFromCallsign"
       :syncing="fmoSync.syncing.value"
       :sync-status="fmoSync.syncStatus.value"
       @close="showSettings = false"
@@ -187,7 +187,22 @@ const selectedRowData = ref(null)
 const fileInputRef = ref(null)
 
 // Composables
-const dbManager = useDbManager()
+const {
+  dbLoaded,
+  dbCount,
+  availableFromCallsigns,
+  selectedFromCallsign,
+  importProgress,
+  loading,
+  error,
+  totalLogs,
+  todayLogs,
+  uniqueCallsigns,
+  updateStats,
+  tryRestoreDirectory,
+  selectFiles,
+  clearAllData
+} = useDbManager()
 const settings = useSettings()
 const speakingStatus = useSpeakingStatus()
 const dataQuery = useDataQuery()
@@ -196,30 +211,30 @@ const callsignRecords = useCallsignRecords()
 const fmoSync = useFmoSync({
   onSyncComplete: async ({ callsigns, syncedCount }) => {
     if (callsigns.length > 0) {
-      dbManager.availableFromCallsigns.value = callsigns
-      if (!dbManager.selectedFromCallsign.value) {
-        dbManager.selectedFromCallsign.value = callsigns[0]
+      availableFromCallsigns.value = callsigns
+      if (!selectedFromCallsign.value) {
+        selectedFromCallsign.value = callsigns[0]
       }
-      dbManager.dbLoaded.value = true
-      dbManager.dbCount.value = callsigns.length
+      dbLoaded.value = true
+      dbCount.value = callsigns.length
     }
     if (syncedCount > 0) {
       await executeQuery()
       // 更新顶部统计数据
-      await dbManager.updateStats()
+      await updateStats()
       if (showSpeakingHistory.value) {
-        await settings.loadTodayContactedCallsigns(dbManager.selectedFromCallsign.value)
+        await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
       }
       // 如果通联记录弹框正在打开，自动刷新数据
       if (callsignRecords.showCallsignModal.value) {
-        await callsignRecords.loadCallsignRecords(dbManager.selectedFromCallsign.value)
+        await callsignRecords.loadCallsignRecords(selectedFromCallsign.value)
       }
     }
   },
   getSpeakingHistory: () => speakingStatus.speakingHistory.value,
-  getSelectedFromCallsign: () => dbManager.selectedFromCallsign.value,
-  getDbLoaded: () => dbManager.dbLoaded.value,
-  getTotalLogs: () => dbManager.totalLogs.value
+  getSelectedFromCallsign: () => selectedFromCallsign.value,
+  getDbLoaded: () => dbLoaded.value,
+  getTotalLogs: () => totalLogs.value
 })
 
 // 计算属性
@@ -236,7 +251,7 @@ let oldFriendsSearchTimer = null
 
 // 查询方法
 async function executeQuery() {
-  await dataQuery.executeQuery(dbManager.selectedFromCallsign.value, dbManager.dbLoaded.value)
+  await dataQuery.executeQuery(selectedFromCallsign.value, dbLoaded.value)
 }
 
 function handleQueryTypeChange() {
@@ -271,7 +286,7 @@ function handleOldFriendsPageChange(page) {
 }
 
 function handleFromCallsignChange(value) {
-  dbManager.selectedFromCallsign.value = value
+  selectedFromCallsign.value = value
   dataQuery.resetPagination()
   executeQuery()
 }
@@ -282,11 +297,11 @@ function showDetailModal(row) {
 }
 
 async function handleShowCallsignRecords(callsign) {
-  await callsignRecords.showCallsignRecordsModal(callsign, dbManager.selectedFromCallsign.value)
+  await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value)
 }
 
 async function handleCallsignRecordsPageChange(page) {
-  await callsignRecords.goToCallsignRecordsPage(page, dbManager.selectedFromCallsign.value)
+  await callsignRecords.goToCallsignRecordsPage(page, selectedFromCallsign.value)
 }
 
 // 数据库操作
@@ -297,7 +312,7 @@ function triggerFileInput() {
 async function handleFileSelect(event) {
   const files = event.target.files
   showSettings.value = false
-  const success = await dbManager.selectFiles(files)
+  const success = await selectFiles(files)
   if (success) {
     dataQuery.currentQueryType.value = 'all'
     dataQuery.currentPage.value = 1
@@ -310,7 +325,7 @@ async function handleClearAllData() {
   if (!window.confirm('确定要清空所有数据吗？此操作不可恢复。')) {
     return
   }
-  await dbManager.clearAllData()
+  await clearAllData()
   dataQuery.queryResult.value = null
   dataQuery.top20Result.value = null
   dataQuery.oldFriendsResult.value = null
@@ -322,8 +337,8 @@ async function handleClearAllData() {
 // 导出数据
 async function handleExportData() {
   try {
-    dbManager.loading.value = true
-    const result = await exportDataToDbFile(dbManager.selectedFromCallsign.value)
+    loading.value = true
+    const result = await exportDataToDbFile(selectedFromCallsign.value)
     
     // 创建 Blob 并下载
     const blob = new Blob([result.data], { type: 'application/x-sqlite3' })
@@ -336,18 +351,18 @@ async function handleExportData() {
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
     
-    dbManager.loading.value = false
+    loading.value = false
   } catch (err) {
-    dbManager.loading.value = false
+    loading.value = false
     alert(`导出失败: ${err.message}`)
   }
 }
 
 // FMO 设置操作
 async function handleSaveFmoAddress() {
-  dbManager.loading.value = true
+  loading.value = true
   const result = await settings.validateAndSaveFmoAddress()
-  dbManager.loading.value = false
+  loading.value = false
 
   if (result.success) {
     if (result.reconnect) {
@@ -371,22 +386,22 @@ async function handleSyncToday() {
 // 监听
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
-    await settings.loadTodayContactedCallsigns(dbManager.selectedFromCallsign.value)
+    await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
   }
 })
 
 watch(
-  () => dbManager.selectedFromCallsign.value,
+  () => selectedFromCallsign.value,
   async () => {
     if (showSpeakingHistory.value) {
-      await settings.loadTodayContactedCallsigns(dbManager.selectedFromCallsign.value)
+      await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
     }
   }
 )
 
 // 生命周期
 onMounted(async () => {
-  const restored = await dbManager.tryRestoreDirectory()
+  const restored = await tryRestoreDirectory()
   if (restored) {
     executeQuery()
   }
@@ -408,7 +423,6 @@ onUnmounted(() => {
   fmoSync.stopAutoSyncTask()
   speakingStatus.stopSpeakingHistoryCleanup()
   speakingStatus.disconnectEventWs()
-  dbManager.close()
 })
 </script>
 
