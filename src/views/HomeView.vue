@@ -205,6 +205,8 @@ const fmoSync = useFmoSync({
     }
     if (syncedCount > 0) {
       await executeQuery()
+      // 更新顶部统计数据
+      await dbManager.updateStats()
       if (showSpeakingHistory.value) {
         await settings.loadTodayContactedCallsigns(dbManager.selectedFromCallsign.value)
       }

@@ -78,9 +78,9 @@ defineEmits(['close', 'show-callsign-records'])
 }
 
 .modal-speaking-history {
-  width: 400px;
+  width: 500px;
   max-width: 90%;
-  max-height: 70vh;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
 }
@@ -95,6 +95,7 @@ defineEmits(['close', 'show-callsign-records'])
 
 .modal-header h3 {
   margin: 0;
+  font-size: 1.2rem;
 }
 
 .close-btn {
@@ -126,8 +127,8 @@ defineEmits(['close', 'show-callsign-records'])
 .speaking-history-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.6rem 0.75rem;
+  gap: 1rem;
+  padding: 1rem 1rem;
   background: var(--bg-card);
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
@@ -145,8 +146,8 @@ defineEmits(['close', 'show-callsign-records'])
 }
 
 .history-indicator {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--text-disabled);
   flex-shrink: 0;
@@ -172,16 +173,16 @@ defineEmits(['close', 'show-callsign-records'])
 .history-callsign {
   flex: 1;
   font-weight: 700;
-  font-size: 1.3rem;
+  font-size: 1.6rem;
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.4rem;
 }
 
 .today-star {
-  font-size: 1rem;
-  line-height: 1.3rem;
+  font-size: 1.2rem;
+  line-height: 1.6rem;
   display: inline-flex;
   align-items: center;
 }
@@ -192,8 +193,9 @@ defineEmits(['close', 'show-callsign-records'])
 }
 
 .history-time {
-  font-size: 0.9rem;
+  font-size: 1.1rem;
   color: var(--text-tertiary);
+  font-weight: 600;
 }
 
 .speaking-history-item.is-speaking .history-time {
@@ -218,21 +220,31 @@ defineEmits(['close', 'show-callsign-records'])
 @media (max-width: 768px) {
   .modal-speaking-history {
     width: 95%;
+    max-height: 85vh;
   }
 }
 
 @media (max-width: 480px) {
   .speaking-history-item {
-    padding: 0.5rem;
-    gap: 0.5rem;
+    padding: 0.85rem 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .history-indicator {
+    width: 10px;
+    height: 10px;
   }
 
   .history-callsign {
-    font-size: 0.9rem;
+    font-size: 1.3rem;
+  }
+
+  .today-star {
+    font-size: 1rem;
   }
 
   .history-time {
-    font-size: 0.8rem;
+    font-size: 1rem;
   }
 }
 </style>

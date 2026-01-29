@@ -42,7 +42,7 @@ defineEmits(['click'])
   flex-shrink: 0;
   background: var(--bg-speaking-bar);
   border-bottom: 2px solid var(--border-speaking-bar);
-  padding: 0.5rem 1rem;
+  padding: 1rem 1.5rem;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -54,12 +54,13 @@ defineEmits(['click'])
 .speaking-bar-content {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  min-height: 2rem;
 }
 
 .speaking-indicator {
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -87,55 +88,60 @@ defineEmits(['click'])
 
 .speaking-text {
   flex: 1;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   color: var(--text-primary);
+  line-height: 1.5rem;
 }
 
 .speaking-text strong {
   color: var(--color-speaking);
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
 }
 
 .speaking-expand {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: var(--text-tertiary);
 }
 
 @media (max-width: 768px) {
   .speaking-bar {
-    padding: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem;
   }
 
   .speaking-text {
-    font-size: 0.85rem;
+    font-size: 1.1rem;
+  }
+
+  .speaking-text strong {
+    font-size: 1.3rem;
   }
 
   .speaking-expand {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
   .speaking-bar-content {
-    gap: 0.4rem;
+    gap: 0.6rem;
   }
 
   .speaking-indicator {
-    width: 8px;
-    height: 8px;
+    width: 14px;
+    height: 14px;
   }
 
   .speaking-text {
-    font-size: 0.8rem;
+    font-size: 1rem;
   }
 
   .speaking-text strong {
-    font-size: 0.8rem;
+    font-size: 1.2rem;
   }
 
   .speaking-expand {
-    font-size: 0.7rem;
+    font-size: 0.85rem;
   }
 }
 </style>
