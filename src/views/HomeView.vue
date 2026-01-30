@@ -574,6 +574,8 @@ async function handleSaveFmoAddress() {
 async function handleSyncToday() {
   try {
     await fmoSync.syncToday(settings.fmoAddress.value, settings.protocol.value)
+    // 同步成功后自动保存地址
+    await settings.quickSaveAddress()
   } catch (err) {
     dataQuery.error.value = `同步失败: ${err.message}`
   }

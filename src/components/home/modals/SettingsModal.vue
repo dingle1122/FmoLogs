@@ -190,7 +190,10 @@
                 <div class="about-version">{{ appVersion }}</div>
               </div>
               <div class="about-description">
-                <p>本地化、离线优先的 FMO 日志管理工具，支持本地导入日志文件、远程同步通联记录、数据查询与统计分析。</p>
+                <p>
+                  本地化、离线优先的 FMO
+                  日志管理工具，支持本地导入日志文件、远程同步通联记录、数据查询与统计分析。
+                </p>
                 <p>所有数据存储在浏览器 IndexedDB 中，无需服务器，保障隐私安全。</p>
                 <p class="about-links-text">
                   <a

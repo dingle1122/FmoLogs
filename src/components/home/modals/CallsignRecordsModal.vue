@@ -2,7 +2,7 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-callsign-records">
       <div class="modal-header">
-        <h3>与 {{ callsign }} 的通联记录</h3>
+        <h3>{{ callsign }} &#11088; {{ records ? records.total : 0 }}</h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
       <div class="modal-body">

@@ -141,6 +141,15 @@ export function useSettings() {
     }
   }
 
+  async function quickSaveAddress() {
+    const address = fmoAddress.value.trim()
+    if (!address) return
+
+    const host = normalizeHost(address)
+    const fullAddress = `${protocol.value}://${host}`
+    await saveFmoAddress(fullAddress)
+  }
+
   return {
     fmoAddress,
     protocol,
@@ -151,6 +160,7 @@ export function useSettings() {
     initFmoAddress,
     validateAndSaveFmoAddress,
     backupLogs,
-    loadTodayContactedCallsigns
+    loadTodayContactedCallsigns,
+    quickSaveAddress
   }
 }
