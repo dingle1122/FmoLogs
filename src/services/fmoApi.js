@@ -5,8 +5,6 @@ export class FmoApiClient {
     this.baseUrl = baseUrl
     this.socket = null
     this.pendingRequests = new Map()
-    this.reconnectAttempts = 0
-    this.maxReconnectAttempts = 3
     this.connectPromise = null
   }
 
@@ -56,7 +54,6 @@ export class FmoApiClient {
 
       this.socket.onopen = () => {
         console.log('FMO WebSocket connected')
-        this.reconnectAttempts = 0
         this.connectPromise = null
         resolve()
       }
@@ -88,7 +85,13 @@ export class FmoApiClient {
   handleMessage(message) {
     const { type, subType, code, data } = message
     // 简单的响应匹配逻辑：getList -> getListResponse, getDetail -> getDetailResponse
-    const requestSubType = subType.replace('Response', '')
+    let requestSubType = subType.replace('Response', '')
+    
+    // 特殊处理：station API 的 getListRange 请求返回 getListResponse
+    if (type === 'station' && requestSubType === 'getList') {
+      requestSubType = 'getListRange'
+    }
+    
     const key = `${type}:${requestSubType}`
 
     if (this.pendingRequests.has(key)) {
@@ -140,6 +143,27 @@ export class FmoApiClient {
 
   async getQsoDetail(logId) {
     return this.sendRequest('qso', 'getDetail', { logId })
+  }
+
+  // Station 相关方法
+  async getStationList(start = 0, count = 10) {
+    return this.sendRequest('station', 'getListRange', { start, count })
+  }
+
+  async getCurrentStation() {
+    return this.sendRequest('station', 'getCurrent', {})
+  }
+
+  async setCurrentStation(uid) {
+    return this.sendRequest('station', 'setCurrent', { uid })
+  }
+
+  async nextStation() {
+    return this.sendRequest('station', 'next', {})
+  }
+
+  async prevStation() {
+    return this.sendRequest('station', 'prev', {})
   }
 
   close() {

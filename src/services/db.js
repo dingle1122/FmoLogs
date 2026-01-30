@@ -30,8 +30,6 @@ function openIndexedDB() {
   })
 }
 
-
-
 // 保存FMO地址
 export async function saveFmoAddress(address) {
   const db = await openIndexedDB()
@@ -59,8 +57,6 @@ export async function getFmoAddress() {
     return ''
   }
 }
-
-
 
 // 从File对象列表加载数据库
 export async function loadDbFilesFromFileList(files) {
@@ -152,8 +148,6 @@ export function formatTimestamp(timestamp) {
   const seconds = String(date.getSeconds()).padStart(2, '0')
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
-
-
 
 // ==================== IndexedDB 日志存储功能 ====================
 
@@ -521,8 +515,6 @@ export async function getDataFromIndexedDB(fromCallsign) {
     }
   })
 }
-
-
 
 // 获取TOP20统计数据
 export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
@@ -912,7 +904,9 @@ export async function exportDataToDbFile(fromCallsign) {
   const db = new SQL.Database()
 
   // 创建qso_logs表（导出时包含logId主键）
-  db.run('CREATE TABLE qso_logs (logId INTEGER PRIMARY KEY,timestamp INTEGER,freqHz INTEGER,fromCallsign TEXT,fromGrid TEXT,toCallsign TEXT,toGrid TEXT,toComment TEXT,mode TEXT,relayName TEXT,relayAdmin TEXT)')
+  db.run(
+    'CREATE TABLE qso_logs (logId INTEGER PRIMARY KEY,timestamp INTEGER,freqHz INTEGER,fromCallsign TEXT,fromGrid TEXT,toCallsign TEXT,toGrid TEXT,toComment TEXT,mode TEXT,relayName TEXT,relayAdmin TEXT)'
+  )
 
   // 插入数据（logId自动递增）
   const insertStmt = db.prepare(`

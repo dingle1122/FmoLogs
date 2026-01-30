@@ -147,8 +147,26 @@
       :visible="showSpeakingHistory"
       :history="speakingStatus.speakingHistory.value"
       :today-contacted-callsigns="settings.todayContactedCallsigns.value"
+      :station-connected="stationLoading || currentStation !== null"
+      :current-station="currentStation"
+      :station-busy="stationBusy"
       @close="showSpeakingHistory = false"
       @show-callsign-records="handleShowCallsignRecords"
+      @station-prev="handleStationPrev"
+      @station-next="handleStationNext"
+      @station-open-list="handleOpenStationList"
+    />
+
+    <!-- 服务器列表弹框 -->
+    <StationListModal
+      :visible="showStationList"
+      :station-list="stationList"
+      :current-station="currentStation"
+      :loading="stationListLoading"
+      :no-more="stationListNoMore"
+      @close="handleCloseStationList"
+      @select="handleStationSelect"
+      @load-more="handleLoadMoreStations"
     />
   </div>
 </template>
@@ -168,6 +186,7 @@ import DetailModal from '../components/home/modals/DetailModal.vue'
 import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal.vue'
 import SettingsModal from '../components/home/modals/SettingsModal.vue'
 import SpeakingHistoryModal from '../components/home/modals/SpeakingHistoryModal.vue'
+import StationListModal from '../components/home/modals/StationListModal.vue'
 
 // Composables
 import { useSpeakingStatus } from '../composables/useSpeakingStatus'
@@ -176,6 +195,8 @@ import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
 import { useSettings } from '../composables/useSettings'
 import { exportDataToDbFile } from '../services/db'
+import { FmoApiClient } from '../services/fmoApi'
+import { normalizeHost } from '../utils/urlUtils'
 
 // 常量
 import { DEFAULT_COLUMNS } from '../components/home/constants'
@@ -186,6 +207,20 @@ const showSpeakingHistory = ref(false)
 const showDetailModalFlag = ref(false)
 const selectedRowData = ref(null)
 const fileInputRef = ref(null)
+
+// 服务器列表弹框状态
+const showStationList = ref(false)
+const stationList = ref([])
+const stationListLoading = ref(false)
+const stationListNoMore = ref(false)
+const stationListPage = ref(0)
+
+// Station 状态
+const currentStation = ref(null)
+const stationBusy = ref(false)
+const stationLoading = ref(false)
+let stationPollTimer = null
+let stationPollCount = 0
 
 // Composables
 const {
@@ -297,6 +332,166 @@ function showDetailModal(row) {
   showDetailModalFlag.value = true
 }
 
+// 服务器列表弹框
+const PAGE_SIZE = 10
+
+// 创建临时 station client（按需连接，用完即关）
+function createStationClient() {
+  if (!settings.fmoAddress.value) return null
+  const host = normalizeHost(settings.fmoAddress.value)
+  const fullAddress = `${settings.protocol.value}://${host}`
+  return new FmoApiClient(fullAddress)
+}
+
+// 获取当前服务器（按需连接）
+async function fetchCurrentStation() {
+  const client = createStationClient()
+  if (!client) return
+  
+  stationLoading.value = true
+  try {
+    await client.connect()
+    const data = await client.getCurrentStation()
+    if (data) {
+      currentStation.value = { uid: data.uid, name: data.name }
+    }
+  } catch (err) {
+    console.error('获取当前服务器失败:', err)
+  } finally {
+    client.close()
+    stationLoading.value = false
+  }
+}
+
+// 轮询当前服务器状态（切换后服务器状态不是立即变化的）
+function pollCurrentStation() {
+  if (stationPollTimer) {
+    clearTimeout(stationPollTimer)
+  }
+  stationPollCount = 0
+  doPollStation()
+}
+
+function doPollStation() {
+  if (stationPollCount >= 3) return  // 最多 3 次
+  stationPollCount++
+  fetchCurrentStation()
+  stationPollTimer = setTimeout(doPollStation, 1000)  // 间隔 1 秒，总计约 3 秒
+}
+
+async function handleStationPrev() {
+  if (stationBusy.value) return
+  const client = createStationClient()
+  if (!client) return
+  
+  stationBusy.value = true
+  try {
+    await client.connect()
+    const result = await client.prevStation()
+    if (result?.result === 0) {
+      pollCurrentStation()
+      speakingStatus.clearSpeakingHistory()
+    }
+  } catch (err) {
+    console.error('切换上一个服务器失败:', err)
+  } finally {
+    client.close()
+    stationBusy.value = false
+  }
+}
+
+async function handleStationNext() {
+  if (stationBusy.value) return
+  const client = createStationClient()
+  if (!client) return
+  
+  stationBusy.value = true
+  try {
+    await client.connect()
+    const result = await client.nextStation()
+    if (result?.result === 0) {
+      pollCurrentStation()
+      speakingStatus.clearSpeakingHistory()
+    }
+  } catch (err) {
+    console.error('切换下一个服务器失败:', err)
+  } finally {
+    client.close()
+    stationBusy.value = false
+  }
+}
+
+function handleOpenStationList() {
+  showStationList.value = true
+  stationList.value = []
+  stationListPage.value = 0
+  stationListNoMore.value = false
+  loadStationPage()
+}
+
+function handleCloseStationList() {
+  showStationList.value = false
+}
+
+async function loadStationPage() {
+  const client = createStationClient()
+  if (!client) {
+    stationListNoMore.value = true
+    return
+  }
+  
+  stationListLoading.value = true
+  const start = stationListPage.value * PAGE_SIZE
+  
+  try {
+    await client.connect()
+    const result = await client.getStationList(start, PAGE_SIZE)
+    if (result?.list) {
+      if (result.list.length > 0) {
+        stationList.value = [...stationList.value, ...result.list]
+      }
+      if (result.list.length < PAGE_SIZE) {
+        stationListNoMore.value = true
+      }
+    } else {
+      stationListNoMore.value = true
+    }
+  } catch (err) {
+    console.error('获取服务器列表失败:', err)
+    stationListNoMore.value = true
+  } finally {
+    client.close()
+    stationListLoading.value = false
+  }
+}
+
+function handleLoadMoreStations() {
+  if (stationListLoading.value || stationListNoMore.value) return
+  stationListPage.value++
+  loadStationPage()
+}
+
+async function handleStationSelect(uid) {
+  if (stationBusy.value) return
+  const client = createStationClient()
+  if (!client) return
+  
+  stationBusy.value = true
+  try {
+    await client.connect()
+    const result = await client.setCurrentStation(uid)
+    if (result?.result === 0) {
+      pollCurrentStation()
+    }
+  } catch (err) {
+    console.error('设置当前服务器失败:', err)
+  } finally {
+    client.close()
+    stationBusy.value = false
+  }
+  speakingStatus.clearSpeakingHistory()
+}
+
 async function handleShowCallsignRecords(callsign) {
   await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value)
 }
@@ -340,7 +535,7 @@ async function handleExportData() {
   try {
     loading.value = true
     const result = await exportDataToDbFile(selectedFromCallsign.value)
-    
+
     // 创建 Blob 并下载
     const blob = new Blob([result.data], { type: 'application/x-sqlite3' })
     const url = URL.createObjectURL(blob)
@@ -351,7 +546,7 @@ async function handleExportData() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    
+
     loading.value = false
   } catch (err) {
     loading.value = false
@@ -388,6 +583,15 @@ async function handleSyncToday() {
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
     await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
+    // 打开时获取当前服务器
+    fetchCurrentStation()
+  } else {
+    // 关闭时清理状态和轮询
+    if (stationPollTimer) {
+      clearTimeout(stationPollTimer)
+      stationPollTimer = null
+    }
+    currentStation.value = null
   }
 })
 
@@ -420,6 +624,7 @@ onUnmounted(() => {
   // 清理搜索防抖定时器
   if (searchTimer) clearTimeout(searchTimer)
   if (oldFriendsSearchTimer) clearTimeout(oldFriendsSearchTimer)
+  if (stationPollTimer) clearTimeout(stationPollTimer)
 
   fmoSync.stopAutoSyncTask()
   speakingStatus.stopSpeakingHistoryCleanup()

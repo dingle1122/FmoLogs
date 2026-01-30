@@ -12,6 +12,7 @@ export function useSpeakingStatus() {
   let eventWs = null
   let eventWsReconnectTimer = null
   let speakingHistoryCleanupTimer = null
+  let isManualDisconnect = false
 
   // 从 localStorage 加载发言历史
   function loadSpeakingHistoryFromStorage() {
@@ -50,6 +51,8 @@ export function useSpeakingStatus() {
   function connectEventWs(fmoAddress, protocol) {
     if (!fmoAddress) return
 
+    isManualDisconnect = false
+
     // 检查是否已有连接或正在连接
     if (eventWs) {
       const state = eventWs.readyState
@@ -65,14 +68,15 @@ export function useSpeakingStatus() {
     const host = normalizeHost(fmoAddress)
     const wsUrl = `${protocol}://${host}/events`
 
+    console.log(`Connecting to events: ${wsUrl}`)
     eventWs = new WebSocket(wsUrl)
 
     eventWs.onopen = () => {
+      console.log('Events WebSocket connected')
       if (eventWsReconnectTimer) {
         clearTimeout(eventWsReconnectTimer)
         eventWsReconnectTimer = null
       }
-      // 标记为已连接
       eventsConnected.value = true
     }
 
@@ -81,9 +85,10 @@ export function useSpeakingStatus() {
     }
 
     eventWs.onclose = () => {
-      // 标记为已断开
+      console.log('Events WebSocket closed')
       eventsConnected.value = false
-      if (!eventWsReconnectTimer && fmoAddress) {
+      // 只有非主动断开才重连
+      if (!isManualDisconnect && !eventWsReconnectTimer && fmoAddress) {
         eventWsReconnectTimer = setTimeout(() => {
           eventWsReconnectTimer = null
           connectEventWs(fmoAddress, protocol)
@@ -98,6 +103,8 @@ export function useSpeakingStatus() {
 
   // 断开事件 WebSocket
   function disconnectEventWs() {
+    isManualDisconnect = true
+
     if (eventWsReconnectTimer) {
       clearTimeout(eventWsReconnectTimer)
       eventWsReconnectTimer = null
@@ -152,7 +159,6 @@ export function useSpeakingStatus() {
                 endTime: null
               })
             }
-            // 保存到 localStorage
             saveSpeakingHistoryToStorage()
           } else {
             // 结束发言
@@ -162,7 +168,6 @@ export function useSpeakingStatus() {
               }
             })
             currentSpeaker.value = ''
-            // 保存到 localStorage
             saveSpeakingHistoryToStorage()
           }
         }
@@ -180,7 +185,6 @@ export function useSpeakingStatus() {
       const time = h.endTime || h.startTime
       return time > thirtyMinutesAgo
     })
-    // 如果有记录被清理，更新 localStorage
     if (oldLength !== speakingHistory.value.length) {
       saveSpeakingHistoryToStorage()
     }
@@ -200,6 +204,13 @@ export function useSpeakingStatus() {
     }
   }
 
+  // 清空发言历史
+  function clearSpeakingHistory() {
+    speakingHistory.value = []
+    currentSpeaker.value = ''
+    saveSpeakingHistoryToStorage()
+  }
+
   // 组件卸载时清理
   onUnmounted(() => {
     stopSpeakingHistoryCleanup()
@@ -214,6 +225,7 @@ export function useSpeakingStatus() {
     disconnectEventWs,
     startSpeakingHistoryCleanup,
     stopSpeakingHistoryCleanup,
+    clearSpeakingHistory,
     formatTimeAgo
   }
 }

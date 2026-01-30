@@ -27,11 +27,7 @@
             <span class="setting-label">日志文件</span>
             <div class="setting-actions">
               <button class="btn-primary" @click="$emit('select-files')">导入FMO日志</button>
-              <button
-                class="btn-secondary"
-                :disabled="!dbLoaded"
-                @click="$emit('export-data')"
-              >
+              <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
                 导出数据文件
               </button>
             </div>

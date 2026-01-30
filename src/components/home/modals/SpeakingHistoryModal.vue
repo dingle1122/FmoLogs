@@ -2,10 +2,18 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-speaking-history">
       <div class="modal-header">
-        <h3>30分钟内发言记录</h3>
+        <StationControl
+          :connected="stationConnected"
+          :current-station="currentStation"
+          :is-busy="stationBusy"
+          @prev="$emit('station-prev')"
+          @next="$emit('station-next')"
+          @open-list="$emit('station-open-list')"
+        />
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
       <div class="modal-body">
+        <!-- 发言历史列表 -->
         <div v-if="history.length > 0" class="speaking-history-list">
           <div
             v-for="(record, index) in history"
@@ -38,6 +46,7 @@
 
 <script setup>
 import { formatTimeAgo } from '../constants'
+import StationControl from '../StationControl.vue'
 
 defineProps({
   visible: {
@@ -51,10 +60,22 @@ defineProps({
   todayContactedCallsigns: {
     type: Set,
     default: () => new Set()
+  },
+  stationConnected: {
+    type: Boolean,
+    default: false
+  },
+  currentStation: {
+    type: Object,
+    default: null
+  },
+  stationBusy: {
+    type: Boolean,
+    default: false
   }
 })
 
-defineEmits(['close', 'show-callsign-records'])
+defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-open-list'])
 </script>
 
 <style scoped>
