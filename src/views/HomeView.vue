@@ -347,7 +347,7 @@ function createStationClient() {
 async function fetchCurrentStation() {
   const client = createStationClient()
   if (!client) return
-  
+
   stationLoading.value = true
   try {
     await client.connect()
@@ -373,17 +373,17 @@ function pollCurrentStation() {
 }
 
 function doPollStation() {
-  if (stationPollCount >= 3) return  // 最多 3 次
+  if (stationPollCount >= 3) return // 最多 3 次
   stationPollCount++
   fetchCurrentStation()
-  stationPollTimer = setTimeout(doPollStation, 1000)  // 间隔 1 秒，总计约 3 秒
+  stationPollTimer = setTimeout(doPollStation, 1000) // 间隔 1 秒，总计约 3 秒
 }
 
 async function handleStationPrev() {
   if (stationBusy.value) return
   const client = createStationClient()
   if (!client) return
-  
+
   stationBusy.value = true
   try {
     await client.connect()
@@ -404,7 +404,7 @@ async function handleStationNext() {
   if (stationBusy.value) return
   const client = createStationClient()
   if (!client) return
-  
+
   stationBusy.value = true
   try {
     await client.connect()
@@ -439,10 +439,10 @@ async function loadStationPage() {
     stationListNoMore.value = true
     return
   }
-  
+
   stationListLoading.value = true
   const start = stationListPage.value * PAGE_SIZE
-  
+
   try {
     await client.connect()
     const result = await client.getStationList(start, PAGE_SIZE)
@@ -475,7 +475,7 @@ async function handleStationSelect(uid) {
   if (stationBusy.value) return
   const client = createStationClient()
   if (!client) return
-  
+
   stationBusy.value = true
   try {
     await client.connect()

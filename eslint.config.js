@@ -21,7 +21,10 @@ export default [
         WebSocket: 'readonly',
         alert: 'readonly',
         navigator: 'readonly',
-        IDBKeyRange: 'readonly'
+        IDBKeyRange: 'readonly',
+        localStorage: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly'
       }
     },
     rules: {

@@ -86,12 +86,12 @@ export class FmoApiClient {
     const { type, subType, code, data } = message
     // 简单的响应匹配逻辑：getList -> getListResponse, getDetail -> getDetailResponse
     let requestSubType = subType.replace('Response', '')
-    
+
     // 特殊处理：station API 的 getListRange 请求返回 getListResponse
     if (type === 'station' && requestSubType === 'getList') {
       requestSubType = 'getListRange'
     }
-    
+
     const key = `${type}:${requestSubType}`
 
     if (this.pendingRequests.has(key)) {
