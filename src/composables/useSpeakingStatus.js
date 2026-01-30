@@ -7,6 +7,7 @@ const STORAGE_KEY = 'fmo_speaking_history'
 export function useSpeakingStatus() {
   const currentSpeaker = ref('')
   const speakingHistory = ref(loadSpeakingHistoryFromStorage())
+  const eventsConnected = ref(false)
 
   let eventWs = null
   let eventWsReconnectTimer = null
@@ -71,6 +72,8 @@ export function useSpeakingStatus() {
         clearTimeout(eventWsReconnectTimer)
         eventWsReconnectTimer = null
       }
+      // 标记为已连接
+      eventsConnected.value = true
     }
 
     eventWs.onmessage = (event) => {
@@ -78,6 +81,8 @@ export function useSpeakingStatus() {
     }
 
     eventWs.onclose = () => {
+      // 标记为已断开
+      eventsConnected.value = false
       if (!eventWsReconnectTimer && fmoAddress) {
         eventWsReconnectTimer = setTimeout(() => {
           eventWsReconnectTimer = null
@@ -107,6 +112,7 @@ export function useSpeakingStatus() {
     }
 
     currentSpeaker.value = ''
+    eventsConnected.value = false
   }
 
   // 处理事件消息
@@ -203,6 +209,7 @@ export function useSpeakingStatus() {
   return {
     currentSpeaker,
     speakingHistory,
+    eventsConnected,
     connectEventWs,
     disconnectEventWs,
     startSpeakingHistoryCleanup,

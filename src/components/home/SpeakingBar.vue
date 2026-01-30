@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="fmoAddress && (currentSpeaker || speakingHistory.length > 0)"
+    v-if="fmoAddress && (eventsConnected || speakingHistory.length > 0)"
     class="speaking-bar"
     @click="$emit('click')"
   >
@@ -31,6 +31,10 @@ defineProps({
   fmoAddress: {
     type: String,
     default: ''
+  },
+  eventsConnected: {
+    type: Boolean,
+    default: false
   }
 })
 
