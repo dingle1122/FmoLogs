@@ -151,6 +151,24 @@
                 <div class="link-arrow">&rarr;</div>
               </a>
               <a
+                href="http://180.76.54.163/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="link-card"
+              >
+                <div class="link-icon">
+                  <svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="44" height="44" rx="10" fill="#ff9800"/>
+                    <text x="22" y="30" font-size="24" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial, sans-serif">F</text>
+                  </svg>
+                </div>
+                <div class="link-info">
+                  <div class="link-name">FMO CONTROLLER</div>
+                  <div class="link-url">180.76.54.163</div>
+                </div>
+                <div class="link-arrow">&rarr;</div>
+              </a>
+              <a
                 href="https://bg5esn.com/docs/fmo-user-shares/"
                 target="_blank"
                 rel="noopener noreferrer"
