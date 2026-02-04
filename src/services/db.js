@@ -30,20 +30,20 @@ function openIndexedDB() {
   })
 }
 
-// 保存FMO地址
-export async function saveFmoAddress(address) {
+// 保存FMO地址列表（新格式）
+export async function saveFmoAddresses(storage) {
   const db = await openIndexedDB()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite')
     const store = tx.objectStore(STORE_NAME)
-    const request = store.put(address, 'fmoAddress')
+    const request = store.put(JSON.stringify(storage), 'fmoAddress')
     request.onerror = () => reject(request.error)
     request.onsuccess = () => resolve()
   })
 }
 
-// 获取FMO地址
-export async function getFmoAddress() {
+// 获取FMO地址列表（支持旧格式迁移）
+export async function getFmoAddresses() {
   try {
     const db = await openIndexedDB()
     return new Promise((resolve, reject) => {
@@ -51,8 +51,132 @@ export async function getFmoAddress() {
       const store = tx.objectStore(STORE_NAME)
       const request = store.get('fmoAddress')
       request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result || '')
+      request.onsuccess = () => {
+        const result = request.result
+        if (!result) {
+          // 无数据，返回空结构
+          resolve({ addresses: [], activeId: null })
+          return
+        }
+
+        // 尝试解析JSON
+        try {
+          const parsed = JSON.parse(result)
+          // 验证是否为新格式
+          if (parsed && Array.isArray(parsed.addresses)) {
+            resolve(parsed)
+            return
+          }
+        } catch {
+          // 不是JSON，继续处理旧格式
+        }
+
+        // 旧格式字符串，需要迁移
+        if (typeof result === 'string' && result.length > 0) {
+          const migrated = migrateOldFmoAddress(result)
+          resolve(migrated)
+          return
+        }
+
+        resolve({ addresses: [], activeId: null })
+      }
     })
+  } catch {
+    return { addresses: [], activeId: null }
+  }
+}
+
+// 生成简单唯一ID
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 11)
+}
+
+// 迁移旧格式地址到新格式
+function migrateOldFmoAddress(oldAddress) {
+  let protocol = 'ws'
+  let host = oldAddress
+
+  if (oldAddress.startsWith('wss://')) {
+    protocol = 'wss'
+    host = oldAddress.replace(/^wss:\/\//, '')
+  } else if (oldAddress.startsWith('ws://')) {
+    protocol = 'ws'
+    host = oldAddress.replace(/^ws:\/\//, '')
+  }
+
+  const id = generateId()
+  return {
+    addresses: [
+      {
+        id,
+        name: host,
+        host,
+        protocol
+      }
+    ],
+    activeId: id
+  }
+}
+
+// 保存FMO地址（保留兼容，内部转换为新格式）
+export async function saveFmoAddress(address) {
+  // 如果传入空地址，清空activeId但保留地址列表
+  if (!address) {
+    const current = await getFmoAddresses()
+    current.activeId = null
+    await saveFmoAddresses(current)
+    return
+  }
+
+  // 获取当前存储
+  const current = await getFmoAddresses()
+
+  // 解析地址
+  let protocol = 'ws'
+  let host = address
+  if (address.startsWith('wss://')) {
+    protocol = 'wss'
+    host = address.replace(/^wss:\/\//, '')
+  } else if (address.startsWith('ws://')) {
+    protocol = 'ws'
+    host = address.replace(/^ws:\/\//, '')
+  }
+
+  // 查找是否已存在相同地址
+  const existing = current.addresses.find((a) => a.host === host && a.protocol === protocol)
+
+  if (existing) {
+    // 已存在，设为选中
+    current.activeId = existing.id
+  } else {
+    // 不存在，添加新地址
+    const id = generateId()
+    current.addresses.push({
+      id,
+      name: host,
+      host,
+      protocol
+    })
+    current.activeId = id
+  }
+
+  await saveFmoAddresses(current)
+}
+
+// 获取FMO地址（兼容旧接口，返回当前选中地址的完整URL）
+export async function getFmoAddress() {
+  try {
+    const storage = await getFmoAddresses()
+    if (!storage.activeId || storage.addresses.length === 0) {
+      return ''
+    }
+
+    const active = storage.addresses.find((a) => a.id === storage.activeId)
+    if (!active) {
+      return ''
+    }
+
+    return `${active.protocol}://${active.host}`
   } catch {
     return ''
   }

@@ -62,35 +62,73 @@
             </div>
           </div>
 
-          <!-- FMO同步设置 -->
+          <!-- FMO地址管理 -->
           <div class="setting-group">
             <div class="setting-item">
               <span class="setting-label">FMO地址</span>
-              <div class="setting-input-group">
-                <select
-                  :value="protocol"
-                  class="protocol-select"
-                  @change="$emit('update:protocol', $event.target.value)"
+              <div class="setting-actions">
+                <button
+                  v-if="addressList.length > 0"
+                  class="btn-text-danger"
+                  @click="handleClearAllAddresses"
                 >
-                  <option value="ws">ws://</option>
-                  <option value="wss">wss://</option>
-                </select>
-                <input
-                  :value="fmoAddress"
-                  type="text"
-                  :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
-                  class="setting-input-flex"
-                  @input="$emit('update:fmoAddress', $event.target.value)"
-                />
+                  清除全部
+                </button>
+                <button class="btn-add" @click="showAddForm">+ 添加地址</button>
               </div>
             </div>
-            <div v-if="!isMobileDevice" class="setting-note">
-              支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
+
+            <!-- 地址列表 -->
+            <div v-if="addressList.length > 0" class="address-list">
+              <div
+                v-for="addr in addressList"
+                :key="addr.id"
+                class="address-card"
+                :class="{
+                  active: addr.id === activeAddressId,
+                  connecting: connectingId === addr.id
+                }"
+                @click="handleSelectAddress(addr.id)"
+              >
+                <div class="address-status">
+                  <span v-if="connectingId === addr.id" class="status-connecting"></span>
+                  <span v-else-if="addr.id === activeAddressId" class="status-active"></span>
+                  <span v-else class="status-inactive"></span>
+                </div>
+                <div class="address-info">
+                  <div class="address-name">{{ addr.name }}</div>
+                  <div class="address-url">{{ addr.protocol }}://{{ addr.host }}</div>
+                </div>
+                <div class="address-actions" @click.stop>
+                  <button class="btn-icon" title="编辑" @click="editAddress(addr)">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path
+                        d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    class="btn-icon btn-icon-danger"
+                    title="删除"
+                    @click="handleDeleteAddress(addr.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path
+                        d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
-            <div class="setting-item-save">
-              <button class="btn-save" @click="$emit('save-fmo-address')">保存</button>
+
+            <!-- 无地址时的提示 -->
+            <div v-else class="no-address">
+              <p>暂无FMO地址，点击上方"添加地址"按钮添加</p>
             </div>
-            <div class="setting-item-buttons">
+
+            <!-- 操作按钮 -->
+            <div v-if="addressList.length > 0" class="setting-item-buttons">
               <button
                 class="btn-secondary"
                 :disabled="!fmoAddress || syncing"
@@ -157,9 +195,24 @@
                 class="link-card"
               >
                 <div class="link-icon">
-                  <svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="44" height="44" rx="10" fill="#ff9800"/>
-                    <text x="22" y="30" font-size="24" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial, sans-serif">F</text>
+                  <svg
+                    width="44"
+                    height="44"
+                    viewBox="0 0 44 44"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect width="44" height="44" rx="10" fill="#ff9800" />
+                    <text
+                      x="22"
+                      y="30"
+                      font-size="24"
+                      font-weight="bold"
+                      fill="white"
+                      text-anchor="middle"
+                      font-family="Arial, sans-serif"
+                    >
+                      F
+                    </text>
                   </svg>
                 </div>
                 <div class="link-info">
@@ -244,9 +297,59 @@
               </div>
             </div>
 
-            <div class="about-footer">🌟由 BH5HSJ 后视镜 贡献🌟</div>
+            <div class="about-footer">由 BH5HSJ 后视镜 贡献</div>
             <div class="about-footer">开源项目 · 欢迎贡献</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 地址编辑弹框 -->
+    <div v-if="showAddressDialog" class="dialog-overlay" @click.self="cancelAddressDialog">
+      <div class="dialog">
+        <div class="dialog-header">
+          <span class="dialog-title">{{ editingId ? '编辑地址' : '添加地址' }}</span>
+          <button class="close-btn" @click="cancelAddressDialog">&times;</button>
+        </div>
+        <div class="dialog-body">
+          <div class="form-group">
+            <label class="form-label">名称（可选）</label>
+            <input
+              v-model="formData.name"
+              type="text"
+              placeholder="如：家里的FMO"
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">地址</label>
+            <div class="form-row">
+              <select v-model="formData.protocol" class="protocol-select">
+                <option value="ws">ws://</option>
+                <option value="wss">wss://</option>
+              </select>
+              <input
+                v-model="formData.host"
+                type="text"
+                :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
+                class="form-input-flex"
+              />
+            </div>
+          </div>
+          <div v-if="!isMobileDevice" class="form-hint">
+            支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
+          </div>
+          <div v-if="formError" class="form-error">
+            {{ formError }}
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <button class="btn-secondary" :disabled="formValidating" @click="cancelAddressDialog">
+            取消
+          </button>
+          <button class="btn-primary" :disabled="formValidating" @click="submitAddressForm">
+            {{ formValidating ? '验证中...' : '确定' }}
+          </button>
         </div>
       </div>
     </div>
@@ -275,6 +378,14 @@ const props = defineProps({
     type: String,
     default: 'ws'
   },
+  addressList: {
+    type: Array,
+    default: () => []
+  },
+  activeAddressId: {
+    type: String,
+    default: null
+  },
   availableFromCallsigns: {
     type: Array,
     default: () => []
@@ -293,20 +404,34 @@ const props = defineProps({
   }
 })
 
-defineEmits([
+const emit = defineEmits([
   'close',
   'select-files',
   'export-data',
-  'save-fmo-address',
   'sync-today',
   'backup-logs',
   'clear-all-data',
   'update:selectedFromCallsign',
-  'update:protocol',
-  'update:fmoAddress'
+  'add-address',
+  'update-address',
+  'delete-address',
+  'select-address',
+  'clear-all-addresses'
 ])
 
 const activeTab = ref('general')
+const connectingId = ref(null)
+
+// 地址编辑弹框状态
+const showAddressDialog = ref(false)
+const editingId = ref(null)
+const formData = ref({
+  name: '',
+  host: '',
+  protocol: 'ws'
+})
+const formValidating = ref(false)
+const formError = ref('')
 
 const isMobileDevice = computed(() => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
@@ -322,12 +447,150 @@ const appVersion = computed(() => {
   return `v${packageInfo.version}`
 })
 
-// 感谢名单 - 可在此处方便地添加或修改
+// 感谢名单
 const thanksList = [
   { name: 'BG5ESN', contribution: '提供完美的FMO硬件平台' },
   { name: 'BG9JYT', contribution: '提供甘肃集群服务器，并提供被控支持' },
   { name: 'BG2LRU、BD6JDU、BI3SQP等各位友台', contribution: '提供宝贵的想法和建议' }
 ]
+
+// 验证WebSocket连接
+async function validateConnection(host, proto) {
+  const wsUrl = `${proto}://${normalizeHost(host)}/ws`
+
+  return new Promise((resolve) => {
+    let socket
+    try {
+      socket = new WebSocket(wsUrl)
+    } catch {
+      resolve(false)
+      return
+    }
+
+    const timeout = setTimeout(() => {
+      socket.close()
+      resolve(false)
+    }, 5000)
+
+    socket.onopen = () => {
+      clearTimeout(timeout)
+      socket.close()
+      resolve(true)
+    }
+
+    socket.onerror = () => {
+      clearTimeout(timeout)
+      socket.close()
+      resolve(false)
+    }
+
+    socket.onclose = () => {
+      clearTimeout(timeout)
+      resolve(false)
+    }
+  })
+}
+
+function showAddForm() {
+  editingId.value = null
+  formData.value = {
+    name: '',
+    host: isMobileDevice.value ? '' : 'fmo.local',
+    protocol: 'ws'
+  }
+  formError.value = ''
+  showAddressDialog.value = true
+}
+
+function editAddress(addr) {
+  editingId.value = addr.id
+  formData.value = {
+    name: addr.name,
+    host: addr.host,
+    protocol: addr.protocol
+  }
+  formError.value = ''
+  showAddressDialog.value = true
+}
+
+function cancelAddressDialog() {
+  showAddressDialog.value = false
+  editingId.value = null
+  formData.value = { name: '', host: '', protocol: 'ws' }
+  formError.value = ''
+}
+
+async function submitAddressForm() {
+  const { name, host, protocol } = formData.value
+
+  if (!host.trim()) {
+    formError.value = '请输入地址'
+    return
+  }
+
+  formError.value = ''
+  formValidating.value = true
+
+  // 验证连接
+  const isConnected = await validateConnection(host.trim(), protocol)
+
+  formValidating.value = false
+
+  if (!isConnected) {
+    formError.value = '连接失败，请检查地址'
+    return
+  }
+
+  // 连接成功，保存地址
+  if (editingId.value) {
+    emit('update-address', {
+      id: editingId.value,
+      name: name.trim() || host.trim(),
+      host: host.trim(),
+      protocol
+    })
+  } else {
+    emit('add-address', {
+      name: name.trim() || host.trim(),
+      host: host.trim(),
+      protocol
+    })
+  }
+
+  // 关闭弹框并清空数据
+  cancelAddressDialog()
+}
+
+function handleSelectAddress(id) {
+  if (id === props.activeAddressId || connectingId.value) return
+
+  connectingId.value = id
+  emit('select-address', id)
+
+  // 超时后清除连接状态（由父组件处理结果）
+  setTimeout(() => {
+    connectingId.value = null
+  }, 6000)
+}
+
+function handleDeleteAddress(id) {
+  if (window.confirm('确定要删除这个地址吗？')) {
+    emit('delete-address', id)
+  }
+}
+
+function handleClearAllAddresses() {
+  if (window.confirm('确定要清除全部FMO地址吗？')) {
+    emit('clear-all-addresses')
+  }
+}
+
+// 暴露方法供父组件调用
+function clearConnecting() {
+  connectingId.value = null
+}
+
+defineExpose({ clearConnecting })
 </script>
 
 <style scoped>
@@ -477,51 +740,150 @@ const thanksList = [
   border-top: 1px solid var(--border-light);
 }
 
-.setting-group .setting-item {
+.btn-add {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  background: var(--bg-container);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add:hover {
+  background: var(--color-primary);
+  color: var(--text-white);
+}
+
+/* 地址列表 */
+.address-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.setting-input-group {
+.address-card {
   display: flex;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.protocol-select {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  font-size: 0.9rem;
-  background: var(--bg-input);
-  color: var(--text-primary);
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
   cursor: pointer;
-  min-width: 85px;
+  transition: all 0.2s;
 }
 
-.protocol-select:focus {
-  outline: none;
+.address-card:hover {
   border-color: var(--color-primary);
+  background: var(--bg-table-hover);
 }
 
-.setting-input-flex {
+.address-card.active {
+  border-color: var(--color-primary);
+  background: rgba(64, 158, 255, 0.08);
+}
+
+.address-card.connecting {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.address-status {
+  margin-right: 0.75rem;
+}
+
+.status-active,
+.status-inactive,
+.status-connecting {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-active {
+  background: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success);
+}
+
+.status-inactive {
+  background: var(--border-primary);
+}
+
+.status-connecting {
+  background: var(--color-primary);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.address-info {
   flex: 1;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  font-size: 0.9rem;
   min-width: 0;
-  width: 98%;
-  background: var(--bg-input);
-  color: var(--text-primary);
 }
 
-.setting-input-flex:focus {
-  outline: none;
-  border-color: var(--color-primary);
+.address-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin-bottom: 0.15rem;
+}
+
+.address-url {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  font-family: monospace;
+}
+
+.address-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.btn-icon {
+  padding: 0.35rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background: var(--bg-table-hover);
+  color: var(--color-primary);
+}
+
+.btn-icon-danger:hover {
+  color: var(--color-danger);
+}
+
+.btn-icon:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.no-address {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
 }
 
 .setting-note {
   margin-top: 0.5rem;
+  margin-bottom: 1rem;
   padding: 0.75rem;
   background-color: #f0f9ff;
   border: 1px solid #b3d8ff;
@@ -539,33 +901,7 @@ const thanksList = [
   border: 1px solid #d9ecff;
 }
 
-.setting-item-save {
-  display: flex;
-  justify-content: center;
-  margin-top: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.btn-save {
-  width: 100%;
-  padding: 0.6rem;
-  font-size: 1rem;
-  background: var(--color-primary);
-  color: var(--text-white);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px var(--shadow-primary);
-}
-
-.btn-save:hover {
-  background: var(--color-primary-hover);
-  box-shadow: 0 4px 8px var(--shadow-primary-hover);
-  transform: translateY(-1px);
-}
-
-.setting-group .setting-item-buttons {
+.setting-item-buttons {
   display: flex;
   flex-direction: row;
   gap: 0.8rem;
@@ -605,6 +941,11 @@ const thanksList = [
   background: var(--color-primary-hover);
 }
 
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-secondary {
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
@@ -636,6 +977,165 @@ const thanksList = [
 
 .btn-danger:hover {
   background: var(--color-danger-hover);
+}
+
+.btn-text-danger {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  background: none;
+  color: var(--color-danger);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-text-danger:hover {
+  color: var(--color-danger-hover);
+  text-decoration: underline;
+}
+
+/* 地址编辑弹框 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.dialog {
+  background: var(--bg-card);
+  border-radius: 8px;
+  width: 420px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px var(--shadow-modal);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dialog-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.dialog-body {
+  padding: 1.25rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.form-input-flex {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.form-input-flex:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.protocol-select {
+  padding: 0.6rem 0.5rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 85px;
+}
+
+.protocol-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.form-hint {
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  background-color: #f0f9ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: #606266;
+}
+
+.form-hint code {
+  background-color: #e6f7ff;
+  padding: 0.15rem 0.35rem;
+  border-radius: 3px;
+  font-family: monospace;
+  color: #409eff;
+  border: 1px solid #d9ecff;
+}
+
+.form-error {
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  background-color: #fef0f0;
+  border: 1px solid #fde2e2;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--color-danger);
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-light);
 }
 
 /* 友情链接样式 */

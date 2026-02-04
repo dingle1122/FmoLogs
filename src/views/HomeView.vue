@@ -112,10 +112,13 @@
 
     <!-- 设置弹框 -->
     <SettingsModal
+      ref="settingsModalRef"
       :visible="showSettings"
       :db-loaded="dbLoaded"
       :fmo-address="settings.fmoAddress.value"
       :protocol="settings.protocol.value"
+      :address-list="settings.addressList.value"
+      :active-address-id="settings.activeAddressId.value"
       :available-from-callsigns="availableFromCallsigns"
       :selected-from-callsign="selectedFromCallsign"
       :syncing="fmoSync.syncing.value"
@@ -123,13 +126,15 @@
       @close="showSettings = false"
       @select-files="triggerFileInput"
       @export-data="handleExportData"
-      @save-fmo-address="handleSaveFmoAddress"
       @sync-today="handleSyncToday"
       @backup-logs="settings.backupLogs()"
       @clear-all-data="handleClearAllData"
       @update:selected-from-callsign="handleFromCallsignChange"
-      @update:protocol="settings.protocol.value = $event"
-      @update:fmo-address="settings.fmoAddress.value = $event"
+      @add-address="handleAddAddress"
+      @update-address="handleUpdateAddress"
+      @delete-address="handleDeleteAddress"
+      @select-address="handleSelectAddress"
+      @clear-all-addresses="handleClearAllAddresses"
     />
 
     <!-- 隐藏的文件输入 -->
@@ -207,6 +212,7 @@ const showSpeakingHistory = ref(false)
 const showDetailModalFlag = ref(false)
 const selectedRowData = ref(null)
 const fileInputRef = ref(null)
+const settingsModalRef = ref(null)
 
 // 服务器列表弹框状态
 const showStationList = ref(false)
@@ -554,28 +560,84 @@ async function handleExportData() {
   }
 }
 
-// FMO 设置操作
-async function handleSaveFmoAddress() {
-  loading.value = true
-  const result = await settings.validateAndSaveFmoAddress()
-  loading.value = false
+// FMO 地址管理
+async function handleAddAddress({ name, host, protocol }) {
+  const result = await settings.addFmoAddress(name, host, protocol)
+  if (!result.success) {
+    alert(result.message)
+    return
+  }
+
+  // 添加成功后重连到新地址
+  if (result.reconnect) {
+    speakingStatus.disconnectEventWs()
+    fmoSync.stopAutoSyncTask()
+    speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+    fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
+  }
+}
+
+async function handleUpdateAddress({ id, name, host, protocol }) {
+  const result = await settings.updateFmoAddress(id, name, host, protocol)
+  if (!result.success) {
+    alert(result.message)
+  }
+}
+
+async function handleDeleteAddress(id) {
+  const result = await settings.deleteFmoAddress(id)
+  if (!result.success) {
+    alert(result.message)
+    return
+  }
+
+  // 如果删除的是当前选中地址，需要重连
+  if (result.reconnect) {
+    speakingStatus.disconnectEventWs()
+    fmoSync.stopAutoSyncTask()
+
+    // 如果还有其他地址，连接到新的选中地址
+    if (settings.fmoAddress.value) {
+      speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
+    }
+  }
+}
+
+async function handleSelectAddress(id) {
+  const result = await settings.selectFmoAddress(id)
+  settingsModalRef.value?.clearConnecting()
 
   if (result.success) {
     if (result.reconnect) {
       speakingStatus.disconnectEventWs()
       speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      fmoSync.stopAutoSyncTask()
+      fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
     }
-    alert(result.message)
   } else {
     alert(result.message)
+  }
+}
+
+async function handleClearAllAddresses() {
+  const result = await settings.clearAllAddresses()
+  if (!result.success) {
+    alert(result.message)
+    return
+  }
+
+  // 断开连接并停止同步任务
+  if (result.reconnect) {
+    speakingStatus.disconnectEventWs()
+    fmoSync.stopAutoSyncTask()
+    currentStation.value = null
   }
 }
 
 async function handleSyncToday() {
   try {
     await fmoSync.syncToday(settings.fmoAddress.value, settings.protocol.value)
-    // 同步成功后自动保存地址
-    await settings.quickSaveAddress()
   } catch (err) {
     dataQuery.error.value = `同步失败: ${err.message}`
   }
