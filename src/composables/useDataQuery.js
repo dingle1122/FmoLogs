@@ -21,6 +21,7 @@ export function useDataQuery() {
   const currentQueryType = ref(QueryTypes.ALL)
   const searchKeyword = ref('')
   const oldFriendsSearchKeyword = ref('')
+  const filterDate = ref(null)
 
   // 统计数据
   const totalLogs = ref(0)
@@ -79,13 +80,14 @@ export function useDataQuery() {
           currentPage.value,
           PAGE_SIZE,
           searchKeyword.value.trim(),
-          fromCallsign
+          fromCallsign,
+          filterDate.value
         )
         top20Result.value = null
         oldFriendsResult.value = null
       } else {
         currentPage.value = 1
-        queryResult.value = await getAllRecordsFromIndexedDB(1, PAGE_SIZE, '', fromCallsign)
+        queryResult.value = await getAllRecordsFromIndexedDB(1, PAGE_SIZE, '', fromCallsign, null)
         top20Result.value = null
         oldFriendsResult.value = null
       }
@@ -120,6 +122,7 @@ export function useDataQuery() {
   function handleQueryTypeChange() {
     searchKeyword.value = ''
     oldFriendsSearchKeyword.value = ''
+    filterDate.value = null
     currentPage.value = 1
     oldFriendsPage.value = 1
   }
@@ -141,6 +144,7 @@ export function useDataQuery() {
     currentQueryType,
     searchKeyword,
     oldFriendsSearchKeyword,
+    filterDate,
     totalPages,
     totalRecords,
     oldFriendsTotalPages,

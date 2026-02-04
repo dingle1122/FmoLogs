@@ -836,7 +836,8 @@ export async function getAllRecordsFromIndexedDB(
   page = 1,
   pageSize = 10,
   searchKeyword = '',
-  fromCallsign = null
+  fromCallsign = null,
+  filterDate = null // 新增：UTC日期筛选，格式 'YYYY-MM-DD'
 ) {
   if (!fromCallsign) {
     return {
@@ -858,7 +859,32 @@ export async function getAllRecordsFromIndexedDB(
     }
   }
 
-  const allRecords = await getDataFromIndexedDB(fromCallsign)
+  let allRecords
+
+  // 如果有日期筛选，使用索引查询
+  if (filterDate) {
+    const db = await openLogsDatabase()
+    const storeName = `logs_from_${fromCallsign}`
+
+    if (!db.objectStoreNames.contains(storeName)) {
+      allRecords = []
+    } else {
+      allRecords = await new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readonly')
+        const store = tx.objectStore(storeName)
+        const index = store.index('utcDate')
+        const request = index.getAll(IDBKeyRange.only(filterDate))
+
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const results = (request.result || []).map(filterSystemFields)
+          resolve(results)
+        }
+      })
+    }
+  } else {
+    allRecords = await getDataFromIndexedDB(fromCallsign)
+  }
 
   // 计算每日序号（在过滤前计算，确保序号基于完整数据）
   calculateDailyIndex(allRecords)
@@ -966,6 +992,92 @@ export async function getUniqueCallsignCountFromIndexedDB(fromCallsign = null) {
   }
 
   return uniqueCallsigns.size
+}
+
+// 获取每日通联统计（用于日历显示）
+// 返回格式: { '2024-01-15': 5, '2024-01-16': 3, ... }
+export async function getDailyContactStatsFromIndexedDB(fromCallsign = null) {
+  if (!fromCallsign) return {}
+
+  const db = await openLogsDatabase()
+  const storeName = `logs_from_${fromCallsign}`
+
+  if (!db.objectStoreNames.contains(storeName)) {
+    return {}
+  }
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly')
+    const store = tx.objectStore(storeName)
+    const request = store.getAll()
+
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const records = request.result || []
+      const dailyStats = {}
+
+      for (const record of records) {
+        const utcDate = record.utcDate
+        if (utcDate) {
+          dailyStats[utcDate] = (dailyStats[utcDate] || 0) + 1
+        }
+      }
+
+      resolve(dailyStats)
+    }
+  })
+}
+
+// 获取指定月份的每日通联统计（按需查询）
+// year: 年份，month: 月份(1-12)
+// 返回格式: { dailyStats: { '2024-01-15': 5 }, monthTotal: 100, yearTotal: 1200 }
+export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, month) {
+  if (!fromCallsign) return { dailyStats: {}, monthTotal: 0, yearTotal: 0 }
+
+  const db = await openLogsDatabase()
+  const storeName = `logs_from_${fromCallsign}`
+
+  if (!db.objectStoreNames.contains(storeName)) {
+    return { dailyStats: {}, monthTotal: 0, yearTotal: 0 }
+  }
+
+  const yearPrefix = `${year}-`
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}-`
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly')
+    const store = tx.objectStore(storeName)
+    const index = store.index('utcDate')
+
+    // 使用游标遍历该年的所有数据
+    const yearStart = `${year}-01-01`
+    const yearEnd = `${year}-12-31`
+    const range = IDBKeyRange.bound(yearStart, yearEnd)
+
+    const dailyStats = {}
+    let monthTotal = 0
+    let yearTotal = 0
+
+    const request = index.openCursor(range)
+
+    request.onerror = () => reject(request.error)
+    request.onsuccess = (event) => {
+      const cursor = event.target.result
+      if (cursor) {
+        const utcDate = cursor.value.utcDate
+        if (utcDate && utcDate.startsWith(yearPrefix)) {
+          yearTotal++
+          if (utcDate.startsWith(monthPrefix)) {
+            monthTotal++
+            dailyStats[utcDate] = (dailyStats[utcDate] || 0) + 1
+          }
+        }
+        cursor.continue()
+      } else {
+        resolve({ dailyStats, monthTotal, yearTotal })
+      }
+    }
+  })
 }
 
 // 检查QSO记录是否已存在

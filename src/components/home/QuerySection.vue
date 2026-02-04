@@ -23,6 +23,14 @@
             @input="$emit('update:searchKeyword', $event.target.value)"
           />
         </div>
+        <div v-if="currentQueryType === 'all'" class="date-filter">
+          <DatePicker
+            :model-value="filterDate"
+            :from-callsign="fromCallsign"
+            placeholder="筛选日期"
+            @update:model-value="$emit('update:filterDate', $event)"
+          />
+        </div>
         <div v-if="currentQueryType === 'oldFriends'" class="search-box">
           <input
             :value="oldFriendsSearchKeyword"
@@ -39,6 +47,7 @@
 
 <script setup>
 import { QueryTypeNames } from './constants'
+import DatePicker from '../common/DatePicker.vue'
 
 defineProps({
   currentQueryType: {
@@ -53,6 +62,14 @@ defineProps({
     type: String,
     default: ''
   },
+  filterDate: {
+    type: String,
+    default: null
+  },
+  fromCallsign: {
+    type: String,
+    default: null
+  },
   dbLoaded: {
     type: Boolean,
     default: false
@@ -62,7 +79,8 @@ defineProps({
 const emit = defineEmits([
   'update:currentQueryType',
   'update:searchKeyword',
-  'update:oldFriendsSearchKeyword'
+  'update:oldFriendsSearchKeyword',
+  'update:filterDate'
 ])
 
 function handleTypeChange(type) {
@@ -103,15 +121,15 @@ function handleTypeChange(type) {
 
 .filter-controls {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   align-items: center;
-  flex-wrap: wrap;
 }
 
 .search-box {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
 .search-box input {
@@ -119,7 +137,9 @@ function handleTypeChange(type) {
   border: 1px solid var(--border-primary);
   border-radius: 4px;
   font-size: 0.9rem;
-  width: 150px;
+  width: 120px;
+  height: 32px;
+  box-sizing: border-box;
   background: var(--bg-input);
   color: var(--text-primary);
 }
@@ -127,6 +147,12 @@ function handleTypeChange(type) {
 .search-box input:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.date-filter {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {
@@ -142,12 +168,13 @@ function handleTypeChange(type) {
     align-items: flex-start;
   }
 
-  .search-box {
+  .filter-controls {
     width: 100%;
   }
 
   .search-box input {
     width: 100%;
+    flex: 1;
   }
 }
 </style>

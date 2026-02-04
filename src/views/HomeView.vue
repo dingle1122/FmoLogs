@@ -42,10 +42,13 @@
         v-model:current-query-type="dataQuery.currentQueryType.value"
         v-model:search-keyword="dataQuery.searchKeyword.value"
         v-model:old-friends-search-keyword="dataQuery.oldFriendsSearchKeyword.value"
+        v-model:filter-date="dataQuery.filterDate.value"
+        :from-callsign="selectedFromCallsign"
         :db-loaded="dbLoaded"
         @update:current-query-type="handleQueryTypeChange"
         @update:search-keyword="onSearchInput"
         @update:old-friends-search-keyword="onOldFriendsSearchInput"
+        @update:filter-date="onFilterDateChange"
       />
 
       <!-- TOP20汇总视图 -->
@@ -317,6 +320,11 @@ function onOldFriendsSearchInput() {
     dataQuery.oldFriendsPage.value = 1
     executeQuery()
   }, 300)
+}
+
+function onFilterDateChange() {
+  dataQuery.currentPage.value = 1
+  executeQuery()
 }
 
 function handlePageChange(page) {
