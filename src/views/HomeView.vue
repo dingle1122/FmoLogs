@@ -199,6 +199,8 @@ import { useFmoSync } from '../composables/useFmoSync'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
 import { useSettings } from '../composables/useSettings'
+import toast from '../composables/useToast'
+import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
@@ -524,7 +526,8 @@ async function handleFileSelect(event) {
 }
 
 async function handleClearAllData() {
-  if (!window.confirm('确定要清空所有数据吗？此操作不可恢复。')) {
+  const confirmed = await confirmDialog.show('确定要清空所有数据吗？此操作不可恢复。')
+  if (!confirmed) {
     return
   }
   await clearAllData()
@@ -556,7 +559,7 @@ async function handleExportData() {
     loading.value = false
   } catch (err) {
     loading.value = false
-    alert(`导出失败: ${err.message}`)
+    toast.error(`导出失败: ${err.message}`)
   }
 }
 
@@ -564,7 +567,7 @@ async function handleExportData() {
 async function handleAddAddress({ name, host, protocol }) {
   const result = await settings.addFmoAddress(name, host, protocol)
   if (!result.success) {
-    alert(result.message)
+    toast.error(result.message)
     return
   }
 
@@ -580,14 +583,14 @@ async function handleAddAddress({ name, host, protocol }) {
 async function handleUpdateAddress({ id, name, host, protocol }) {
   const result = await settings.updateFmoAddress(id, name, host, protocol)
   if (!result.success) {
-    alert(result.message)
+    toast.error(result.message)
   }
 }
 
 async function handleDeleteAddress(id) {
   const result = await settings.deleteFmoAddress(id)
   if (!result.success) {
-    alert(result.message)
+    toast.error(result.message)
     return
   }
 
@@ -616,14 +619,14 @@ async function handleSelectAddress(id) {
       fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
     }
   } else {
-    alert(result.message)
+    toast.error(result.message)
   }
 }
 
 async function handleClearAllAddresses() {
   const result = await settings.clearAllAddresses()
   if (!result.success) {
-    alert(result.message)
+    toast.error(result.message)
     return
   }
 

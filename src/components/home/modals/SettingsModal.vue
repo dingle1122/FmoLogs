@@ -359,6 +359,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { normalizeHost } from '../../../utils/urlUtils'
+import confirmDialog from '../../../composables/useConfirm'
 import packageInfo from '../../../../package.json'
 
 const props = defineProps({
@@ -573,14 +574,16 @@ function handleSelectAddress(id) {
   }, 6000)
 }
 
-function handleDeleteAddress(id) {
-  if (window.confirm('确定要删除这个地址吗？')) {
+async function handleDeleteAddress(id) {
+  const confirmed = await confirmDialog.show('确定要删除这个地址吗？')
+  if (confirmed) {
     emit('delete-address', id)
   }
 }
 
-function handleClearAllAddresses() {
-  if (window.confirm('确定要清除全部FMO地址吗？')) {
+async function handleClearAllAddresses() {
+  const confirmed = await confirmDialog.show('确定要清除全部FMO地址吗？')
+  if (confirmed) {
     emit('clear-all-addresses')
   }
 }
