@@ -567,7 +567,7 @@ async function handleExportData() {
 async function handleAddAddress({ name, host, protocol }) {
   const result = await settings.addFmoAddress(name, host, protocol)
   if (!result.success) {
-    toast.error(result.message)
+    toast.warning(result.message)
     return
   }
 
@@ -583,14 +583,14 @@ async function handleAddAddress({ name, host, protocol }) {
 async function handleUpdateAddress({ id, name, host, protocol }) {
   const result = await settings.updateFmoAddress(id, name, host, protocol)
   if (!result.success) {
-    toast.error(result.message)
+    toast.warning(result.message)
   }
 }
 
 async function handleDeleteAddress(id) {
   const result = await settings.deleteFmoAddress(id)
   if (!result.success) {
-    toast.error(result.message)
+    toast.warning(result.message)
     return
   }
 
@@ -619,14 +619,14 @@ async function handleSelectAddress(id) {
       fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
     }
   } else {
-    toast.error(result.message)
+    toast.warning(result.message)
   }
 }
 
 async function handleClearAllAddresses() {
   const result = await settings.clearAllAddresses()
   if (!result.success) {
-    toast.error(result.message)
+    toast.warning(result.message)
     return
   }
 
