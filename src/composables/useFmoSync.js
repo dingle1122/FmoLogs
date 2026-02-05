@@ -8,8 +8,14 @@ import {
 import { normalizeHost } from '../utils/urlUtils'
 
 export function useFmoSync(options = {}) {
-  const { onSyncComplete, getSpeakingHistory, getSelectedFromCallsign, getDbLoaded, getTotalLogs } =
-    options
+  const {
+    onSyncComplete,
+    getSpeakingHistory,
+    getSelectedFromCallsign,
+    getDbLoaded,
+    getTotalLogs,
+    getEventsConnected
+  } = options
 
   const syncing = ref(false)
   const syncStatus = ref('')
@@ -19,6 +25,9 @@ export function useFmoSync(options = {}) {
   let autoSyncMessageTimer = null
   let isAutoSyncing = false
   let lastFullSyncTime = 0
+  let reloadTimer = null
+  let activeClients = new Set()
+  let isUnmounted = false
 
   function showAutoSyncMessage(msg) {
     autoSyncMessage.value = msg
@@ -122,12 +131,30 @@ export function useFmoSync(options = {}) {
 
   // 检查是否应该同步
   function checkShouldSync() {
+    const eventsConnected = getEventsConnected?.() || false
     const speakingHistory = getSpeakingHistory?.() || []
+    const currentCallsign = getSelectedFromCallsign?.()
+
+    // 如果 /events 连接成功
+    if (eventsConnected) {
+      // 检查发言历史中是否有当前呼号
+      if (currentCallsign && speakingHistory.length > 0) {
+        // 查找当前呼号在发言历史中的记录
+        const currentCallsignHistory = speakingHistory.find((h) => h.callsign === currentCallsign)
+        if (currentCallsignHistory) {
+          // 有当前呼号发言记录，继续定时同步（考虑日志记录延迟）
+          return true
+        }
+      }
+      // /events 连接成功但列表中没有当前呼号，不需要定时同步
+      return false
+    }
+
+    // /events 未连接或断开，继续使用原来的逻辑
     if (!speakingHistory || speakingHistory.length === 0) {
       return true
     }
 
-    const currentCallsign = getSelectedFromCallsign?.()
     if (!currentCallsign) {
       return true
     }
@@ -143,11 +170,16 @@ export function useFmoSync(options = {}) {
 
   // 执行增量同步
   async function performIncrementalSync(fmoAddress, protocol) {
+    if (isUnmounted) return
+
     const host = normalizeHost(fmoAddress)
     const fullAddress = `${protocol}://${host}`
     const client = new FmoApiClient(fullAddress)
+    activeClients.add(client)
 
     try {
+      if (isUnmounted) return
+
       const wasEmpty = !getDbLoaded?.() || (getTotalLogs?.() || 0) === 0
       const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
       const currentFromCallsign = getSelectedFromCallsign?.() || ''
@@ -156,39 +188,50 @@ export function useFmoSync(options = {}) {
       const newCallsigns = []
 
       for (const item of list) {
+        if (isUnmounted) break
         const qso = await processSingleQsoItem(item, todayStart, currentFromCallsign, client)
         if (qso) {
           newCallsigns.push(qso.toCallsign)
         }
       }
 
-      await updateAfterSync(
-        wasEmpty,
-        newCallsigns.length,
-        newCallsigns.length > 0 ? `同步到和 ${newCallsigns.join(', ')} 的通联` : null
-      )
+      if (!isUnmounted) {
+        await updateAfterSync(
+          wasEmpty,
+          newCallsigns.length,
+          newCallsigns.length > 0 ? `同步到和 ${newCallsigns.join(', ')} 的通联` : null
+        )
+      }
     } catch (err) {
       console.error('增量同步失败:', err)
     } finally {
       client.close()
+      activeClients.delete(client)
     }
   }
 
   // 执行今日数据同步
   async function performTodaySync(fmoAddress, protocol) {
+    if (isUnmounted) return
+
     const host = normalizeHost(fmoAddress)
     const fullAddress = `${protocol}://${host}`
     const client = new FmoApiClient(fullAddress)
+    activeClients.add(client)
 
     try {
+      if (isUnmounted) return
+
       const wasEmpty = !getDbLoaded?.() || (getTotalLogs?.() || 0) === 0
       const totalSynced = await syncTodayData(client)
 
-      await updateAfterSync(
-        wasEmpty,
-        totalSynced,
-        totalSynced > 0 ? `每小时同步完成，共更新 ${totalSynced} 条记录` : null
-      )
+      if (!isUnmounted) {
+        await updateAfterSync(
+          wasEmpty,
+          totalSynced,
+          totalSynced > 0 ? `每小时同步完成，共更新 ${totalSynced} 条记录` : null
+        )
+      }
 
       if (totalSynced === 0) {
         console.log('每小时同步完成，无新数据')
@@ -197,6 +240,7 @@ export function useFmoSync(options = {}) {
       console.error('今日数据同步失败:', err)
     } finally {
       client.close()
+      activeClients.delete(client)
     }
   }
 
@@ -246,7 +290,7 @@ export function useFmoSync(options = {}) {
 
   // 手动同步今日通联
   async function syncToday(fmoAddress, protocol) {
-    if (!fmoAddress || syncing.value) return
+    if (!fmoAddress || syncing.value || isUnmounted) return
 
     syncing.value = true
     syncStatus.value = '连接 FMO...'
@@ -254,8 +298,11 @@ export function useFmoSync(options = {}) {
     const host = normalizeHost(fmoAddress)
     const fullAddress = `${protocol}://${host}`
     const client = new FmoApiClient(fullAddress)
+    activeClients.add(client)
 
     try {
+      if (isUnmounted) return
+
       const totalSynced = await syncTodayData(client, (status) => {
         syncStatus.value = status
       })
@@ -265,20 +312,38 @@ export function useFmoSync(options = {}) {
       const callsigns = await getAvailableFromCallsigns()
       onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
 
-      setTimeout(() => {
-        window.location.reload()
-      }, 1500)
+      if (!isUnmounted) {
+        reloadTimer = setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      }
     } finally {
       syncing.value = false
       client.close()
+      activeClients.delete(client)
     }
   }
 
   onUnmounted(() => {
+    isUnmounted = true
+
     stopAutoSyncTask()
+
     if (autoSyncMessageTimer) {
       clearTimeout(autoSyncMessageTimer)
+      autoSyncMessageTimer = null
     }
+
+    if (reloadTimer) {
+      clearTimeout(reloadTimer)
+      reloadTimer = null
+    }
+
+    // 关闭所有活跃的客户端连接
+    activeClients.forEach((client) => {
+      client.close()
+    })
+    activeClients.clear()
   })
 
   return {

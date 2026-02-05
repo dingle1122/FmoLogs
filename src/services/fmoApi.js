@@ -6,6 +6,7 @@ export class FmoApiClient {
     this.socket = null
     this.pendingRequests = new Map()
     this.connectPromise = null
+    this.timeoutTimers = new Map()
   }
 
   // 检查是否为有效的IP地址或域名（可带端口号）
@@ -98,6 +99,12 @@ export class FmoApiClient {
       const { resolve, reject } = this.pendingRequests.get(key)
       this.pendingRequests.delete(key)
 
+      // 清理对应的超时定时器
+      if (this.timeoutTimers.has(key)) {
+        clearTimeout(this.timeoutTimers.get(key))
+        this.timeoutTimers.delete(key)
+      }
+
       if (code === 0) {
         resolve(data)
       } else {
@@ -124,12 +131,15 @@ export class FmoApiClient {
       this.socket.send(payload)
 
       // 设置超时
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         if (this.pendingRequests.has(key)) {
           this.pendingRequests.delete(key)
+          this.timeoutTimers.delete(key)
           reject(new Error(`Request timeout: ${key}`))
         }
       }, 15000)
+
+      this.timeoutTimers.set(key, timeoutId)
     })
   }
 
@@ -167,9 +177,36 @@ export class FmoApiClient {
   }
 
   close() {
+    // 清理连接 Promise
+    this.connectPromise = null
+
+    // 关闭 WebSocket
     if (this.socket) {
-      this.socket.close()
+      try {
+        // 只关闭处于 OPEN 或 CONNECTING 状态的连接
+        if (
+          this.socket.readyState === WebSocket.OPEN ||
+          this.socket.readyState === WebSocket.CONNECTING
+        ) {
+          this.socket.close()
+        }
+      } catch (err) {
+        console.error('关闭 WebSocket 失败:', err)
+      }
       this.socket = null
     }
+
+    // 清理所有待处理的请求
+    this.pendingRequests.clear()
+
+    // 清理所有超时定时器
+    this.timeoutTimers.forEach((timerId) => {
+      try {
+        clearTimeout(timerId)
+      } catch (err) {
+        console.error('清理超时定时器失败:', err)
+      }
+    })
+    this.timeoutTimers.clear()
   }
 }

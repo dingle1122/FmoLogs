@@ -111,9 +111,13 @@ export function useSpeakingStatus() {
     }
 
     if (eventWs) {
-      const state = eventWs.readyState
-      if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
-        eventWs.close()
+      try {
+        const state = eventWs.readyState
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+          eventWs.close()
+        }
+      } catch (err) {
+        console.error('关闭事件 WebSocket 失败:', err)
       }
       eventWs = null
     }

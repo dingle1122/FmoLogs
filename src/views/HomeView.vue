@@ -281,7 +281,8 @@ const fmoSync = useFmoSync({
   getSpeakingHistory: () => speakingStatus.speakingHistory.value,
   getSelectedFromCallsign: () => selectedFromCallsign.value,
   getDbLoaded: () => dbLoaded.value,
-  getTotalLogs: () => totalLogs.value
+  getTotalLogs: () => totalLogs.value,
+  getEventsConnected: () => speakingStatus.eventsConnected.value
 })
 
 // 计算属性
@@ -374,7 +375,11 @@ async function fetchCurrentStation() {
   } catch (err) {
     console.error('获取当前服务器失败:', err)
   } finally {
-    client.close()
+    try {
+      client.close()
+    } catch (closeErr) {
+      console.error('关闭客户端连接失败:', closeErr)
+    }
     stationLoading.value = false
   }
 }
@@ -411,7 +416,11 @@ async function handleStationPrev() {
   } catch (err) {
     console.error('切换上一个服务器失败:', err)
   } finally {
-    client.close()
+    try {
+      client.close()
+    } catch (closeErr) {
+      console.error('关闭客户端连接失败:', closeErr)
+    }
     stationBusy.value = false
   }
 }
@@ -432,7 +441,11 @@ async function handleStationNext() {
   } catch (err) {
     console.error('切换下一个服务器失败:', err)
   } finally {
-    client.close()
+    try {
+      client.close()
+    } catch (closeErr) {
+      console.error('关闭客户端连接失败:', closeErr)
+    }
     stationBusy.value = false
   }
 }
@@ -476,7 +489,11 @@ async function loadStationPage() {
     console.error('获取服务器列表失败:', err)
     stationListNoMore.value = true
   } finally {
-    client.close()
+    try {
+      client.close()
+    } catch (closeErr) {
+      console.error('关闭客户端连接失败:', closeErr)
+    }
     stationListLoading.value = false
   }
 }
@@ -502,7 +519,11 @@ async function handleStationSelect(uid) {
   } catch (err) {
     console.error('设置当前服务器失败:', err)
   } finally {
-    client.close()
+    try {
+      client.close()
+    } catch (closeErr) {
+      console.error('关闭客户端连接失败:', closeErr)
+    }
     stationBusy.value = false
   }
   speakingStatus.clearSpeakingHistory()
