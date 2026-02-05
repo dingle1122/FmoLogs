@@ -235,8 +235,13 @@ export function useSettings() {
     if (!fmoAddress.value) return
 
     let address = fmoAddress.value.trim()
+    
+    // 根据 WebSocket 协议决定 HTTP 协议：ws -> http, wss -> https
+    const httpProtocol = protocol.value === 'wss' ? 'https' : 'http'
+    
+    // 构建完整的 URL（使用与 WebSocket 协议对应的 HTTP 协议）
     if (!address.startsWith('http://') && !address.startsWith('https://')) {
-      address = 'http://' + address
+      address = `${httpProtocol}://${address}`
     }
     address = address.replace(/\/+$/, '')
 
