@@ -241,9 +241,13 @@ export function useSettings() {
     address = address.replace(/\/+$/, '')
 
     const url = `${address}/api/qso/backup`
+    
+    // 在 HTTPS 网站上访问 HTTP 资源会被浏览器阻止（混合内容策略）
+    // 去除 target='_blank'，直接在当前页面触发下载
     const link = document.createElement('a')
     link.href = url
-    link.target = '_blank'
+    link.download = '' // 添加 download 属性触发下载行为，空值表示使用服务器指定的文件名
+    // 不设置 target='_blank'，避免弹出被阻止的空白窗口
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
