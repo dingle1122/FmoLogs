@@ -880,6 +880,9 @@ defineExpose({ clearConnecting, clearRefreshing })
   font-size: 0.8rem;
   color: var(--text-tertiary);
   font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .address-user-info {
@@ -910,6 +913,8 @@ defineExpose({ clearConnecting, clearRefreshing })
 .address-actions {
   display: flex;
   gap: 0.25rem;
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 .btn-icon {
@@ -920,6 +925,7 @@ defineExpose({ clearConnecting, clearRefreshing })
   cursor: pointer;
   color: var(--text-tertiary);
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .btn-icon:hover {
@@ -1418,5 +1424,46 @@ defineExpose({ clearConnecting, clearRefreshing })
   color: var(--text-tertiary);
   margin-top: auto;
   padding-top: 0.75rem;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .address-card {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .address-info {
+    flex: 1;
+    min-width: 0;
+    margin-right: 0.25rem;
+  }
+
+  .address-url {
+    font-size: 0.75rem;
+  }
+
+  .address-actions {
+    margin-left: 0.25rem;
+    gap: 0.15rem;
+  }
+
+  .btn-icon {
+    padding: 0.3rem;
+  }
+
+  .btn-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .address-name {
+    font-size: 0.9rem;
+  }
+
+  .user-callsign,
+  .user-uid {
+    font-size: 0.7rem;
+    padding: 0.05rem 0.3rem;
+  }
 }
 </style>
