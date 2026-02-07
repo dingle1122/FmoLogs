@@ -1,5 +1,14 @@
+/* 英文等宽字体 */
+@font-face {
+  font-family: 'MixedFont';
+  src: local('Consolas'), local('Monaco'), local('Courier New'), local('monospace');
+  unicode-range: U+0000-00FF, U+0100-017F, U+0180-024F, U+0250-02AF, U+1E00-1EFF, U+2000-206F, U+2070-209F, U+20A0-20CF, U+2100-214F, U+2150-218F, U+FB00-FB4F;
+  font-weight: 400;
+  font-style: normal;
+}
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'MixedFont', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
@@ -147,6 +156,7 @@ body {
   min-height: 100vh;
   background-color: var(--bg-page);
   color: var(--text-primary);
+  text-shadow: 0 0 0.3px rgba(0, 0, 0, 0.3);
 }
 
 * {
