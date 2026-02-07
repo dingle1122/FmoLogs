@@ -138,6 +138,7 @@
       @delete-address="handleDeleteAddress"
       @select-address="handleSelectAddress"
       @clear-all-addresses="handleClearAllAddresses"
+      @refresh-user-info="handleRefreshUserInfo"
     />
 
     <!-- 隐藏的文件输入 -->
@@ -666,6 +667,18 @@ async function handleClearAllAddresses() {
     currentStation.value = null
   }
 }
+
+async function handleRefreshUserInfo(id) {
+  const result = await settings.refreshUserInfo(id)
+  settingsModalRef.value?.clearRefreshing()
+  
+  if (result.success) {
+    toast.success(result.message)
+  } else {
+    toast.error(result.message)
+  }
+}
+
 
 async function handleSyncToday() {
   try {

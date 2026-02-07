@@ -176,6 +176,10 @@ export class FmoApiClient {
     return this.sendRequest('station', 'prev', {})
   }
 
+  async getUserInfo() {
+    return this.sendRequest('user', 'getInfo', {})
+  }
+
   close() {
     // 清理连接 Promise
     this.connectPromise = null

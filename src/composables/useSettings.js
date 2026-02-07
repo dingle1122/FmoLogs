@@ -53,6 +53,40 @@ export function useSettings() {
     // 如果迁移后有数据，保存一次确保新格式持久化
     if (storage.addresses.length > 0) {
       await saveFmoAddresses(storage)
+
+      // 如果有激活的地址，尝试获取用户信息
+      if (storage.activeId) {
+        const activeAddr = storage.addresses.find((a) => a.id === storage.activeId)
+        if (activeAddr && !activeAddr.userInfo) {
+          try {
+            const host = normalizeHost(activeAddr.host)
+            const fullAddress = `${activeAddr.protocol}://${host}`
+            const client = new FmoApiClient(fullAddress)
+            const userInfo = await client.getUserInfo()
+
+            // 更新地址对象的用户信息
+            const index = fmoAddressStorage.value.addresses.findIndex(
+              (a) => a.id === storage.activeId
+            )
+            if (index !== -1) {
+              fmoAddressStorage.value.addresses[index] = {
+                ...fmoAddressStorage.value.addresses[index],
+                userInfo: {
+                  callsign: userInfo.callsign || '',
+                  uid: userInfo.uid || null,
+                  wlanIP: userInfo.wlanIP || ''
+                }
+              }
+              await saveFmoAddresses(fmoAddressStorage.value)
+            }
+            client.close()
+          } catch (err) {
+            console.log('初始化时获取用户信息失败:', err)
+            // 忽略错误，不影响初始化
+          }
+        }
+      }
+
       return true
     }
 
@@ -106,6 +140,24 @@ export function useSettings() {
 
     const id = generateId()
     const newAddress = { id, name: name || host, host, protocol: proto }
+
+    // 尝试获取用户信息
+    try {
+      const normalizedHost = normalizeHost(host)
+      const fullAddress = `${proto}://${normalizedHost}`
+      const apiClient = new FmoApiClient(fullAddress)
+      const userInfo = await apiClient.getUserInfo()
+      
+      newAddress.userInfo = {
+        callsign: userInfo.callsign || '',
+        uid: userInfo.uid || null,
+        wlanIP: userInfo.wlanIP || ''
+      }
+      apiClient.close()
+    } catch (err) {
+      console.log('获取用户信息失败:', err)
+      // 忽略错误，不影响添加
+    }
 
     fmoAddressStorage.value.addresses.push(newAddress)
 
@@ -182,6 +234,32 @@ export function useSettings() {
 
     if (isConnected) {
       fmoAddressStorage.value.activeId = id
+
+      // 尝试获取用户信息
+      try {
+        const host = normalizeHost(address.host)
+        const fullAddress = `${address.protocol}://${host}`
+        const client = new FmoApiClient(fullAddress)
+        const userInfo = await client.getUserInfo()
+        
+        // 更新地址对象的用户信息
+        const index = fmoAddressStorage.value.addresses.findIndex((a) => a.id === id)
+        if (index !== -1) {
+          fmoAddressStorage.value.addresses[index] = {
+            ...fmoAddressStorage.value.addresses[index],
+            userInfo: {
+              callsign: userInfo.callsign || '',
+              uid: userInfo.uid || null,
+              wlanIP: userInfo.wlanIP || ''
+            }
+          }
+        }
+        client.close()
+      } catch (err) {
+        console.log('获取用户信息失败:', err)
+        // 忽略错误，不影响切换
+      }
+
       await saveFmoAddresses(fmoAddressStorage.value)
       return { success: true, message: '已切换到: ' + address.name, reconnect: true }
     } else {
@@ -204,6 +282,40 @@ export function useSettings() {
     fmoAddressStorage.value.activeId = null
     await saveFmoAddresses(fmoAddressStorage.value)
     return { success: true, reconnect: hadAddresses }
+  }
+
+  // 刷新指定地址的用户信息
+  async function refreshUserInfo(id) {
+    const address = fmoAddressStorage.value.addresses.find((a) => a.id === id)
+    if (!address) {
+      return { success: false, message: '地址不存在' }
+    }
+
+    try {
+      const host = normalizeHost(address.host)
+      const fullAddress = `${address.protocol}://${host}`
+      const client = new FmoApiClient(fullAddress)
+      const userInfo = await client.getUserInfo()
+
+      // 更新地址对象的用户信息
+      const index = fmoAddressStorage.value.addresses.findIndex((a) => a.id === id)
+      if (index !== -1) {
+        fmoAddressStorage.value.addresses[index] = {
+          ...fmoAddressStorage.value.addresses[index],
+          userInfo: {
+            callsign: userInfo.callsign || '',
+            uid: userInfo.uid || null,
+            wlanIP: userInfo.wlanIP || ''
+          }
+        }
+        await saveFmoAddresses(fmoAddressStorage.value)
+      }
+      client.close()
+      return { success: true, message: '用户信息已更新' }
+    } catch (err) {
+      console.log('刷新用户信息失败:', err)
+      return { success: false, message: '获取用户信息失败' }
+    }
   }
 
   // 兼容旧接口：验证并保存当前输入的地址
@@ -310,6 +422,7 @@ export function useSettings() {
     deleteFmoAddress,
     selectFmoAddress,
     clearAllAddresses,
+    refreshUserInfo,
     validateConnection
   }
 }

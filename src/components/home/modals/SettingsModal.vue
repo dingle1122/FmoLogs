@@ -98,8 +98,31 @@
                 <div class="address-info">
                   <div class="address-name">{{ addr.name }}</div>
                   <div class="address-url">{{ addr.protocol }}://{{ addr.host }}</div>
+                  <div
+                    v-if="addr.id === activeAddressId && addr.userInfo"
+                    class="address-user-info"
+                  >
+                    <span v-if="addr.userInfo.callsign" class="user-callsign">{{
+                      addr.userInfo.callsign
+                    }}</span>
+                    <span v-if="addr.userInfo.uid" class="user-uid">UID: {{ addr.userInfo.uid }}</span>
+                  </div>
                 </div>
                 <div class="address-actions" @click.stop>
+                  <button
+                    v-if="addr.id === activeAddressId"
+                    class="btn-icon"
+                    :class="{ 'btn-icon-loading': refreshingId === addr.id }"
+                    title="刷新用户信息"
+                    :disabled="refreshingId === addr.id"
+                    @click="handleRefreshUserInfo(addr.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path
+                        d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                      />
+                    </svg>
+                  </button>
                   <button class="btn-icon" title="编辑" @click="editAddress(addr)">
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                       <path
@@ -417,11 +440,13 @@ const emit = defineEmits([
   'update-address',
   'delete-address',
   'select-address',
-  'clear-all-addresses'
+  'clear-all-addresses',
+  'refresh-user-info'
 ])
 
 const activeTab = ref('general')
 const connectingId = ref(null)
+const refreshingId = ref(null)
 
 // 地址编辑弹框状态
 const showAddressDialog = ref(false)
@@ -588,12 +613,21 @@ async function handleClearAllAddresses() {
   }
 }
 
+async function handleRefreshUserInfo(id) {
+  refreshingId.value = id
+  emit('refresh-user-info', id)
+}
+
 // 暴露方法供父组件调用
 function clearConnecting() {
   connectingId.value = null
 }
 
-defineExpose({ clearConnecting })
+function clearRefreshing() {
+  refreshingId.value = null
+}
+
+defineExpose({ clearConnecting, clearRefreshing })
 </script>
 
 <style scoped>
@@ -848,6 +882,31 @@ defineExpose({ clearConnecting })
   font-family: monospace;
 }
 
+.address-user-info {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.user-callsign,
+.user-uid {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.user-callsign {
+  background: rgba(64, 158, 255, 0.15);
+  color: var(--color-primary);
+}
+
+.user-uid {
+  background: rgba(103, 194, 58, 0.15);
+  color: var(--color-success);
+}
+
 .address-actions {
   display: flex;
   gap: 0.25rem;
@@ -875,6 +934,19 @@ defineExpose({ clearConnecting })
 .btn-icon:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+.btn-icon-loading svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .no-address {
