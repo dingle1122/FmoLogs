@@ -13,6 +13,7 @@
             class="station-item"
             :class="{ active: currentStation?.uid === station.uid }"
             :disabled="loading"
+            :title="station.name"
             @click="handleSelect(station.uid)"
           >
             {{ station.name }}
@@ -87,7 +88,7 @@ function handleSelect(uid) {
 }
 
 .modal-station-list {
-  width: 450px;
+  width: 550px;
   max-width: 90%;
   max-height: 70vh;
   display: flex;
@@ -127,14 +128,14 @@ function handleSelect(uid) {
 }
 
 .station-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
 }
 
 .station-item {
-  padding: 0.7rem 1.2rem;
-  border: 1px solid var(--border-secondary);
+  padding: 0.8rem 1.2rem;
+  border: 2px solid rgba(150, 150, 150, 0.3);
   background: var(--bg-card);
   border-radius: 6px;
   cursor: pointer;
@@ -142,11 +143,16 @@ function handleSelect(uid) {
   font-weight: 500;
   color: var(--text-secondary);
   transition: all 0.2s;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .station-item:hover:not(:disabled) {
   background: var(--bg-table-hover);
   color: var(--text-primary);
+  border-color: var(--color-primary);
 }
 
 .station-item.active {
@@ -193,14 +199,14 @@ function handleSelect(uid) {
   cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .modal-station-list {
     width: 95%;
   }
 
   .station-item {
-    padding: 0.6rem 1rem;
-    font-size: 1rem;
+    padding: 0.7rem 0.5rem;
+    font-size: 0.95rem;
   }
 }
 </style>
