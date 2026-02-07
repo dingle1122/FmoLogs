@@ -1,10 +1,58 @@
-/* 英文等宽字体 */
+/* 英文等宽字体 - Intel One Mono Regular */
 @font-face {
-  font-family: 'MixedFont';
-  src: local('Consolas'), local('Monaco'), local('Courier New'), local('monospace');
-  unicode-range: U+0000-00FF, U+0100-017F, U+0180-024F, U+0250-02AF, U+1E00-1EFF, U+2000-206F, U+2070-209F, U+20A0-20CF, U+2100-214F, U+2150-218F, U+FB00-FB4F;
+  font-family: 'IntelOneMono';
+  src: url('/fonts/IntelOneMono-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
+  font-display: swap;
+}
+
+/* 英文等宽字体 - Intel One Mono Medium */
+@font-face {
+  font-family: 'IntelOneMono';
+  src: url('/fonts/IntelOneMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 英文等宽字体 - Intel One Mono Bold */
+@font-face {
+  font-family: 'IntelOneMono';
+  src: url('/fonts/IntelOneMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 应用字体到英文字符 - Regular */
+@font-face {
+  font-family: 'MixedFont';
+  src: url('/fonts/IntelOneMono-Regular.woff2') format('woff2');
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A;
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 应用字体到英文字符 - Medium */
+@font-face {
+  font-family: 'MixedFont';
+  src: url('/fonts/IntelOneMono-Medium.woff2') format('woff2');
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A;
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 应用字体到英文字符 - Bold */
+@font-face {
+  font-family: 'MixedFont';
+  src: url('/fonts/IntelOneMono-Bold.woff2') format('woff2');
+  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A;
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
 }
 
 :root {
