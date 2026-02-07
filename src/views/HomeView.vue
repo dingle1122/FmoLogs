@@ -14,6 +14,7 @@
       :speaking-history="speakingStatus.speakingHistory.value"
       :fmo-address="settings.fmoAddress.value"
       :events-connected="speakingStatus.eventsConnected.value"
+      :selected-from-callsign="selectedFromCallsign"
       @click="showSpeakingHistory = true"
     />
 
@@ -159,6 +160,7 @@
       :station-connected="stationLoading || currentStation !== null"
       :current-station="currentStation"
       :station-busy="stationBusy"
+      :selected-from-callsign="selectedFromCallsign"
       @close="showSpeakingHistory = false"
       @show-callsign-records="handleShowCallsignRecords"
       @station-prev="handleStationPrev"

@@ -9,7 +9,8 @@
       <span v-else class="speaking-indicator idle"></span>
       <span class="speaking-text">
         <template v-if="currentSpeaker">
-          正在发言: <strong>{{ currentSpeaker }}</strong>
+          正在发言: <strong>{{ currentSpeaker }}</strong
+          ><strong v-if="currentSpeaker === selectedFromCallsign">（您）</strong>
         </template>
         <template v-else> 当前无人发言 </template>
       </span>
@@ -35,6 +36,10 @@ defineProps({
   eventsConnected: {
     type: Boolean,
     default: false
+  },
+  selectedFromCallsign: {
+    type: String,
+    default: ''
   }
 })
 

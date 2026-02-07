@@ -19,12 +19,13 @@
             v-for="(record, index) in history"
             :key="index"
             class="speaking-history-item"
-            :class="{ 'is-speaking': !record.endTime }"
-            @click="$emit('show-callsign-records', record.callsign)"
+            :class="{ 'is-speaking': !record.endTime, 'is-self': record.callsign === selectedFromCallsign }"
+            @click="record.callsign !== selectedFromCallsign && $emit('show-callsign-records', record.callsign)"
           >
             <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
             <span class="history-callsign">
               {{ record.callsign }}
+              <span v-if="record.callsign === selectedFromCallsign" class="self-tag">（您）</span>
               <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
                 >&#11088;</span
               >
@@ -72,6 +73,10 @@ defineProps({
   stationBusy: {
     type: Boolean,
     default: false
+  },
+  selectedFromCallsign: {
+    type: String,
+    default: ''
   }
 })
 
@@ -161,6 +166,18 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   background: var(--bg-table-hover);
 }
 
+.speaking-history-item.is-self {
+  cursor: default;
+}
+
+.speaking-history-item.is-self:hover {
+  background: var(--bg-card);
+}
+
+.speaking-history-item.is-self.is-speaking:hover {
+  background: var(--bg-speaking-bar);
+}
+
 .speaking-history-item.is-speaking {
   background: var(--bg-speaking-bar);
   border-color: var(--border-speaking-bar);
@@ -208,8 +225,18 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   align-items: center;
 }
 
+.self-tag {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .speaking-history-item.is-speaking .history-callsign {
   font-weight: 700;
+  color: var(--color-speaking);
+}
+
+.speaking-history-item.is-speaking .self-tag {
   color: var(--color-speaking);
 }
 

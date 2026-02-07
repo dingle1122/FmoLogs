@@ -44,7 +44,7 @@
           </div>
 
           <div v-if="availableFromCallsigns.length > 0" class="setting-item">
-            <span class="setting-label">发送方呼号</span>
+            <span class="setting-label">您的呼号</span>
             <div class="setting-actions">
               <select
                 :value="selectedFromCallsign"

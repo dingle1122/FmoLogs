@@ -244,7 +244,7 @@ export const ColumnNames = {
   dailyIndex: '序号',
   timestamp: '日期',
   freqHz: '频率(MHz)',
-  fromCallsign: '发送方呼号',
+  fromCallsign: '您的呼号',
   fromGrid: '发送网格',
   toCallsign: '接收方呼号',
   toGrid: '接收网格',
