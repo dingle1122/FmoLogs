@@ -12,6 +12,13 @@
           </button>
           <button
             class="tab-btn"
+            :class="{ active: activeTab === 'remoteControl' }"
+            @click="activeTab = 'remoteControl'; initAprsControl()"
+          >
+            远程控制
+          </button>
+          <button
+            class="tab-btn"
             :class="{ active: activeTab === 'links' }"
             @click="activeTab = 'links'"
           >
@@ -172,6 +179,45 @@
             </div>
           </div>
 
+          <!-- APRS 远程控制服务器配置 -->
+          <div class="setting-group">
+            <div class="setting-item">
+              <span class="setting-label">远程控制服务器</span>
+            </div>
+            <div class="aprs-server-config">
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  value="default"
+                  v-model="aprsServerMode"
+                  @change="handleServerModeChange"
+                />
+                <span>使用默认服务器</span>
+              </label>
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  value="custom"
+                  v-model="aprsServerMode"
+                  @change="handleServerModeChange"
+                />
+                <span>用户自定义服务器</span>
+              </label>
+              <div v-if="aprsServerMode === 'custom'" class="custom-server-input">
+                <input
+                  v-model="aprsCustomServer"
+                  type="text"
+                  placeholder="ws://your-server:8090/api/ws"
+                  class="form-input"
+                />
+                <button class="btn-primary btn-sm" @click="saveAprsServerConfig">保存</button>
+              </div>
+              <div class="server-info">
+                当前服务器: {{ aprsCurrentServerUrl }}
+              </div>
+            </div>
+          </div>
+
           <div v-if="dbLoaded" class="setting-item setting-item-danger">
             <span class="setting-label">数据管理</span>
             <div class="setting-actions">
@@ -324,6 +370,11 @@
             <div class="about-footer">开源项目 · 欢迎贡献</div>
           </div>
         </div>
+
+        <!-- 远程控制 -->
+        <div v-else-if="activeTab === 'remoteControl'" class="tab-content">
+          <AprsRemoteControl />
+        </div>
       </div>
     </div>
 
@@ -380,8 +431,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { normalizeHost } from '../../../utils/urlUtils'
+import { useAprsControl } from '../../../composables/useAprsControl'
+import AprsRemoteControl from './AprsRemoteControl.vue'
 import confirmDialog from '../../../composables/useConfirm'
 import packageInfo from '../../../../package.json'
 
@@ -462,6 +515,46 @@ const formError = ref('')
 const isMobileDevice = computed(() => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 })
+
+// ========== APRS 远程控制服务器配置 ==========
+const aprsControl = useAprsControl()
+
+// 初始化时加载配置
+onMounted(() => {
+  aprsControl.init()
+})
+
+// 服务器配置
+const aprsServerMode = aprsControl.serverMode
+const aprsCustomServer = aprsControl.customServerAddress
+const aprsCurrentServerUrl = aprsControl.currentServerUrl
+
+// 服务器模式切换
+function handleServerModeChange() {
+  aprsControl.updateServerConfig(aprsServerMode.value, aprsCustomServer.value)
+}
+
+// 保存自定义服务器
+function saveAprsServerConfig() {
+  aprsControl.updateServerConfig(aprsServerMode.value, aprsCustomServer.value)
+}
+
+// 监听地址变化，自动填充呼号（仅在登录呼号为空时）
+watch(
+  [() => props.activeAddressId, () => props.addressList],
+  ([newId, addressList]) => {
+    if (!newId || !addressList?.length) return
+    const activeAddr = addressList.find(a => a.id === newId)
+    if (activeAddr?.userInfo?.callsign) {
+      // 只有当当前呼号为空时才自动填充
+      if (!aprsControl.mycall.value) {
+        aprsControl.updateCallsign(activeAddr.userInfo.callsign)
+      }
+    }
+  },
+  { immediate: true, deep: true }
+)
+
 
 const remoteControlUrl = computed(() => {
   if (!props.fmoAddress) return '#'
@@ -647,7 +740,7 @@ defineExpose({ clearConnecting, clearRefreshing })
 .modal {
   background: var(--bg-card);
   border-radius: 8px;
-  width: 650px;
+  width: 720px;
   max-width: 90%;
   box-shadow: 0 4px 20px var(--shadow-modal);
 }
@@ -713,7 +806,7 @@ defineExpose({ clearConnecting, clearRefreshing })
 
 .modal-body {
   padding: 1.5rem;
-  height: 450px;
+  height: 650px;
   overflow-y: auto;
 }
 
@@ -1466,4 +1559,219 @@ defineExpose({ clearConnecting, clearRefreshing })
     padding: 0.05rem 0.3rem;
   }
 }
+
+/* ========== APRS 远程控制样式 ========== */
+.aprs-control {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.aprs-status {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.aprs-status.status-info {
+  background: var(--bg-input);
+  color: var(--text-secondary);
+}
+
+.aprs-status.status-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.aprs-status.status-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.aprs-server-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex: 1;
+}
+
+.aprs-server-row .form-input-flex {
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.aprs-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .aprs-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.aprs-form .form-group {
+  margin-bottom: 0;
+}
+
+.aprs-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.btn-control {
+  flex: 1;
+  max-width: 140px;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-control:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-normal {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: white;
+}
+
+.btn-normal:not(:disabled):hover {
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.btn-standby {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.btn-standby:not(:disabled):hover {
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.btn-reboot {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.btn-reboot:not(:disabled):hover {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.aprs-history {
+  margin-top: 0.5rem;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.history-list {
+  max-height: 150px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  background: var(--bg-input);
+}
+
+.history-success {
+  border-left: 3px solid #22c55e;
+}
+
+.history-fail {
+  border-left: 3px solid #ef4444;
+}
+
+.history-status {
+  font-size: 1rem;
+}
+
+.history-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-message {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.history-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* APRS 服务器配置样式 */
+.aprs-server-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-input);
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.radio-label input[type="radio"] {
+  cursor: pointer;
+}
+
+.custom-server-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.25rem;
+  padding-left: 1.25rem;
+}
+
+.custom-server-input .form-input {
+  flex: 1;
+}
+
+.server-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+  word-break: break-all;
+}
 </style>
+
