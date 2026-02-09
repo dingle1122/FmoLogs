@@ -1,81 +1,173 @@
 <template>
   <div class="aprs-control">
-    <!-- 连接状态 -->
-    <div
-      class="aprs-status"
-      :class="{
-        'status-success': statusType === 'success',
-        'status-error': statusType === 'error',
-        'status-info': statusType === 'info'
-      }"
-    >
-      {{ formatMessage(statusMessage) }}
+    <!-- 服务器配置 -->
+    <div class="server-config-section">
+      <div class="section-header">
+        <div class="section-label-with-status">
+          <span class="section-label">远程控制服务器</span>
+          <span 
+            class="connection-status"
+            :class="{
+              'status-connected': wsConnected,
+              'status-disconnected': !wsConnected && !wsConnecting,
+              'status-connecting': wsConnecting
+            }"
+            :title="statusMessage"
+          ></span>
+        </div>
+        <button class="btn-add-server" @click="showAddServerDialog = true">+ 添加</button>
+      </div>
+      
+      <div class="server-selector">
+        <div class="server-dropdown">
+          <select 
+            v-model="activeServerId" 
+            class="server-select"
+            @change="handleServerChange"
+          >
+            <option 
+              v-for="server in serverList" 
+              :key="server.id" 
+              :value="server.id"
+            >
+              {{ server.url }}
+            </option>
+          </select>
+          <div class="server-actions">
+            <button 
+              v-if="!currentServerIsDefault"
+              class="btn-icon" 
+              title="编辑"
+              @click="editCurrentServer"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+              </svg>
+            </button>
+            <button 
+              v-if="!currentServerIsDefault"
+              class="btn-icon btn-icon-danger" 
+              title="删除"
+              @click="deleteCurrentServer"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 表单 -->
     <div class="aprs-form">
-      <!-- 登录呼号 -->
-      <div class="form-group callsign-group">
-        <label class="form-label">登录呼号</label>
+      <!-- 呼号 -->
+      <div class="form-group" :class="{ 'form-group-full': !advancedMode }">
+        <label class="form-label">呼号</label>
         <div class="callsign-input">
           <input
-            v-model="mycallBase"
+            v-model="callsignBase"
             type="text"
             placeholder="如 BG5ESN"
             class="form-input callsign-base"
-            @input="onMycallChange"
+            @input="onCallsignChange"
           />
-          <span class="callsign-sep">-</span>
-          <select v-model="mycallSsid" class="form-input ssid-select" @change="onMycallChange">
-            <option v-for="n in 16" :key="n-1" :value="n-1">{{ n-1 }}</option>
-          </select>
         </div>
       </div>
 
-      <!-- APRS-IS Passcode -->
-      <div class="form-group">
-        <label class="form-label">APRS-IS Passcode</label>
-        <input
-          v-model="passcode"
-          type="password"
-          placeholder="5位数字"
-          class="form-input"
-        />
+      <!-- FMO呼号（高级选项） -->
+      <div v-if="advancedMode" class="form-group form-group-fmo-callsign">
+        <label class="form-label">FMO呼号</label>
+        <div class="callsign-input">
+          <input
+            v-model="fmoCallsignBase"
+            type="text"
+            placeholder="如 BH5HSJ（默认与呼号相同）"
+            class="form-input"
+            @input="onFmoCallsignChange"
+          />
+        </div>
+      </div>
+
+      <!-- 控制尾缀 -->
+      <div class="form-group form-group-ssid">
+        <label class="form-label">控制尾缀</label>
+        <select v-model="controlSsid" class="form-input ssid-select" @change="onCallsignChange">
+          <option 
+            v-for="n in 16" 
+            :key="n-1" 
+            :value="n-1"
+            :disabled="n-1 === fmoSsid"
+          >
+            {{ n-1 }}
+          </option>
+        </select>
+      </div>
+
+      <!-- FMO尾缀 -->
+      <div class="form-group form-group-ssid">
+        <label class="form-label">FMO尾缀</label>
+        <select v-model="fmoSsid" class="form-input ssid-select" @change="onFmoSsidChange">
+          <option v-for="n in 16" :key="n-1" :value="n-1">{{ n-1 }}</option>
+        </select>
+      </div>
+
+      <!-- APRS密钥 -->
+      <div class="form-group form-group-password">
+        <label class="form-label">APRS密钥</label>
+        <div class="password-input-wrapper">
+          <input
+            v-model="passcode"
+            :type="showPasscode ? 'text' : 'password'"
+            placeholder="5位数字"
+            class="form-input"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            @click="showPasscode = !showPasscode"
+          >
+            <svg v-if="!showPasscode" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- 设备密钥 -->
-      <div class="form-group">
+      <div class="form-group form-group-password">
         <label class="form-label">设备密钥</label>
-        <input
-          v-model="secret"
-          type="password"
-          placeholder="在设备配置中设置的密钥"
-          class="form-input"
-        />
+        <div class="password-input-wrapper">
+          <input
+            v-model="secret"
+            :type="showSecret ? 'text' : 'password'"
+            placeholder="在设备配置中设置的密钥"
+            class="form-input"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            @click="showSecret = !showSecret"
+          >
+            <svg v-if="!showSecret" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <!-- 目标设备呼号 -->
-      <div class="form-group callsign-group">
-        <label class="form-label">
-          目标设备呼号
-          <span v-if="!tocallEditable" class="label-hint">(前缀自动同步)</span>
+      <!-- 高级选项 -->
+      <div class="form-group form-group-full advanced-option">
+        <label class="form-checkbox">
+          <input type="checkbox" v-model="advancedMode" @change="onAdvancedModeChange" />
+          <span>高级选项（允许设置不同的FMO呼号）</span>
         </label>
-        <div class="callsign-input">
-          <input
-            v-model="tocallBase"
-            type="text"
-            placeholder="如 BG5ESN"
-            class="form-input callsign-base"
-            :disabled="!tocallEditable"
-          />
-          <span class="callsign-sep">-</span>
-          <select 
-            v-model="tocallSsid" 
-            class="form-input ssid-select"
-          >
-            <option v-for="n in 16" :key="n-1" :value="n-1">{{ n-1 }}</option>
-          </select>
-        </div>
       </div>
     </div>
 
@@ -98,7 +190,7 @@
       <button
         class="btn-control btn-reboot"
         :disabled="!canSend"
-        @click="handleSendCommand('REBOOT')"
+        @click="handleRebootCommand"
       >
         软重启
       </button>
@@ -110,32 +202,83 @@
         <span>操作记录</span>
         <button class="btn-text-danger" @click="clearHistory">清空</button>
       </div>
-      <div class="history-list">
+      <div class="timeline">
         <div
           v-for="(item, index) in history"
           :key="index"
-          class="history-item"
-          :class="{ 'history-success': item.success, 'history-fail': !item.success }"
+          class="timeline-item"
         >
-          <div class="history-status">{{ item.success ? '✅' : '❌' }}</div>
-          <div class="history-content">
-            <div class="history-message">{{ formatMessage(item.message) }}</div>
-            <div class="history-time">{{ formatHistoryTime(item.timestamp) }}</div>
+          <div 
+            class="timeline-dot" 
+            :class="{
+              'timeline-dot-send': item.operationType === 'send',
+              'timeline-dot-success': item.operationType === 'success',
+              'timeline-dot-fail': item.operationType === 'fail'
+            }"
+          ></div>
+          <div class="timeline-line" v-if="index < history.length - 1"></div>
+          <div class="timeline-content">
+            <div class="timeline-message">{{ formatMessage(item.message) }}</div>
+            <div class="timeline-time">{{ formatHistoryTime(item.timestamp) }}</div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加/编辑服务器弹窗 -->
+  <div v-if="showAddServerDialog || showEditServerDialog" class="dialog-overlay" @click.self="closeServerDialog">
+    <div class="dialog">
+      <div class="dialog-header">
+        <span class="dialog-title">{{ showEditServerDialog ? '编辑服务器' : '添加服务器' }}</span>
+        <button class="close-btn" @click="closeServerDialog">&times;</button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-group">
+          <label class="form-label">服务器地址</label>
+          <input
+            v-model="serverFormData.url"
+            type="text"
+            placeholder="ws://your-server:8090/api/ws"
+            class="form-input"
+          />
+        </div>
+        <div v-if="serverFormError" class="form-error">
+          {{ serverFormError }}
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn-secondary" @click="closeServerDialog">取消</button>
+        <button class="btn-primary" @click="submitServerForm">
+          {{ showEditServerDialog ? '保存' : '添加' }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAprsControl } from '../../../composables/useAprsControl'
+import confirmDialog from '../../../composables/useConfirm'
+
+const props = defineProps({
+  activeAddressId: {
+    type: String,
+    default: null
+  },
+  addressList: {
+    type: Array,
+    default: () => []
+  }
+})
 
 const aprsControl = useAprsControl()
 
 // 解构 composable
 const {
+  wsConnected,
+  wsConnecting,
   statusMessage,
   statusType,
   history,
@@ -144,86 +287,228 @@ const {
   passcode,
   secret,
   tocall,
-  initAndConnect,
+  serverList,
+  activeServerId,
+  currentServerUrl,
+  init,
   disconnectWebSocket,
   sendCommand,
-  clearHistory
+  clearHistory,
+  addServer,
+  deleteServer,
+  updateServer,
+  selectServer,
+  updateSsidConfig,
+  getSsidConfig
 } = aprsControl
 
-// 拆分呼号为 base 和 ssid
-const mycallBase = ref('')
-const mycallSsid = ref(0)
-const tocallBase = ref('')
-const tocallSsid = ref(0)
+// 呼号和尾缀
+const callsignBase = ref('')
+const controlSsid = ref(7)  // 控制尾缀（mycall），默认为7
+const fmoSsid = ref(0)      // FMO尾缀（tocall），默认为0
 
-// 目标呼号前缀是否可编辑（默认不可编辑，控制台输入 window.enableTocallEdit() 开启）
-const tocallEditable = ref(false)
+// 高级选项
+const advancedMode = ref(false)
+const fmoCallsignBase = ref('')  // FMO呼号基础（高级模式下使用）
 
-// 暴露到全局，允许控制台开启编辑
-if (typeof window !== 'undefined') {
-  window.enableTocallEdit = () => {
-    tocallEditable.value = true
-    console.log('目标设备呼号前缀编辑已开启')
-    return true
-  }
-  window.disableTocallEdit = () => {
-    tocallEditable.value = false
-    console.log('目标设备呼号前缀编辑已关闭')
-    return true
-  }
-}
+// 密码显示状态
+const showPasscode = ref(false)
+const showSecret = ref(false)
 
-// 解析呼号字符串为 base 和 ssid
-function parseCallsign(callsign) {
-  if (!callsign) return { base: '', ssid: 0 }
-  const parts = callsign.toUpperCase().split('-')
-  const base = parts[0] || ''
-  const ssid = parts.length > 1 ? parseInt(parts[1], 10) : 0
-  return { base, ssid: isNaN(ssid) || ssid < 0 || ssid > 15 ? 0 : ssid }
-}
-
-// 合并 base 和 ssid 到完整呼号
-function formatCallsign(base, ssid) {
-  if (!base) return ''
-  return `${base.toUpperCase()}-${ssid}`
-}
-
-// 登录呼号变化时，同步到 tocall（如果不可编辑）
-function onMycallChange() {
-  mycall.value = formatCallsign(mycallBase.value, mycallSsid.value)
-  if (!tocallEditable.value) {
-    tocallBase.value = mycallBase.value
-    // 注意：不再同步 SSID，允许用户自由选择目标 SSID
-    tocall.value = formatCallsign(tocallBase.value, tocallSsid.value)
-  }
-}
-
-// 监听 tocall 输入变化
-watch([tocallBase, tocallSsid], () => {
-  tocall.value = formatCallsign(tocallBase.value, tocallSsid.value)
+// 监听当前激活地址的呼号变化，自动填充
+const currentAddressCallsign = computed(() => {
+  if (!props.activeAddressId || !props.addressList?.length) return ''
+  const activeAddr = props.addressList.find(a => a.id === props.activeAddressId)
+  return activeAddr?.userInfo?.callsign || ''
 })
 
-// 监听外部 mycall 变化（如从设置中自动填充）
-watch(mycall, (newVal) => {
-  const parsed = parseCallsign(newVal)
-  // 仅在本地值为空或与外部不同时更新
-  if (!mycallBase.value || mycallBase.value !== parsed.base) {
-    mycallBase.value = parsed.base
-    mycallSsid.value = parsed.ssid
-    // 同步 tocall（如果不可编辑）
-    if (!tocallEditable.value) {
-      tocallBase.value = parsed.base
-      tocall.value = formatCallsign(tocallBase.value, tocallSsid.value)
+// 监听地址变化，自动更新呼号
+watch(currentAddressCallsign, (newCallsign) => {
+  if (newCallsign) {
+    // 解析呼号（可能带有 SSID）
+    const parts = newCallsign.toUpperCase().split('-')
+    callsignBase.value = parts[0] || ''
+  } else {
+    // 没有呼号则显示空
+    callsignBase.value = ''
+  }
+}, { immediate: true })
+
+// 组件初始化时加载SSID配置并测试服务器连接
+onMounted(() => {
+  // 加载SSID配置
+  const savedConfig = getSsidConfig()
+  if (savedConfig) {
+    controlSsid.value = savedConfig.controlSsid ?? 7
+    fmoSsid.value = savedConfig.fmoSsid ?? 0
+  }
+  
+  // 初始化（加载保存的参数和服务器列表）
+  init()
+  
+  // 测试当前选择的服务器连接
+  setTimeout(() => {
+    selectServer(activeServerId.value)
+  }, 100)
+})
+
+// 呼号或尾缀变化时，更新 composable 中的值
+function onCallsignChange() {
+  if (callsignBase.value) {
+    mycall.value = `${callsignBase.value.toUpperCase()}-${controlSsid.value}`
+    // 如果不是高级模式或FMO呼号为空，使用相同的呼号基础
+    if (!advancedMode.value || !fmoCallsignBase.value) {
+      tocall.value = `${callsignBase.value.toUpperCase()}-${fmoSsid.value}`
+    } else {
+      // 高级模式下使用独立的FMO呼号
+      tocall.value = `${fmoCallsignBase.value.toUpperCase()}-${fmoSsid.value}`
+    }
+  } else {
+    mycall.value = ''
+    tocall.value = ''
+  }
+  // 自动保存SSID配置
+  updateSsidConfig(controlSsid.value, fmoSsid.value)
+}
+
+// FMO呼号变化时
+function onFmoCallsignChange() {
+  if (fmoCallsignBase.value) {
+    tocall.value = `${fmoCallsignBase.value.toUpperCase()}-${fmoSsid.value}`
+  } else if (callsignBase.value) {
+    // 如果FMO呼号为空，回退到使用控制呼号
+    tocall.value = `${callsignBase.value.toUpperCase()}-${fmoSsid.value}`
+  }
+}
+
+// 高级模式切换
+function onAdvancedModeChange() {
+  if (!advancedMode.value) {
+    // 关闭高级模式时，清空FMO呼号并重置为相同
+    fmoCallsignBase.value = ''
+    onCallsignChange()
+  } else {
+    // 开启高级模式时，如果FMO呼号为空，默认使用控制呼号
+    if (!fmoCallsignBase.value && callsignBase.value) {
+      fmoCallsignBase.value = callsignBase.value
+      onFmoCallsignChange()
     }
   }
+}
+
+// FMO尾缀变化时，如果与控制尾缀冲突，自动调整控制尾缀
+function onFmoSsidChange() {
+  if (controlSsid.value === fmoSsid.value) {
+    // 找到第一个不与FMO尾缀冲突的值
+    for (let i = 0; i < 16; i++) {
+      if (i !== fmoSsid.value) {
+        controlSsid.value = i
+        break
+      }
+    }
+  }
+  onCallsignChange()
+}
+
+// ========== 服务器管理 ==========
+
+// 服务器弹窗状态
+const showAddServerDialog = ref(false)
+const showEditServerDialog = ref(false)
+const editingServerId = ref(null)
+const serverFormData = ref({ url: '' })
+const serverFormError = ref('')
+
+// 当前选中的服务器是否为默认服务器
+const currentServerIsDefault = computed(() => {
+  const server = serverList.value.find(s => s.id === activeServerId.value)
+  return server?.isDefault || false
 })
+
+// 服务器切换
+function handleServerChange() {
+  selectServer(activeServerId.value)
+}
+
+// 编辑当前服务器
+function editCurrentServer() {
+  const server = serverList.value.find(s => s.id === activeServerId.value)
+  if (server && !server.isDefault) {
+    editingServerId.value = server.id
+    serverFormData.value = {
+      url: server.url
+    }
+    showEditServerDialog.value = true
+  }
+}
+
+// 删除当前服务器
+async function deleteCurrentServer() {
+  const server = serverList.value.find(s => s.id === activeServerId.value)
+  if (server && !server.isDefault) {
+    const confirmed = await confirmDialog.show(`确定要删除服务器"${server.url}"吗？`)
+    if (confirmed) {
+      deleteServer(server.id)
+    }
+  }
+}
+
+// 提交服务器表单
+function submitServerForm() {
+  const { url } = serverFormData.value
+  
+  if (!url.trim()) {
+    serverFormError.value = '请输入服务器地址'
+    return
+  }
+  
+  // 简单的URL格式验证
+  if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+    serverFormError.value = '服务器地址必须以 ws:// 或 wss:// 开头'
+    return
+  }
+  
+  if (showEditServerDialog.value) {
+    // 编辑模式
+    updateServer(editingServerId.value, '', url.trim())
+  } else {
+    // 添加模式
+    const newId = addServer('', url.trim())
+    // 自动切换到新添加的服务器
+    selectServer(newId)
+  }
+  
+  closeServerDialog()
+}
+
+// 关闭服务器弹窗
+function closeServerDialog() {
+  showAddServerDialog.value = false
+  showEditServerDialog.value = false
+  editingServerId.value = null
+  serverFormData.value = { url: '' }
+  serverFormError.value = ''
+}
+
+// ========== 呼号管理 ==========
 
 // 发送指令
 function handleSendCommand(action) {
   // 发送前确保呼号格式正确
-  mycall.value = formatCallsign(mycallBase.value, mycallSsid.value)
-  tocall.value = formatCallsign(tocallBase.value, tocallSsid.value)
+  onCallsignChange()
   sendCommand(action)
+}
+
+// 处理软重启指令（需要二次确认）
+async function handleRebootCommand() {
+  const confirmed = await confirmDialog.show(
+    '确定要执行软重启操作吗？\n\n此操作将重启设备，可能会中断当前的通信。',
+    '确认软重启'
+  )
+  
+  if (confirmed) {
+    handleSendCommand('REBOOT')
+  }
 }
 
 // 格式化时间
@@ -257,19 +542,7 @@ function formatMessage(message) {
     .replace(/REBOOT/g, '软重启')
 }
 
-// 组件挂载时自动连接
-onMounted(() => {
-  initAndConnect()
-  
-  // 从保存的值初始化拆分的呼号
-  const parsed = parseCallsign(mycall.value)
-  mycallBase.value = parsed.base
-  mycallSsid.value = parsed.ssid
-  
-  const parsedTo = parseCallsign(tocall.value || mycall.value)
-  tocallBase.value = parsedTo.base
-  tocallSsid.value = parsedTo.ssid
-})
+
 
 // 组件卸载时断开连接
 onUnmounted(() => {
@@ -286,38 +559,170 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-.aprs-status {
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
+/* 服务器配置区域 */
+.server-config-section {
+  margin-bottom: 1rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.section-label-with-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-label {
   font-size: 0.9rem;
-  text-align: center;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
-.aprs-status.status-info {
+.connection-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.connection-status.status-connected {
+  background: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success);
+}
+
+.connection-status.status-disconnected {
+  background: var(--text-disabled);
+}
+
+.connection-status.status-connecting {
+  background: var(--color-primary);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.btn-add-server {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  background: var(--bg-container);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-server:hover {
+  background: var(--color-primary);
+  color: var(--text-white);
+}
+
+.server-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.server-dropdown {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.server-select {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
   background: var(--bg-input);
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
 }
 
-.aprs-status.status-success {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
+.server-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
 }
 
-.aprs-status.status-error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+.server-actions {
+  display: flex;
+  gap: 0.25rem;
 }
 
+.btn-icon {
+  padding: 0.35rem;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-icon:hover {
+  background: var(--bg-table-hover);
+  color: var(--color-primary);
+}
+
+.btn-icon-danger:hover {
+  color: var(--color-danger);
+}
+
+/* 表单样式 */
 .aprs-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem;
 }
 
+/* 占据整行的表单项 */
+.form-group-full {
+  grid-column: 1 / -1;
+}
+
+/* FMO呼号在桌面端与呼号并排 */
+.form-group-fmo-callsign {
+  /* 默认不占整行，跟随网格 */
+}
+
+/* 高级选项样式 */
+.advanced-option {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
 @media (max-width: 600px) {
   .aprs-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
+  
+  /* 手机端：呼号、FMO呼号、密钥字段、高级选项 占据整行 */
+  .form-group:first-child,
+  .form-group-fmo-callsign,
+  .form-group-password,
+  .advanced-option {
+    grid-column: 1 / -1;
+  }
+  
+  /* 手机端：控制尾缀和FMO尾缀保持在同一行（默认grid行为） */
+  /* .form-group-ssid 不需要特殊处理 */
 }
 
 .aprs-form .form-group {
@@ -326,24 +731,49 @@ onUnmounted(() => {
 
 .form-group {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* 输入框容器占据剩余空间 */
+.form-group .form-input,
+.form-group .callsign-input,
+.form-group .password-input-wrapper {
+  flex: 1;
+  min-width: 0;
 }
 
 .form-label {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+/* 复选框样式 */
+.form-checkbox {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  user-select: none;
 }
 
-.label-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted, #888);
+.form-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
 }
 
-/* 呼号输入组 */
+.form-checkbox:hover {
+  color: var(--text-primary);
+}
+
 .callsign-input {
   display: flex;
   align-items: center;
@@ -354,37 +784,44 @@ onUnmounted(() => {
 .callsign-input .form-input.callsign-base {
   flex: 1;
   min-width: 0;
-  width: auto; /* Override width: 100% from .form-input */
+  width: auto;
 }
 
-.callsign-sep {
-  color: var(--text-secondary);
-  font-weight: 600;
-  padding: 0 0.25rem;
-  flex-shrink: 0;
+/* 密码输入框包装器 */
+.password-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
-.callsign-input .form-input.ssid-select {
-  width: 65px;
-  flex: 0 0 65px;
-  text-align: center;
-  padding: 0 0.25rem;
-  height: 38px; /* Fixed height to match text input */
-  line-height: 1.5; /* Vertical centering */
-  appearance: none; /* Remove default arrow for custom styling */
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 14px;
+.password-input-wrapper .form-input {
+  padding-right: 2.5rem;
 }
 
-/* 统一 input 样式 - 与 SettingsModal 保持一致 */
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  padding: 0.35rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.password-toggle:hover {
+  color: var(--color-primary);
+}
+
 .form-input {
   width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
   background: var(--bg-input);
   color: var(--text-primary);
   font-size: 0.9rem;
@@ -400,13 +837,26 @@ onUnmounted(() => {
 .form-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background: var(--bg-table-hover, #f5f5f5);
+  background: var(--bg-disabled);
 }
 
 .form-input::placeholder {
-  color: var(--text-muted, #999);
+  color: var(--text-disabled);
 }
 
+.ssid-select {
+  text-align: center;
+  padding: 0.6rem 0.5rem;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
+  cursor: pointer;
+}
+
+/* 控制按钮 */
 .aprs-buttons {
   display: flex;
   gap: 0.75rem;
@@ -418,12 +868,14 @@ onUnmounted(() => {
   flex: 1;
   max-width: 140px;
   padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  font-weight: 500;
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
+  background: var(--bg-container);
+  color: var(--text-primary);
 }
 
 .btn-control:disabled {
@@ -431,33 +883,25 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.btn-normal {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
-  color: white;
+.btn-control:not(:disabled):hover {
+  border-color: var(--color-primary);
+  background: var(--bg-table-hover);
+  color: var(--color-primary);
 }
 
-.btn-normal:not(:disabled):hover {
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-}
-
-.btn-standby {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: white;
-}
-
-.btn-standby:not(:disabled):hover {
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-}
-
+/* 重启按钮保持危险色 */
 .btn-reboot {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .btn-reboot:not(:disabled):hover {
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+  background: var(--bg-error-light);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
+/* 历史记录 */
 .aprs-history {
   margin-top: 0.5rem;
   flex: 1;
@@ -473,65 +917,224 @@ onUnmounted(() => {
   font-size: 0.9rem;
   color: var(--text-secondary);
   margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .btn-text-danger {
   background: none;
   border: none;
-  color: #ef4444;
+  color: var(--color-danger);
   cursor: pointer;
   font-size: 0.85rem;
   padding: 0.25rem 0.5rem;
+  transition: all 0.2s;
 }
 
 .btn-text-danger:hover {
+  color: var(--color-danger-hover);
   text-decoration: underline;
 }
 
-.history-list {
+/* 时间轴样式 */
+.timeline {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  padding: 0.5rem 0;
   min-height: 100px;
 }
 
-.history-item {
+.timeline-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 4px;
-  background: var(--bg-input);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-left: 0.5rem;
 }
 
-.history-success {
-  border-left: 3px solid #22c55e;
+.timeline-item:last-child {
+  margin-bottom: 0;
 }
 
-.history-fail {
-  border-left: 3px solid #ef4444;
+/* 时间轴点 */
+.timeline-dot {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  z-index: 2;
+  margin-top: 4px;
+  border: 2px solid var(--bg-card);
 }
 
-.history-status {
-  font-size: 1rem;
+/* 发送操作 - 蓝色 */
+.timeline-dot-send {
+  background-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
-.history-content {
+/* 成功 - 绿色 */
+.timeline-dot-success {
+  background-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+/* 失败 - 红色 */
+.timeline-dot-fail {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* 时间轴连线 */
+.timeline-line {
+  position: absolute;
+  left: 11px;
+  top: 20px;
+  bottom: -24px;
+  width: 2px;
+  background-color: var(--border-secondary);
+  z-index: 1;
+}
+
+/* 时间轴内容 */
+.timeline-content {
   flex: 1;
   min-width: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card);
+  border-radius: 6px;
+  border: 1px solid var(--border-secondary);
+  transition: all 0.2s;
 }
 
-.history-message {
+.timeline-content:hover {
+  background: var(--bg-table-hover);
+  border-color: var(--border-primary);
+}
+
+.timeline-message {
   font-size: 0.85rem;
   color: var(--text-primary);
-  word-break: break-all;
+  line-height: 1.5;
+  word-break: break-word;
+  margin-bottom: 0.25rem;
 }
 
-.history-time {
+.timeline-time {
   font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-family: 'Intel One Mono', monospace;
+}
+
+/* 弹窗样式 */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.dialog {
+  background: var(--bg-card);
+  border-radius: 8px;
+  width: 420px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px var(--shadow-modal);
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dialog-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
   color: var(--text-secondary);
-  margin-top: 0.25rem;
+}
+
+.dialog-body {
+  padding: 1.25rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-error {
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  background-color: var(--bg-error-light);
+  border: 1px solid var(--color-danger);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  color: var(--color-danger);
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: var(--bg-container);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-table-hover);
+}
+
+.btn-primary {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  background: var(--color-primary);
+  color: var(--text-white);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-hover);
 }
 </style>

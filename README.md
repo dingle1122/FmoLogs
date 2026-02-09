@@ -1,6 +1,8 @@
 # FMO 日志查看器
 
-用于查看本地 FMO 日志的 Web 应用，支持多数据库文件加载、多种查询模式以及 FMO 设备管理。
+FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提供日志导入、实时同步、数据查询、统计分析以及 APRS 远程控制等功能。本项目由 **BH5HSJ 后视镜** 开发并开源，采用 MIT 许可证。
+
+📦 [GitHub 仓库](https://github.com/dingle1122/FmoLogs) · 🐛 [问题反馈](https://github.com/dingle1122/FmoLogs/issues)
 
 ## ✨ 主要功能
 
@@ -21,12 +23,14 @@
 - **实时监控**：
   - **发言状态**：实时显示当前正在发言的呼号及发言历史
   - **状态监控**：标题栏显示服务器连接状态
-- **远程控制**：集成强大的 APRS 远程控制面板
-  - **智能填充**：自动从 FMO 配置中填充登录呼号，简化操作
+- **APRS 远程控制**：集成专业的 APRS 远程控制面板，支持 FMO 设备远程管理
+  - **智能填充**：自动从 FMO 配置中填充登录呼号，简化操作流程
   - **安全校验**：严格的呼号、Passcode 和密钥格式校验，防止误操作
-  - **协议自适应**：自动根据当前页面协议切换 WebSocket (ws/wss) 连接
-  - **操作回溯**：详细的操作历史记录，支持中文状态显示（如：普通模式、软重启）
-  - **状态反馈**：直观的连接状态和指令执行结果反馈
+  - **服务器管理**：支持添加、编辑、删除自定义远程控制服务器
+  - **多模式控制**：支持普通模式、待机模式、软重启三种控制指令
+  - **操作记录**：完整的操作历史记录，支持中文状态显示（普通模式、待机模式、软重启）
+  - **自动断开**：发送指令后 60 秒自动断开连接，节省资源
+  - **状态反馈**：实时显示连接状态和指令执行结果，直观可靠
 
 ### 📊 专业查询模式
 
@@ -76,7 +80,18 @@
 
 ## 💻 本地开发
 
+### 环境要求
+
+- Node.js 16+
+- npm 或 yarn
+
+### 快速开始
+
 ```bash
+# 克隆仓库
+git clone https://github.com/dingle1122/FmoLogs.git
+cd FmoLogs
+
 # 安装依赖
 npm install
 
@@ -92,16 +107,64 @@ npm run lint
 
 ## 📝 技术栈
 
-- **核心框架**：Vue 3 + Vite
+- **核心框架**：Vue 3 (Composition API) + Vite 7
 - **状态管理**：Pinia
 - **数据存储**：SQLite (sql.js) + IndexedDB
-- **通信协议**：WebSocket (实时事件) + HTTP
+- **通信协议**：WebSocket (实时事件) + HTTP/HTTPS
 - **路由管理**：Vue Router
+- **加密算法**：crypto-js (HMAC-SHA1)
+- **代码规范**：ESLint + Prettier
 
 ## 📦 构建部署
 
 ```bash
+# 构建生产版本
 npm run build
+
+# 本地预览构建产物
+npm run preview
 ```
 
-构建产物位于 `dist/` 目录，可部署至任何静态文件服务器。
+构建产物位于 `dist/` 目录，可部署至任何静态文件服务器（如 Nginx、Apache、GitHub Pages、Vercel 等）。
+
+## 📂 项目结构
+
+```
+src/
+├── components/          # Vue 组件
+│   ├── common/         # 通用组件（对话框、日期选择器等）
+│   └── home/           # 主页组件（表格、查询、统计等）
+│       └── modals/     # 弹窗组件（设置、详情、APRS 控制等）
+├── composables/        # 组合式 API（业务逻辑）
+│   ├── useAprsControl.js    # APRS 远程控制
+│   ├── useDataQuery.js      # 数据查询
+│   ├── useDbManager.js      # 数据库管理
+│   ├── useFmoSync.js        # FMO 同步
+│   ├── useSettings.js       # 应用设置
+│   ├── useSpeakingStatus.js # 发言状态
+│   └── useToast.js          # 提示消息
+├── services/           # 服务层
+│   ├── db.js          # IndexedDB 操作
+│   └── fmoApi.js      # FMO API 封装
+├── stores/            # Pinia 状态管理
+├── router/            # 路由配置
+├── utils/             # 工具函数
+└── views/             # 页面视图
+```
+
+## 🙏 特别感谢
+
+- **BG5ESN**：提供完美的 FMO 硬件平台
+- **BG9JYT**：提供甘肃集群服务器，并提供被控支持
+- **BG2LRU、BD6JDU、BI3SQP 等各位友台**：提供宝贵的想法和建议
+
+## 📄 开源许可
+
+本项目采用 [MIT License](./LICENSE) 开源许可证。
+
+## 👨‍💻 贡献者
+
+- **BH5HSJ 后视镜**：项目创建与主要开发
+- **BG9JYT**：APRS 远程控制功能开发
+
+欢迎提交 Issue 和 Pull Request！

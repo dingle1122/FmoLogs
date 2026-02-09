@@ -13,7 +13,7 @@
           <button
             class="tab-btn"
             :class="{ active: activeTab === 'remoteControl' }"
-            @click="activeTab = 'remoteControl'; initAprsControl()"
+            @click="activeTab = 'remoteControl'"
           >
             远程控制
           </button>
@@ -179,45 +179,6 @@
             </div>
           </div>
 
-          <!-- APRS 远程控制服务器配置 -->
-          <div class="setting-group">
-            <div class="setting-item">
-              <span class="setting-label">远程控制服务器</span>
-            </div>
-            <div class="aprs-server-config">
-              <label class="radio-label">
-                <input
-                  type="radio"
-                  value="default"
-                  v-model="aprsServerMode"
-                  @change="handleServerModeChange"
-                />
-                <span>使用默认服务器</span>
-              </label>
-              <label class="radio-label">
-                <input
-                  type="radio"
-                  value="custom"
-                  v-model="aprsServerMode"
-                  @change="handleServerModeChange"
-                />
-                <span>用户自定义服务器</span>
-              </label>
-              <div v-if="aprsServerMode === 'custom'" class="custom-server-input">
-                <input
-                  v-model="aprsCustomServer"
-                  type="text"
-                  placeholder="ws://your-server:8090/api/ws"
-                  class="form-input"
-                />
-                <button class="btn-primary btn-sm" @click="saveAprsServerConfig">保存</button>
-              </div>
-              <div class="server-info">
-                当前服务器: {{ aprsCurrentServerUrl }}
-              </div>
-            </div>
-          </div>
-
           <div v-if="dbLoaded" class="setting-item setting-item-danger">
             <span class="setting-label">数据管理</span>
             <div class="setting-actions">
@@ -373,7 +334,10 @@
 
         <!-- 远程控制 -->
         <div v-else-if="activeTab === 'remoteControl'" class="tab-content">
-          <AprsRemoteControl />
+          <AprsRemoteControl 
+            :active-address-id="activeAddressId"
+            :address-list="addressList"
+          />
         </div>
       </div>
     </div>
@@ -516,30 +480,10 @@ const isMobileDevice = computed(() => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 })
 
-// ========== APRS 远程控制服务器配置 ==========
+// APRS 远程控制 - 仅用于自动填充呼号
 const aprsControl = useAprsControl()
 
-// 初始化时加载配置
-onMounted(() => {
-  aprsControl.init()
-})
-
-// 服务器配置
-const aprsServerMode = aprsControl.serverMode
-const aprsCustomServer = aprsControl.customServerAddress
-const aprsCurrentServerUrl = aprsControl.currentServerUrl
-
-// 服务器模式切换
-function handleServerModeChange() {
-  aprsControl.updateServerConfig(aprsServerMode.value, aprsCustomServer.value)
-}
-
-// 保存自定义服务器
-function saveAprsServerConfig() {
-  aprsControl.updateServerConfig(aprsServerMode.value, aprsCustomServer.value)
-}
-
-// 监听地址变化，自动填充呼号（仅在登录呼号为空时）
+// 监听地址变化，自动填充呼号(仅在登录呼号为空时)
 watch(
   [() => props.activeAddressId, () => props.addressList],
   ([newId, addressList]) => {
@@ -572,6 +516,11 @@ const thanksList = [
   { name: 'BG9JYT', contribution: '提供甘肃集群服务器，并提供被控支持' },
   { name: 'BG2LRU、BD6JDU、BI3SQP等各位友台', contribution: '提供宝贵的想法和建议' }
 ]
+
+// 切换到远程控制标签时初始化
+function initAprsControl() {
+  aprsControl.init()
+}
 
 // 验证WebSocket连接
 async function validateConnection(host, proto) {
@@ -806,7 +755,7 @@ defineExpose({ clearConnecting, clearRefreshing })
 
 .modal-body {
   padding: 1.5rem;
-  height: 650px;
+  height: 450px;
   overflow-y: auto;
 }
 
@@ -1729,49 +1678,6 @@ defineExpose({ clearConnecting, clearRefreshing })
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 0.25rem;
-}
-
-/* APRS 服务器配置样式 */
-.aprs-server-config {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: var(--bg-input);
-  border-radius: 6px;
-  margin-top: 0.5rem;
-}
-
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--text-primary);
-}
-
-.radio-label input[type="radio"] {
-  cursor: pointer;
-}
-
-.custom-server-input {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  margin-top: 0.25rem;
-  padding-left: 1.25rem;
-}
-
-.custom-server-input .form-input {
-  flex: 1;
-}
-
-.server-info {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
-  word-break: break-all;
 }
 </style>
 
