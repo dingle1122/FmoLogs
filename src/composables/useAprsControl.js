@@ -1,5 +1,6 @@
 // useAprsControl.js - APRS 远程控制 Composable
 import { ref, computed } from 'vue'
+import CryptoJS from 'crypto-js'
 
 // LocalStorage 键名
 const STORAGE_KEY = {
@@ -46,10 +47,8 @@ function formatAddressee(toCall, toSsid) {
 // 计算 HMAC-SHA1 签名
 function calcSignature(fromCall, fromSsid, typeStr, actionStr, timeSlot, counter, secret) {
     const raw = `${fromCall}${fromSsid}${typeStr}${actionStr}${timeSlot}${counter}`
-    // eslint-disable-next-line no-undef
     const hash = CryptoJS.HmacSHA1(raw, secret)
-    // 取前 8 字节（16 个十六进制字符）
-    // eslint-disable-next-line no-undef
+    // 取前 8 字节(16 个十六进制字符)
     return hash.toString(CryptoJS.enc.Hex).substring(0, 16).toUpperCase()
 }
 
