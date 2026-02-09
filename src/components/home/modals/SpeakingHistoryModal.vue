@@ -19,8 +19,14 @@
             v-for="(record, index) in history"
             :key="index"
             class="speaking-history-item"
-            :class="{ 'is-speaking': !record.endTime, 'is-self': record.callsign === selectedFromCallsign }"
-            @click="record.callsign !== selectedFromCallsign && $emit('show-callsign-records', record.callsign)"
+            :class="{
+              'is-speaking': !record.endTime,
+              'is-self': record.callsign === selectedFromCallsign
+            }"
+            @click="
+              record.callsign !== selectedFromCallsign &&
+              $emit('show-callsign-records', record.callsign)
+            "
           >
             <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
             <span class="history-callsign">

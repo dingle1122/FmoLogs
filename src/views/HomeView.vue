@@ -673,14 +673,13 @@ async function handleClearAllAddresses() {
 async function handleRefreshUserInfo(id) {
   const result = await settings.refreshUserInfo(id)
   settingsModalRef.value?.clearRefreshing()
-  
+
   if (result.success) {
     toast.success(result.message)
   } else {
     toast.error(result.message)
   }
 }
-
 
 async function handleSyncToday() {
   try {

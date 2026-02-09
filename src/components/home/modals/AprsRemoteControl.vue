@@ -5,7 +5,7 @@
       <div class="section-header">
         <div class="section-label-with-status">
           <span class="section-label">远程控制服务器</span>
-          <span 
+          <span
             class="connection-status"
             :class="{
               'status-connected': wsConnected,
@@ -17,41 +17,37 @@
         </div>
         <button class="btn-add-server" @click="showAddServerDialog = true">+ 添加</button>
       </div>
-      
+
       <div class="server-selector">
         <div class="server-dropdown">
-          <select 
-            v-model="activeServerId" 
-            class="server-select"
-            @change="handleServerChange"
-          >
-            <option 
-              v-for="server in serverList" 
-              :key="server.id" 
-              :value="server.id"
-            >
+          <select v-model="activeServerId" class="server-select" @change="handleServerChange">
+            <option v-for="server in serverList" :key="server.id" :value="server.id">
               {{ server.url }}
             </option>
           </select>
           <div class="server-actions">
-            <button 
+            <button
               v-if="!currentServerIsDefault"
-              class="btn-icon" 
+              class="btn-icon"
               title="编辑"
               @click="editCurrentServer"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                <path
+                  d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                />
               </svg>
             </button>
-            <button 
+            <button
               v-if="!currentServerIsDefault"
-              class="btn-icon btn-icon-danger" 
+              class="btn-icon btn-icon-danger"
               title="删除"
               @click="deleteCurrentServer"
             >
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                />
               </svg>
             </button>
           </div>
@@ -93,13 +89,8 @@
       <div class="form-group form-group-ssid">
         <label class="form-label">控制尾缀</label>
         <select v-model="controlSsid" class="form-input ssid-select" @change="onCallsignChange">
-          <option 
-            v-for="n in 16" 
-            :key="n-1" 
-            :value="n-1"
-            :disabled="n-1 === fmoSsid"
-          >
-            {{ n-1 }}
+          <option v-for="n in 16" :key="n - 1" :value="n - 1" :disabled="n - 1 === fmoSsid">
+            {{ n - 1 }}
           </option>
         </select>
       </div>
@@ -108,7 +99,7 @@
       <div class="form-group form-group-ssid">
         <label class="form-label">FMO尾缀</label>
         <select v-model="fmoSsid" class="form-input ssid-select" @change="onFmoSsidChange">
-          <option v-for="n in 16" :key="n-1" :value="n-1">{{ n-1 }}</option>
+          <option v-for="n in 16" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
         </select>
       </div>
 
@@ -122,16 +113,22 @@
             placeholder="5位数字"
             class="form-input"
           />
-          <button
-            type="button"
-            class="password-toggle"
-            @click="showPasscode = !showPasscode"
-          >
-            <svg v-if="!showPasscode" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+          <button type="button" class="password-toggle" @click="showPasscode = !showPasscode">
+            <svg
+              v-if="!showPasscode"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="currentColor"
+            >
+              <path
+                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+              />
             </svg>
             <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+              <path
+                d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"
+              />
             </svg>
           </button>
         </div>
@@ -147,16 +144,16 @@
             placeholder="在设备配置中设置的密钥"
             class="form-input"
           />
-          <button
-            type="button"
-            class="password-toggle"
-            @click="showSecret = !showSecret"
-          >
+          <button type="button" class="password-toggle" @click="showSecret = !showSecret">
             <svg v-if="!showSecret" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+              <path
+                d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+              />
             </svg>
             <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+              <path
+                d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"
+              />
             </svg>
           </button>
         </div>
@@ -165,7 +162,7 @@
       <!-- 高级选项 -->
       <div class="form-group form-group-full advanced-option">
         <label class="form-checkbox">
-          <input type="checkbox" v-model="advancedMode" @change="onAdvancedModeChange" />
+          <input v-model="advancedMode" type="checkbox" @change="onAdvancedModeChange" />
           <span>高级选项（允许设置不同的FMO呼号）</span>
         </label>
       </div>
@@ -187,11 +184,7 @@
       >
         待机模式
       </button>
-      <button
-        class="btn-control btn-reboot"
-        :disabled="!canSend"
-        @click="handleRebootCommand"
-      >
+      <button class="btn-control btn-reboot" :disabled="!canSend" @click="handleRebootCommand">
         软重启
       </button>
     </div>
@@ -203,20 +196,16 @@
         <button class="btn-text-danger" @click="clearHistory">清空</button>
       </div>
       <div class="timeline">
-        <div
-          v-for="(item, index) in history"
-          :key="index"
-          class="timeline-item"
-        >
-          <div 
-            class="timeline-dot" 
+        <div v-for="(item, index) in history" :key="index" class="timeline-item">
+          <div
+            class="timeline-dot"
             :class="{
               'timeline-dot-send': item.operationType === 'send',
               'timeline-dot-success': item.operationType === 'success',
               'timeline-dot-fail': item.operationType === 'fail'
             }"
           ></div>
-          <div class="timeline-line" v-if="index < history.length - 1"></div>
+          <div v-if="index < history.length - 1" class="timeline-line"></div>
           <div class="timeline-content">
             <div class="timeline-message">{{ formatMessage(item.message) }}</div>
             <div class="timeline-time">{{ formatHistoryTime(item.timestamp) }}</div>
@@ -227,7 +216,11 @@
   </div>
 
   <!-- 添加/编辑服务器弹窗 -->
-  <div v-if="showAddServerDialog || showEditServerDialog" class="dialog-overlay" @click.self="closeServerDialog">
+  <div
+    v-if="showAddServerDialog || showEditServerDialog"
+    class="dialog-overlay"
+    @click.self="closeServerDialog"
+  >
     <div class="dialog">
       <div class="dialog-header">
         <span class="dialog-title">{{ showEditServerDialog ? '编辑服务器' : '添加服务器' }}</span>
@@ -280,7 +273,6 @@ const {
   wsConnected,
   wsConnecting,
   statusMessage,
-  statusType,
   history,
   canSend,
   mycall,
@@ -289,7 +281,6 @@ const {
   tocall,
   serverList,
   activeServerId,
-  currentServerUrl,
   init,
   disconnectWebSocket,
   sendCommand,
@@ -304,12 +295,12 @@ const {
 
 // 呼号和尾缀
 const callsignBase = ref('')
-const controlSsid = ref(7)  // 控制尾缀（mycall），默认为7
-const fmoSsid = ref(0)      // FMO尾缀（tocall），默认为0
+const controlSsid = ref(7) // 控制尾缀（mycall），默认为7
+const fmoSsid = ref(0) // FMO尾缀（tocall），默认为0
 
 // 高级选项
 const advancedMode = ref(false)
-const fmoCallsignBase = ref('')  // FMO呼号基础（高级模式下使用）
+const fmoCallsignBase = ref('') // FMO呼号基础（高级模式下使用）
 
 // 密码显示状态
 const showPasscode = ref(false)
@@ -318,21 +309,25 @@ const showSecret = ref(false)
 // 监听当前激活地址的呼号变化，自动填充
 const currentAddressCallsign = computed(() => {
   if (!props.activeAddressId || !props.addressList?.length) return ''
-  const activeAddr = props.addressList.find(a => a.id === props.activeAddressId)
+  const activeAddr = props.addressList.find((a) => a.id === props.activeAddressId)
   return activeAddr?.userInfo?.callsign || ''
 })
 
 // 监听地址变化，自动更新呼号
-watch(currentAddressCallsign, (newCallsign) => {
-  if (newCallsign) {
-    // 解析呼号（可能带有 SSID）
-    const parts = newCallsign.toUpperCase().split('-')
-    callsignBase.value = parts[0] || ''
-  } else {
-    // 没有呼号则显示空
-    callsignBase.value = ''
-  }
-}, { immediate: true })
+watch(
+  currentAddressCallsign,
+  (newCallsign) => {
+    if (newCallsign) {
+      // 解析呼号（可能带有 SSID）
+      const parts = newCallsign.toUpperCase().split('-')
+      callsignBase.value = parts[0] || ''
+    } else {
+      // 没有呼号则显示空
+      callsignBase.value = ''
+    }
+  },
+  { immediate: true }
+)
 
 // 组件初始化时加载SSID配置并测试服务器连接
 onMounted(() => {
@@ -342,10 +337,10 @@ onMounted(() => {
     controlSsid.value = savedConfig.controlSsid ?? 7
     fmoSsid.value = savedConfig.fmoSsid ?? 0
   }
-  
+
   // 初始化（加载保存的参数和服务器列表）
   init()
-  
+
   // 测试当前选择的服务器连接
   setTimeout(() => {
     selectServer(activeServerId.value)
@@ -421,7 +416,7 @@ const serverFormError = ref('')
 
 // 当前选中的服务器是否为默认服务器
 const currentServerIsDefault = computed(() => {
-  const server = serverList.value.find(s => s.id === activeServerId.value)
+  const server = serverList.value.find((s) => s.id === activeServerId.value)
   return server?.isDefault || false
 })
 
@@ -432,7 +427,7 @@ function handleServerChange() {
 
 // 编辑当前服务器
 function editCurrentServer() {
-  const server = serverList.value.find(s => s.id === activeServerId.value)
+  const server = serverList.value.find((s) => s.id === activeServerId.value)
   if (server && !server.isDefault) {
     editingServerId.value = server.id
     serverFormData.value = {
@@ -444,7 +439,7 @@ function editCurrentServer() {
 
 // 删除当前服务器
 async function deleteCurrentServer() {
-  const server = serverList.value.find(s => s.id === activeServerId.value)
+  const server = serverList.value.find((s) => s.id === activeServerId.value)
   if (server && !server.isDefault) {
     const confirmed = await confirmDialog.show(`确定要删除服务器"${server.url}"吗？`)
     if (confirmed) {
@@ -456,18 +451,18 @@ async function deleteCurrentServer() {
 // 提交服务器表单
 function submitServerForm() {
   const { url } = serverFormData.value
-  
+
   if (!url.trim()) {
     serverFormError.value = '请输入服务器地址'
     return
   }
-  
+
   // 简单的URL格式验证
   if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
     serverFormError.value = '服务器地址必须以 ws:// 或 wss:// 开头'
     return
   }
-  
+
   if (showEditServerDialog.value) {
     // 编辑模式
     updateServer(editingServerId.value, '', url.trim())
@@ -477,7 +472,7 @@ function submitServerForm() {
     // 自动切换到新添加的服务器
     selectServer(newId)
   }
-  
+
   closeServerDialog()
 }
 
@@ -505,7 +500,7 @@ async function handleRebootCommand() {
     '确定要执行软重启操作吗？\n\n此操作将重启设备，可能会中断当前的通信。',
     '确认软重启'
   )
-  
+
   if (confirmed) {
     handleSendCommand('REBOOT')
   }
@@ -524,13 +519,6 @@ function formatHistoryTime(timestamp) {
   })
 }
 
-// 将英文模式名称映射为中文
-const ACTION_MAP = {
-  'NORMAL': '普通模式',
-  'STANDBY': '待机模式',
-  'REBOOT': '软重启'
-}
-
 function formatMessage(message) {
   if (!message) return ''
   return message
@@ -541,8 +529,6 @@ function formatMessage(message) {
     .replace(/STANDBY/g, '待机模式')
     .replace(/REBOOT/g, '软重启')
 }
-
-
 
 // 组件卸载时断开连接
 onUnmounted(() => {
@@ -606,7 +592,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.5;
   }
   50% {
@@ -712,7 +699,7 @@ onUnmounted(() => {
   .aprs-form {
     grid-template-columns: 1fr 1fr;
   }
-  
+
   /* 手机端：呼号、FMO呼号、密钥字段、高级选项 占据整行 */
   .form-group:first-child,
   .form-group-fmo-callsign,
@@ -720,7 +707,7 @@ onUnmounted(() => {
   .advanced-option {
     grid-column: 1 / -1;
   }
-  
+
   /* 手机端：控制尾缀和FMO尾缀保持在同一行（默认grid行为） */
   /* .form-group-ssid 不需要特殊处理 */
 }
@@ -763,7 +750,7 @@ onUnmounted(() => {
   user-select: none;
 }
 
-.form-checkbox input[type="checkbox"] {
+.form-checkbox input[type='checkbox'] {
   width: 16px;
   height: 16px;
   cursor: pointer;

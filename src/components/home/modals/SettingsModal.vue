@@ -112,7 +112,9 @@
                     <span v-if="addr.userInfo.callsign" class="user-callsign">{{
                       addr.userInfo.callsign
                     }}</span>
-                    <span v-if="addr.userInfo.uid" class="user-uid">UID: {{ addr.userInfo.uid }}</span>
+                    <span v-if="addr.userInfo.uid" class="user-uid"
+                      >UID: {{ addr.userInfo.uid }}</span
+                    >
                   </div>
                 </div>
                 <div class="address-actions" @click.stop>
@@ -334,10 +336,7 @@
 
         <!-- 远程控制 -->
         <div v-else-if="activeTab === 'remoteControl'" class="tab-content">
-          <AprsRemoteControl 
-            :active-address-id="activeAddressId"
-            :address-list="addressList"
-          />
+          <AprsRemoteControl :active-address-id="activeAddressId" :address-list="addressList" />
         </div>
       </div>
     </div>
@@ -395,7 +394,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { normalizeHost } from '../../../utils/urlUtils'
 import { useAprsControl } from '../../../composables/useAprsControl'
 import AprsRemoteControl from './AprsRemoteControl.vue'
@@ -488,7 +487,7 @@ watch(
   [() => props.activeAddressId, () => props.addressList],
   ([newId, addressList]) => {
     if (!newId || !addressList?.length) return
-    const activeAddr = addressList.find(a => a.id === newId)
+    const activeAddr = addressList.find((a) => a.id === newId)
     if (activeAddr?.userInfo?.callsign) {
       // 只有当当前呼号为空时才自动填充
       if (!aprsControl.mycall.value) {
@@ -498,7 +497,6 @@ watch(
   },
   { immediate: true, deep: true }
 )
-
 
 const remoteControlUrl = computed(() => {
   if (!props.fmoAddress) return '#'
@@ -516,11 +514,6 @@ const thanksList = [
   { name: 'BG9JYT', contribution: '提供甘肃集群服务器，并提供被控支持' },
   { name: 'BG2LRU、BD6JDU、BI3SQP等各位友台', contribution: '提供宝贵的想法和建议' }
 ]
-
-// 切换到远程控制标签时初始化
-function initAprsControl() {
-  aprsControl.init()
-}
 
 // 验证WebSocket连接
 async function validateConnection(host, proto) {
@@ -1680,4 +1673,3 @@ defineExpose({ clearConnecting, clearRefreshing })
   margin-top: 0.25rem;
 }
 </style>
-

@@ -147,7 +147,7 @@ export function useSettings() {
       const fullAddress = `${proto}://${normalizedHost}`
       const apiClient = new FmoApiClient(fullAddress)
       const userInfo = await apiClient.getUserInfo()
-      
+
       newAddress.userInfo = {
         callsign: userInfo.callsign || '',
         uid: userInfo.uid || null,
@@ -241,7 +241,7 @@ export function useSettings() {
         const fullAddress = `${address.protocol}://${host}`
         const client = new FmoApiClient(fullAddress)
         const userInfo = await client.getUserInfo()
-        
+
         // 更新地址对象的用户信息
         const index = fmoAddressStorage.value.addresses.findIndex((a) => a.id === id)
         if (index !== -1) {
@@ -347,10 +347,10 @@ export function useSettings() {
     if (!fmoAddress.value) return
 
     let address = fmoAddress.value.trim()
-    
+
     // 根据 WebSocket 协议决定 HTTP 协议：ws -> http, wss -> https
     const httpProtocol = protocol.value === 'wss' ? 'https' : 'http'
-    
+
     // 构建完整的 URL（使用与 WebSocket 协议对应的 HTTP 协议）
     if (!address.startsWith('http://') && !address.startsWith('https://')) {
       address = `${httpProtocol}://${address}`
@@ -358,7 +358,7 @@ export function useSettings() {
     address = address.replace(/\/+$/, '')
 
     const url = `${address}/api/qso/backup`
-    
+
     // 在 HTTPS 网站上访问 HTTP 资源会被浏览器阻止（混合内容策略）
     // 去除 target='_blank'，直接在当前页面触发下载
     const link = document.createElement('a')
