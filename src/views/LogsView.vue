@@ -112,11 +112,13 @@ async function handleLoadMore() {
   }
 }
 
-// 初始化时确保查询类型正确
+// 初始化时确保查询类型正确并重置分页
 onMounted(() => {
   if (props.dataQuery.currentQueryType.value !== 'all') {
     props.dataQuery.currentQueryType.value = 'all'
   }
+  // 切换视图时重置分页到第一页
+  props.dataQuery.currentPage.value = 1
   if (props.dbLoaded) {
     emit('execute-query')
   }
