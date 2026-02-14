@@ -8,8 +8,7 @@ const STORAGE_KEY = {
   HISTORY: 'fmo_aprs_history',
   COUNTER: 'fmo_aprs_counter',
   SERVER_LIST: 'fmo_aprs_server_list', // 服务器列表
-  ACTIVE_SERVER_ID: 'fmo_aprs_active_server_id', // 当前选中的服务器ID
-  SSID_CONFIG: 'fmo_aprs_ssid_config' // SSID配置（控制尾缀和FMO尾缀）
+  ACTIVE_SERVER_ID: 'fmo_aprs_active_server_id' // 当前选中的服务器ID
 }
 
 // 默认服务器地址
@@ -70,12 +69,12 @@ function buildAPRSPacket(mycall, mySSID, tocall, toSSID, action, secret) {
 
 // ========== 本地存储 ==========
 
-// 保存参数
+// 保存参数（包含尾缀配置）
 function saveParams(params) {
   localStorage.setItem(STORAGE_KEY.PARAMS, JSON.stringify(params))
 }
 
-// 加载参数
+// 加载参数（包含尾缀配置）
 function loadParams() {
   const data = localStorage.getItem(STORAGE_KEY.PARAMS)
   if (!data) return null
@@ -186,27 +185,6 @@ function getCurrentServerUrl(serverList, activeServerId) {
   return server ? server.url : DEFAULT_SERVER
 }
 
-// ========== SSID配置管理 ==========
-
-// 保存SSID配置
-function saveSsidConfig(controlSsid, fmoSsid) {
-  const config = { controlSsid, fmoSsid }
-  localStorage.setItem(STORAGE_KEY.SSID_CONFIG, JSON.stringify(config))
-}
-
-// 加载SSID配置
-function loadSsidConfig() {
-  const data = localStorage.getItem(STORAGE_KEY.SSID_CONFIG)
-  if (data) {
-    try {
-      return JSON.parse(data)
-    } catch {
-      return null
-    }
-  }
-  return null
-}
-
 // ========== Composable (单例模式 - 所有组件共享状态) ==========
 
 // 模块级别的状态（单例）
@@ -236,7 +214,7 @@ const tocall = ref('')
 export function useAprsControl() {
   // 初始化
   function init() {
-    // 加载保存的参数
+    // 加载保存的参数（包含尾缀）
     const params = loadParams()
     if (params) {
       mycall.value = params.mycall || ''
@@ -251,16 +229,25 @@ export function useAprsControl() {
     // 加载服务器列表
     serverList.value = loadServerList()
     activeServerId.value = loadActiveServerId()
+
+    // 返回加载的参数（供组件使用，包含尾缀信息）
+    return params
   }
 
-  // 保存当前参数（新增函数，供外部调用）
-  function saveCurrentParams() {
-    saveParams({
+  // 保存当前参数（包含尾缀，供外部调用）
+  function saveCurrentParams(controlSsid, fmoSsid) {
+    const params = {
       mycall: mycall.value,
       passcode: passcode.value,
       secret: secret.value,
       tocall: tocall.value
-    })
+    }
+    // 如果提供了尾缀参数，一并保存
+    if (controlSsid !== undefined && fmoSsid !== undefined) {
+      params.controlSsid = controlSsid
+      params.fmoSsid = fmoSsid
+    }
+    saveParams(params)
   }
 
   // 清除自动断开定时器
@@ -475,7 +462,7 @@ export function useAprsControl() {
         throw new Error('请输入登录呼号')
       }
       if (!passcodeInput) {
-        throw new Error('请输入 APRS-IS Passcode')
+        throw new Error('请输入 APRS 密钥')
       }
       if (!secretInput) {
         throw new Error('请输入设备密钥')
@@ -489,7 +476,7 @@ export function useAprsControl() {
       const { call: myCall, ssid: mySsid } = parseCallsignSsid(mycallInput)
       const { call: toCall, ssid: toSsid } = parseCallsignSsid(tocallInput)
 
-      // 保存参数
+      // 保存参数（不包含尾缀，尾缀在组件中单独保存）
       saveParams({
         mycall: mycallInput,
         passcode: passcodeInput,
@@ -694,8 +681,6 @@ export function useAprsControl() {
     deleteServer,
     updateServer,
     selectServer,
-    updateSsidConfig,
-    getSsidConfig,
     updateCallsign,
     saveCurrentParams
   }

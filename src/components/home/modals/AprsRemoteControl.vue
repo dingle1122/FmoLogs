@@ -112,7 +112,7 @@
             :type="showPasscode ? 'text' : 'password'"
             placeholder="5位数字"
             class="form-input"
-            @input="saveCurrentParams"
+            @input="saveCurrentParams(controlSsid, fmoSsid)"
           />
           <button type="button" class="password-toggle" @click="showPasscode = !showPasscode">
             <svg
@@ -144,7 +144,7 @@
             :type="showSecret ? 'text' : 'password'"
             placeholder="在设备配置中设置的密钥"
             class="form-input"
-            @input="saveCurrentParams"
+            @input="saveCurrentParams(controlSsid, fmoSsid)"
           />
           <button type="button" class="password-toggle" @click="showSecret = !showSecret">
             <svg v-if="!showSecret" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -291,8 +291,6 @@ const {
   deleteServer,
   updateServer,
   selectServer,
-  updateSsidConfig,
-  getSsidConfig,
   saveCurrentParams
 } = aprsControl
 
@@ -317,6 +315,7 @@ const currentAddressCallsign = computed(() => {
 })
 
 // 监听地址变化，自动更新呼号
+// 注意：不使用 immediate，避免在组件初始化时干扰数据加载
 watch(
   currentAddressCallsign,
   (newCallsign) => {
@@ -326,57 +325,59 @@ watch(
       callsignBase.value = parts[0] || ''
       // 触发呼号变化处理，更新 mycall 和 tocall
       onCallsignChange()
-    } else {
-      // 没有呼号则显示空
-      callsignBase.value = ''
-      // 同样需要触发更新
-      onCallsignChange()
     }
-  },
-  { immediate: true }
+    // 注意：当 newCallsign 为空时，不清空 callsignBase
+    // 保留之前加载的数据或用户输入的数据
+  }
+  // 移除 immediate: true，让初始化逻辑在 onMounted 中完成
 )
 
-// 组件初始化时加载SSID配置并测试服务器连接
+// 组件初始化时加载参数并测试服务器连接
 onMounted(() => {
   // 初始化（加载保存的参数和服务器列表）
-  init()
+  const params = init()
 
-  // 从保存的 mycall/tocall 中解析呼号和尾缀
-  if (mycall.value) {
-    // mycall 格式: "CALLSIGN-SSID"
-    const parts = mycall.value.split('-')
-    if (parts.length >= 1) {
-      callsignBase.value = parts[0]
+  // 先恢复尾缀配置（如果有保存的话），避免后续被默认值覆盖
+  if (params) {
+    if (params.controlSsid !== undefined) {
+      controlSsid.value = params.controlSsid
     }
-    if (parts.length >= 2) {
-      const ssid = parseInt(parts[1], 10)
-      if (!isNaN(ssid) && ssid >= 0 && ssid <= 15) {
-        controlSsid.value = ssid
-      }
+    if (params.fmoSsid !== undefined) {
+      fmoSsid.value = params.fmoSsid
     }
   }
 
-  // 从 tocall 中解析 FMO 呼号和尾缀
-  if (tocall.value) {
-    const parts = tocall.value.split('-')
-    if (parts.length >= 2) {
-      const ssid = parseInt(parts[1], 10)
-      if (!isNaN(ssid) && ssid >= 0 && ssid <= 15) {
-        fmoSsid.value = ssid
+  // 优先从当前地址获取呼号
+  if (currentAddressCallsign.value) {
+    const parts = currentAddressCallsign.value.toUpperCase().split('-')
+    callsignBase.value = parts[0] || ''
+    // 此时尾缀已经从 params 中恢复，可以安全调用
+    onCallsignChange()
+  } else if (params) {
+    // 如果没有当前地址，从保存的参数中恢复数据
+
+    // 从 mycall 中解析呼号基础
+    if (mycall.value) {
+      const parts = mycall.value.split('-')
+      if (parts.length >= 1) {
+        callsignBase.value = parts[0]
       }
     }
-    // 如果 tocall 的呼号基础与 mycall 不同，说明是高级模式
-    if (parts.length >= 1 && parts[0] !== callsignBase.value) {
-      fmoCallsignBase.value = parts[0]
-      advancedMode.value = true
-    }
-  }
 
-  // 加载SSID配置（如果有保存的配置则覆盖上面的解析结果）
-  const savedConfig = getSsidConfig()
-  if (savedConfig) {
-    controlSsid.value = savedConfig.controlSsid ?? controlSsid.value
-    fmoSsid.value = savedConfig.fmoSsid ?? fmoSsid.value
+    // 从 tocall 中判断是否为高级模式
+    if (tocall.value && callsignBase.value) {
+      const parts = tocall.value.split('-')
+      // 如果 tocall 的呼号基础与 mycall 不同，说明是高级模式
+      if (parts.length >= 1 && parts[0] !== callsignBase.value) {
+        fmoCallsignBase.value = parts[0]
+        advancedMode.value = true
+      }
+    }
+
+    // 触发一次同步，确保界面和 composable 状态一致
+    if (callsignBase.value) {
+      onCallsignChange()
+    }
   }
 
   // 测试当前选择的服务器连接
@@ -400,10 +401,8 @@ function onCallsignChange() {
     mycall.value = ''
     tocall.value = ''
   }
-  // 自动保存SSID配置
-  updateSsidConfig(controlSsid.value, fmoSsid.value)
-  // 实时保存参数到 localStorage
-  saveCurrentParams()
+  // 实时保存参数到 localStorage（包括尾缀）
+  saveCurrentParams(controlSsid.value, fmoSsid.value)
 }
 
 // FMO呼号变化时
@@ -414,8 +413,8 @@ function onFmoCallsignChange() {
     // 如果FMO呼号为空，回退到使用控制呼号
     tocall.value = `${callsignBase.value.toUpperCase()}-${fmoSsid.value}`
   }
-  // 实时保存参数到 localStorage
-  saveCurrentParams()
+  // 实时保存参数到 localStorage（包括尾缀）
+  saveCurrentParams(controlSsid.value, fmoSsid.value)
 }
 
 // 高级模式切换
