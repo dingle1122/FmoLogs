@@ -81,7 +81,7 @@ function setupObserver() {
       }
     },
     {
-      root: containerRef.value,
+      root: isMobile() ? null : containerRef.value,
       rootMargin: '100px',
       threshold: 0
     }
@@ -241,6 +241,7 @@ watch(
 @media (max-width: 768px) {
   .old-friends-container {
     margin-top: 0.5rem;
+    overflow: visible;
   }
 
   .old-friends-grid {

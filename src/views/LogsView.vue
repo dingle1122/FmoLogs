@@ -137,4 +137,10 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
 }
+
+@media (max-width: 768px) {
+  .logs-view {
+    height: auto;
+  }
+}
 </style>

@@ -1,10 +1,5 @@
 // 从 db.js 重新导出常量，保持兼容性
-export {
-  QueryTypes,
-  ColumnNames,
-  formatTimestamp,
-  formatFreqHz
-} from '../../services/db'
+export { QueryTypes, ColumnNames, formatTimestamp, formatFreqHz } from '../../services/db'
 
 // 导航路由配置（桌面端和手机端共用）
 export const NAV_ROUTES = [

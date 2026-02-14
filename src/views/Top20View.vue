@@ -43,4 +43,10 @@ onMounted(() => {
   flex-direction: column;
   height: 100%;
 }
+
+@media (max-width: 768px) {
+  .top20-view {
+    height: auto;
+  }
+}
 </style>

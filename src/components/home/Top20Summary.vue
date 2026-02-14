@@ -364,10 +364,11 @@ function handleTooltipMouseLeave() {
   .top20-container {
     grid-template-columns: 1fr;
     margin-top: 0.5rem;
+    overflow: visible;
   }
 
   .top20-card {
-    max-height: 50vh;
+    max-height: none;
   }
 }
 </style>

@@ -137,7 +137,7 @@ function setupObserver() {
       }
     },
     {
-      root: resultSectionRef.value,
+      root: isMobile() ? null : resultSectionRef.value,
       rootMargin: '100px',
       threshold: 0
     }
@@ -385,6 +385,7 @@ function formatTimePart(dateTimeStr) {
 @media (max-width: 768px) {
   .result-section {
     margin-top: 0.5rem;
+    overflow: visible;
   }
 
   .data-table {

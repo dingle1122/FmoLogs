@@ -20,22 +20,40 @@
     />
 
     <!-- 路由视图 -->
-    <router-view v-slot="{ Component }" class="content-area">
-      <component
-        :is="Component"
-        :db-loaded="dbLoaded"
-        :selected-from-callsign="selectedFromCallsign"
-        :loading="loading || dataQuery.loading.value"
-        :error="error || dataQuery.error.value"
-        :import-progress="importProgress"
-        :fmo-sync-message="fmoSync.autoSyncMessage.value"
-        :data-query="dataQuery"
-        :callsign-records="callsignRecords"
-        @execute-query="executeQuery"
-        @show-detail="showDetailModal"
-        @show-callsign-records="handleShowCallsignRecords"
-      />
-    </router-view>
+    <div ref="contentAreaRef" class="content-area">
+      <router-view v-slot="{ Component }">
+        <component
+          :is="Component"
+          :db-loaded="dbLoaded"
+          :selected-from-callsign="selectedFromCallsign"
+          :loading="loading || dataQuery.loading.value"
+          :error="error || dataQuery.error.value"
+          :import-progress="importProgress"
+          :fmo-sync-message="fmoSync.autoSyncMessage.value"
+          :data-query="dataQuery"
+          :callsign-records="callsignRecords"
+          @execute-query="executeQuery"
+          @show-detail="showDetailModal"
+          @show-callsign-records="handleShowCallsignRecords"
+        />
+      </router-view>
+
+      <!-- 回到顶部按钮（仅移动端显示） -->
+      <transition name="fade">
+        <button v-show="showBackToTop" class="back-to-top-btn" @click="scrollToTop">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </button>
+      </transition>
+    </div>
 
     <!-- 详情弹框 -->
     <DetailModal
@@ -222,6 +240,9 @@ const showDetailModalFlag = ref(false)
 const selectedRowData = ref(null)
 const fileInputRef = ref(null)
 const settingsModalRef = ref(null)
+const contentAreaRef = ref(null)
+const showBackToTop = ref(false)
+let scrollTimer = null
 
 // 服务器列表弹框状态
 const showStationList = ref(false)
@@ -504,6 +525,20 @@ async function handleStationSelect(uid) {
   speakingStatus.clearSpeakingHistory()
 }
 
+// 回到顶部 - 带防抖的滚动处理
+function handleScroll() {
+  if (scrollTimer) clearTimeout(scrollTimer)
+  scrollTimer = setTimeout(() => {
+    if (contentAreaRef.value) {
+      showBackToTop.value = contentAreaRef.value.scrollTop > 200
+    }
+  }, 100)
+}
+
+function scrollToTop() {
+  contentAreaRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 async function handleShowCallsignRecords(callsign) {
   await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value)
 }
@@ -705,6 +740,9 @@ watch(
 
 // 生命周期
 onMounted(async () => {
+  // 回到顶部滚动监听
+  contentAreaRef.value?.addEventListener('scroll', handleScroll, { passive: true })
+
   const restored = await tryRestoreDirectory()
   if (restored) {
     // 根据当前路由设置查询类型
@@ -724,6 +762,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (stationPollTimer) clearTimeout(stationPollTimer)
+  if (scrollTimer) clearTimeout(scrollTimer)
+  contentAreaRef.value?.removeEventListener('scroll', handleScroll)
 
   fmoSync.stopAutoSyncTask()
   speakingStatus.stopSpeakingHistoryCleanup()
@@ -814,6 +854,10 @@ provide('executeQuery', executeQuery)
   position: relative;
 }
 
+.back-to-top-btn {
+  display: none;
+}
+
 @media (max-width: 768px) {
   .content-area {
     padding: 0.5rem;
@@ -823,5 +867,43 @@ provide('executeQuery', executeQuery)
   .mobile-nav {
     display: flex;
   }
+
+  .back-to-top-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 1rem;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bg-header);
+    border: 1px solid var(--border-primary);
+    box-shadow: 0 2px 8px var(--shadow-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    z-index: 190;
+    padding: 0;
+  }
+
+  .back-to-top-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .back-to-top-btn:focus {
+    outline: none;
+  }
+}
+
+/* 回到顶部按钮淡入淡出 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

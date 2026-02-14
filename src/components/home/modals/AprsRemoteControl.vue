@@ -323,7 +323,7 @@ watch(
       // 解析呼号（可能带有 SSID）
       const parts = newCallsign.toUpperCase().split('-')
       callsignBase.value = parts[0] || ''
-      
+
       // 如果地址带有尾缀，使用地址的尾缀
       if (parts.length >= 2) {
         const ssid = parseInt(parts[1], 10)
@@ -332,7 +332,7 @@ watch(
         }
       }
       // 如果地址不带尾缀，保持当前的尾缀设置
-      
+
       // 触发呼号变化处理，更新 mycall 和 tocall
       onCallsignChange()
     }
@@ -357,7 +357,7 @@ onMounted(() => {
       }
     }
   }
-  
+
   if (params && tocall.value) {
     const tocallParts = tocall.value.split('-')
     if (tocallParts.length >= 2) {
@@ -373,7 +373,7 @@ onMounted(() => {
     // 从地址获取呼号（可能带尾缀）
     const parts = currentAddressCallsign.value.toUpperCase().split('-')
     callsignBase.value = parts[0] || ''
-    
+
     // 如果地址提供了尾缀，覆盖之前恢复的尾缀
     if (parts.length >= 2) {
       const ssid = parseInt(parts[1], 10)
@@ -382,7 +382,7 @@ onMounted(() => {
       }
     }
     // 如果地址不带尾缀，保持从 localStorage 恢复的尾缀
-    
+
     // 构造 mycall 和 tocall 并保存
     updateCallsigns()
   } else if (params && mycall.value) {
@@ -433,7 +433,7 @@ function parseCallsignsFromStorage() {
 function updateCallsigns() {
   if (callsignBase.value) {
     mycall.value = `${callsignBase.value.toUpperCase()}-${controlSsid.value}`
-    
+
     if (!advancedMode.value || !fmoCallsignBase.value) {
       tocall.value = `${callsignBase.value.toUpperCase()}-${fmoSsid.value}`
     } else {
@@ -443,7 +443,7 @@ function updateCallsigns() {
     mycall.value = ''
     tocall.value = ''
   }
-  
+
   // 保存到 localStorage
   saveCurrentParams()
 }
