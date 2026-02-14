@@ -214,9 +214,10 @@ const tocall = ref('')
 export function useAprsControl() {
   // 初始化
   function init() {
-    // 加载保存的参数（包含尾缀）
+    // 加载保存的参数
     const params = loadParams()
     if (params) {
+      // 直接加载 mycall 和 tocall（已包含尾缀）
       mycall.value = params.mycall || ''
       passcode.value = params.passcode || ''
       secret.value = params.secret || ''
@@ -230,22 +231,18 @@ export function useAprsControl() {
     serverList.value = loadServerList()
     activeServerId.value = loadActiveServerId()
 
-    // 返回加载的参数（供组件使用，包含尾缀信息）
+    // 返回加载的参数（供组件使用）
     return params
   }
 
-  // 保存当前参数（包含尾缀，供外部调用）
-  function saveCurrentParams(controlSsid, fmoSsid) {
+  // 保存当前参数（由组件调用，传入完整的 mycall 和 tocall）
+  function saveCurrentParams() {
+    // mycall 和 tocall 已经包含尾缀，直接保存
     const params = {
       mycall: mycall.value,
       passcode: passcode.value,
       secret: secret.value,
       tocall: tocall.value
-    }
-    // 如果提供了尾缀参数，一并保存
-    if (controlSsid !== undefined && fmoSsid !== undefined) {
-      params.controlSsid = controlSsid
-      params.fmoSsid = fmoSsid
     }
     saveParams(params)
   }
