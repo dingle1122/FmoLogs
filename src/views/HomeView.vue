@@ -1,11 +1,14 @@
 <template>
   <div class="container">
-    <!-- 标题栏 -->
+    <!-- 标题栏（含桌面端导航） -->
     <AppHeader
       :today-logs="todayLogs"
       :total-logs="totalLogs"
       :unique-callsigns="uniqueCallsigns"
+      :current-query-type="dataQuery.currentQueryType.value"
+      :db-loaded="dbLoaded"
       @open-settings="showSettings = true"
+      @query-type-change="handleNavTabClick"
     />
 
     <!-- 发言状态条 -->
@@ -38,15 +41,14 @@
         {{ error || dataQuery.error.value }}
       </div>
 
-      <!-- 查询区域 -->
+      <!-- 过滤区域 -->
       <QuerySection
-        v-model:current-query-type="dataQuery.currentQueryType.value"
         v-model:search-keyword="dataQuery.searchKeyword.value"
         v-model:old-friends-search-keyword="dataQuery.oldFriendsSearchKeyword.value"
         v-model:filter-date="dataQuery.filterDate.value"
+        :current-query-type="dataQuery.currentQueryType.value"
         :from-callsign="selectedFromCallsign"
         :db-loaded="dbLoaded"
-        @update:current-query-type="handleQueryTypeChange"
         @update:search-keyword="onSearchInput"
         @update:old-friends-search-keyword="onOldFriendsSearchInput"
         @update:filter-date="onFilterDateChange"
@@ -179,6 +181,67 @@
       @select="handleStationSelect"
       @load-more="handleLoadMoreStations"
     />
+
+    <!-- 底部导航栏（手机端显示） -->
+    <nav class="query-nav mobile-nav">
+      <button
+        v-for="(name, type) in QueryTypeNames"
+        :key="type"
+        class="nav-tab"
+        :class="{ active: dataQuery.currentQueryType.value === type }"
+        :disabled="!dbLoaded"
+        @click="handleNavTabClick(type)"
+      >
+        <svg
+          v-if="type === 'all'"
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="8" y1="6" x2="21" y2="6" />
+          <line x1="8" y1="12" x2="21" y2="12" />
+          <line x1="8" y1="18" x2="21" y2="18" />
+          <line x1="3" y1="6" x2="3.01" y2="6" />
+          <line x1="3" y1="12" x2="3.01" y2="12" />
+          <line x1="3" y1="18" x2="3.01" y2="18" />
+        </svg>
+        <svg
+          v-else-if="type === 'top20Summary'"
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C5.3 4 6 4.7 6 5.5V20" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5c-.8 0-1.5.7-1.5 1.5V20" />
+          <path d="M6 13h12" />
+          <path d="M8 20h8" />
+        </svg>
+        <svg
+          v-else-if="type === 'oldFriends'"
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        <span class="nav-label">{{ name }}</span>
+      </button>
+    </nav>
   </div>
 </template>
 
@@ -212,7 +275,7 @@ import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
 
 // 常量
-import { DEFAULT_COLUMNS } from '../components/home/constants'
+import { DEFAULT_COLUMNS, QueryTypeNames } from '../components/home/constants'
 
 // UI 状态
 const showSettings = ref(false)
@@ -308,6 +371,12 @@ async function executeQuery() {
 function handleQueryTypeChange() {
   dataQuery.handleQueryTypeChange()
   executeQuery()
+}
+
+function handleNavTabClick(type) {
+  if (dataQuery.currentQueryType.value === type) return
+  dataQuery.currentQueryType.value = type
+  handleQueryTypeChange()
 }
 
 function onSearchInput() {
@@ -749,8 +818,60 @@ onUnmounted(() => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+}
+
+/* 底部导航栏（手机端） */
+.mobile-nav {
+  display: none;
+  flex-shrink: 0;
+  background: var(--bg-header);
+  border-top: 1px solid var(--border-light);
+  padding: 0.35rem 0;
+  padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
+  justify-content: space-around;
+  z-index: 200;
+}
+
+.mobile-nav .nav-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0.3rem 0.8rem;
+  font-size: 1rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.mobile-nav .nav-tab:hover:not(:disabled) {
+  background: none;
+}
+
+.mobile-nav .nav-tab.active {
+  color: var(--color-primary);
+}
+
+.mobile-nav .nav-tab:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.nav-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.nav-label {
+  font-size: 0.7rem;
+  line-height: 1;
 }
 
 .content-area {
@@ -801,6 +922,11 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .content-area {
     padding: 0.75rem;
+    overflow-y: auto;
+  }
+
+  .mobile-nav {
+    display: flex;
   }
 }
 </style>

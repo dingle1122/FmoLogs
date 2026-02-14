@@ -11,6 +11,18 @@
         <strong>{{ uniqueCallsigns }}</strong>
       </span>
     </div>
+    <nav class="header-nav">
+      <button
+        v-for="(name, type) in QueryTypeNames"
+        :key="type"
+        class="nav-tab"
+        :class="{ active: currentQueryType === type }"
+        :disabled="!dbLoaded"
+        @click="$emit('query-type-change', type)"
+      >
+        {{ name }}
+      </button>
+    </nav>
     <div class="header-actions">
       <a
         href="https://github.com/dingle1122/FmoLogs"
@@ -37,6 +49,8 @@
 </template>
 
 <script setup>
+import { QueryTypeNames } from './constants'
+
 defineProps({
   todayLogs: {
     type: Number,
@@ -49,10 +63,18 @@ defineProps({
   uniqueCallsigns: {
     type: Number,
     default: 0
+  },
+  currentQueryType: {
+    type: String,
+    default: 'all'
+  },
+  dbLoaded: {
+    type: Boolean,
+    default: false
   }
 })
 
-defineEmits(['open-settings'])
+defineEmits(['open-settings', 'query-type-change'])
 </script>
 
 <style scoped>
@@ -60,9 +82,9 @@ defineEmits(['open-settings'])
   flex-shrink: 0;
   z-index: 100;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
+  gap: 1.5rem;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border-light);
 }
@@ -71,6 +93,7 @@ defineEmits(['open-settings'])
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-shrink: 0;
 }
 
 .header h1 {
@@ -91,10 +114,57 @@ defineEmits(['open-settings'])
   font-size: 1.2rem;
 }
 
+.header-nav {
+  display: flex;
+  gap: 0;
+  align-items: center;
+}
+
+.nav-tab {
+  position: relative;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.2s;
+  font-family: inherit;
+}
+
+.nav-tab:hover:not(:disabled) {
+  color: var(--color-primary);
+  background: none;
+}
+
+.nav-tab.active {
+  color: var(--color-primary);
+}
+
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -0.75rem;
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 2px;
+  background: var(--color-primary);
+  border-radius: 1px 1px 0 0;
+}
+
+.nav-tab:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .icon-btn {
@@ -126,6 +196,10 @@ defineEmits(['open-settings'])
 
   .header-left {
     gap: 0.5rem;
+  }
+
+  .header-nav {
+    display: none;
   }
 
   .total-logs {
