@@ -253,6 +253,16 @@ export function useAprsControl() {
     activeServerId.value = loadActiveServerId()
   }
 
+  // 保存当前参数（新增函数，供外部调用）
+  function saveCurrentParams() {
+    saveParams({
+      mycall: mycall.value,
+      passcode: passcode.value,
+      secret: secret.value,
+      tocall: tocall.value
+    })
+  }
+
   // 清除自动断开定时器
   function clearAutoDisconnectTimer() {
     if (autoDisconnectTimer) {
@@ -686,6 +696,7 @@ export function useAprsControl() {
     selectServer,
     updateSsidConfig,
     getSsidConfig,
-    updateCallsign
+    updateCallsign,
+    saveCurrentParams
   }
 }

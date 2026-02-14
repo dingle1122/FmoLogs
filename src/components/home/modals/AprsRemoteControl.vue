@@ -112,6 +112,7 @@
             :type="showPasscode ? 'text' : 'password'"
             placeholder="5位数字"
             class="form-input"
+            @input="saveCurrentParams"
           />
           <button type="button" class="password-toggle" @click="showPasscode = !showPasscode">
             <svg
@@ -143,6 +144,7 @@
             :type="showSecret ? 'text' : 'password'"
             placeholder="在设备配置中设置的密钥"
             class="form-input"
+            @input="saveCurrentParams"
           />
           <button type="button" class="password-toggle" @click="showSecret = !showSecret">
             <svg v-if="!showSecret" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -290,7 +292,8 @@ const {
   updateServer,
   selectServer,
   updateSsidConfig,
-  getSsidConfig
+  getSsidConfig,
+  saveCurrentParams
 } = aprsControl
 
 // 呼号和尾缀
@@ -321,9 +324,13 @@ watch(
       // 解析呼号（可能带有 SSID）
       const parts = newCallsign.toUpperCase().split('-')
       callsignBase.value = parts[0] || ''
+      // 触发呼号变化处理，更新 mycall 和 tocall
+      onCallsignChange()
     } else {
       // 没有呼号则显示空
       callsignBase.value = ''
+      // 同样需要触发更新
+      onCallsignChange()
     }
   },
   { immediate: true }
@@ -364,6 +371,8 @@ function onCallsignChange() {
   }
   // 自动保存SSID配置
   updateSsidConfig(controlSsid.value, fmoSsid.value)
+  // 实时保存参数到 localStorage
+  saveCurrentParams()
 }
 
 // FMO呼号变化时
@@ -374,6 +383,8 @@ function onFmoCallsignChange() {
     // 如果FMO呼号为空，回退到使用控制呼号
     tocall.value = `${callsignBase.value.toUpperCase()}-${fmoSsid.value}`
   }
+  // 实时保存参数到 localStorage
+  saveCurrentParams()
 }
 
 // 高级模式切换
@@ -683,11 +694,6 @@ onUnmounted(() => {
   grid-column: 1 / -1;
 }
 
-/* FMO呼号在桌面端与呼号并排 */
-.form-group-fmo-callsign {
-  /* 默认不占整行，跟随网格 */
-}
-
 /* 高级选项样式 */
 .advanced-option {
   margin-top: 0.5rem;
@@ -700,16 +706,13 @@ onUnmounted(() => {
     grid-template-columns: 1fr 1fr;
   }
 
-  /* 手机端：呼号、FMO呼号、密钥字段、高级选项 占据整行 */
+  /* 手机端:呼号、FMO呼号、密钥字段、高级选项 占据整行 */
   .form-group:first-child,
   .form-group-fmo-callsign,
   .form-group-password,
   .advanced-option {
     grid-column: 1 / -1;
   }
-
-  /* 手机端：控制尾缀和FMO尾缀保持在同一行（默认grid行为） */
-  /* .form-group-ssid 不需要特殊处理 */
 }
 
 .aprs-form .form-group {
