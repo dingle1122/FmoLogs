@@ -25,8 +25,8 @@ export const DEFAULT_COLUMNS = [
 ]
 
 // 分页大小
-export const PAGE_SIZE = 100
-export const OLD_FRIENDS_PAGE_SIZE = 50
+export const PAGE_SIZE = 20
+export const OLD_FRIENDS_PAGE_SIZE = 25
 export const CALLSIGN_RECORDS_PAGE_SIZE = 10
 
 // 判断是否今日通联（使用UTC时间）

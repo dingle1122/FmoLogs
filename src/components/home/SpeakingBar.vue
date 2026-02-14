@@ -51,7 +51,7 @@ defineEmits(['click'])
   flex-shrink: 0;
   background: var(--bg-speaking-bar);
   border-bottom: 2px solid var(--border-speaking-bar);
-  padding: 1rem 1.5rem;
+  padding: 0.6rem 1rem;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -64,7 +64,7 @@ defineEmits(['click'])
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-height: 2rem;
+  min-height: 1.5rem;
 }
 
 .speaking-indicator {
@@ -97,15 +97,15 @@ defineEmits(['click'])
 
 .speaking-text {
   flex: 1;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
   color: var(--text-primary);
-  line-height: 1.5rem;
+  line-height: 1.3rem;
 }
 
 .speaking-text strong {
   color: var(--color-speaking);
   font-weight: 700;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
 }
 
 .speaking-expand {
