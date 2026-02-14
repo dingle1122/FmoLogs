@@ -338,15 +338,46 @@ watch(
 
 // 组件初始化时加载SSID配置并测试服务器连接
 onMounted(() => {
-  // 加载SSID配置
-  const savedConfig = getSsidConfig()
-  if (savedConfig) {
-    controlSsid.value = savedConfig.controlSsid ?? 7
-    fmoSsid.value = savedConfig.fmoSsid ?? 0
-  }
-
   // 初始化（加载保存的参数和服务器列表）
   init()
+
+  // 从保存的 mycall/tocall 中解析呼号和尾缀
+  if (mycall.value) {
+    // mycall 格式: "CALLSIGN-SSID"
+    const parts = mycall.value.split('-')
+    if (parts.length >= 1) {
+      callsignBase.value = parts[0]
+    }
+    if (parts.length >= 2) {
+      const ssid = parseInt(parts[1], 10)
+      if (!isNaN(ssid) && ssid >= 0 && ssid <= 15) {
+        controlSsid.value = ssid
+      }
+    }
+  }
+
+  // 从 tocall 中解析 FMO 呼号和尾缀
+  if (tocall.value) {
+    const parts = tocall.value.split('-')
+    if (parts.length >= 2) {
+      const ssid = parseInt(parts[1], 10)
+      if (!isNaN(ssid) && ssid >= 0 && ssid <= 15) {
+        fmoSsid.value = ssid
+      }
+    }
+    // 如果 tocall 的呼号基础与 mycall 不同，说明是高级模式
+    if (parts.length >= 1 && parts[0] !== callsignBase.value) {
+      fmoCallsignBase.value = parts[0]
+      advancedMode.value = true
+    }
+  }
+
+  // 加载SSID配置（如果有保存的配置则覆盖上面的解析结果）
+  const savedConfig = getSsidConfig()
+  if (savedConfig) {
+    controlSsid.value = savedConfig.controlSsid ?? controlSsid.value
+    fmoSsid.value = savedConfig.fmoSsid ?? fmoSsid.value
+  }
 
   // 测试当前选择的服务器连接
   setTimeout(() => {
