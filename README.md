@@ -32,21 +32,21 @@ FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提�
   - **自动断开**：发送指令后 60 秒自动断开连接，节省资源
   - **状态反馈**：实时显示连接状态和指令执行结果，直观可靠
 
-### 📊 专业查询模式
+### 📊 数据查询模式
 
-#### 1. 综合日志视图
+#### 1. 通联日志
 
 - **全量记录**：按时间倒序展示所有通联日志
 - **智能搜索**：支持按接收方呼号实时模糊搜索
 - **当日序号**：高亮显示当日通联序号（前三名金银铜色高亮）
 - **详细信息**：展示呼号、网格、频率、模式、中继及留言信息
 
-#### 2. 通联排名（TOP20）
+#### 2. 排行榜
 
 - **多维统计**：接收方呼号、网格、中继使用频率的 TOP20 排名
 - **数据筛选**：支持按发送方呼号筛选统计结果
 
-#### 3. 老朋友视图
+#### 3. 老朋友
 
 - **卡片展示**：以卡片形式展示历史通联过的友台
 - **状态标识**：今日通联过的友台显示绿色高亮
@@ -131,25 +131,49 @@ npm run preview
 
 ```
 src/
-├── components/          # Vue 组件
-│   ├── common/         # 通用组件（对话框、日期选择器等）
-│   └── home/           # 主页组件（表格、查询、统计等）
-│       └── modals/     # 弹窗组件（设置、详情、APRS 控制等）
-├── composables/        # 组合式 API（业务逻辑）
+├── components/              # Vue 组件
+│   ├── common/             # 通用组件
+│   │   ├── ConfirmDialog.vue    # 确认对话框
+│   │   ├── DatePicker.vue       # 日期选择器
+│   │   ├── StatusHints.vue      # 状态提示
+│   │   └── ToastContainer.vue   # Toast 提示容器
+│   └── home/               # 主页组件
+│       ├── AppHeader.vue        # 应用头部
+│       ├── LogDataTable.vue     # 日志数据表格
+│       ├── OldFriendsList.vue   # 老朋友列表
+│       ├── PaginationControl.vue # 分页控制
+│       ├── QuerySection.vue     # 查询区域
+│       ├── SpeakingBar.vue      # 发言状态栏
+│       ├── StationControl.vue   # 站点控制
+│       ├── Top20Summary.vue     # 排行榜统计
+│       ├── constants.js         # 常量定义
+│       └── modals/             # 弹窗组件
+│           ├── AprsRemoteControl.vue    # APRS 远程控制
+│           ├── CallsignRecordsModal.vue # 呼号记录弹窗
+│           ├── DetailModal.vue          # 详情弹窗
+│           ├── SettingsModal.vue        # 设置弹窗
+│           ├── SpeakingHistoryModal.vue # 发言历史弹窗
+│           └── StationListModal.vue     # 服务器列表弹窗
+├── composables/            # 组合式 API（业务逻辑）
 │   ├── useAprsControl.js    # APRS 远程控制
+│   ├── useConfirm.js        # 确认对话框
 │   ├── useDataQuery.js      # 数据查询
 │   ├── useDbManager.js      # 数据库管理
 │   ├── useFmoSync.js        # FMO 同步
 │   ├── useSettings.js       # 应用设置
 │   ├── useSpeakingStatus.js # 发言状态
 │   └── useToast.js          # 提示消息
-├── services/           # 服务层
-│   ├── db.js          # IndexedDB 操作
-│   └── fmoApi.js      # FMO API 封装
-├── stores/            # Pinia 状态管理
-├── router/            # 路由配置
-├── utils/             # 工具函数
-└── views/             # 页面视图
+├── services/               # 服务层
+│   ├── db.js               # IndexedDB 操作
+│   └── fmoApi.js           # FMO API 封装
+├── stores/                 # Pinia 状态管理
+├── router/                 # 路由配置
+├── utils/                  # 工具函数
+└── views/                  # 页面视图
+    ├── MainLayout.vue      # 主布局
+    ├── LogsView.vue        # 通联日志页
+    ├── Top20View.vue       # 排行榜页
+    └── OldFriendsView.vue  # 老朋友页
 ```
 
 ## 🙏 特别感谢

@@ -2,9 +2,9 @@
   <div class="top20-container">
     <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
     <template v-else-if="top20Result">
-      <!-- 接收方呼号 TOP100 -->
+      <!-- 接收方呼号 TOP20 -->
       <div class="top20-card">
-        <h3>接收方呼号 TOP100</h3>
+        <h3>接收方呼号 TOP20</h3>
         <div class="top20-list">
           <div
             v-for="(item, index) in top20Result.toCallsign"

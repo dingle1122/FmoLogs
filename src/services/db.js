@@ -650,7 +650,7 @@ export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
   const toCallsign = Array.from(toCallsignMap.entries())
     .map(([toCallsign, count]) => ({ toCallsign, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 100)
+    .slice(0, 20)
 
   // 接收网格统计
   const toGridMap = new Map()
