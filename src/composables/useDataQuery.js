@@ -133,6 +133,64 @@ export function useDataQuery() {
     oldFriendsPage.value = 1
   }
 
+  // 加载更多数据（用于移动端滚动加载）
+  async function loadMoreData(selectedFromCallsign, dbLoaded) {
+    if (!dbLoaded || !selectedFromCallsign) return
+    if (currentQueryType.value !== QueryTypes.ALL) return
+    if (!queryResult.value) return
+    if (currentPage.value >= queryResult.value.totalPages) return
+
+    const nextPage = currentPage.value + 1
+    try {
+      const moreData = await getAllRecordsFromIndexedDB(
+        nextPage,
+        PAGE_SIZE,
+        searchKeyword.value.trim(),
+        selectedFromCallsign,
+        filterDate.value
+      )
+
+      if (moreData && moreData.data && moreData.data.length > 0) {
+        // 追加数据到现有结果
+        queryResult.value = {
+          ...queryResult.value,
+          data: [...queryResult.value.data, ...moreData.data]
+        }
+        currentPage.value = nextPage
+      }
+    } catch (err) {
+      console.error('加载更多数据失败:', err)
+    }
+  }
+
+  // 加载更多老朋友数据（用于移动端滚动加载）
+  async function loadMoreOldFriends(selectedFromCallsign, dbLoaded) {
+    if (!dbLoaded || !selectedFromCallsign) return
+    if (!oldFriendsResult.value) return
+    if (oldFriendsPage.value >= oldFriendsResult.value.totalPages) return
+
+    const nextPage = oldFriendsPage.value + 1
+    try {
+      const moreData = await getOldFriendsFromIndexedDB(
+        nextPage,
+        OLD_FRIENDS_PAGE_SIZE,
+        oldFriendsSearchKeyword.value.trim(),
+        selectedFromCallsign
+      )
+
+      if (moreData && moreData.data && moreData.data.length > 0) {
+        // 追加数据到现有结果
+        oldFriendsResult.value = {
+          ...oldFriendsResult.value,
+          data: [...oldFriendsResult.value.data, ...moreData.data]
+        }
+        oldFriendsPage.value = nextPage
+      }
+    } catch (err) {
+      console.error('加载更多老朋友数据失败:', err)
+    }
+  }
+
   return {
     loading,
     error,
@@ -155,7 +213,9 @@ export function useDataQuery() {
     goToPage,
     goToOldFriendsPage,
     handleQueryTypeChange,
-    resetPagination
+    resetPagination,
+    loadMoreData,
+    loadMoreOldFriends
   }
 }
 

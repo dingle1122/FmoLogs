@@ -115,7 +115,11 @@ defineEmits(['click'])
 
 @media (max-width: 768px) {
   .speaking-bar {
-    padding: 0.75rem 1rem;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .speaking-bar-content {
+    min-height: 2rem;
   }
 
   .speaking-text {
@@ -132,8 +136,13 @@ defineEmits(['click'])
 }
 
 @media (max-width: 480px) {
+  .speaking-bar {
+    padding: 0.35rem 0.5rem;
+  }
+
   .speaking-bar-content {
-    gap: 0.6rem;
+    gap: 0.5rem;
+    min-height: 1.8rem;
   }
 
   .speaking-indicator {

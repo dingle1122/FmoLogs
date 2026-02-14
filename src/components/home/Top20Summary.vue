@@ -363,6 +363,7 @@ function handleTooltipMouseLeave() {
 @media (max-width: 768px) {
   .top20-container {
     grid-template-columns: 1fr;
+    margin-top: 0.5rem;
   }
 
   .top20-card {

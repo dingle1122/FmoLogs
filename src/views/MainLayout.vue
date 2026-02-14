@@ -22,10 +22,7 @@
     />
 
     <!-- 路由视图 -->
-    <router-view
-      v-slot="{ Component }"
-      class="content-area"
-    >
+    <router-view v-slot="{ Component }" class="content-area">
       <component
         :is="Component"
         :db-loaded="dbLoaded"
@@ -779,8 +776,8 @@ provide('executeQuery', executeQuery)
   flex-shrink: 0;
   background: var(--bg-header);
   border-top: 1px solid var(--border-light);
-  padding: 0.35rem 0;
-  padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
+  padding: 0.25rem 0;
+  padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
   justify-content: space-around;
   z-index: 200;
 }
@@ -789,11 +786,11 @@ provide('executeQuery', executeQuery)
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.1rem;
   background: none;
   border: none;
   border-radius: 0;
-  padding: 0.3rem 0.8rem;
+  padding: 0.2rem 0.8rem;
   font-size: 1rem;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -841,7 +838,7 @@ provide('executeQuery', executeQuery)
 
 @media (max-width: 768px) {
   .content-area {
-    padding: 0.75rem;
+    padding: 0.5rem;
     overflow-y: auto;
   }
 

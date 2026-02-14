@@ -1,11 +1,7 @@
 <template>
   <div class="logs-view">
     <!-- 状态提示 -->
-    <StatusHints
-      :sync-message="fmoSyncMessage"
-      :loading="loading"
-      :error="error"
-    >
+    <StatusHints :sync-message="fmoSyncMessage" :loading="loading" :error="error">
       <template v-if="importProgress" #loading>
         正在导入数据... {{ importProgress.current }} /
         {{ importProgress.total }}
@@ -28,7 +24,10 @@
       :query-result="dataQuery.queryResult.value"
       :display-columns="displayColumns"
       :db-loaded="dbLoaded"
+      :loading-more="loadingMore"
+      :has-more="hasMore"
       @show-detail="$emit('show-detail', $event)"
+      @load-more="handleLoadMore"
     />
 
     <!-- 分页 -->
@@ -43,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 // 组件
 import StatusHints from '../components/common/StatusHints.vue'
@@ -66,12 +65,19 @@ const props = defineProps({
 
 const emit = defineEmits(['execute-query', 'show-detail'])
 
+// 滚动加载状态
+const loadingMore = ref(false)
+
 // 计算属性
 const displayColumns = computed(() => {
   if (props.dataQuery.queryResult.value) {
     return props.dataQuery.queryResult.value.columns
   }
   return DEFAULT_COLUMNS
+})
+
+const hasMore = computed(() => {
+  return props.dataQuery.currentPage.value < props.dataQuery.totalPages.value
 })
 
 // 防抖定时器
@@ -93,6 +99,17 @@ function onFilterDateChange() {
 function handlePageChange(page) {
   props.dataQuery.goToPage(page)
   emit('execute-query')
+}
+
+async function handleLoadMore() {
+  if (loadingMore.value || !hasMore.value) return
+
+  loadingMore.value = true
+  try {
+    await props.dataQuery.loadMoreData(props.selectedFromCallsign, props.dbLoaded)
+  } finally {
+    loadingMore.value = false
+  }
 }
 
 // 初始化时确保查询类型正确

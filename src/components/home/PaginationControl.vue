@@ -98,22 +98,8 @@ defineEmits(['page-change'])
 }
 
 @media (max-width: 768px) {
-  .pagination .hidden-on-small {
-    display: none;
-  }
-
   .pagination {
-    flex-wrap: nowrap;
-    gap: 0.3rem;
-  }
-
-  .pagination button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.85rem;
-  }
-
-  .page-info {
-    font-size: 0.85rem;
+    display: none;
   }
 }
 

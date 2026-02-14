@@ -187,7 +187,7 @@ defineEmits(['open-settings', 'query-type-change'])
 
 @media (max-width: 768px) {
   .header {
-    padding: 0.75rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .header h1 {

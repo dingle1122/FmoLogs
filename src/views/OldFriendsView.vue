@@ -1,11 +1,7 @@
 <template>
   <div class="old-friends-view">
     <!-- 状态提示 -->
-    <StatusHints
-      :sync-message="fmoSyncMessage"
-      :loading="loading"
-      :error="error"
-    />
+    <StatusHints :sync-message="fmoSyncMessage" :loading="loading" :error="error" />
 
     <!-- 过滤区域 -->
     <QuerySection
@@ -20,7 +16,10 @@
     <OldFriendsList
       :old-friends-result="dataQuery.oldFriendsResult.value"
       :db-loaded="dbLoaded"
+      :loading-more="loadingMore"
+      :has-more="hasMore"
       @show-records="$emit('show-callsign-records', $event)"
+      @load-more="handleLoadMore"
     />
 
     <!-- 分页 -->
@@ -36,7 +35,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 // 组件
 import StatusHints from '../components/common/StatusHints.vue'
@@ -55,6 +54,14 @@ const props = defineProps({
 
 const emit = defineEmits(['execute-query', 'show-callsign-records'])
 
+// 滚动加载状态
+const loadingMore = ref(false)
+
+// 计算属性
+const hasMore = computed(() => {
+  return props.dataQuery.oldFriendsPage.value < props.dataQuery.oldFriendsTotalPages.value
+})
+
 // 防抖定时器
 let oldFriendsSearchTimer = null
 
@@ -69,6 +76,17 @@ function onOldFriendsSearchInput() {
 function handleOldFriendsPageChange(page) {
   props.dataQuery.goToOldFriendsPage(page)
   emit('execute-query')
+}
+
+async function handleLoadMore() {
+  if (loadingMore.value || !hasMore.value) return
+
+  loadingMore.value = true
+  try {
+    await props.dataQuery.loadMoreOldFriends(props.selectedFromCallsign, props.dbLoaded)
+  } finally {
+    loadingMore.value = false
+  }
 }
 
 // 初始化时确保查询类型正确并执行查询

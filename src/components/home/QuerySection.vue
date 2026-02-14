@@ -71,7 +71,7 @@ const hasFilters = computed(() => {
 
 <style scoped>
 .query-section {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0;
   flex-shrink: 0;
 }
 

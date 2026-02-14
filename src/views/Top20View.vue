@@ -1,17 +1,10 @@
 <template>
   <div class="top20-view">
     <!-- 状态提示 -->
-    <StatusHints
-      :sync-message="fmoSyncMessage"
-      :loading="loading"
-      :error="error"
-    />
+    <StatusHints :sync-message="fmoSyncMessage" :loading="loading" :error="error" />
 
     <!-- TOP20汇总视图 -->
-    <Top20Summary
-      :top20-result="dataQuery.top20Result.value"
-      :db-loaded="dbLoaded"
-    />
+    <Top20Summary :top20-result="dataQuery.top20Result.value" :db-loaded="dbLoaded" />
   </div>
 </template>
 

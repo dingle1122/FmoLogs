@@ -1,5 +1,5 @@
 <template>
-  <div class="old-friends-container">
+  <div ref="containerRef" class="old-friends-container">
     <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
     <template v-else-if="oldFriendsResult && oldFriendsResult.data.length > 0">
       <div class="old-friends-grid">
@@ -23,15 +23,25 @@
           </div>
         </div>
       </div>
+      <!-- 滚动加载观察器（仅移动端显示） -->
+      <div ref="loadMoreRef" class="load-more-trigger">
+        <template v-if="loadingMore">
+          <span class="loading-spinner"></span>
+          加载中...
+        </template>
+        <template v-else-if="!hasMore"> 没有更多数据 </template>
+      </div>
     </template>
     <div v-else-if="oldFriendsResult" class="empty-hint">暂无数据</div>
   </div>
 </template>
 
 <script setup>
+/* global IntersectionObserver */
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { formatTimestamp, isTodayContact } from './constants'
 
-defineProps({
+const props = defineProps({
   oldFriendsResult: {
     type: Object,
     default: null
@@ -39,10 +49,81 @@ defineProps({
   dbLoaded: {
     type: Boolean,
     default: false
+  },
+  loadingMore: {
+    type: Boolean,
+    default: false
+  },
+  hasMore: {
+    type: Boolean,
+    default: true
   }
 })
 
-defineEmits(['show-records'])
+const emit = defineEmits(['show-records', 'load-more'])
+
+const containerRef = ref(null)
+const loadMoreRef = ref(null)
+let observer = null
+
+function isMobile() {
+  return window.innerWidth <= 768
+}
+
+function setupObserver() {
+  if (!isMobile() || !loadMoreRef.value) return
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry.isIntersecting && !props.loadingMore && props.hasMore) {
+        emit('load-more')
+      }
+    },
+    {
+      root: containerRef.value,
+      rootMargin: '100px',
+      threshold: 0
+    }
+  )
+  observer.observe(loadMoreRef.value)
+}
+
+function cleanupObserver() {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+}
+
+onMounted(() => {
+  setupObserver()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  cleanupObserver()
+  window.removeEventListener('resize', handleResize)
+})
+
+function handleResize() {
+  cleanupObserver()
+  if (isMobile() && loadMoreRef.value) {
+    setupObserver()
+  }
+}
+
+watch(
+  () => props.oldFriendsResult,
+  () => {
+    cleanupObserver()
+    setTimeout(() => {
+      if (isMobile() && loadMoreRef.value) {
+        setupObserver()
+      }
+    }, 100)
+  }
+)
 </script>
 
 <style scoped>
@@ -124,6 +205,33 @@ defineEmits(['show-records'])
   text-overflow: ellipsis;
 }
 
+/* 滚动加载提示 */
+.load-more-trigger {
+  display: none;
+  text-align: center;
+  padding: 1rem;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-primary);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 1024px) {
   .old-friends-grid {
     grid-template-columns: repeat(4, 1fr);
@@ -131,8 +239,16 @@ defineEmits(['show-records'])
 }
 
 @media (max-width: 768px) {
+  .old-friends-container {
+    margin-top: 0.5rem;
+  }
+
   .old-friends-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  .load-more-trigger {
+    display: block;
   }
 }
 
