@@ -5,7 +5,7 @@
       :today-logs="todayLogs"
       :total-logs="totalLogs"
       :unique-callsigns="uniqueCallsigns"
-      :current-query-type="dataQuery.currentQueryType.value"
+      :current-query-type="currentQueryType"
       :db-loaded="dbLoaded"
       @open-settings="showSettings = true"
       @query-type-change="handleNavTabClick"
@@ -21,83 +21,26 @@
       @click="showSpeakingHistory = true"
     />
 
-    <div class="content-area">
-      <!-- 自动同步消息 -->
-      <div v-if="fmoSync.autoSyncMessage.value" class="auto-sync-hint">
-        {{ fmoSync.autoSyncMessage.value }}
-      </div>
-
-      <!-- 加载状态 -->
-      <div v-if="loading || dataQuery.loading.value" class="loading">
-        <template v-if="importProgress">
-          正在导入数据... {{ importProgress.current }} /
-          {{ importProgress.total }}
-        </template>
-        <template v-else> 加载中... </template>
-      </div>
-
-      <!-- 错误提示 -->
-      <div v-if="error || dataQuery.error.value" class="error">
-        {{ error || dataQuery.error.value }}
-      </div>
-
-      <!-- 过滤区域 -->
-      <QuerySection
-        v-model:search-keyword="dataQuery.searchKeyword.value"
-        v-model:old-friends-search-keyword="dataQuery.oldFriendsSearchKeyword.value"
-        v-model:filter-date="dataQuery.filterDate.value"
-        :current-query-type="dataQuery.currentQueryType.value"
-        :from-callsign="selectedFromCallsign"
+    <!-- 路由视图 -->
+    <router-view
+      v-slot="{ Component }"
+      class="content-area"
+    >
+      <component
+        :is="Component"
         :db-loaded="dbLoaded"
-        @update:search-keyword="onSearchInput"
-        @update:old-friends-search-keyword="onOldFriendsSearchInput"
-        @update:filter-date="onFilterDateChange"
-      />
-
-      <!-- TOP20汇总视图 -->
-      <Top20Summary
-        v-if="dataQuery.currentQueryType.value === 'top20Summary'"
-        :top20-result="dataQuery.top20Result.value"
-        :db-loaded="dbLoaded"
-      />
-
-      <!-- 老朋友卡片视图 -->
-      <OldFriendsList
-        v-else-if="dataQuery.currentQueryType.value === 'oldFriends'"
-        :old-friends-result="dataQuery.oldFriendsResult.value"
-        :db-loaded="dbLoaded"
-        @show-records="handleShowCallsignRecords"
-      />
-
-      <!-- 数据表格 -->
-      <LogDataTable
-        v-else
-        :query-result="dataQuery.queryResult.value"
-        :display-columns="displayColumns"
-        :db-loaded="dbLoaded"
+        :selected-from-callsign="selectedFromCallsign"
+        :loading="loading || dataQuery.loading.value"
+        :error="error || dataQuery.error.value"
+        :import-progress="importProgress"
+        :fmo-sync-message="fmoSync.autoSyncMessage.value"
+        :data-query="dataQuery"
+        :callsign-records="callsignRecords"
+        @execute-query="executeQuery"
         @show-detail="showDetailModal"
+        @show-callsign-records="handleShowCallsignRecords"
       />
-
-      <!-- 分页 - 全部记录 -->
-      <PaginationControl
-        v-if="dataQuery.currentQueryType.value === 'all'"
-        :current-page="dataQuery.currentPage.value"
-        :total-pages="dataQuery.totalPages.value"
-        :total-records="dataQuery.totalRecords.value"
-        :disabled="!dbLoaded"
-        @page-change="handlePageChange"
-      />
-
-      <!-- 分页 - 老朋友 -->
-      <PaginationControl
-        v-if="dataQuery.currentQueryType.value === 'oldFriends' && dataQuery.oldFriendsResult.value"
-        :current-page="dataQuery.oldFriendsPage.value"
-        :total-pages="dataQuery.oldFriendsTotalPages.value"
-        :total-records="dataQuery.oldFriendsResult.value?.total"
-        :disabled="!dbLoaded"
-        @page-change="handleOldFriendsPageChange"
-      />
-    </div>
+    </router-view>
 
     <!-- 详情弹框 -->
     <DetailModal
@@ -150,7 +93,7 @@
       type="file"
       accept=".db"
       multiple
-      style="display: none"
+      class="hidden-input"
       @change="handleFileSelect"
     />
 
@@ -184,16 +127,16 @@
 
     <!-- 底部导航栏（手机端显示） -->
     <nav class="query-nav mobile-nav">
-      <button
-        v-for="(name, type) in QueryTypeNames"
-        :key="type"
+      <router-link
+        v-for="route in navRoutes"
+        :key="route.path"
+        :to="dbLoaded ? route.path : $route.path"
         class="nav-tab"
-        :class="{ active: dataQuery.currentQueryType.value === type }"
-        :disabled="!dbLoaded"
-        @click="handleNavTabClick(type)"
+        :class="{ disabled: !dbLoaded }"
       >
+        <!-- 全部记录图标 -->
         <svg
-          v-if="type === 'all'"
+          v-if="route.type === 'logs'"
           class="nav-icon"
           viewBox="0 0 24 24"
           fill="none"
@@ -209,8 +152,9 @@
           <line x1="3" y1="12" x2="3.01" y2="12" />
           <line x1="3" y1="18" x2="3.01" y2="18" />
         </svg>
+        <!-- TOP20图标 -->
         <svg
-          v-else-if="type === 'top20Summary'"
+          v-else-if="route.type === 'top20'"
           class="nav-icon"
           viewBox="0 0 24 24"
           fill="none"
@@ -224,8 +168,9 @@
           <path d="M6 13h12" />
           <path d="M8 20h8" />
         </svg>
+        <!-- 老朋友图标 -->
         <svg
-          v-else-if="type === 'oldFriends'"
+          v-else-if="route.type === 'oldFriends'"
           class="nav-icon"
           viewBox="0 0 24 24"
           fill="none"
@@ -239,23 +184,19 @@
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
-        <span class="nav-label">{{ name }}</span>
-      </button>
+        <span class="nav-label">{{ route.label }}</span>
+      </router-link>
     </nav>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, provide } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 // 组件
 import AppHeader from '../components/home/AppHeader.vue'
 import SpeakingBar from '../components/home/SpeakingBar.vue'
-import QuerySection from '../components/home/QuerySection.vue'
-import Top20Summary from '../components/home/Top20Summary.vue'
-import OldFriendsList from '../components/home/OldFriendsList.vue'
-import LogDataTable from '../components/home/LogDataTable.vue'
-import PaginationControl from '../components/home/PaginationControl.vue'
 import DetailModal from '../components/home/modals/DetailModal.vue'
 import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal.vue'
 import SettingsModal from '../components/home/modals/SettingsModal.vue'
@@ -274,8 +215,29 @@ import { exportDataToDbFile } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
 
-// 常量
-import { DEFAULT_COLUMNS, QueryTypeNames } from '../components/home/constants'
+// 路由
+const route = useRoute()
+const router = useRouter()
+
+// 路由到查询类型的映射
+const routeToQueryType = {
+  logs: 'all',
+  top20: 'top20Summary',
+  oldFriends: 'oldFriends'
+}
+
+const queryTypeToRoute = {
+  all: '/logs',
+  top20Summary: '/top20',
+  oldFriends: '/old-friends'
+}
+
+// 导航路由配置
+const navRoutes = [
+  { path: '/logs', label: '全部记录', type: 'logs' },
+  { path: '/top20', label: 'TOP20', type: 'top20' },
+  { path: '/old-friends', label: '老朋友', type: 'oldFriends' }
+]
 
 // UI 状态
 const showSettings = ref(false)
@@ -351,63 +313,29 @@ const fmoSync = useFmoSync({
   getEventsConnected: () => speakingStatus.eventsConnected.value
 })
 
-// 计算属性
-const displayColumns = computed(() => {
-  if (dataQuery.queryResult.value) {
-    return dataQuery.queryResult.value.columns
-  }
-  return DEFAULT_COLUMNS
+// 计算当前查询类型（根据路由）
+const currentQueryType = computed(() => {
+  const routeName = route.name
+  return routeToQueryType[routeName] || 'all'
 })
 
-// 防抖定时器
-let searchTimer = null
-let oldFriendsSearchTimer = null
+// 同步路由变化到 dataQuery
+watch(currentQueryType, (newType) => {
+  if (dataQuery.currentQueryType.value !== newType) {
+    dataQuery.currentQueryType.value = newType
+  }
+})
 
 // 查询方法
 async function executeQuery() {
   await dataQuery.executeQuery(selectedFromCallsign.value, dbLoaded.value)
 }
 
-function handleQueryTypeChange() {
-  dataQuery.handleQueryTypeChange()
-  executeQuery()
-}
-
 function handleNavTabClick(type) {
-  if (dataQuery.currentQueryType.value === type) return
-  dataQuery.currentQueryType.value = type
-  handleQueryTypeChange()
-}
-
-function onSearchInput() {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => {
-    dataQuery.currentPage.value = 1
-    executeQuery()
-  }, 300)
-}
-
-function onOldFriendsSearchInput() {
-  if (oldFriendsSearchTimer) clearTimeout(oldFriendsSearchTimer)
-  oldFriendsSearchTimer = setTimeout(() => {
-    dataQuery.oldFriendsPage.value = 1
-    executeQuery()
-  }, 300)
-}
-
-function onFilterDateChange() {
-  dataQuery.currentPage.value = 1
-  executeQuery()
-}
-
-function handlePageChange(page) {
-  dataQuery.goToPage(page)
-  executeQuery()
-}
-
-function handleOldFriendsPageChange(page) {
-  dataQuery.goToOldFriendsPage(page)
-  executeQuery()
+  const targetRoute = queryTypeToRoute[type]
+  if (targetRoute && route.path !== targetRoute) {
+    router.push(targetRoute)
+  }
 }
 
 function handleFromCallsignChange(value) {
@@ -621,6 +549,7 @@ async function handleFileSelect(event) {
   if (success) {
     dataQuery.currentQueryType.value = 'all'
     dataQuery.currentPage.value = 1
+    router.push('/logs')
     executeQuery()
   }
   event.target.value = ''
@@ -783,10 +712,29 @@ watch(
   }
 )
 
+// 路由变化时执行查询
+watch(
+  () => route.name,
+  async (newName, oldName) => {
+    if (newName !== oldName && dbLoaded.value) {
+      // 更新 dataQuery 的查询类型
+      const queryType = routeToQueryType[newName]
+      if (queryType && dataQuery.currentQueryType.value !== queryType) {
+        dataQuery.currentQueryType.value = queryType
+        dataQuery.handleQueryTypeChange()
+        await executeQuery()
+      }
+    }
+  }
+)
+
 // 生命周期
 onMounted(async () => {
   const restored = await tryRestoreDirectory()
   if (restored) {
+    // 根据当前路由设置查询类型
+    const queryType = routeToQueryType[route.name] || 'all'
+    dataQuery.currentQueryType.value = queryType
     executeQuery()
   }
 
@@ -800,15 +748,17 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // 清理搜索防抖定时器
-  if (searchTimer) clearTimeout(searchTimer)
-  if (oldFriendsSearchTimer) clearTimeout(oldFriendsSearchTimer)
   if (stationPollTimer) clearTimeout(stationPollTimer)
 
   fmoSync.stopAutoSyncTask()
   speakingStatus.stopSpeakingHistoryCleanup()
   speakingStatus.disconnectEventWs()
 })
+
+// 提供共享状态给子组件
+provide('dbLoaded', dbLoaded)
+provide('selectedFromCallsign', selectedFromCallsign)
+provide('executeQuery', executeQuery)
 </script>
 
 <style scoped>
@@ -849,19 +799,21 @@ onUnmounted(() => {
   cursor: pointer;
   transition: color 0.2s;
   font-family: inherit;
+  text-decoration: none;
 }
 
-.mobile-nav .nav-tab:hover:not(:disabled) {
+.mobile-nav .nav-tab:hover:not(.disabled) {
   background: none;
 }
 
-.mobile-nav .nav-tab.active {
+.mobile-nav .nav-tab.router-link-active {
   color: var(--color-primary);
 }
 
-.mobile-nav .nav-tab:disabled {
+.mobile-nav .nav-tab.disabled {
   color: var(--text-disabled);
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .nav-icon {
@@ -874,6 +826,10 @@ onUnmounted(() => {
   line-height: 1;
 }
 
+.hidden-input {
+  display: none;
+}
+
 .content-area {
   flex: 1;
   overflow: hidden;
@@ -881,42 +837,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   position: relative;
-}
-
-.auto-sync-hint {
-  background: var(--bg-success-light);
-  color: var(--color-success);
-  padding: 8px 16px;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  border: 1px solid var(--color-success-border);
-  font-size: 14px;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.loading {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-secondary);
-}
-
-.error {
-  padding: 1rem;
-  background: var(--bg-error-light);
-  color: var(--color-danger);
-  border-radius: 4px;
-  margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {
