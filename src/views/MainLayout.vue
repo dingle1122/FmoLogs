@@ -5,10 +5,8 @@
       :today-logs="todayLogs"
       :total-logs="totalLogs"
       :unique-callsigns="uniqueCallsigns"
-      :current-query-type="currentQueryType"
       :db-loaded="dbLoaded"
       @open-settings="showSettings = true"
-      @query-type-change="handleNavTabClick"
     />
 
     <!-- 发言状态条 -->
@@ -125,7 +123,7 @@
     <!-- 底部导航栏（手机端显示） -->
     <nav class="query-nav mobile-nav">
       <router-link
-        v-for="route in navRoutes"
+        v-for="route in NAV_ROUTES"
         :key="route.path"
         :to="dbLoaded ? route.path : $route.path"
         class="nav-tab"
@@ -211,30 +209,11 @@ import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
+import { NAV_ROUTES } from '../components/home/constants'
 
 // 路由
 const route = useRoute()
 const router = useRouter()
-
-// 路由到查询类型的映射
-const routeToQueryType = {
-  logs: 'all',
-  top20: 'top20Summary',
-  oldFriends: 'oldFriends'
-}
-
-const queryTypeToRoute = {
-  all: '/logs',
-  top20Summary: '/top20',
-  oldFriends: '/old-friends'
-}
-
-// 导航路由配置
-const navRoutes = [
-  { path: '/logs', label: '全部记录', type: 'logs' },
-  { path: '/top20', label: 'TOP20', type: 'top20' },
-  { path: '/old-friends', label: '老朋友', type: 'oldFriends' }
-]
 
 // UI 状态
 const showSettings = ref(false)
@@ -310,7 +289,13 @@ const fmoSync = useFmoSync({
   getEventsConnected: () => speakingStatus.eventsConnected.value
 })
 
-// 计算当前查询类型（根据路由）
+// 计算当前查询类型（根据路由名称映射）
+const routeToQueryType = {
+  logs: 'all',
+  top20: 'top20Summary',
+  oldFriends: 'oldFriends'
+}
+
 const currentQueryType = computed(() => {
   const routeName = route.name
   return routeToQueryType[routeName] || 'all'
@@ -326,13 +311,6 @@ watch(currentQueryType, (newType) => {
 // 查询方法
 async function executeQuery() {
   await dataQuery.executeQuery(selectedFromCallsign.value, dbLoaded.value)
-}
-
-function handleNavTabClick(type) {
-  const targetRoute = queryTypeToRoute[type]
-  if (targetRoute && route.path !== targetRoute) {
-    router.push(targetRoute)
-  }
 }
 
 function handleFromCallsignChange(value) {

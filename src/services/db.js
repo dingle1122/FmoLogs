@@ -232,13 +232,6 @@ export const QueryTypes = {
   TO_GRID: 'toGrid'
 }
 
-// 查询类型名称映射
-export const QueryTypeNames = {
-  [QueryTypes.ALL]: '查看所有',
-  [QueryTypes.TOP20_SUMMARY]: '通联排名',
-  [QueryTypes.OLD_FRIENDS]: '老朋友'
-}
-
 // 表头中文映射
 export const ColumnNames = {
   dailyIndex: '序号',

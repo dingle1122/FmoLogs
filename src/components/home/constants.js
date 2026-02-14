@@ -1,11 +1,17 @@
 // 从 db.js 重新导出常量，保持兼容性
 export {
   QueryTypes,
-  QueryTypeNames,
   ColumnNames,
   formatTimestamp,
   formatFreqHz
 } from '../../services/db'
+
+// 导航路由配置（桌面端和手机端共用）
+export const NAV_ROUTES = [
+  { path: '/logs', label: '通联日志', type: 'logs' },
+  { path: '/top20', label: '排行榜', type: 'top20' },
+  { path: '/old-friends', label: '老朋友', type: 'oldFriends' }
+]
 
 // 默认列（查看所有模式）
 export const DEFAULT_COLUMNS = [

@@ -12,16 +12,15 @@
       </span>
     </div>
     <nav class="header-nav">
-      <button
-        v-for="(name, type) in QueryTypeNames"
-        :key="type"
+      <router-link
+        v-for="route in NAV_ROUTES"
+        :key="route.path"
+        :to="dbLoaded ? route.path : $route.path"
         class="nav-tab"
-        :class="{ active: currentQueryType === type }"
-        :disabled="!dbLoaded"
-        @click="$emit('query-type-change', type)"
+        :class="{ disabled: !dbLoaded }"
       >
-        {{ name }}
-      </button>
+        {{ route.label }}
+      </router-link>
     </nav>
     <div class="header-actions">
       <a
@@ -49,7 +48,7 @@
 </template>
 
 <script setup>
-import { QueryTypeNames } from './constants'
+import { NAV_ROUTES } from './constants'
 
 defineProps({
   todayLogs: {
@@ -64,17 +63,13 @@ defineProps({
     type: Number,
     default: 0
   },
-  currentQueryType: {
-    type: String,
-    default: 'all'
-  },
   dbLoaded: {
     type: Boolean,
     default: false
   }
 })
 
-defineEmits(['open-settings', 'query-type-change'])
+defineEmits(['open-settings'])
 </script>
 
 <style scoped>
@@ -132,18 +127,20 @@ defineEmits(['open-settings', 'query-type-change'])
   cursor: pointer;
   transition: color 0.2s;
   font-family: inherit;
+  text-decoration: none;
+  display: inline-block;
 }
 
-.nav-tab:hover:not(:disabled) {
+.nav-tab:hover:not(.disabled) {
   color: var(--color-primary);
   background: none;
 }
 
-.nav-tab.active {
+.nav-tab.router-link-active {
   color: var(--color-primary);
 }
 
-.nav-tab.active::after {
+.nav-tab.router-link-active::after {
   content: '';
   position: absolute;
   bottom: -0.75rem;
@@ -154,9 +151,10 @@ defineEmits(['open-settings', 'query-type-change'])
   border-radius: 1px 1px 0 0;
 }
 
-.nav-tab:disabled {
+.nav-tab.disabled {
   color: var(--text-disabled);
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .header-actions {
