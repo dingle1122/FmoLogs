@@ -47,6 +47,7 @@ onMounted(() => {
 @media (max-width: 768px) {
   .top20-view {
     height: auto;
+    margin-top: 0.5rem;
   }
 }
 </style>

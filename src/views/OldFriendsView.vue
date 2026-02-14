@@ -118,6 +118,7 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .old-friends-view {
     height: auto;
+    margin-top: 0.5rem;
   }
 }
 </style>

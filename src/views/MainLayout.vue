@@ -860,8 +860,9 @@ provide('executeQuery', executeQuery)
 
 @media (max-width: 768px) {
   .content-area {
-    padding: 0.5rem;
+    padding: 0 0.5rem 0.5rem;
     overflow-y: auto;
+    min-height: 0;
   }
 
   .mobile-nav {

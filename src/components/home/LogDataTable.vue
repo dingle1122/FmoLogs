@@ -202,18 +202,25 @@ function formatTimePart(dateTimeStr) {
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.9rem;
   table-layout: fixed;
 }
 
 .data-table th,
 .data-table td {
-  border: 1px solid var(--border-table);
+  border-bottom: 1px solid var(--border-table);
+  border-right: 1px solid var(--border-table);
   padding: 0.5rem;
   text-align: left;
   word-wrap: break-word;
   overflow-wrap: break-word;
+}
+
+.data-table th:first-child,
+.data-table td:first-child {
+  border-left: 1px solid var(--border-table);
 }
 
 .data-table th {
@@ -223,6 +230,7 @@ function formatTimePart(dateTimeStr) {
   top: 0;
   z-index: 1;
   text-align: center;
+  border-top: 1px solid var(--border-table);
 }
 
 /* 列宽设置 */
