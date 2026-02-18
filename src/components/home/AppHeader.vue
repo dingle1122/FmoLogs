@@ -2,6 +2,7 @@
   <header class="header">
     <div class="header-left">
       <img src="/vite.svg" alt="FMO Logs" class="header-logo" />
+      <span class="header-divider"></span>
       <h1 class="header-title">FMO 日志查看器</h1>
       <span class="total-logs">
         <span class="star">&#11088;</span>
@@ -104,6 +105,14 @@ defineEmits(['open-settings'])
   flex-shrink: 0;
 }
 
+.header-divider {
+  display: none;
+  width: 1px;
+  height: 20px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
 .total-logs {
   font-size: 1.1rem;
   color: var(--text-secondary);
@@ -201,6 +210,10 @@ defineEmits(['open-settings'])
   }
 
   .header-logo {
+    display: block;
+  }
+
+  .header-divider {
     display: block;
   }
 
