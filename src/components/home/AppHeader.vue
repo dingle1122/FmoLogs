@@ -1,7 +1,8 @@
 <template>
   <header class="header">
     <div class="header-left">
-      <h1>FMO 日志查看器</h1>
+      <img src="/vite.svg" alt="FMO Logs" class="header-logo" />
+      <h1 class="header-title">FMO 日志查看器</h1>
       <span class="total-logs">
         <span class="star">&#11088;</span>
         <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
@@ -91,9 +92,16 @@ defineEmits(['open-settings'])
   flex-shrink: 0;
 }
 
-.header h1 {
+.header-title {
   margin: 0;
   font-size: 1.1rem;
+}
+
+.header-logo {
+  display: none;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }
 
 .total-logs {
@@ -188,8 +196,12 @@ defineEmits(['open-settings'])
     padding: 0.5rem 0.75rem;
   }
 
-  .header h1 {
-    font-size: 1.1rem;
+  .header-title {
+    display: none;
+  }
+
+  .header-logo {
+    display: block;
   }
 
   .header-left {
@@ -214,8 +226,8 @@ defineEmits(['open-settings'])
 }
 
 @media (max-width: 480px) {
-  .header h1 {
-    font-size: 1rem;
+  .header-title {
+    display: none;
   }
 }
 </style>
