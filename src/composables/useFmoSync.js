@@ -89,11 +89,15 @@ export function useFmoSync(options = {}) {
         item.toCallsign
       )
       if (!exists) {
+        // 在请求详情前延迟100ms
+        await new Promise((resolve) => setTimeout(resolve, 100))
         const detailResponse = await client.getQsoDetail(item.logId)
         qso = detailResponse.log
         if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
       }
     } else {
+      // 在请求详情前延迟100ms
+      await new Promise((resolve) => setTimeout(resolve, 100))
       const detailResponse = await client.getQsoDetail(item.logId)
       qso = detailResponse.log
       if (qso) {
@@ -380,11 +384,15 @@ export function useFmoSync(options = {}) {
               item.toCallsign
             )
             if (!exists) {
+              // 在请求详情前延迟100ms
+              await new Promise((resolve) => setTimeout(resolve, 100))
               const detailResponse = await client.getQsoDetail(item.logId)
               qso = detailResponse.log
               if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
             }
           } else {
+            // 在请求详情前延迟100ms
+            await new Promise((resolve) => setTimeout(resolve, 100))
             const detailResponse = await client.getQsoDetail(item.logId)
             qso = detailResponse.log
             if (qso) {
@@ -471,10 +479,14 @@ export function useFmoSync(options = {}) {
           let qso = null
 
           if (currentFromCallsign) {
+            // 在请求详情前延迟100ms
+            await new Promise((resolve) => setTimeout(resolve, 100))
             const detailResponse = await client.getQsoDetail(item.logId)
             qso = detailResponse.log
             if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
           } else {
+            // 在请求详情前延迟100ms
+            await new Promise((resolve) => setTimeout(resolve, 100))
             const detailResponse = await client.getQsoDetail(item.logId)
             qso = detailResponse.log
           }
