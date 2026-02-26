@@ -20,6 +20,7 @@ export function useFmoSync(options = {}) {
   const syncing = ref(false)
   const syncStatus = ref('')
   const autoSyncMessage = ref('')
+  const syncFailedRecords = ref([])
 
   let autoSyncTimer = null
   let autoSyncMessageTimer = null
@@ -82,35 +83,46 @@ export function useFmoSync(options = {}) {
     if (item.timestamp < todayStart) return null
 
     let qso = null
-    if (currentFromCallsign) {
-      const exists = await isQsoExistsInIndexedDB(
-        currentFromCallsign,
-        item.timestamp,
-        item.toCallsign
-      )
-      if (!exists) {
+    try {
+      if (currentFromCallsign) {
+        const exists = await isQsoExistsInIndexedDB(
+          currentFromCallsign,
+          item.timestamp,
+          item.toCallsign
+        )
+        if (!exists) {
+          // 在请求详情前延迟100ms
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          const detailResponse = await client.getQsoDetail(item.logId)
+          qso = detailResponse.log
+          if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+        }
+      } else {
         // 在请求详情前延迟100ms
         await new Promise((resolve) => setTimeout(resolve, 100))
         const detailResponse = await client.getQsoDetail(item.logId)
         qso = detailResponse.log
-        if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+        if (qso) {
+          const exists = await isQsoExistsInIndexedDB(qso.fromCallsign, qso.timestamp, qso.toCallsign)
+          if (exists) qso = null
+        }
       }
-    } else {
-      // 在请求详情前延迟100ms
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      const detailResponse = await client.getQsoDetail(item.logId)
-      qso = detailResponse.log
+
       if (qso) {
-        const exists = await isQsoExistsInIndexedDB(qso.fromCallsign, qso.timestamp, qso.toCallsign)
-        if (exists) qso = null
+        await saveSingleQsoToIndexedDB(qso)
       }
-    }
 
-    if (qso) {
-      await saveSingleQsoToIndexedDB(qso)
+      return qso
+    } catch (err) {
+      console.warn(`获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`, err.message)
+      syncFailedRecords.value.push({
+        logId: item.logId,
+        toCallsign: item.toCallsign,
+        timestamp: item.timestamp,
+        error: err.message
+      })
+      return null
     }
-
-    return qso
   }
 
   // 同步后的数据更新
@@ -288,6 +300,7 @@ export function useFmoSync(options = {}) {
 
     syncing.value = true
     syncStatus.value = '连接 FMO...'
+    syncFailedRecords.value = []
 
     const host = normalizeHost(fmoAddress)
     const fullAddress = `${protocol}://${host}`
@@ -301,7 +314,13 @@ export function useFmoSync(options = {}) {
         syncStatus.value = status
       })
 
-      syncStatus.value = `同步完成，共更新 ${totalSynced} 条记录`
+      const failedCount = syncFailedRecords.value.length
+      if (failedCount > 0) {
+        syncStatus.value = `同步完成，共更新 ${totalSynced} 条记录，${failedCount} 条失败`
+        console.warn('同步失败的记录:', syncFailedRecords.value)
+      } else {
+        syncStatus.value = `同步完成，共更新 ${totalSynced} 条记录`
+      }
 
       const callsigns = await getAvailableFromCallsigns()
       onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
@@ -346,6 +365,7 @@ export function useFmoSync(options = {}) {
 
     syncing.value = true
     syncStatus.value = '连接 FMO...'
+    syncFailedRecords.value = []
 
     const host = normalizeHost(fmoAddress)
     const fullAddress = `${protocol}://${host}`
@@ -374,40 +394,51 @@ export function useFmoSync(options = {}) {
         for (const item of list) {
           if (isUnmounted) break
 
-          let qso = null
-          let exists = false
+          try {
+            let qso = null
+            let exists = false
 
-          if (currentFromCallsign) {
-            exists = await isQsoExistsInIndexedDB(
-              currentFromCallsign,
-              item.timestamp,
-              item.toCallsign
-            )
-            if (!exists) {
+            if (currentFromCallsign) {
+              exists = await isQsoExistsInIndexedDB(
+                currentFromCallsign,
+                item.timestamp,
+                item.toCallsign
+              )
+              if (!exists) {
+                // 在请求详情前延迟100ms
+                await new Promise((resolve) => setTimeout(resolve, 100))
+                const detailResponse = await client.getQsoDetail(item.logId)
+                qso = detailResponse.log
+                if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+              }
+            } else {
               // 在请求详情前延迟100ms
               await new Promise((resolve) => setTimeout(resolve, 100))
               const detailResponse = await client.getQsoDetail(item.logId)
               qso = detailResponse.log
-              if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+              if (qso) {
+                exists = await isQsoExistsInIndexedDB(
+                  qso.fromCallsign,
+                  qso.timestamp,
+                  qso.toCallsign
+                )
+              }
             }
-          } else {
-            // 在请求详情前延迟100ms
-            await new Promise((resolve) => setTimeout(resolve, 100))
-            const detailResponse = await client.getQsoDetail(item.logId)
-            qso = detailResponse.log
-            if (qso) {
-              exists = await isQsoExistsInIndexedDB(
-                qso.fromCallsign,
-                qso.timestamp,
-                qso.toCallsign
-              )
-            }
-          }
 
-          if (qso && !exists) {
-            await saveSingleQsoToIndexedDB(qso)
-            totalSynced++
-            syncStatus.value = `已处理 ${totalProcessed} 条，新增 ${totalSynced} 条`
+            if (qso && !exists) {
+              await saveSingleQsoToIndexedDB(qso)
+              totalSynced++
+              syncStatus.value = `已处理 ${totalProcessed} 条，新增 ${totalSynced} 条`
+            }
+          } catch (err) {
+            console.warn(`获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`, err.message)
+            syncFailedRecords.value.push({
+              logId: item.logId,
+              toCallsign: item.toCallsign,
+              timestamp: item.timestamp,
+              error: err.message
+            })
+            // 继续处理下一条记录
           }
         }
 
@@ -422,7 +453,13 @@ export function useFmoSync(options = {}) {
         }
       }
 
-      syncStatus.value = `增量同步完成，共处理 ${totalProcessed} 条记录，新增 ${totalSynced} 条`
+      const failedCount = syncFailedRecords.value.length
+      if (failedCount > 0) {
+        syncStatus.value = `增量同步完成，共处理 ${totalProcessed} 条记录，新增 ${totalSynced} 条，${failedCount} 条失败`
+        console.warn('同步失败的记录:', syncFailedRecords.value)
+      } else {
+        syncStatus.value = `增量同步完成，共处理 ${totalProcessed} 条记录，新增 ${totalSynced} 条`
+      }
 
       const callsigns = await getAvailableFromCallsigns()
       onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
@@ -448,6 +485,7 @@ export function useFmoSync(options = {}) {
 
     syncing.value = true
     syncStatus.value = '连接 FMO...'
+    syncFailedRecords.value = []
 
     const host = normalizeHost(fmoAddress)
     const fullAddress = `${protocol}://${host}`
@@ -476,26 +514,37 @@ export function useFmoSync(options = {}) {
         for (const item of list) {
           if (isUnmounted) break
 
-          let qso = null
+          try {
+            let qso = null
 
-          if (currentFromCallsign) {
-            // 在请求详情前延迟100ms
-            await new Promise((resolve) => setTimeout(resolve, 100))
-            const detailResponse = await client.getQsoDetail(item.logId)
-            qso = detailResponse.log
-            if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
-          } else {
-            // 在请求详情前延迟100ms
-            await new Promise((resolve) => setTimeout(resolve, 100))
-            const detailResponse = await client.getQsoDetail(item.logId)
-            qso = detailResponse.log
-          }
+            if (currentFromCallsign) {
+              // 在请求详情前延迟100ms
+              await new Promise((resolve) => setTimeout(resolve, 100))
+              const detailResponse = await client.getQsoDetail(item.logId)
+              qso = detailResponse.log
+              if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+            } else {
+              // 在请求详情前延迟100ms
+              await new Promise((resolve) => setTimeout(resolve, 100))
+              const detailResponse = await client.getQsoDetail(item.logId)
+              qso = detailResponse.log
+            }
 
-          if (qso) {
-            // 直接保存，覆盖已存在的记录
-            await saveSingleQsoToIndexedDB(qso)
-            totalSynced++
-            syncStatus.value = `已处理 ${totalProcessed} 条，已同步 ${totalSynced} 条`
+            if (qso) {
+              // 直接保存，覆盖已存在的记录
+              await saveSingleQsoToIndexedDB(qso)
+              totalSynced++
+              syncStatus.value = `已处理 ${totalProcessed} 条，已同步 ${totalSynced} 条`
+            }
+          } catch (err) {
+            console.warn(`获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`, err.message)
+            syncFailedRecords.value.push({
+              logId: item.logId,
+              toCallsign: item.toCallsign,
+              timestamp: item.timestamp,
+              error: err.message
+            })
+            // 继续处理下一条记录
           }
         }
 
@@ -510,7 +559,13 @@ export function useFmoSync(options = {}) {
         }
       }
 
-      syncStatus.value = `全量同步完成，共处理 ${totalProcessed} 条记录，已同步 ${totalSynced} 条`
+      const failedCount = syncFailedRecords.value.length
+      if (failedCount > 0) {
+        syncStatus.value = `全量同步完成，共处理 ${totalProcessed} 条记录，已同步 ${totalSynced} 条，${failedCount} 条失败`
+        console.warn('同步失败的记录:', syncFailedRecords.value)
+      } else {
+        syncStatus.value = `全量同步完成，共处理 ${totalProcessed} 条记录，已同步 ${totalSynced} 条`
+      }
 
       const callsigns = await getAvailableFromCallsigns()
       onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
@@ -534,6 +589,7 @@ export function useFmoSync(options = {}) {
     syncing,
     syncStatus,
     autoSyncMessage,
+    syncFailedRecords,
     syncToday,
     syncIncremental,
     syncFull,
