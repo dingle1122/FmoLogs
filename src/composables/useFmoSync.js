@@ -135,22 +135,18 @@ export function useFmoSync(options = {}) {
     const speakingHistory = getSpeakingHistory?.() || []
     const currentCallsign = getSelectedFromCallsign?.()
 
-    // 如果 /events 连接成功
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
+    const hasRecentSpeaking = speakingHistory.some((h) => {
+      const time = h.endTime || h.startTime
+      return h.callsign === currentCallsign && time > fiveMinutesAgo
+    })
+
+    // 如果 /events 连接成功，则严格按照“5 分钟内有发言记录”来决定是否同步
     if (eventsConnected) {
-      // 检查发言历史中是否有当前呼号
-      if (currentCallsign && speakingHistory.length > 0) {
-        // 查找当前呼号在发言历史中的记录
-        const currentCallsignHistory = speakingHistory.find((h) => h.callsign === currentCallsign)
-        if (currentCallsignHistory) {
-          // 有当前呼号发言记录，继续定时同步（考虑日志记录延迟）
-          return true
-        }
-      }
-      // /events 连接成功但列表中没有当前呼号，不需要定时同步
-      return false
+      return hasRecentSpeaking
     }
 
-    // /events 未连接或断开，继续使用原来的逻辑
+    // /events 未连接或断开时，继续使用降级逻辑
     if (!speakingHistory || speakingHistory.length === 0) {
       return true
     }
@@ -158,12 +154,6 @@ export function useFmoSync(options = {}) {
     if (!currentCallsign) {
       return true
     }
-
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
-    const hasRecentSpeaking = speakingHistory.some((h) => {
-      const time = h.endTime || h.startTime
-      return h.callsign === currentCallsign && time > fiveMinutesAgo
-    })
 
     return hasRecentSpeaking
   }
