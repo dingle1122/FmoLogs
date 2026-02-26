@@ -37,11 +37,11 @@
               >
             </span>
             <div class="history-time">
-              <div>
+              <div class="speaking-time">
                 <template v-if="!record.endTime">正在发言</template>
                 <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
               </div>
-              <div>
+              <div class="duration-time">
                 {{ formatDurationMmSs(((record.endTime || now) - record.startTime)) }}
               </div>
             </div>
@@ -269,12 +269,29 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 }
 
 .history-time {
-  font-size: 1.1rem;
-  color: var(--text-tertiary);
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  line-height: 1.2;
 }
 
-.speaking-history-item.is-speaking .history-time {
+.speaking-time {
+  font-size: 1.1rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.duration-time {
+  font-size: 0.95rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.speaking-history-item.is-speaking .speaking-time,
+.speaking-history-item.is-speaking .duration-time {
   color: var(--color-speaking);
 }
 
@@ -319,8 +336,12 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
     font-size: 1rem;
   }
 
-  .history-time {
+  .speaking-time {
     font-size: 1rem;
+  }
+
+  .duration-time {
+    font-size: 0.9rem;
   }
 }
 </style>
