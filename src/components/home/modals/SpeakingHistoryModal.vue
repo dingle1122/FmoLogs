@@ -36,10 +36,15 @@
                 >&#11088;</span
               >
             </span>
-            <span class="history-time">
-              <template v-if="!record.endTime">正在发言</template>
-              <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
-            </span>
+            <div class="history-time">
+              <div>
+                <template v-if="!record.endTime">正在发言</template>
+                <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
+              </div>
+              <div>
+                {{ formatDurationMmSs(((record.endTime || now) - record.startTime)) }}
+              </div>
+            </div>
           </div>
         </div>
         <div v-else class="speaking-history-empty">
@@ -52,8 +57,25 @@
 </template>
 
 <script setup>
-import { formatTimeAgo } from '../constants'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { formatTimeAgo, formatDurationMmSs } from '../constants'
 import StationControl from '../StationControl.vue'
+
+const now = ref(Date.now())
+let nowTimer = null
+
+onMounted(() => {
+  nowTimer = setInterval(() => {
+    now.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (nowTimer) {
+    clearInterval(nowTimer)
+    nowTimer = null
+  }
+})
 
 defineProps({
   visible: {

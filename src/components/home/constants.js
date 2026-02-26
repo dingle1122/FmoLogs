@@ -45,3 +45,15 @@ export function formatTimeAgo(timestamp) {
   if (minutes === 1) return '1分钟前'
   return `${minutes}分钟前`
 }
+
+// 按 00:00 格式（mm:ss）格式化时长（毫秒）
+export function formatDurationMmSs(durationMs) {
+  let safeDuration = durationMs
+  if (!safeDuration || safeDuration < 0) safeDuration = 0
+  const totalSeconds = Math.floor(safeDuration / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  const mm = String(minutes).padStart(2, '0')
+  const ss = String(seconds).padStart(2, '0')
+  return `${mm}:${ss}`
+}
