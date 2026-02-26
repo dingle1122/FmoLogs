@@ -346,11 +346,195 @@ export function useFmoSync(options = {}) {
     activeClients.clear()
   })
 
+  // 增量同步：分页查询所有日志，只插入不存在的记录
+  async function syncIncremental(fmoAddress, protocol) {
+    if (!fmoAddress || syncing.value || isUnmounted) return
+
+    syncing.value = true
+    syncStatus.value = '连接 FMO...'
+
+    const host = normalizeHost(fmoAddress)
+    const fullAddress = `${protocol}://${host}`
+    const client = new FmoApiClient(fullAddress)
+    activeClients.add(client)
+
+    try {
+      if (isUnmounted) return
+
+      const currentFromCallsign = getSelectedFromCallsign?.() || ''
+      let page = 0
+      let hasMore = true
+      let totalSynced = 0
+      let totalProcessed = 0
+
+      while (hasMore && !isUnmounted) {
+        syncStatus.value = `正在获取第 ${page + 1} 页数据...`
+
+        const response = await client.getQsoList(page, 20, currentFromCallsign)
+        const list = response.list || []
+
+        if (list.length === 0) break
+
+        totalProcessed += list.length
+
+        for (const item of list) {
+          if (isUnmounted) break
+
+          let qso = null
+          let exists = false
+
+          if (currentFromCallsign) {
+            exists = await isQsoExistsInIndexedDB(
+              currentFromCallsign,
+              item.timestamp,
+              item.toCallsign
+            )
+            if (!exists) {
+              const detailResponse = await client.getQsoDetail(item.logId)
+              qso = detailResponse.log
+              if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+            }
+          } else {
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+            if (qso) {
+              exists = await isQsoExistsInIndexedDB(
+                qso.fromCallsign,
+                qso.timestamp,
+                qso.toCallsign
+              )
+            }
+          }
+
+          if (qso && !exists) {
+            await saveSingleQsoToIndexedDB(qso)
+            totalSynced++
+            syncStatus.value = `已处理 ${totalProcessed} 条，新增 ${totalSynced} 条`
+          }
+        }
+
+        if (list.length < 20) {
+          hasMore = false
+        } else {
+          page++
+          // 每页延迟0.2秒
+          if (!isUnmounted) {
+            await new Promise((resolve) => setTimeout(resolve, 200))
+          }
+        }
+      }
+
+      syncStatus.value = `增量同步完成，共处理 ${totalProcessed} 条记录，新增 ${totalSynced} 条`
+
+      const callsigns = await getAvailableFromCallsigns()
+      onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
+
+      if (!isUnmounted) {
+        reloadTimer = setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
+    } catch (err) {
+      syncStatus.value = `增量同步失败: ${err.message}`
+      console.error('增量同步失败:', err)
+    } finally {
+      syncing.value = false
+      client.close()
+      activeClients.delete(client)
+    }
+  }
+
+  // 全量同步：分页查询所有日志，用FMO数据替换本地数据
+  async function syncFull(fmoAddress, protocol) {
+    if (!fmoAddress || syncing.value || isUnmounted) return
+
+    syncing.value = true
+    syncStatus.value = '连接 FMO...'
+
+    const host = normalizeHost(fmoAddress)
+    const fullAddress = `${protocol}://${host}`
+    const client = new FmoApiClient(fullAddress)
+    activeClients.add(client)
+
+    try {
+      if (isUnmounted) return
+
+      const currentFromCallsign = getSelectedFromCallsign?.() || ''
+      let page = 0
+      let hasMore = true
+      let totalSynced = 0
+      let totalProcessed = 0
+
+      while (hasMore && !isUnmounted) {
+        syncStatus.value = `正在获取第 ${page + 1} 页数据...`
+
+        const response = await client.getQsoList(page, 20, currentFromCallsign)
+        const list = response.list || []
+
+        if (list.length === 0) break
+
+        totalProcessed += list.length
+
+        for (const item of list) {
+          if (isUnmounted) break
+
+          let qso = null
+
+          if (currentFromCallsign) {
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+            if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+          } else {
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+          }
+
+          if (qso) {
+            // 直接保存，覆盖已存在的记录
+            await saveSingleQsoToIndexedDB(qso)
+            totalSynced++
+            syncStatus.value = `已处理 ${totalProcessed} 条，已同步 ${totalSynced} 条`
+          }
+        }
+
+        if (list.length < 20) {
+          hasMore = false
+        } else {
+          page++
+          // 每页延迟0.2秒
+          if (!isUnmounted) {
+            await new Promise((resolve) => setTimeout(resolve, 200))
+          }
+        }
+      }
+
+      syncStatus.value = `全量同步完成，共处理 ${totalProcessed} 条记录，已同步 ${totalSynced} 条`
+
+      const callsigns = await getAvailableFromCallsigns()
+      onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
+
+      if (!isUnmounted) {
+        reloadTimer = setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
+    } catch (err) {
+      syncStatus.value = `全量同步失败: ${err.message}`
+      console.error('全量同步失败:', err)
+    } finally {
+      syncing.value = false
+      client.close()
+      activeClients.delete(client)
+    }
+  }
+
   return {
     syncing,
     syncStatus,
     autoSyncMessage,
     syncToday,
+    syncIncremental,
+    syncFull,
     startAutoSyncTask,
     stopAutoSyncTask,
     showAutoSyncMessage

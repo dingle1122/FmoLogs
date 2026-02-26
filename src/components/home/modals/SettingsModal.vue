@@ -176,6 +176,22 @@
                 备份FMO日志
               </button>
             </div>
+            <div v-if="addressList.length > 0" class="setting-item-buttons">
+              <button
+                class="btn-secondary"
+                :disabled="!fmoAddress || syncing"
+                @click="handleSyncIncremental"
+              >
+                {{ syncing ? '正在同步...' : '增量同步' }}
+              </button>
+              <button
+                class="btn-secondary"
+                :disabled="!fmoAddress || syncing"
+                @click="handleSyncFull"
+              >
+                {{ syncing ? '正在同步...' : '全量同步' }}
+              </button>
+            </div>
             <div v-if="syncStatus" class="sync-status">
               {{ syncStatus }}
             </div>
@@ -449,6 +465,8 @@ const emit = defineEmits([
   'select-files',
   'export-data',
   'sync-today',
+  'sync-incremental',
+  'sync-full',
   'backup-logs',
   'clear-all-data',
   'update:selectedFromCallsign',
@@ -651,6 +669,24 @@ async function handleClearAllAddresses() {
 async function handleRefreshUserInfo(id) {
   refreshingId.value = id
   emit('refresh-user-info', id)
+}
+
+async function handleSyncIncremental() {
+  const confirmed = await confirmDialog.show(
+    '确定要执行增量同步吗？将从FMO服务器获取所有日志，并补充本地缺失的记录。'
+  )
+  if (confirmed) {
+    emit('sync-incremental')
+  }
+}
+
+async function handleSyncFull() {
+  const confirmed = await confirmDialog.show(
+    '确定要执行全量同步吗？将用FMO服务器的数据完全替换本地数据库中的所有记录。'
+  )
+  if (confirmed) {
+    emit('sync-full')
+  }
 }
 
 // 暴露方法供父组件调用
@@ -1021,9 +1057,13 @@ defineExpose({ clearConnecting, clearRefreshing })
   display: flex;
   flex-direction: row;
   gap: 0.8rem;
-  margin-top: 0;
+  margin-top: 0.8rem;
   padding-top: 0;
   border-top: none;
+}
+
+.setting-item-buttons:first-of-type {
+  margin-top: 0;
 }
 
 .setting-item-buttons .btn-secondary {

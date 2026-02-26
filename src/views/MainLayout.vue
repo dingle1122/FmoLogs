@@ -89,6 +89,8 @@
       @select-files="triggerFileInput"
       @export-data="handleExportData"
       @sync-today="handleSyncToday"
+      @sync-incremental="handleSyncIncremental"
+      @sync-full="handleSyncFull"
       @backup-logs="settings.backupLogs()"
       @clear-all-data="handleClearAllData"
       @update:selected-from-callsign="handleFromCallsignChange"
@@ -694,6 +696,22 @@ async function handleSyncToday() {
     await fmoSync.syncToday(settings.fmoAddress.value, settings.protocol.value)
   } catch (err) {
     dataQuery.error.value = `同步失败: ${err.message}`
+  }
+}
+
+async function handleSyncIncremental() {
+  try {
+    await fmoSync.syncIncremental(settings.fmoAddress.value, settings.protocol.value)
+  } catch (err) {
+    dataQuery.error.value = `增量同步失败: ${err.message}`
+  }
+}
+
+async function handleSyncFull() {
+  try {
+    await fmoSync.syncFull(settings.fmoAddress.value, settings.protocol.value)
+  } catch (err) {
+    dataQuery.error.value = `全量同步失败: ${err.message}`
   }
 }
 
