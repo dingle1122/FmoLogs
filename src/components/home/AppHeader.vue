@@ -9,7 +9,7 @@
         <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
       </span>
       <span v-if="uniqueCallsigns > 0" class="total-logs">
-        <span class="callsign-icon">&#128225;</span>
+        <img src="/radio-contact.svg" alt="Radio contact" class="callsign-icon" />
         <strong>{{ uniqueCallsigns }}</strong>
       </span>
     </div>
@@ -114,8 +114,22 @@ defineEmits(['open-settings'])
 }
 
 .total-logs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 1.1rem;
   color: var(--text-secondary);
+}
+
+.total-logs svg {
+  width: 24px;
+  height: 36px;
+}
+
+.callsign-icon {
+  width: 24px;
+  height: 36px;
+  display: block;
 }
 
 .star {
