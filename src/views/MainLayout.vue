@@ -6,6 +6,7 @@
       :total-logs="totalLogs"
       :unique-callsigns="uniqueCallsigns"
       :db-loaded="dbLoaded"
+      :has-unread-messages="hasUnreadMessages"
       @open-settings="showSettings = true"
     />
 
@@ -145,9 +146,9 @@
       <router-link
         v-for="route in NAV_ROUTES"
         :key="route.path"
-        :to="dbLoaded ? route.path : $route.path"
+        :to="dbLoaded || route.type === 'messages' ? route.path : $route.path"
         class="nav-tab"
-        :class="{ disabled: !dbLoaded }"
+        :class="{ disabled: !dbLoaded && route.type !== 'messages' }"
       >
         <!-- 全部记录图标 -->
         <svg
@@ -199,6 +200,19 @@
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
+        <!-- 消息图标 -->
+        <svg
+          v-else-if="route.type === 'messages'"
+          class="nav-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        </svg>
         <span class="nav-label">{{ route.label }}</span>
       </router-link>
     </nav>
@@ -230,6 +244,7 @@ import { exportDataToDbFile } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
 import { NAV_ROUTES } from '../components/home/constants'
+import { getMessageService } from '../services/messageService'
 
 // 路由
 const route = useRoute()
@@ -260,6 +275,11 @@ const stationLoading = ref(false)
 let stationPollTimer = null
 let stationPollCount = 0
 
+// 消息未读状态
+const hasUnreadMessages = computed(() => {
+  return messageService.messageList.value.some(msg => !msg.isRead)
+})
+
 // Composables
 const {
   dbLoaded,
@@ -281,6 +301,9 @@ const settings = useSettings()
 const speakingStatus = useSpeakingStatus()
 const dataQuery = useDataQuery()
 const callsignRecords = useCallsignRecords()
+
+// 消息服务
+const messageService = getMessageService()
 
 const fmoSync = useFmoSync({
   onSyncComplete: async ({ callsigns, syncedCount }) => {
@@ -617,7 +640,14 @@ async function handleAddAddress({ name, host, protocol }) {
   if (result.reconnect) {
     speakingStatus.disconnectEventWs()
     fmoSync.stopAutoSyncTask()
+    messageService.disconnect()
     speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+    speakingStatus.setOnMessageCallback((data) => {
+      messageService.handleNewMessageSummary(data)
+    })
+    messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+      console.error('消息服务连接失败:', err)
+    })
     fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
   }
 }
@@ -640,10 +670,17 @@ async function handleDeleteAddress(id) {
   if (result.reconnect) {
     speakingStatus.disconnectEventWs()
     fmoSync.stopAutoSyncTask()
+    messageService.disconnect()
 
     // 如果还有其他地址，连接到新的选中地址
     if (settings.fmoAddress.value) {
       speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      speakingStatus.setOnMessageCallback((data) => {
+        messageService.handleNewMessageSummary(data)
+      })
+      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+        console.error('消息服务连接失败:', err)
+      })
       fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
     }
   }
@@ -656,7 +693,14 @@ async function handleSelectAddress(id) {
   if (result.success) {
     if (result.reconnect) {
       speakingStatus.disconnectEventWs()
+      messageService.disconnect()
       speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      speakingStatus.setOnMessageCallback((data) => {
+        messageService.handleNewMessageSummary(data)
+      })
+      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+        console.error('消息服务连接失败:', err)
+      })
       fmoSync.stopAutoSyncTask()
       fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
     }
@@ -675,6 +719,7 @@ async function handleClearAllAddresses() {
   // 断开连接并停止同步任务
   if (result.reconnect) {
     speakingStatus.disconnectEventWs()
+    messageService.disconnect()
     fmoSync.stopAutoSyncTask()
     currentStation.value = null
   }
@@ -772,6 +817,14 @@ onMounted(async () => {
   const hasSavedAddress = await settings.initFmoAddress()
   if (hasSavedAddress) {
     speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+    // 注册消息事件回调，让 speakingStatus 的 events 连接转发消息摘要
+    speakingStatus.setOnMessageCallback((data) => {
+      messageService.handleNewMessageSummary(data)
+    })
+    // 同时连接消息服务（用于发送消息和获取详情）
+    messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+      console.error('消息服务连接失败:', err)
+    })
   }
 
   fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
@@ -786,12 +839,15 @@ onUnmounted(() => {
   fmoSync.stopAutoSyncTask()
   speakingStatus.stopSpeakingHistoryCleanup()
   speakingStatus.disconnectEventWs()
+  messageService.disconnect()
 })
 
 // 提供共享状态给子组件
 provide('dbLoaded', dbLoaded)
 provide('selectedFromCallsign', selectedFromCallsign)
 provide('executeQuery', executeQuery)
+provide('fmoAddress', settings.fmoAddress)
+provide('protocol', settings.protocol)
 </script>
 
 <style scoped>

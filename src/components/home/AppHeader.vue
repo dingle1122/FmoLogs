@@ -17,11 +17,12 @@
       <router-link
         v-for="route in NAV_ROUTES"
         :key="route.path"
-        :to="dbLoaded ? route.path : $route.path"
+        :to="dbLoaded || route.type === 'messages' ? route.path : $route.path"
         class="nav-tab"
-        :class="{ disabled: !dbLoaded }"
+        :class="{ disabled: !dbLoaded && route.type !== 'messages' }"
       >
         {{ route.label }}
+        <span v-if="route.type === 'messages' && hasUnreadMessages" class="unread-badge"></span>
       </router-link>
     </nav>
     <div class="header-actions">
@@ -66,6 +67,10 @@ defineProps({
     default: 0
   },
   dbLoaded: {
+    type: Boolean,
+    default: false
+  },
+  hasUnreadMessages: {
     type: Boolean,
     default: false
   }
@@ -186,6 +191,17 @@ defineEmits(['open-settings'])
   color: var(--text-disabled);
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.unread-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.25rem;
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-header, var(--bg-page));
 }
 
 .header-actions {

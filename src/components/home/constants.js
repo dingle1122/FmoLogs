@@ -5,7 +5,8 @@ export { QueryTypes, ColumnNames, formatTimestamp, formatFreqHz } from '../../se
 export const NAV_ROUTES = [
   { path: '/logs', label: '通联日志', type: 'logs' },
   { path: '/top20', label: '排行榜', type: 'top20' },
-  { path: '/old-friends', label: '老朋友', type: 'oldFriends' }
+  { path: '/old-friends', label: '老朋友', type: 'oldFriends' },
+  { path: '/messages', label: '消息', type: 'messages' }
 ]
 
 // 默认列（查看所有模式）

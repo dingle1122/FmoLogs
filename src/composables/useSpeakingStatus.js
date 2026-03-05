@@ -126,6 +126,14 @@ export function useSpeakingStatus() {
     eventsConnected.value = false
   }
 
+  // 消息事件回调
+  let onMessageCallback = null
+
+  // 设置消息回调
+  function setOnMessageCallback(callback) {
+    onMessageCallback = callback
+  }
+
   // 处理事件消息
   function handleEventMessage(data) {
     const messages = data.split('}{').map((msg, index, arr) => {
@@ -173,6 +181,11 @@ export function useSpeakingStatus() {
             })
             currentSpeaker.value = ''
             saveSpeakingHistoryToStorage()
+          }
+        } else if (msg.type === 'message' && msg.subType === 'summary') {
+          // 转发消息摘要事件
+          if (onMessageCallback) {
+            onMessageCallback(msg.data)
           }
         }
       } catch {
@@ -230,6 +243,7 @@ export function useSpeakingStatus() {
     startSpeakingHistoryCleanup,
     stopSpeakingHistoryCleanup,
     clearSpeakingHistory,
-    formatTimeAgo
+    formatTimeAgo,
+    setOnMessageCallback
   }
 }
