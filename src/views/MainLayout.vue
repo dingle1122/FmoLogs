@@ -214,6 +214,7 @@
           <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
         </svg>
         <span class="nav-label">{{ route.label }}</span>
+        <span v-if="route.type === 'messages' && hasUnreadMessages" class="mobile-unread-badge"></span>
       </router-link>
     </nav>
   </div>
@@ -821,10 +822,15 @@ onMounted(async () => {
     speakingStatus.setOnMessageCallback((data) => {
       messageService.handleNewMessageSummary(data)
     })
-    // 同时连接消息服务（用于发送消息和获取详情）
-    messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
-      console.error('消息服务连接失败:', err)
-    })
+    // 同时连接消息服务（用于发送消息和获取详情），连接成功后获取消息列表
+    messageService.connect(settings.fmoAddress.value, settings.protocol.value)
+      .then(() => {
+        // WebSocket 连接成功后获取消息列表
+        return messageService.getList(0)
+      })
+      .catch(err => {
+        console.error('消息服务连接或获取列表失败:', err)
+      })
   }
 
   fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
@@ -875,6 +881,7 @@ provide('protocol', settings.protocol)
 }
 
 .mobile-nav .nav-tab {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -941,6 +948,17 @@ provide('protocol', settings.protocol)
 
   .mobile-nav {
     display: flex;
+  }
+
+  .mobile-unread-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: calc(50% - 1.2rem);
+    width: 7px;
+    height: 7px;
+    background: #ef4444;
+    border-radius: 50%;
+    border: 1.5px solid var(--bg-header, var(--bg-page));
   }
 
   .back-to-top-btn {
