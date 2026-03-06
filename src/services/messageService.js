@@ -224,7 +224,7 @@ export class MessageService {
   }
 
   /**
-   * 队列请求
+   * 队列请求（自动连接）
    */
   queueRequest(subType, data) {
     return new Promise((resolve, reject) => {
@@ -238,6 +238,24 @@ export class MessageService {
       this.requestQueue.push(requestItem)
       this.processQueue()
     })
+  }
+
+  /**
+   * 按需执行请求（自动连接/断开）
+   */
+  async requestWithConnection(fmoAddress, protocol, subType, data) {
+    const shouldDisconnect = !this.connected.value
+    if (shouldDisconnect) {
+      await this.connect(fmoAddress, protocol)
+    }
+    
+    try {
+      return await this.queueRequest(subType, data)
+    } finally {
+      if (shouldDisconnect) {
+        this.disconnect()
+      }
+    }
   }
 
   /**
@@ -317,45 +335,58 @@ export class MessageService {
   // ==================== API 方法 ====================
 
   /**
-   * 获取消息列表
+   * 获取消息列表（按需连接，获取后自动断开）
    */
-  async getList(anchorId = 0, pageSize = 20) {
-    const result = await this.queueRequest('getList', { 
-      pageSize, 
-      anchorId 
-    })
-    
-    if (result.status === 'success') {
-      // 更新本地列表（第一页时替换，否则追加）
-      const list = result.list || []
-      if (anchorId === 0) {
-        // 使用 splice 触发响应式更新
-        this.messageList.value.splice(0, this.messageList.value.length, ...list)
-      } else {
-        const existingIds = new Set(this.messageList.value.map(m => m.messageId))
-        const newItems = list.filter(m => !existingIds.has(m.messageId))
-        this.messageList.value.push(...newItems)
-      }
-      
-      this.nextAnchorId.value = result.nextAnchorId || 0
-      this.hasMore.value = result.nextAnchorId !== 0
+  async getList(fmoAddress, protocol, anchorId = 0, pageSize = 20) {
+    // 按需连接
+    const shouldDisconnect = !this.connected.value
+    if (shouldDisconnect) {
+      await this.connect(fmoAddress, protocol)
     }
     
-    return result
+    try {
+      const result = await this.queueRequest('getList', { 
+        pageSize, 
+        anchorId 
+      })
+      
+      if (result.status === 'success') {
+        // 更新本地列表（第一页时替换，否则追加）
+        const list = result.list || []
+        if (anchorId === 0) {
+          // 使用 splice 触发响应式更新
+          this.messageList.value.splice(0, this.messageList.value.length, ...list)
+        } else {
+          const existingIds = new Set(this.messageList.value.map(m => m.messageId))
+          const newItems = list.filter(m => !existingIds.has(m.messageId))
+          this.messageList.value.push(...newItems)
+        }
+        
+        this.nextAnchorId.value = result.nextAnchorId || 0
+        this.hasMore.value = result.nextAnchorId !== 0
+      }
+      
+      return result
+    } finally {
+      // 按需断开连接
+      if (shouldDisconnect) {
+        this.disconnect()
+      }
+    }
   }
 
   /**
-   * 获取消息详情
+   * 获取消息详情（按需连接）
    */
-  getDetail(messageId) {
-    return this.queueRequest('getDetail', { messageId })
+  getDetail(fmoAddress, protocol, messageId) {
+    return this.requestWithConnection(fmoAddress, protocol, 'getDetail', { messageId })
   }
 
   /**
-   * 标记消息已读
+   * 标记消息已读（按需连接）
    */
-  async setRead(messageId) {
-    const result = await this.queueRequest('setRead', { messageId })
+  async setRead(fmoAddress, protocol, messageId) {
+    const result = await this.requestWithConnection(fmoAddress, protocol, 'setRead', { messageId })
     
     if (result.status === 'success' && result.result === 0) {
       // 更新本地状态
@@ -369,17 +400,17 @@ export class MessageService {
   }
 
   /**
-   * 发送消息
+   * 发送消息（按需连接）
    */
-  send(callsign, ssid, message) {
-    return this.queueRequest('send', { callsign, ssid, message })
+  send(fmoAddress, protocol, callsign, ssid, message) {
+    return this.requestWithConnection(fmoAddress, protocol, 'send', { callsign, ssid, message })
   }
 
   /**
-   * 删除单条消息
+   * 删除单条消息（按需连接）
    */
-  async deleteItem(messageId) {
-    const result = await this.queueRequest('deleteItem', { messageId })
+  async deleteItem(fmoAddress, protocol, messageId) {
+    const result = await this.requestWithConnection(fmoAddress, protocol, 'deleteItem', { messageId })
     
     if (result.status === 'success' && result.result === 0) {
       // 从本地列表移除
@@ -393,10 +424,10 @@ export class MessageService {
   }
 
   /**
-   * 删除所有消息
+   * 删除所有消息（按需连接）
    */
-  async deleteAll() {
-    const result = await this.queueRequest('deleteAll', {})
+  async deleteAll(fmoAddress, protocol) {
+    const result = await this.requestWithConnection(fmoAddress, protocol, 'deleteAll', {})
     
     if (result.status === 'success' && result.result === 0) {
       this.messageList.value = []

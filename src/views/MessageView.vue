@@ -1,25 +1,5 @@
 <template>
   <div class="message-view">
-    <!-- 连接状态提示 -->
-    <div v-if="!isConnected" class="connection-hint">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span>未连接到 FMO 服务器，请在设置中配置地址</span>
-    </div>
-
-    <!-- 连接状态提示 -->
-    <div v-if="!isConnected" class="connection-hint">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span>未连接到 FMO 服务器，请在设置中配置地址</span>
-    </div>
-
     <!-- 主内容区 -->
     <div class="message-layout">
       <!-- 左侧：消息列表 -->
@@ -297,7 +277,6 @@ const callsignError = ref('')
 // 计算属性
 const messageList = computed(() => messageService.messageList.value)
 const hasMore = computed(() => messageService.hasMore.value)
-const isConnected = computed(() => messageService.isConnected())
 
 
 const canSend = computed(() => {
@@ -332,12 +311,12 @@ async function selectMessage(msg) {
   currentDetail.value = null
   
   try {
-    const result = await messageService.getDetail(msg.messageId)
+    const result = await messageService.getDetail(fmoAddress.value, protocol.value, msg.messageId)
     if (result.status === 'success' && result.messageId) {
       currentDetail.value = result
       // 自动标记已读 (注意 isRead 可能是数字 0/1)
       if (!result.isRead || result.isRead === 0) {
-        await messageService.setRead(msg.messageId)
+        await messageService.setRead(fmoAddress.value, protocol.value, msg.messageId)
       }
     } else {
       toast.error('获取消息详情失败')
@@ -360,7 +339,7 @@ async function markAsRead() {
   
   markingRead.value = true
   try {
-    const result = await messageService.setRead(currentDetail.value.messageId)
+    const result = await messageService.setRead(fmoAddress.value, protocol.value, currentDetail.value.messageId)
     if (result.status === 'success') {
       currentDetail.value.isRead = true
       toast.success('已标记为已读')
@@ -378,7 +357,7 @@ async function loadMore() {
   loadingMore.value = true
   try {
     const nextAnchorId = messageService.nextAnchorId.value
-    await messageService.getList(nextAnchorId)
+    await messageService.getList(fmoAddress.value, protocol.value, nextAnchorId)
   } catch (err) {
     toast.error('加载更多失败')
   } finally {
@@ -391,7 +370,7 @@ async function refreshMessages() {
   
   loading.value = true
   try {
-    await messageService.getList(0)
+    await messageService.getList(fmoAddress.value, protocol.value, 0)
     toast.success('消息已刷新')
   } catch (err) {
     toast.error('刷新失败')
@@ -406,7 +385,7 @@ async function handleDeleteItem(messageId) {
   
   deletingId.value = messageId
   try {
-    const result = await messageService.deleteItem(messageId)
+    const result = await messageService.deleteItem(fmoAddress.value, protocol.value, messageId)
     if (result.status === 'success') {
       toast.success('删除成功')
       if (selectedMessageId.value === messageId) {
@@ -433,7 +412,7 @@ async function handleDeleteAll() {
   
   deletingAll.value = true
   try {
-    const result = await messageService.deleteAll()
+    const result = await messageService.deleteAll(fmoAddress.value, protocol.value)
     if (result.status === 'success') {
       toast.success('已清空所有消息')
       closeDetail()
@@ -510,6 +489,8 @@ async function handleSend() {
   
   try {
     const result = await messageService.send(
+      fmoAddress.value,
+      protocol.value,
       callsign,
       sendForm.value.ssid,
       sendForm.value.message.trim()
@@ -532,27 +513,13 @@ async function handleSend() {
   }
 }
 
-// 监听连接状态变化，自动加载消息
-watch(isConnected, async (connected) => {
-  if (connected && messageList.value.length === 0) {
-    loading.value = true
-    try {
-      await messageService.getList(0)
-    } catch (err) {
-      console.error('加载消息列表失败:', err)
-    } finally {
-      loading.value = false
-    }
-  }
-})
-
 // 生命周期
 onMounted(async () => {
-  // 如果已连接，加载消息列表
-  if (isConnected.value) {
+  // 加载消息列表（按需连接）
+  if (fmoAddress.value) {
     loading.value = true
     try {
-      await messageService.getList(0)
+      await messageService.getList(fmoAddress.value, protocol.value, 0)
     } catch (err) {
       console.error('加载消息列表失败:', err)
     } finally {

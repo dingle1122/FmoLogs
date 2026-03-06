@@ -822,14 +822,10 @@ onMounted(async () => {
     speakingStatus.setOnMessageCallback((data) => {
       messageService.handleNewMessageSummary(data)
     })
-    // 同时连接消息服务（用于发送消息和获取详情），连接成功后获取消息列表
-    messageService.connect(settings.fmoAddress.value, settings.protocol.value)
-      .then(() => {
-        // WebSocket 连接成功后获取消息列表
-        return messageService.getList(0)
-      })
+    // 按需获取消息列表（短连接，获取后自动断开）
+    messageService.getList(settings.fmoAddress.value, settings.protocol.value, 0)
       .catch(err => {
-        console.error('消息服务连接或获取列表失败:', err)
+        console.error('获取消息列表失败:', err)
       })
   }
 
