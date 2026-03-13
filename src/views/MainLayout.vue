@@ -474,14 +474,14 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
-  stationList.value = []
-  stationListPage.value = 0
-  stationListNoMore.value = false
-  loadStationPage()
 }
 
 function handleCloseStationList() {
   showStationList.value = false
+  // 关闭时重置状态
+  stationList.value = []
+  stationListPage.value = 0
+  stationListNoMore.value = false
 }
 
 async function loadStationPage() {

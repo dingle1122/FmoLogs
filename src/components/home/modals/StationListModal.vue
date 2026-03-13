@@ -5,7 +5,7 @@
         <h3>选择服务器</h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
-      <div class="modal-body">
+      <div ref="modalBodyRef" class="modal-body" @scroll="handleScroll">
         <div v-if="stationList.length > 0" class="station-grid">
           <button
             v-for="station in stationList"
@@ -22,13 +22,14 @@
         <div v-else-if="loading" class="station-loading">加载中...</div>
         <div v-else class="station-empty">暂无服务器</div>
 
-        <!-- 加载更多 -->
-        <div v-if="stationList.length > 0" class="load-more-section">
-          <button class="load-more-btn" :disabled="loading || noMore" @click="$emit('load-more')">
-            <template v-if="loading">加载中...</template>
-            <template v-else-if="noMore">没有更多了</template>
-            <template v-else>加载更多</template>
-          </button>
+        <!-- 加载状态提示 -->
+        <div v-if="stationList.length > 0" class="load-status">
+          <template v-if="loading">
+            <span class="loading-text">加载中...</span>
+          </template>
+          <template v-else-if="noMore">
+            <span class="no-more-text">没有更多了</span>
+          </template>
         </div>
       </div>
     </div>
@@ -36,7 +37,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, watch } from 'vue'
+
+const props = defineProps({
   visible: {
     type: Boolean,
     default: false
@@ -61,9 +64,49 @@ defineProps({
 
 const emit = defineEmits(['close', 'select', 'load-more'])
 
+const modalBodyRef = ref(null)
+
+// 弹框显示时自动加载服务器列表
+watch(() => props.visible, (newVisible) => {
+  if (newVisible && props.stationList.length === 0 && !props.loading) {
+    emit('load-more')
+  }
+})
+
+// 监听加载状态，加载完成后检查是否需要继续加载
+watch(() => props.loading, (newLoading) => {
+  if (!newLoading && props.visible && !props.noMore) {
+    // 使用 nextTick 确保 DOM 已更新
+    setTimeout(() => {
+      checkAndLoadMore()
+    }, 0)
+  }
+})
+
 function handleSelect(uid) {
   emit('select', uid)
   emit('close')
+}
+
+function handleScroll() {
+  if (!modalBodyRef.value || props.loading || props.noMore) return
+
+  const { scrollTop, scrollHeight, clientHeight } = modalBodyRef.value
+  // 距离底部 50px 时触发加载
+  if (scrollHeight - scrollTop - clientHeight < 50) {
+    emit('load-more')
+  }
+}
+
+// 检查内容是否填满容器，如未填满则继续加载
+function checkAndLoadMore() {
+  if (!modalBodyRef.value || props.noMore || props.loading) return
+
+  const { scrollHeight, clientHeight } = modalBodyRef.value
+  // 如果内容高度小于等于容器高度，说明没有滚动条，继续加载
+  if (scrollHeight <= clientHeight) {
+    emit('load-more')
+  }
 }
 </script>
 
@@ -173,30 +216,34 @@ function handleSelect(uid) {
   color: var(--text-tertiary);
 }
 
-.load-more-section {
+.load-status {
   margin-top: 1rem;
   text-align: center;
+  padding: 0.5rem;
 }
 
-.load-more-btn {
-  padding: 0.6rem 2rem;
-  border: 1px solid var(--border-secondary);
-  background: var(--bg-card);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  color: var(--text-secondary);
-  transition: all 0.2s;
+.loading-text,
+.no-more-text {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
 }
 
-.load-more-btn:hover:not(:disabled) {
-  background: var(--bg-table-hover);
-  color: var(--text-primary);
+.loading-text::after {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid var(--border-secondary);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
-.load-more-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 600px) {
