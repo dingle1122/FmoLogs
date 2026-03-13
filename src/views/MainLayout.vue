@@ -500,6 +500,8 @@ async function loadStationPage() {
     if (result?.list) {
       if (result.list.length > 0) {
         stationList.value = [...stationList.value, ...result.list]
+        // 加载成功后页码+1，为下次加载做准备
+        stationListPage.value++
       }
       if (result.list.length < PAGE_SIZE) {
         stationListNoMore.value = true
@@ -522,7 +524,6 @@ async function loadStationPage() {
 
 function handleLoadMoreStations() {
   if (stationListLoading.value || stationListNoMore.value) return
-  stationListPage.value++
   loadStationPage()
 }
 
