@@ -372,7 +372,7 @@ function showDetailModal(row) {
 }
 
 // 服务器列表弹框
-const PAGE_SIZE = 10
+const PAGE_SIZE = 16
 
 // 创建临时 station client（按需连接，用完即关）
 function createStationClient() {
