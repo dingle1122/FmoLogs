@@ -377,7 +377,7 @@ function showDetailModal(row) {
 }
 
 // 服务器列表弹框
-const PAGE_SIZE = 10
+const PAGE_SIZE = 16
 
 // 创建临时 station client（按需连接，用完即关）
 function createStationClient() {
@@ -479,14 +479,14 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
-  stationList.value = []
-  stationListPage.value = 0
-  stationListNoMore.value = false
-  loadStationPage()
 }
 
 function handleCloseStationList() {
   showStationList.value = false
+  // 关闭时重置状态
+  stationList.value = []
+  stationListPage.value = 0
+  stationListNoMore.value = false
 }
 
 async function loadStationPage() {
@@ -505,6 +505,8 @@ async function loadStationPage() {
     if (result?.list) {
       if (result.list.length > 0) {
         stationList.value = [...stationList.value, ...result.list]
+        // 加载成功后页码+1，为下次加载做准备
+        stationListPage.value++
       }
       if (result.list.length < PAGE_SIZE) {
         stationListNoMore.value = true
@@ -527,7 +529,6 @@ async function loadStationPage() {
 
 function handleLoadMoreStations() {
   if (stationListLoading.value || stationListNoMore.value) return
-  stationListPage.value++
   loadStationPage()
 }
 
