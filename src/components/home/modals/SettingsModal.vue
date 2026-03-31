@@ -218,7 +218,7 @@
           <div class="links-section">
             <div class="links-card-grid">
               <a
-                href="https://map.srv.ink/"
+                href="https://map.fmo.net.cn/"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="link-card"
@@ -226,7 +226,7 @@
                 <div class="link-icon">&#128506;&#65039;</div>
                 <div class="link-info">
                   <div class="link-name">FMO 地图</div>
-                  <div class="link-url">map.srv.ink</div>
+                  <div class="link-url">map.fmo.net.cn</div>
                 </div>
                 <div class="link-arrow">&rarr;</div>
               </a>
@@ -245,7 +245,7 @@
                 <div class="link-arrow">&rarr;</div>
               </a>
               <a
-                href="http://180.76.54.163/"
+                href="http://fmo.bg5eit.cn/"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="link-card"
@@ -272,8 +272,8 @@
                   </svg>
                 </div>
                 <div class="link-info">
-                  <div class="link-name">FMO CONTROLLER</div>
-                  <div class="link-url">180.76.54.163</div>
+                  <div class="link-name">FMOC</div>
+                  <div class="link-url">fmo.bg5eit.cn</div>
                 </div>
                 <div class="link-arrow">&rarr;</div>
               </a>
