@@ -161,19 +161,18 @@
 
             <!-- 操作按钮 -->
             <div v-if="addressList.length > 0" class="setting-item-buttons">
+              <select v-model.number="syncDays" class="sync-days-select" :disabled="syncing">
+                <option :value="1">今天</option>
+                <option :value="3">最近3天</option>
+                <option :value="7">最近7天</option>
+                <option :value="30">最近30天</option>
+              </select>
               <button
                 class="btn-secondary"
                 :disabled="!fmoAddress || syncing"
-                @click="$emit('sync-today')"
+                @click="$emit('sync-days', syncDays)"
               >
-                {{ syncing ? '正在同步...' : '同步今日通联' }}
-              </button>
-              <button
-                class="btn-secondary"
-                :disabled="!fmoAddress || syncing"
-                @click="$emit('backup-logs')"
-              >
-                备份FMO日志
+                {{ syncing ? '正在同步...' : syncDays === 1 ? '同步今日通联' : `同步${syncDays}天通联` }}
               </button>
             </div>
             <div v-if="addressList.length > 0" class="setting-item-buttons">
@@ -190,6 +189,15 @@
                 @click="handleSyncFull"
               >
                 {{ syncing ? '正在同步...' : '全量同步' }}
+              </button>
+            </div>
+            <div v-if="addressList.length > 0" class="setting-item-buttons setting-item-buttons-full">
+              <button
+                class="btn-ghost"
+                :disabled="!fmoAddress || syncing"
+                @click="$emit('backup-logs')"
+              >
+                备份FMO日志
               </button>
             </div>
             <div v-if="syncStatus" class="sync-status">
@@ -464,7 +472,7 @@ const emit = defineEmits([
   'close',
   'select-files',
   'export-data',
-  'sync-today',
+  'sync-days',
   'sync-incremental',
   'sync-full',
   'backup-logs',
@@ -481,6 +489,9 @@ const emit = defineEmits([
 const activeTab = ref('general')
 const connectingId = ref(null)
 const refreshingId = ref(null)
+
+// 同步天数选择
+const syncDays = ref(1)
 
 // 地址编辑弹框状态
 const showAddressDialog = ref(false)
@@ -1067,7 +1078,59 @@ defineExpose({ clearConnecting, clearRefreshing })
 }
 
 .setting-item-buttons .btn-secondary {
+  flex: 1;
+}
+
+.setting-item-buttons .sync-days-select {
+  flex: 1;
+}
+
+.setting-item-buttons-full .btn-ghost {
   width: 100%;
+}
+
+.sync-days-select {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-ghost {
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.02em;
+}
+
+.btn-ghost:hover {
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+  background: var(--bg-table-hover);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sync-days-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.sync-days-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .sync-status {

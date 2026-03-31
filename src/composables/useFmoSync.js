@@ -38,15 +38,22 @@ export function useFmoSync(options = {}) {
     }, 5000)
   }
 
-  // 核心同步逻辑：同步今日所有数据
-  async function syncTodayData(client, statusCallback = null) {
-    const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
+  // 辅助函数：获取N天前的时间戳（UTC零点）
+  function getDaysAgoTimestamp(days) {
+    const now = new Date()
+    const target = new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000)
+    return Math.floor(target.setUTCHours(0, 0, 0, 0) / 1000)
+  }
+
+  // 核心同步逻辑：同步指定天数范围内的数据
+  async function syncRecentData(client, days = 1, statusCallback = null) {
+    const rangeStart = getDaysAgoTimestamp(days)
     let page = 0
-    let hasMoreToday = true
+    let hasMoreInRange = true
     let totalSynced = 0
     const currentFromCallsign = getSelectedFromCallsign?.() || ''
 
-    while (hasMoreToday) {
+    while (hasMoreInRange) {
       if (statusCallback) {
         statusCallback(`获取第 ${page + 1} 页列表...`)
       }
@@ -57,8 +64,8 @@ export function useFmoSync(options = {}) {
       if (!list || list.length === 0) break
 
       for (const item of list) {
-        if (item.timestamp >= todayStart) {
-          const qso = await processSingleQsoItem(item, todayStart, currentFromCallsign, client)
+        if (item.timestamp >= rangeStart) {
+          const qso = await processSingleQsoItem(item, rangeStart, currentFromCallsign, client)
           if (qso) {
             if (statusCallback) {
               statusCallback(`保存记录: ${qso.toCallsign}...`)
@@ -66,7 +73,7 @@ export function useFmoSync(options = {}) {
             totalSynced++
           }
         } else {
-          hasMoreToday = false
+          hasMoreInRange = false
           break
         }
       }
@@ -76,6 +83,11 @@ export function useFmoSync(options = {}) {
     }
 
     return totalSynced
+  }
+
+  // 为了向后兼容，保留 syncTodayData 作为别名
+  async function syncTodayData(client, statusCallback = null) {
+    return syncRecentData(client, 1, statusCallback)
   }
 
   // 处理单条QSO记录
@@ -103,7 +115,11 @@ export function useFmoSync(options = {}) {
         const detailResponse = await client.getQsoDetail(item.logId)
         qso = detailResponse.log
         if (qso) {
-          const exists = await isQsoExistsInIndexedDB(qso.fromCallsign, qso.timestamp, qso.toCallsign)
+          const exists = await isQsoExistsInIndexedDB(
+            qso.fromCallsign,
+            qso.timestamp,
+            qso.toCallsign
+          )
           if (exists) qso = null
         }
       }
@@ -294,8 +310,8 @@ export function useFmoSync(options = {}) {
     }
   }
 
-  // 手动同步今日通联
-  async function syncToday(fmoAddress, protocol) {
+  // 手动同步今日通联（支持指定天数）
+  async function syncToday(fmoAddress, protocol, days = 1) {
     if (!fmoAddress || syncing.value || isUnmounted) return
 
     syncing.value = true
@@ -310,7 +326,7 @@ export function useFmoSync(options = {}) {
     try {
       if (isUnmounted) return
 
-      const totalSynced = await syncTodayData(client, (status) => {
+      const totalSynced = await syncRecentData(client, days, (status) => {
         syncStatus.value = status
       })
 
@@ -431,7 +447,10 @@ export function useFmoSync(options = {}) {
               syncStatus.value = `已处理 ${totalProcessed} 条，新增 ${totalSynced} 条`
             }
           } catch (err) {
-            console.warn(`获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`, err.message)
+            console.warn(
+              `获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`,
+              err.message
+            )
             syncFailedRecords.value.push({
               logId: item.logId,
               toCallsign: item.toCallsign,
@@ -537,7 +556,10 @@ export function useFmoSync(options = {}) {
               syncStatus.value = `已处理 ${totalProcessed} 条，已同步 ${totalSynced} 条`
             }
           } catch (err) {
-            console.warn(`获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`, err.message)
+            console.warn(
+              `获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`,
+              err.message
+            )
             syncFailedRecords.value.push({
               logId: item.logId,
               toCallsign: item.toCallsign,

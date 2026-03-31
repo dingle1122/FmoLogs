@@ -89,7 +89,7 @@
       @close="showSettings = false"
       @select-files="triggerFileInput"
       @export-data="handleExportData"
-      @sync-today="handleSyncToday"
+      @sync-days="handleSyncDays"
       @sync-incremental="handleSyncIncremental"
       @sync-full="handleSyncFull"
       @backup-logs="settings.backupLogs()"
@@ -211,10 +211,15 @@
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          <path
+            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+          />
         </svg>
         <span class="nav-label">{{ route.label }}</span>
-        <span v-if="route.type === 'messages' && hasUnreadMessages" class="mobile-unread-badge"></span>
+        <span
+          v-if="route.type === 'messages' && hasUnreadMessages"
+          class="mobile-unread-badge"
+        ></span>
       </router-link>
     </nav>
   </div>
@@ -278,7 +283,7 @@ let stationPollCount = 0
 
 // 消息未读状态
 const hasUnreadMessages = computed(() => {
-  return messageService.messageList.value.some(msg => !msg.isRead)
+  return messageService.messageList.value.some((msg) => !msg.isRead)
 })
 
 // Composables
@@ -646,7 +651,7 @@ async function handleAddAddress({ name, host, protocol }) {
     speakingStatus.setOnMessageCallback((data) => {
       messageService.handleNewMessageSummary(data)
     })
-    messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+    messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
       console.error('消息服务连接失败:', err)
     })
     fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
@@ -679,7 +684,7 @@ async function handleDeleteAddress(id) {
       speakingStatus.setOnMessageCallback((data) => {
         messageService.handleNewMessageSummary(data)
       })
-      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
         console.error('消息服务连接失败:', err)
       })
       fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
@@ -699,7 +704,7 @@ async function handleSelectAddress(id) {
       speakingStatus.setOnMessageCallback((data) => {
         messageService.handleNewMessageSummary(data)
       })
-      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch(err => {
+      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
         console.error('消息服务连接失败:', err)
       })
       fmoSync.stopAutoSyncTask()
@@ -737,9 +742,9 @@ async function handleRefreshUserInfo(id) {
   }
 }
 
-async function handleSyncToday() {
+async function handleSyncDays(days = 1) {
   try {
-    await fmoSync.syncToday(settings.fmoAddress.value, settings.protocol.value)
+    await fmoSync.syncToday(settings.fmoAddress.value, settings.protocol.value, days)
   } catch (err) {
     dataQuery.error.value = `同步失败: ${err.message}`
   }
@@ -823,10 +828,9 @@ onMounted(async () => {
       messageService.handleNewMessageSummary(data)
     })
     // 按需获取消息列表（短连接，获取后自动断开）
-    messageService.getList(settings.fmoAddress.value, settings.protocol.value, 0)
-      .catch(err => {
-        console.error('获取消息列表失败:', err)
-      })
+    messageService.getList(settings.fmoAddress.value, settings.protocol.value, 0).catch((err) => {
+      console.error('获取消息列表失败:', err)
+    })
   }
 
   fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
