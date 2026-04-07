@@ -22,6 +22,14 @@ export function useFmoSync(options = {}) {
   const autoSyncMessage = ref('')
   const syncFailedRecords = ref([])
 
+  // 多地址同步进度
+  const multiSyncProgress = ref({
+    current: 0,
+    total: 0,
+    currentName: '',
+    results: []
+  })
+
   let autoSyncTimer = null
   let autoSyncMessageTimer = null
   let isAutoSyncing = false
@@ -607,6 +615,252 @@ export function useFmoSync(options = {}) {
     }
   }
 
+  // 多地址依次同步
+  // addresses: 地址对象数组，每个包含 {id, name, host, protocol}
+  // syncType: 'today' | 'incremental' | 'full'
+  // days: 天数（用于 today 类型）
+  async function syncMultiple(addresses, syncType, days = 1) {
+    if (!addresses || addresses.length === 0 || syncing.value || isUnmounted) return
+
+    syncing.value = true
+    syncFailedRecords.value = []
+
+    // 初始化进度
+    multiSyncProgress.value = {
+      current: 0,
+      total: addresses.length,
+      currentName: '',
+      results: []
+    }
+
+    const allResults = []
+
+    try {
+      // 依次同步（非并行）
+      for (let i = 0; i < addresses.length; i++) {
+        if (isUnmounted) break
+
+        const address = addresses[i]
+        multiSyncProgress.value.current = i + 1
+        multiSyncProgress.value.currentName = address.name || address.host
+
+        const host = normalizeHost(address.host)
+        const fullAddress = `${address.protocol}://${host}`
+        const client = new FmoApiClient(fullAddress)
+        activeClients.add(client)
+
+        let syncedCount = 0
+        let success = true
+        let errorMsg = ''
+
+        try {
+          syncStatus.value = `正在同步 ${address.name || address.host}...`
+
+          if (syncType === 'today') {
+            syncedCount = await syncRecentData(client, days, (status) => {
+              syncStatus.value = `${address.name || address.host}: ${status}`
+            })
+          } else if (syncType === 'incremental') {
+            syncedCount = await syncIncrementalForAddress(client)
+          } else if (syncType === 'full') {
+            syncedCount = await syncFullForAddress(client)
+          }
+        } catch (err) {
+          success = false
+          errorMsg = err.message
+          console.error(`同步 ${address.name || address.host} 失败:`, err)
+        } finally {
+          client.close()
+          activeClients.delete(client)
+        }
+
+        const result = {
+          addressId: address.id,
+          name: address.name || address.host,
+          success,
+          syncedCount,
+          error: errorMsg
+        }
+
+        allResults.push(result)
+        multiSyncProgress.value.results.push(result)
+
+        // 每个地址同步后短暂延迟，避免资源竞争
+        if (!isUnmounted && i < addresses.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 300))
+        }
+      }
+
+      // 同步完成后调用回调
+      const totalSynced = allResults.reduce((sum, r) => sum + r.syncedCount, 0)
+      const callsigns = await getAvailableFromCallsigns()
+
+      const failedCount = syncFailedRecords.value.length
+      if (failedCount > 0) {
+        syncStatus.value = `多地址同步完成，共 ${addresses.length} 个地址，新增 ${totalSynced} 条记录，${failedCount} 条失败`
+        console.warn('同步失败的记录:', syncFailedRecords.value)
+      } else {
+        syncStatus.value = `多地址同步完成，共 ${addresses.length} 个地址，新增 ${totalSynced} 条记录`
+      }
+
+      // 先调用 onSyncComplete 回调刷新数据
+      await onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true, multiSync: true })
+
+      // 同步完成后刷新页面（与单选模式保持一致）
+      if (!isUnmounted) {
+        reloadTimer = setTimeout(() => {
+          window.location.reload()
+        }, 2000)
+      }
+    } catch (err) {
+      syncStatus.value = `多地址同步失败: ${err.message}`
+      console.error('多地址同步失败:', err)
+    } finally {
+      syncing.value = false
+    }
+  }
+
+  // 为指定地址执行增量同步（内部方法）
+  async function syncIncrementalForAddress(client) {
+    const currentFromCallsign = getSelectedFromCallsign?.() || ''
+    let page = 0
+    let hasMore = true
+    let totalSynced = 0
+
+    while (hasMore && !isUnmounted) {
+      let response
+      try {
+        response = await client.getQsoList(page, 20, currentFromCallsign)
+      } catch (err) {
+        // 连接失败或请求失败，抛出错误让上层处理
+        throw new Error(`获取日志列表失败: ${err.message}`)
+      }
+      
+      const list = response.list || []
+
+      if (list.length === 0) break
+
+      for (const item of list) {
+        if (isUnmounted) break
+
+        try {
+          let qso = null
+          let exists = false
+
+          if (currentFromCallsign) {
+            exists = await isQsoExistsInIndexedDB(
+              currentFromCallsign,
+              item.timestamp,
+              item.toCallsign
+            )
+            if (!exists) {
+              await new Promise((resolve) => setTimeout(resolve, 100))
+              const detailResponse = await client.getQsoDetail(item.logId)
+              qso = detailResponse.log
+              if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+            }
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+            if (qso) {
+              exists = await isQsoExistsInIndexedDB(qso.fromCallsign, qso.timestamp, qso.toCallsign)
+            }
+          }
+
+          if (qso && !exists) {
+            await saveSingleQsoToIndexedDB(qso)
+            totalSynced++
+          }
+        } catch (err) {
+          console.warn(`获取详情失败 logId=${item.logId}:`, err.message)
+          syncFailedRecords.value.push({
+            logId: item.logId,
+            toCallsign: item.toCallsign,
+            timestamp: item.timestamp,
+            error: err.message
+          })
+        }
+      }
+
+      if (list.length < 20) {
+        hasMore = false
+      } else {
+        page++
+        if (!isUnmounted) {
+          await new Promise((resolve) => setTimeout(resolve, 200))
+        }
+      }
+    }
+
+    return totalSynced
+  }
+
+  // 为指定地址执行全量同步（内部方法）
+  async function syncFullForAddress(client) {
+    const currentFromCallsign = getSelectedFromCallsign?.() || ''
+    let page = 0
+    let hasMore = true
+    let totalSynced = 0
+
+    while (hasMore && !isUnmounted) {
+      let response
+      try {
+        response = await client.getQsoList(page, 20, currentFromCallsign)
+      } catch (err) {
+        // 连接失败或请求失败，抛出错误让上层处理
+        throw new Error(`获取日志列表失败: ${err.message}`)
+      }
+      
+      const list = response.list || []
+
+      if (list.length === 0) break
+
+      for (const item of list) {
+        if (isUnmounted) break
+
+        try {
+          let qso = null
+
+          if (currentFromCallsign) {
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+            if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+          } else {
+            await new Promise((resolve) => setTimeout(resolve, 100))
+            const detailResponse = await client.getQsoDetail(item.logId)
+            qso = detailResponse.log
+          }
+
+          if (qso) {
+            await saveSingleQsoToIndexedDB(qso)
+            totalSynced++
+          }
+        } catch (err) {
+          console.warn(`获取详情失败 logId=${item.logId}:`, err.message)
+          syncFailedRecords.value.push({
+            logId: item.logId,
+            toCallsign: item.toCallsign,
+            timestamp: item.timestamp,
+            error: err.message
+          })
+        }
+      }
+
+      if (list.length < 20) {
+        hasMore = false
+      } else {
+        page++
+        if (!isUnmounted) {
+          await new Promise((resolve) => setTimeout(resolve, 200))
+        }
+      }
+    }
+
+    return totalSynced
+  }
+
   return {
     syncing,
     syncStatus,
@@ -617,6 +871,9 @@ export function useFmoSync(options = {}) {
     syncFull,
     startAutoSyncTask,
     stopAutoSyncTask,
-    showAutoSyncMessage
+    showAutoSyncMessage,
+    // 新增多地址同步接口
+    syncMultiple,
+    multiSyncProgress
   }
 }

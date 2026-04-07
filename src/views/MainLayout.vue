@@ -82,10 +82,12 @@
       :protocol="settings.protocol.value"
       :address-list="settings.addressList.value"
       :active-address-id="settings.activeAddressId.value"
-      :available-from-callsigns="availableFromCallsigns"
-      :selected-from-callsign="selectedFromCallsign"
       :syncing="fmoSync.syncing.value"
       :sync-status="fmoSync.syncStatus.value"
+      :multi-select-mode="settings.multiSelectMode.value"
+      @update:multi-select-mode="settings.setMultiSelectMode"
+      :selected-address-ids="settings.selectedAddressIds.value"
+      :multi-sync-progress="fmoSync.multiSyncProgress.value"
       @close="showSettings = false"
       @select-files="triggerFileInput"
       @export-data="handleExportData"
@@ -94,13 +96,15 @@
       @sync-full="handleSyncFull"
       @backup-logs="settings.backupLogs()"
       @clear-all-data="handleClearAllData"
-      @update:selected-from-callsign="handleFromCallsignChange"
+      @toggle-address-selection="settings.toggleAddressSelection"
+      @sync-multiple="handleSyncMultiple"
       @add-address="handleAddAddress"
       @update-address="handleUpdateAddress"
       @delete-address="handleDeleteAddress"
       @select-address="handleSelectAddress"
       @clear-all-addresses="handleClearAllAddresses"
       @refresh-user-info="handleRefreshUserInfo"
+      @validate-and-select="handleValidateAndSelect"
     />
 
     <!-- 隐藏的文件输入 -->
@@ -365,10 +369,17 @@ async function executeQuery() {
   await dataQuery.executeQuery(selectedFromCallsign.value, dbLoaded.value)
 }
 
-function handleFromCallsignChange(value) {
-  selectedFromCallsign.value = value
-  dataQuery.resetPagination()
-  executeQuery()
+// 呼号自动推断：根据当前激活地址的 userInfo 自动推断
+function inferFromCallsign() {
+  const activeAddr = settings.activeAddress.value
+  const callsignFromAddr = activeAddr?.userInfo?.callsign
+
+  if (callsignFromAddr && availableFromCallsigns.value.includes(callsignFromAddr)) {
+    selectedFromCallsign.value = callsignFromAddr
+  } else if (availableFromCallsigns.value.length > 0) {
+    // 退回到第一个可用呼号
+    selectedFromCallsign.value = availableFromCallsigns.value[0]
+  }
 }
 
 function showDetailModal(row) {
@@ -767,6 +778,59 @@ async function handleSyncFull() {
   }
 }
 
+// 多地址同步处理
+async function handleSyncMultiple({ syncType, days }) {
+  // 获取选中的地址对象
+  const selectedIds = settings.selectedAddressIds.value
+  const addresses = settings.addressList.value.filter((addr) => selectedIds.includes(addr.id))
+
+  if (addresses.length === 0) {
+    toast.error('未选择任何地址')
+    return
+  }
+
+  try {
+    await fmoSync.syncMultiple(addresses, syncType, days)
+    
+    // 同步完成后，检查失败的地址并取消选中
+    const failedResults = fmoSync.multiSyncProgress.value.results.filter((r) => !r.success)
+    if (failedResults.length > 0) {
+      // 取消选中失败的地址
+      for (const result of failedResults) {
+        if (settings.selectedAddressIds.value.includes(result.addressId)) {
+          settings.toggleAddressSelection(result.addressId)
+        }
+      }
+      // 显示失败提示
+      const failedNames = failedResults.map((r) => r.name).join('、')
+      toast.error(`以下服务器同步失败: ${failedNames}`)
+    }
+  } catch (err) {
+    dataQuery.error.value = `多地址同步失败: ${err.message}`
+  }
+}
+
+// 多选模式下验证并选中地址
+async function handleValidateAndSelect({ id, host, protocol }) {
+  try {
+    // 测试连接
+    const isConnected = await settings.validateConnection(host, protocol)
+    
+    if (isConnected) {
+      // 连接成功，选中该地址
+      settings.toggleAddressSelection(id)
+    } else {
+      // 连接失败，显示提示
+      toast.error(`连接失败: ${host}`)
+    }
+  } catch (err) {
+    toast.error(`连接验证失败: ${err.message}`)
+  } finally {
+    // 清除 connecting 状态
+    settingsModalRef.value?.clearConnecting()
+  }
+}
+
 // 监听
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
@@ -808,6 +872,27 @@ watch(
   }
 )
 
+// 监听 activeAddress 变化，自动推断呼号
+watch(
+  () => settings.activeAddress.value,
+  () => {
+    if (dbLoaded.value && availableFromCallsigns.value.length > 0) {
+      inferFromCallsign()
+    }
+  },
+  { deep: true }
+)
+
+// 监听 availableFromCallsigns 变化，自动推断呼号
+watch(
+  () => availableFromCallsigns.value,
+  (newVal) => {
+    if (newVal.length > 0 && dbLoaded.value) {
+      inferFromCallsign()
+    }
+  }
+)
+
 // 生命周期
 onMounted(async () => {
   // 回到顶部滚动监听
@@ -819,6 +904,8 @@ onMounted(async () => {
     const queryType = routeToQueryType[route.name] || 'all'
     dataQuery.currentQueryType.value = queryType
     executeQuery()
+    // 数据库加载后执行呼号自动推断
+    inferFromCallsign()
   }
 
   const hasSavedAddress = await settings.initFmoAddress()

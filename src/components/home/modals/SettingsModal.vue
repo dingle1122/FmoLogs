@@ -37,49 +37,29 @@
       <div class="modal-body">
         <!-- 常规设置 -->
         <div v-if="activeTab === 'general'" class="tab-content">
-          <div class="setting-item">
-            <span class="setting-label">日志文件</span>
-            <div class="setting-actions">
-              <button class="btn-primary" @click="$emit('select-files')">导入FMO日志</button>
-              <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
-                导出数据文件
-              </button>
-            </div>
-          </div>
-          <div v-if="dbLoaded" class="setting-info">
-            已加载 {{ availableFromCallsigns.length }} 个呼号日志
-          </div>
-
-          <div v-if="availableFromCallsigns.length > 0" class="setting-item">
-            <span class="setting-label">您的呼号</span>
-            <div class="setting-actions">
-              <select
-                :value="selectedFromCallsign"
-                class="setting-select"
-                @change="$emit('update:selectedFromCallsign', $event.target.value)"
-              >
-                <option
-                  v-for="callsign in availableFromCallsigns"
-                  :key="callsign"
-                  :value="callsign"
-                >
-                  {{ callsign }}
-                </option>
-              </select>
-            </div>
-          </div>
-
           <!-- FMO地址管理 -->
           <div class="setting-group">
             <div class="setting-item">
               <span class="setting-label">FMO地址</span>
               <div class="setting-actions">
+                <!-- 多选同步开关 -->
+                <div class="multi-select-toggle" v-if="addressList.length > 0">
+                  <span class="toggle-label">多选同步</span>
+                  <label class="toggle-switch">
+                    <input
+                      type="checkbox"
+                      :checked="multiSelectMode"
+                      @change="$emit('update:multiSelectMode', $event.target.checked)"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
                 <button
                   v-if="addressList.length > 0"
                   class="btn-text-danger"
                   @click="handleClearAllAddresses"
                 >
-                  清除全部
+                  清空FMO地址
                 </button>
                 <button class="btn-add" @click="showAddForm">+ 添加地址</button>
               </div>
@@ -92,18 +72,23 @@
                 :key="addr.id"
                 class="address-card"
                 :class="{
-                  active: addr.id === activeAddressId,
+                  active: multiSelectMode ? selectedAddressIds.includes(addr.id) : addr.id === activeAddressId,
                   connecting: connectingId === addr.id
                 }"
                 @click="handleSelectAddress(addr.id)"
               >
+                <!-- 连接状态灯 -->
                 <div class="address-status">
                   <span v-if="connectingId === addr.id" class="status-connecting"></span>
-                  <span v-else-if="addr.id === activeAddressId" class="status-active"></span>
+                  <span v-else-if="multiSelectMode ? selectedAddressIds.includes(addr.id) : addr.id === activeAddressId" class="status-active"></span>
                   <span v-else class="status-inactive"></span>
                 </div>
                 <div class="address-info">
-                  <div class="address-name">{{ addr.name }}</div>
+                  <div class="address-name">
+                    {{ addr.name }}
+                    <!-- 主服务器标签 -->
+                    <span v-if="multiSelectMode && addr.id === activeAddressId" class="primary-badge">主服务器</span>
+                  </div>
                   <div class="address-url">{{ addr.protocol }}://{{ addr.host }}</div>
                   <div
                     v-if="addr.id === activeAddressId && addr.userInfo"
@@ -118,6 +103,18 @@
                   </div>
                 </div>
                 <div class="address-actions" @click.stop>
+                  <!-- 多选模式下的设为主服务器按钮 -->
+                  <button
+                    v-if="multiSelectMode && addr.id !== activeAddressId"
+                    class="btn-icon"
+                    title="设为主服务器"
+                    :disabled="connectingId === addr.id"
+                    @click="handleSetPrimary(addr.id)"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                    </svg>
+                  </button>
                   <button
                     v-if="addr.id === activeAddressId"
                     class="btn-icon"
@@ -169,29 +166,32 @@
               </select>
               <button
                 class="btn-secondary"
-                :disabled="!fmoAddress || syncing"
-                @click="$emit('sync-days', syncDays)"
+                :disabled="(!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing"
+                @click="handleSyncDays"
               >
-                {{ syncing ? '正在同步...' : syncDays === 1 ? '同步今日通联' : `同步${syncDays}天通联` }}
+                {{ getSyncDaysButtonText }}
               </button>
             </div>
             <div v-if="addressList.length > 0" class="setting-item-buttons">
               <button
                 class="btn-secondary"
-                :disabled="!fmoAddress || syncing"
+                :disabled="(!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing"
                 @click="handleSyncIncremental"
               >
-                {{ syncing ? '正在同步...' : '增量同步' }}
+                {{ getSyncIncrementalButtonText }}
               </button>
               <button
                 class="btn-secondary"
-                :disabled="!fmoAddress || syncing"
+                :disabled="(!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing"
                 @click="handleSyncFull"
               >
-                {{ syncing ? '正在同步...' : '全量同步' }}
+                {{ getSyncFullButtonText }}
               </button>
             </div>
-            <div v-if="addressList.length > 0" class="setting-item-buttons setting-item-buttons-full">
+            <div
+              v-if="addressList.length > 0"
+              class="setting-item-buttons setting-item-buttons-full"
+            >
               <button
                 class="btn-ghost"
                 :disabled="!fmoAddress || syncing"
@@ -205,10 +205,22 @@
             </div>
           </div>
 
-          <div v-if="dbLoaded" class="setting-item setting-item-danger">
-            <span class="setting-label">数据管理</span>
-            <div class="setting-actions">
-              <button class="btn-danger" @click="$emit('clear-all-data')">清空所有数据</button>
+          <!-- 数据管理 -->
+          <div class="setting-group-data">
+            <div class="setting-item">
+              <span class="setting-label">数据管理</span>
+              <div class="setting-actions">
+                <button class="btn-primary" @click="$emit('select-files')">导入FMO日志</button>
+                <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
+                  导出数据文件
+                </button>
+              </div>
+            </div>
+            <div v-if="dbLoaded" class="setting-item setting-item-danger">
+              <span class="setting-label"></span>
+              <div class="setting-actions">
+                <button class="btn-danger" @click="$emit('clear-all-data')">清空所有数据</button>
+              </div>
             </div>
           </div>
         </div>
@@ -450,14 +462,6 @@ const props = defineProps({
     type: String,
     default: null
   },
-  availableFromCallsigns: {
-    type: Array,
-    default: () => []
-  },
-  selectedFromCallsign: {
-    type: String,
-    default: ''
-  },
   syncing: {
     type: Boolean,
     default: false
@@ -465,6 +469,19 @@ const props = defineProps({
   syncStatus: {
     type: String,
     default: ''
+  },
+  // 多选模式相关
+  multiSelectMode: {
+    type: Boolean,
+    default: false
+  },
+  selectedAddressIds: {
+    type: Array,
+    default: () => []
+  },
+  multiSyncProgress: {
+    type: Object,
+    default: () => ({ current: 0, total: 0, currentName: '', results: [] })
   }
 })
 
@@ -477,13 +494,17 @@ const emit = defineEmits([
   'sync-full',
   'backup-logs',
   'clear-all-data',
-  'update:selectedFromCallsign',
   'add-address',
   'update-address',
   'delete-address',
   'select-address',
   'clear-all-addresses',
-  'refresh-user-info'
+  'refresh-user-info',
+  // 多选模式相关事件
+  'update:multiSelectMode',
+  'toggle-address-selection',
+  'sync-multiple',
+  'validate-and-select'
 ])
 
 const activeTab = ref('general')
@@ -506,6 +527,48 @@ const formError = ref('')
 
 const isMobileDevice = computed(() => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+})
+
+// 同步按钮文本计算属性
+const getSyncDaysButtonText = computed(() => {
+  if (props.syncing) {
+    // 多选模式下显示进度
+    if (props.multiSelectMode && props.selectedAddressIds.length > 1 && props.multiSyncProgress.total > 0) {
+      return `正在同步 ${props.multiSyncProgress.current}/${props.multiSyncProgress.total}...`
+    }
+    return '正在同步...'
+  }
+  // 多选模式且选中多个地址
+  if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
+    return `同步已选地址(${props.selectedAddressIds.length})`
+  }
+  return syncDays.value === 1 ? '同步今日通联' : `同步${syncDays.value}天通联`
+})
+
+const getSyncIncrementalButtonText = computed(() => {
+  if (props.syncing) {
+    if (props.multiSelectMode && props.selectedAddressIds.length > 1 && props.multiSyncProgress.total > 0) {
+      return `正在同步 ${props.multiSyncProgress.current}/${props.multiSyncProgress.total}...`
+    }
+    return '正在同步...'
+  }
+  if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
+    return `增量同步已选(${props.selectedAddressIds.length})`
+  }
+  return '增量同步'
+})
+
+const getSyncFullButtonText = computed(() => {
+  if (props.syncing) {
+    if (props.multiSelectMode && props.selectedAddressIds.length > 1 && props.multiSyncProgress.total > 0) {
+      return `正在同步 ${props.multiSyncProgress.current}/${props.multiSyncProgress.total}...`
+    }
+    return '正在同步...'
+  }
+  if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
+    return `全量同步已选(${props.selectedAddressIds.length})`
+  }
+  return '全量同步'
 })
 
 // APRS 远程控制 - 仅用于自动填充呼号
@@ -651,13 +714,50 @@ async function submitAddressForm() {
   cancelAddressDialog()
 }
 
-function handleSelectAddress(id) {
+async function handleSelectAddress(id) {
+  // 多选模式下，点击卡片切换选中/取消选中
+  if (props.multiSelectMode) {
+    const isCurrentlySelected = props.selectedAddressIds.includes(id)
+    
+    // 取消选中时：直接 toggle，无需验证
+    if (isCurrentlySelected) {
+      emit('toggle-address-selection', id)
+      return
+    }
+    
+    // 选中时：先验证连接
+    const addr = props.addressList.find((a) => a.id === id)
+    if (!addr) return
+    
+    connectingId.value = id
+    
+    try {
+      // 调用父组件验证并选中
+      const result = await emit('validate-and-select', { id, host: addr.host, protocol: addr.protocol })
+      // 父组件处理完成后会自动清除 connectingId（通过 prop 变化或回调）
+    } catch (err) {
+      // 验证失败，清除 connecting 状态
+      connectingId.value = null
+    }
+    return
+  }
+
+  // 单选模式下，切换主服务器
   if (id === props.activeAddressId || connectingId.value) return
 
   connectingId.value = id
   emit('select-address', id)
 
   // 超时后清除连接状态（由父组件处理结果）
+  setTimeout(() => {
+    connectingId.value = null
+  }, 6000)
+}
+
+function handleSetPrimary(id) {
+  if (id === props.activeAddressId || connectingId.value) return
+  connectingId.value = id
+  emit('select-address', id)
   setTimeout(() => {
     connectingId.value = null
   }, 6000)
@@ -682,7 +782,34 @@ async function handleRefreshUserInfo(id) {
   emit('refresh-user-info', id)
 }
 
+// 同步按钮点击处理
+async function handleSyncDays() {
+  // 多选模式且选中多个地址
+  if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
+    const confirmed = await confirmDialog.show(
+      `确定要同步选中的 ${props.selectedAddressIds.length} 个地址的最近${syncDays.value}天数据吗？`
+    )
+    if (confirmed) {
+      emit('sync-multiple', { syncType: 'today', days: syncDays.value })
+    }
+    return
+  }
+  // 单选模式
+  emit('sync-days', syncDays.value)
+}
+
 async function handleSyncIncremental() {
+  // 多选模式且选中多个地址
+  if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
+    const confirmed = await confirmDialog.show(
+      `确定要对选中的 ${props.selectedAddressIds.length} 个地址执行增量同步吗？将从各FMO服务器获取所有日志，并补充本地缺失的记录。`
+    )
+    if (confirmed) {
+      emit('sync-multiple', { syncType: 'incremental', days: 1 })
+    }
+    return
+  }
+  // 单选模式
   const confirmed = await confirmDialog.show(
     '确定要执行增量同步吗？将从FMO服务器获取所有日志，并补充本地缺失的记录。'
   )
@@ -692,6 +819,17 @@ async function handleSyncIncremental() {
 }
 
 async function handleSyncFull() {
+  // 多选模式且选中多个地址
+  if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
+    const confirmed = await confirmDialog.show(
+      `确定要对选中的 ${props.selectedAddressIds.length} 个地址执行全量同步吗？将用各FMO服务器的数据完全替换本地数据库中的所有记录。`
+    )
+    if (confirmed) {
+      emit('sync-multiple', { syncType: 'full', days: 1 })
+    }
+    return
+  }
+  // 单选模式
   const confirmed = await confirmDialog.show(
     '确定要执行全量同步吗？将用FMO服务器的数据完全替换本地数据库中的所有记录。'
   )
@@ -854,6 +992,11 @@ defineExpose({ clearConnecting, clearRefreshing })
 }
 
 .setting-group {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.setting-group-data {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-light);
@@ -1141,9 +1284,8 @@ defineExpose({ clearConnecting, clearRefreshing })
 }
 
 .setting-item-danger {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-light);
+  margin-top: 0;
+  padding-top: 0;
 }
 
 .btn-primary {
@@ -1774,5 +1916,159 @@ defineExpose({ clearConnecting, clearRefreshing })
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 0.25rem;
+}
+
+/* ========== 多选同步开关样式 ========== */
+.multi-select-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 0.5rem;
+}
+
+.toggle-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-primary);
+  border-radius: 22px;
+  transition: all 0.3s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--color-primary);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+.toggle-switch input:focus + .toggle-slider {
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+}
+
+/* ========== 地址卡片多选样式 ========== */
+.address-checkbox-round {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+}
+
+.address-checkbox-round input[type='checkbox'] {
+  display: none;
+}
+
+.checkbox-circle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--text-tertiary);
+  display: inline-block;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.address-checkbox-round input[type='checkbox']:checked + .checkbox-circle {
+  border-color: var(--color-primary);
+  background: transparent;
+}
+
+.address-checkbox-round input[type='checkbox']:checked + .checkbox-circle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  transform: translate(-50%, -50%);
+}
+
+.address-card.selected {
+  border-color: var(--color-primary);
+  background: rgba(64, 158, 255, 0.12);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.primary-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  margin-left: 0.4rem;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 3px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .multi-select-toggle {
+    gap: 0.3rem;
+  }
+
+  .toggle-label {
+    font-size: 0.8rem;
+  }
+
+  .toggle-switch {
+    width: 36px;
+    height: 20px;
+  }
+
+  .toggle-slider::before {
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+  }
+
+  .toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(16px);
+  }
+
+  .primary-badge {
+    font-size: 0.6rem;
+    padding: 0.05rem 0.25rem;
+  }
 }
 </style>

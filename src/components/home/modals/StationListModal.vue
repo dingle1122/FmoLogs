@@ -67,21 +67,27 @@ const emit = defineEmits(['close', 'select', 'load-more'])
 const modalBodyRef = ref(null)
 
 // 弹框显示时自动加载服务器列表
-watch(() => props.visible, (newVisible) => {
-  if (newVisible && props.stationList.length === 0 && !props.loading) {
-    emit('load-more')
+watch(
+  () => props.visible,
+  (newVisible) => {
+    if (newVisible && props.stationList.length === 0 && !props.loading) {
+      emit('load-more')
+    }
   }
-})
+)
 
 // 监听加载状态，加载完成后检查是否需要继续加载
-watch(() => props.loading, (newLoading) => {
-  if (!newLoading && props.visible && !props.noMore) {
-    // 使用 nextTick 确保 DOM 已更新
-    setTimeout(() => {
-      checkAndLoadMore()
-    }, 0)
+watch(
+  () => props.loading,
+  (newLoading) => {
+    if (!newLoading && props.visible && !props.noMore) {
+      // 使用 nextTick 确保 DOM 已更新
+      setTimeout(() => {
+        checkAndLoadMore()
+      }, 0)
+    }
   }
-})
+)
 
 function handleSelect(uid) {
   emit('select', uid)

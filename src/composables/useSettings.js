@@ -5,8 +5,12 @@ import { normalizeHost } from '../utils/urlUtils'
 
 export function useSettings() {
   // 多地址存储
-  const fmoAddressStorage = ref({ addresses: [], activeId: null })
+  const fmoAddressStorage = ref({ addresses: [], activeId: null, selectedIds: [] })
   const todayContactedCallsigns = ref(new Set())
+
+  // 多选模式状态
+  const selectedAddressIds = ref([])
+  const multiSelectMode = ref(false)
 
   const isHttps = window.location.protocol === 'https:'
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -49,6 +53,11 @@ export function useSettings() {
   async function initFmoAddress() {
     const storage = await getFmoAddresses()
     fmoAddressStorage.value = storage
+
+    // 初始化多选状态
+    selectedAddressIds.value = storage.selectedIds || []
+    // 初始化多选模式状态
+    multiSelectMode.value = storage.multiSelectMode || false
 
     // 如果迁移后有数据，保存一次确保新格式持久化
     if (storage.addresses.length > 0) {
@@ -121,6 +130,26 @@ export function useSettings() {
   // 生成唯一ID
   function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2, 11)
+  }
+
+  // 切换地址勾选状态
+  async function toggleAddressSelection(id) {
+    const index = selectedAddressIds.value.indexOf(id)
+    if (index === -1) {
+      selectedAddressIds.value.push(id)
+    } else {
+      selectedAddressIds.value.splice(index, 1)
+    }
+    // 持久化到存储
+    fmoAddressStorage.value.selectedIds = [...selectedAddressIds.value]
+    await saveFmoAddresses(fmoAddressStorage.value)
+  }
+
+  // 设置多选模式状态
+  async function setMultiSelectMode(value) {
+    multiSelectMode.value = value
+    fmoAddressStorage.value.multiSelectMode = value
+    await saveFmoAddresses(fmoAddressStorage.value)
   }
 
   // 添加新地址
@@ -218,6 +247,13 @@ export function useSettings() {
       }
     }
 
+    // 如果删除的地址在 selectedAddressIds 中，同步清除
+    const selectedIndex = selectedAddressIds.value.indexOf(id)
+    if (selectedIndex !== -1) {
+      selectedAddressIds.value.splice(selectedIndex, 1)
+    }
+
+    fmoAddressStorage.value.selectedIds = [...selectedAddressIds.value]
     await saveFmoAddresses(fmoAddressStorage.value)
     return { success: true, message: '地址已删除', reconnect: wasActive }
   }
@@ -280,6 +316,9 @@ export function useSettings() {
     const hadAddresses = fmoAddressStorage.value.addresses.length > 0
     fmoAddressStorage.value.addresses = []
     fmoAddressStorage.value.activeId = null
+    // 清空多选状态
+    selectedAddressIds.value = []
+    fmoAddressStorage.value.selectedIds = []
     await saveFmoAddresses(fmoAddressStorage.value)
     return { success: true, reconnect: hadAddresses }
   }
@@ -423,6 +462,11 @@ export function useSettings() {
     selectFmoAddress,
     clearAllAddresses,
     refreshUserInfo,
-    validateConnection
+    validateConnection,
+    // 新增多选同步接口
+    selectedAddressIds,
+    multiSelectMode,
+    toggleAddressSelection,
+    setMultiSelectMode
   }
 }

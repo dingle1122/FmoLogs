@@ -42,7 +42,7 @@
                 <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
               </div>
               <div class="duration-time">
-                {{ formatDurationMmSs(((record.endTime || now) - record.startTime)) }}
+                {{ formatDurationMmSs((record.endTime || now) - record.startTime) }}
               </div>
             </div>
           </div>

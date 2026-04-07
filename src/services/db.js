@@ -42,6 +42,19 @@ export async function saveFmoAddresses(storage) {
   })
 }
 
+// 向后兼容迁移：确保存储结构包含 selectedIds 和 multiSelectMode 字段
+function migrateSelectedIds(storage) {
+  if (!storage.selectedIds) {
+    // 旧数据无 selectedIds，根据 activeId 设置默认值
+    storage.selectedIds = storage.activeId ? [storage.activeId] : []
+  }
+  // 迁移 multiSelectMode 字段
+  if (typeof storage.multiSelectMode !== 'boolean') {
+    storage.multiSelectMode = false
+  }
+  return storage
+}
+
 // 获取FMO地址列表（支持旧格式迁移）
 export async function getFmoAddresses() {
   try {
@@ -54,8 +67,8 @@ export async function getFmoAddresses() {
       request.onsuccess = () => {
         const result = request.result
         if (!result) {
-          // 无数据，返回空结构
-          resolve({ addresses: [], activeId: null })
+          // 无数据，返回空结构（包含 selectedIds 和 multiSelectMode）
+          resolve({ addresses: [], activeId: null, selectedIds: [], multiSelectMode: false })
           return
         }
 
@@ -64,7 +77,8 @@ export async function getFmoAddresses() {
           const parsed = JSON.parse(result)
           // 验证是否为新格式
           if (parsed && Array.isArray(parsed.addresses)) {
-            resolve(parsed)
+            // 向后兼容迁移 selectedIds
+            resolve(migrateSelectedIds(parsed))
             return
           }
         } catch {
@@ -74,15 +88,16 @@ export async function getFmoAddresses() {
         // 旧格式字符串，需要迁移
         if (typeof result === 'string' && result.length > 0) {
           const migrated = migrateOldFmoAddress(result)
-          resolve(migrated)
+          // 迁移后的结构也添加 selectedIds
+          resolve(migrateSelectedIds(migrated))
           return
         }
 
-        resolve({ addresses: [], activeId: null })
+        resolve({ addresses: [], activeId: null, selectedIds: [], multiSelectMode: false })
       }
     })
   } catch {
-    return { addresses: [], activeId: null }
+    return { addresses: [], activeId: null, selectedIds: [], multiSelectMode: false }
   }
 }
 

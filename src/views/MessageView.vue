@@ -7,35 +7,33 @@
         <!-- 发送消息按钮 -->
         <button class="btn-primary send-message-btn" @click="openSendModal">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>
           发送消息
         </button>
 
         <!-- 操作按钮组 -->
         <div class="action-buttons">
-          <button 
-            class="btn-text refresh-btn" 
-            @click="refreshMessages"
-            :disabled="loading"
-          >
+          <button class="btn-text refresh-btn" :disabled="loading" @click="refreshMessages">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10"/>
-              <polyline points="1 20 1 14 7 14"/>
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
             刷新
           </button>
-          <button 
-            v-if="messageList.length > 0" 
-            class="btn-text btn-danger" 
-            @click="handleDeleteAll"
+          <button
+            v-if="messageList.length > 0"
+            class="btn-text btn-danger"
             :disabled="deletingAll"
+            @click="handleDeleteAll"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              <polyline points="3 6 5 6 21 6" />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              />
             </svg>
             清空
           </button>
@@ -47,23 +45,25 @@
             <div class="spinner"></div>
             <span>加载中...</span>
           </div>
-          
+
           <div v-else-if="messageList.length === 0" class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+              <path
+                d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+              />
             </svg>
             <p>暂无消息</p>
             <span class="empty-hint">点击上方按钮发送第一条消息</span>
           </div>
-          
+
           <div v-else class="message-list">
             <div
               v-for="msg in messageList"
               :key="msg.messageId"
               class="message-item"
-              :class="{ 
-                unread: !msg.isRead, 
-                active: selectedMessageId === msg.messageId 
+              :class="{
+                unread: !msg.isRead,
+                active: selectedMessageId === msg.messageId
               }"
               @click="selectMessage(msg)"
             >
@@ -76,15 +76,15 @@
                 <span class="time">{{ formatTime(msg.timestamp) }}</span>
               </div>
             </div>
-            
+
             <!-- 加载更多 -->
-            <button 
-              class="load-more-btn" 
+            <button
+              class="load-more-btn"
               :class="{ 'no-more': !hasMore }"
-              @click="loadMore"
               :disabled="loadingMore || !hasMore"
+              @click="loadMore"
             >
-              {{ loadingMore ? '加载中...' : (hasMore ? '加载更多' : '没有更多消息了') }}
+              {{ loadingMore ? '加载中...' : hasMore ? '加载更多' : '没有更多消息了' }}
             </button>
           </div>
         </div>
@@ -95,24 +95,24 @@
         <div class="detail-header">
           <button class="back-btn" @click="closeDetail">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="15 18 9 12 15 6"/>
+              <polyline points="15 18 9 12 15 6" />
             </svg>
             返回列表
           </button>
-          <button 
-            v-if="currentDetail && !currentDetail.isRead" 
-            class="btn-text" 
-            @click="markAsRead"
+          <button
+            v-if="currentDetail && !currentDetail.isRead"
+            class="btn-text"
             :disabled="markingRead"
+            @click="markAsRead"
           >
             标记已读
           </button>
         </div>
-        
+
         <div v-if="detailLoading" class="detail-loading">
           <div class="spinner"></div>
         </div>
-        
+
         <div v-else-if="currentDetail" class="detail-content email-style">
           <!-- 邮件头部信息 -->
           <div class="email-header">
@@ -136,14 +136,14 @@
               <span class="email-recipient">{{ currentDetail.to }}</span>
             </div>
           </div>
-          
+
           <!-- 邮件正文 -->
           <div class="email-body">
             <div class="email-message-content">
               {{ currentDetail.message }}
             </div>
           </div>
-          
+
           <!-- 底部元信息和操作 -->
           <div class="email-footer">
             <div v-if="currentDetail.rig" class="footer-line">
@@ -155,14 +155,16 @@
               <span class="footer-value">{{ currentDetail.path }}</span>
             </div>
             <div class="email-actions">
-              <button 
-                class="btn-text btn-danger" 
-                @click="handleDeleteCurrentMessage"
+              <button
+                class="btn-text btn-danger"
                 :disabled="deletingId === currentDetail.messageId"
+                @click="handleDeleteCurrentMessage"
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                  <polyline points="3 6 5 6 21 6" />
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  />
                 </svg>
                 删除此消息
               </button>
@@ -179,56 +181,52 @@
           <h3>发送消息</h3>
           <button class="close-btn" @click="closeSendModal">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
-        
+
         <div class="modal-body">
           <div class="form-group">
             <label>目标呼号</label>
-            <input 
-              v-model="sendForm.callsign" 
-              type="text" 
+            <input
+              v-model="sendForm.callsign"
+              type="text"
               placeholder="输入呼号 (如: BG1AAA)"
               maxlength="15"
               @input="sendForm.callsign = sendForm.callsign.toUpperCase()"
             />
             <span v-if="callsignError" class="error-text">{{ callsignError }}</span>
           </div>
-          
+
           <div class="form-group">
             <label>SSID</label>
             <select v-model="sendForm.ssid">
               <option v-for="n in 15" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
-          
+
           <div class="form-group">
             <label>消息内容</label>
-            <textarea 
-              v-model="sendForm.message" 
-              rows="4" 
+            <textarea
+              v-model="sendForm.message"
+              rows="4"
               placeholder="输入消息内容..."
               maxlength="500"
             ></textarea>
             <span class="char-count">{{ sendForm.message.length }}/500</span>
           </div>
         </div>
-        
+
         <div class="modal-footer">
           <button class="btn-secondary" @click="closeSendModal">取消</button>
-          <button 
-            class="btn-primary" 
-            @click="handleSend"
-            :disabled="!canSend || sending"
-          >
+          <button class="btn-primary" :disabled="!canSend || sending" @click="handleSend">
             <span v-if="sending" class="spinner-small"></span>
             <span v-else>发送</span>
           </button>
         </div>
-        
+
         <!-- 发送结果提示 -->
         <div v-if="sendResult" class="send-result" :class="sendResult.type">
           {{ sendResult.message }}
@@ -278,11 +276,12 @@ const callsignError = ref('')
 const messageList = computed(() => messageService.messageList.value)
 const hasMore = computed(() => messageService.hasMore.value)
 
-
 const canSend = computed(() => {
-  return sendForm.value.callsign.trim() && 
-         sendForm.value.message.trim() &&
-         validateCallsign(sendForm.value.callsign.toUpperCase())
+  return (
+    sendForm.value.callsign.trim() &&
+    sendForm.value.message.trim() &&
+    validateCallsign(sendForm.value.callsign.toUpperCase())
+  )
 })
 
 // 方法
@@ -291,7 +290,7 @@ function formatTime(timestamp) {
   const date = new Date(timestamp * 1000)
   const now = new Date()
   const isToday = date.toDateString() === now.toDateString()
-  
+
   if (isToday) {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
   }
@@ -309,7 +308,7 @@ async function selectMessage(msg) {
   showDetail.value = true
   detailLoading.value = true
   currentDetail.value = null
-  
+
   try {
     const result = await messageService.getDetail(fmoAddress.value, protocol.value, msg.messageId)
     if (result.status === 'success' && result.messageId) {
@@ -336,10 +335,14 @@ function closeDetail() {
 
 async function markAsRead() {
   if (!currentDetail.value) return
-  
+
   markingRead.value = true
   try {
-    const result = await messageService.setRead(fmoAddress.value, protocol.value, currentDetail.value.messageId)
+    const result = await messageService.setRead(
+      fmoAddress.value,
+      protocol.value,
+      currentDetail.value.messageId
+    )
     if (result.status === 'success') {
       currentDetail.value.isRead = true
       toast.success('已标记为已读')
@@ -353,7 +356,7 @@ async function markAsRead() {
 
 async function loadMore() {
   if (loadingMore.value || !hasMore.value) return
-  
+
   loadingMore.value = true
   try {
     const nextAnchorId = messageService.nextAnchorId.value
@@ -367,7 +370,7 @@ async function loadMore() {
 
 async function refreshMessages() {
   if (loading.value) return
-  
+
   loading.value = true
   try {
     await messageService.getList(fmoAddress.value, protocol.value, 0)
@@ -382,7 +385,7 @@ async function refreshMessages() {
 async function handleDeleteItem(messageId) {
   const confirmed = await confirmDialog.show('确定要删除这条消息吗？')
   if (!confirmed) return
-  
+
   deletingId.value = messageId
   try {
     const result = await messageService.deleteItem(fmoAddress.value, protocol.value, messageId)
@@ -409,7 +412,7 @@ async function handleDeleteCurrentMessage() {
 async function handleDeleteAll() {
   const confirmed = await confirmDialog.show('确定要清空所有消息吗？此操作不可恢复。')
   if (!confirmed) return
-  
+
   deletingAll.value = true
   try {
     const result = await messageService.deleteAll(fmoAddress.value, protocol.value)
@@ -448,13 +451,13 @@ function replyMessage() {
 
 function replyToSender() {
   if (!currentDetail.value) return
-  
+
   // 解析呼号和 SSID
   const from = currentDetail.value.from || ''
   const match = from.match(/^([A-Z0-9]+)(?:-(\d+))?$/)
   const callsign = match ? match[1] : from
   const ssid = match && match[2] ? parseInt(match[2], 10) : 0
-  
+
   sendForm.value = {
     callsign: callsign,
     ssid: ssid,
@@ -476,17 +479,17 @@ function formatSender(from) {
 
 async function handleSend() {
   if (!canSend.value || sending.value) return
-  
+
   const callsign = sendForm.value.callsign.toUpperCase().trim()
-  
+
   if (!validateCallsign(callsign)) {
     callsignError.value = '呼号格式不正确 (1-15位字母数字)'
     return
   }
-  
+
   sending.value = true
   sendResult.value = null
-  
+
   try {
     const result = await messageService.send(
       fmoAddress.value,
@@ -495,7 +498,7 @@ async function handleSend() {
       sendForm.value.ssid,
       sendForm.value.message.trim()
     )
-    
+
     if (result.status === 'success' && result.result === 0) {
       sendResult.value = { type: 'success', message: '发送成功！' }
       sendForm.value.message = ''
@@ -679,7 +682,9 @@ onUnmounted(() => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 消息列表 */
@@ -1258,23 +1263,23 @@ onUnmounted(() => {
     min-width: auto;
     border-right: none;
   }
-  
+
   .message-list-section.mobile-hidden {
     display: none;
   }
-  
+
   .message-detail-section {
     width: 100%;
   }
-  
+
   .detail-content {
     padding: 1rem;
   }
-  
+
   .detail-meta {
     padding: 0.875rem;
   }
-  
+
   .meta-label {
     width: 70px;
   }
@@ -1284,16 +1289,16 @@ onUnmounted(() => {
   .send-message-btn {
     margin: 0.75rem;
   }
-  
+
   .message-list-container {
     padding: 0 0.75rem 0.75rem;
   }
-  
+
   .modal-content {
     max-height: 100vh;
     border-radius: 0;
   }
-  
+
   .modal-overlay {
     padding: 0;
     align-items: flex-end;
