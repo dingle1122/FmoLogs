@@ -275,11 +275,18 @@ export function useFmoSync(options = {}) {
   }
 
   // 启动自动同步任务
-  function startAutoSyncTask(fmoAddress, protocol) {
+  // getAddresses: 返回 [{host, protocol}] 数组的函数，每次同步周期调用获取最新地址列表
+  function startAutoSyncTask(getAddresses) {
     if (autoSyncTimer) return
 
     autoSyncTimer = setInterval(async () => {
-      if (isAutoSyncing || syncing.value || !fmoAddress) {
+      if (isAutoSyncing || syncing.value) {
+        return
+      }
+
+      // 获取当前需要同步的地址列表
+      const addresses = typeof getAddresses === 'function' ? getAddresses() : []
+      if (!addresses || addresses.length === 0) {
         return
       }
 
@@ -290,17 +297,36 @@ export function useFmoSync(options = {}) {
         const oneHour = 60 * 60 * 1000
         const needsFullSync = now - lastFullSyncTime >= oneHour
 
-        if (needsFullSync) {
-          console.log('执行每小时今日数据同步')
-          await performTodaySync(fmoAddress, protocol)
-          lastFullSyncTime = now
-        } else {
-          const shouldSync = checkShouldSync()
-          if (shouldSync) {
-            await performIncrementalSync(fmoAddress, protocol)
-          } else {
-            console.log('当前呼号5分钟内未发言，跳过本次同步')
+        // 依次同步所有地址（非并行）
+        for (let i = 0; i < addresses.length; i++) {
+          const address = addresses[i]
+          if (!address || !address.host) continue
+
+          try {
+            if (needsFullSync) {
+              console.log(`执行每小时今日数据同步: ${address.host}`)
+              await performTodaySync(address.host, address.protocol)
+            } else {
+              const shouldSync = checkShouldSync()
+              if (shouldSync) {
+                await performIncrementalSync(address.host, address.protocol)
+              } else {
+                console.log(`当前呼号5分钟内未发言，跳过本次同步: ${address.host}`)
+              }
+            }
+          } catch (err) {
+            console.error(`同步 ${address.host} 失败:`, err)
           }
+
+          // 地址之间间隔 300ms
+          if (i < addresses.length - 1) {
+            await new Promise((resolve) => setTimeout(resolve, 300))
+          }
+        }
+
+        // 更新最后全量同步时间（整个周期结束后统一更新）
+        if (needsFullSync) {
+          lastFullSyncTime = now
         }
       } catch (err) {
         console.error('定时同步失败:', err)

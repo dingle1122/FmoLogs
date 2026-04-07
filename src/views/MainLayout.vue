@@ -85,7 +85,7 @@
       :syncing="fmoSync.syncing.value"
       :sync-status="fmoSync.syncStatus.value"
       :multi-select-mode="settings.multiSelectMode.value"
-      @update:multi-select-mode="settings.setMultiSelectMode"
+      @update:multi-select-mode="handleSetMultiSelectMode"
       :selected-address-ids="settings.selectedAddressIds.value"
       :multi-sync-progress="fmoSync.multiSyncProgress.value"
       @close="showSettings = false"
@@ -686,21 +686,34 @@ async function handleDeleteAddress(id) {
 
   // 如果删除的是当前选中地址，需要重连
   if (result.reconnect) {
-    speakingStatus.disconnectEventWs()
-    fmoSync.stopAutoSyncTask()
     messageService.disconnect()
 
-    // 如果还有其他地址，连接到新的选中地址
-    if (settings.fmoAddress.value) {
+    if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
+      // 多选模式：重建 events 连接
+      speakingStatus.disconnectAllEventWs()
+      const selectedAddresses = settings.addressList.value
+        .filter((a) => settings.selectedAddressIds.value.includes(a.id))
+        .map((a) => ({ id: a.id, host: a.host, protocol: a.protocol }))
+      speakingStatus.connectMultipleEventWs(selectedAddresses, settings.activeAddressId.value)
+    } else if (settings.fmoAddress.value) {
+      // 单选模式：连接到新的选中地址
+      speakingStatus.disconnectEventWs()
       speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
-      speakingStatus.setOnMessageCallback((data) => {
-        messageService.handleNewMessageSummary(data)
-      })
+    } else {
+      // 没有地址了，断开所有连接
+      speakingStatus.disconnectAllEventWs()
+    }
+
+    speakingStatus.setOnMessageCallback((data) => {
+      messageService.handleNewMessageSummary(data)
+    })
+
+    if (settings.fmoAddress.value) {
       messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
         console.error('消息服务连接失败:', err)
       })
-      fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
     }
+    // 定时同步不需要重启（因为用的是 getAddresses 函数，自动获取最新地址）
   }
 }
 
@@ -710,17 +723,28 @@ async function handleSelectAddress(id) {
 
   if (result.success) {
     if (result.reconnect) {
-      speakingStatus.disconnectEventWs()
-      messageService.disconnect()
-      speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      // 切换主服务器时需要重建 events 连接（因为 primaryId 变了）
+      if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
+        // 多选模式：重建所有 events 连接
+        speakingStatus.disconnectAllEventWs()
+        const selectedAddresses = settings.addressList.value
+          .filter((a) => settings.selectedAddressIds.value.includes(a.id))
+          .map((a) => ({ id: a.id, host: a.host, protocol: a.protocol }))
+        speakingStatus.connectMultipleEventWs(selectedAddresses, id)
+      } else {
+        // 单选模式：保持现有逻辑
+        speakingStatus.disconnectEventWs()
+        speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      }
+
       speakingStatus.setOnMessageCallback((data) => {
         messageService.handleNewMessageSummary(data)
       })
+      messageService.disconnect()
       messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
         console.error('消息服务连接失败:', err)
       })
-      fmoSync.stopAutoSyncTask()
-      fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
+      // 定时同步不需要重启（因为用的是 getAddresses 函数，自动获取最新地址）
     }
   } else {
     toast.warning(result.message)
@@ -736,7 +760,7 @@ async function handleClearAllAddresses() {
 
   // 断开连接并停止同步任务
   if (result.reconnect) {
-    speakingStatus.disconnectEventWs()
+    speakingStatus.disconnectAllEventWs()
     messageService.disconnect()
     fmoSync.stopAutoSyncTask()
     currentStation.value = null
@@ -815,10 +839,17 @@ async function handleValidateAndSelect({ id, host, protocol }) {
   try {
     // 测试连接
     const isConnected = await settings.validateConnection(host, protocol)
-    
+
     if (isConnected) {
       // 连接成功，选中该地址
       settings.toggleAddressSelection(id)
+
+      // 选中后重建 events 连接（因为选中地址列表变了）
+      speakingStatus.disconnectAllEventWs()
+      const selectedAddresses = settings.addressList.value
+        .filter((a) => settings.selectedAddressIds.value.includes(a.id) || a.id === id)
+        .map((a) => ({ id: a.id, host: a.host, protocol: a.protocol }))
+      speakingStatus.connectMultipleEventWs(selectedAddresses, settings.activeAddressId.value)
     } else {
       // 连接失败，显示提示
       toast.error(`连接失败: ${host}`)
@@ -828,6 +859,39 @@ async function handleValidateAndSelect({ id, host, protocol }) {
   } finally {
     // 清除 connecting 状态
     settingsModalRef.value?.clearConnecting()
+  }
+}
+
+// 处理多选模式切换
+async function handleSetMultiSelectMode(value) {
+  const oldMode = settings.multiSelectMode.value
+  const newMode = value
+
+  // 先更新设置
+  await settings.setMultiSelectMode(value)
+
+  // 如果模式发生变化，重建 events 连接和定时同步
+  if (oldMode !== newMode) {
+    if (newMode) {
+      // 从单选切到多选
+      speakingStatus.disconnectEventWs()
+      if (settings.selectedAddressIds.value.length > 0) {
+        const selectedAddresses = settings.addressList.value
+          .filter((a) => settings.selectedAddressIds.value.includes(a.id))
+          .map((a) => ({ id: a.id, host: a.host, protocol: a.protocol }))
+        speakingStatus.connectMultipleEventWs(selectedAddresses, settings.activeAddressId.value)
+      }
+    } else {
+      // 从多选切到单选
+      speakingStatus.disconnectAllEventWs()
+      if (settings.fmoAddress.value) {
+        speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+      }
+    }
+
+    // 重建定时同步（使用新的 getAddresses 函数）
+    fmoSync.stopAutoSyncTask()
+    fmoSync.startAutoSyncTask(getSyncAddresses)
   }
 }
 
@@ -893,6 +957,37 @@ watch(
   }
 )
 
+// 获取同步地址列表的函数（用于定时同步）
+function getSyncAddresses() {
+  if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
+    return settings.addressList.value
+      .filter((a) => settings.selectedAddressIds.value.includes(a.id))
+      .map((a) => ({ host: a.host, protocol: a.protocol }))
+  }
+  // 单选模式
+  if (settings.fmoAddress.value) {
+    return [{ host: settings.fmoAddress.value, protocol: settings.protocol.value }]
+  }
+  return []
+}
+
+// 连接 events WebSocket（根据当前模式）
+function connectEventsWebSocket() {
+  const hasSavedAddress = settings.addressList.value.length > 0
+  if (!hasSavedAddress) return
+
+  if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
+    // 多选模式：连接所有选中地址的 events
+    const selectedAddresses = settings.addressList.value
+      .filter((a) => settings.selectedAddressIds.value.includes(a.id))
+      .map((a) => ({ id: a.id, host: a.host, protocol: a.protocol }))
+    speakingStatus.connectMultipleEventWs(selectedAddresses, settings.activeAddressId.value)
+  } else {
+    // 单选模式：保持原有单连接
+    speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   // 回到顶部滚动监听
@@ -910,18 +1005,21 @@ onMounted(async () => {
 
   const hasSavedAddress = await settings.initFmoAddress()
   if (hasSavedAddress) {
-    speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
+    // 根据模式连接 events
+    connectEventsWebSocket()
+
     // 注册消息事件回调，让 speakingStatus 的 events 连接转发消息摘要
     speakingStatus.setOnMessageCallback((data) => {
       messageService.handleNewMessageSummary(data)
     })
-    // 按需获取消息列表（短连接，获取后自动断开）
+    // 按需获取消息列表（短连接，获取后自动断开）- 只连主服务器
     messageService.getList(settings.fmoAddress.value, settings.protocol.value, 0).catch((err) => {
       console.error('获取消息列表失败:', err)
     })
   }
 
-  fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
+  // 定时同步：使用 getAddresses 函数模式
+  fmoSync.startAutoSyncTask(getSyncAddresses)
   speakingStatus.startSpeakingHistoryCleanup()
 })
 
@@ -932,7 +1030,7 @@ onUnmounted(() => {
 
   fmoSync.stopAutoSyncTask()
   speakingStatus.stopSpeakingHistoryCleanup()
-  speakingStatus.disconnectEventWs()
+  speakingStatus.disconnectAllEventWs()
   messageService.disconnect()
 })
 

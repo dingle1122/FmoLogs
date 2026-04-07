@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { formatTimeAgo } from '../components/home/constants'
 import { normalizeHost } from '../utils/urlUtils'
 
@@ -7,12 +7,27 @@ const STORAGE_KEY = 'fmo_speaking_history'
 export function useSpeakingStatus() {
   const currentSpeaker = ref('')
   const speakingHistory = ref(loadSpeakingHistoryFromStorage())
-  const eventsConnected = ref(false)
 
-  let eventWs = null
-  let eventWsReconnectTimer = null
+  // 多连接管理
+  const eventConnections = new Map() // key: addressId, value: WebSocket
+  const reconnectTimers = new Map() // key: addressId, value: timer
+  const connectionConfigs = new Map() // key: addressId, value: {host, protocol, isPrimary}
   let speakingHistoryCleanupTimer = null
   let isManualDisconnect = false
+  let primaryAddressId = null
+
+  // 主服务器连接状态
+  const primaryConnected = ref(false)
+
+  // 任一连接存活即为 true
+  const eventsConnected = computed(() => {
+    for (const ws of eventConnections.values()) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        return true
+      }
+    }
+    return false
+  })
 
   // 从 localStorage 加载发言历史
   function loadSpeakingHistoryFromStorage() {
@@ -47,15 +62,116 @@ export function useSpeakingStatus() {
     }
   }
 
-  // 连接事件 WebSocket
+  // 创建单个事件 WebSocket 连接
+  function createEventWsConnection(addressId, host, protocol, isPrimary) {
+    const normalizedHost = normalizeHost(host)
+    const wsUrl = `${protocol}://${normalizedHost}/events`
+
+    console.log(`[${addressId}] Connecting to events: ${wsUrl}`)
+
+    const ws = new WebSocket(wsUrl)
+    eventConnections.set(addressId, ws)
+    connectionConfigs.set(addressId, { host, protocol, isPrimary })
+
+    ws.onopen = () => {
+      console.log(`[${addressId}] Events WebSocket connected`)
+      // 清除该连接的重连定时器
+      if (reconnectTimers.has(addressId)) {
+        clearTimeout(reconnectTimers.get(addressId))
+        reconnectTimers.delete(addressId)
+      }
+      // 更新主服务器连接状态
+      if (isPrimary) {
+        primaryConnected.value = true
+      }
+    }
+
+    ws.onmessage = (event) => {
+      handleEventMessage(event.data, isPrimary)
+    }
+
+    ws.onclose = () => {
+      console.log(`[${addressId}] Events WebSocket closed`)
+      // 更新主服务器连接状态
+      if (isPrimary) {
+        primaryConnected.value = false
+      }
+      // 只有非主动断开才重连
+      if (!isManualDisconnect && !reconnectTimers.has(addressId)) {
+        const timer = setTimeout(() => {
+          reconnectTimers.delete(addressId)
+          const config = connectionConfigs.get(addressId)
+          if (config) {
+            createEventWsConnection(addressId, config.host, config.protocol, config.isPrimary)
+          }
+        }, 5000)
+        reconnectTimers.set(addressId, timer)
+      }
+    }
+
+    ws.onerror = () => {
+      // onclose 会自动触发
+    }
+
+    return ws
+  }
+
+  // 连接多个事件 WebSocket（多选模式）
+  function connectMultipleEventWs(addresses, primaryId) {
+    if (!addresses || addresses.length === 0) return
+
+    isManualDisconnect = false
+    primaryAddressId = primaryId
+
+    // 先断开所有旧连接
+    disconnectAllEventWs()
+
+    // 为每个地址创建连接
+    for (const addr of addresses) {
+      const isPrimary = addr.id === primaryId
+      createEventWsConnection(addr.id, addr.host, addr.protocol, isPrimary)
+    }
+  }
+
+  // 断开所有事件 WebSocket 连接
+  function disconnectAllEventWs() {
+    isManualDisconnect = true
+
+    // 清除所有重连定时器
+    for (const timer of reconnectTimers.values()) {
+      clearTimeout(timer)
+    }
+    reconnectTimers.clear()
+
+    // 关闭所有连接
+    for (const [addressId, ws] of eventConnections.entries()) {
+      try {
+        const state = ws.readyState
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+          ws.close()
+        }
+      } catch (err) {
+        console.error(`[${addressId}] 关闭事件 WebSocket 失败:`, err)
+      }
+    }
+    eventConnections.clear()
+    connectionConfigs.clear()
+
+    currentSpeaker.value = ''
+    primaryConnected.value = false
+    primaryAddressId = null
+  }
+
+  // 连接单个事件 WebSocket（单选模式兼容）
   function connectEventWs(fmoAddress, protocol) {
     if (!fmoAddress) return
 
     isManualDisconnect = false
 
     // 检查是否已有连接或正在连接
-    if (eventWs) {
-      const state = eventWs.readyState
+    const existingWs = eventConnections.get('single')
+    if (existingWs) {
+      const state = existingWs.readyState
       if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
         return
       }
@@ -65,65 +181,13 @@ export function useSpeakingStatus() {
       }
     }
 
-    const host = normalizeHost(fmoAddress)
-    const wsUrl = `${protocol}://${host}/events`
-
-    console.log(`Connecting to events: ${wsUrl}`)
-    eventWs = new WebSocket(wsUrl)
-
-    eventWs.onopen = () => {
-      console.log('Events WebSocket connected')
-      if (eventWsReconnectTimer) {
-        clearTimeout(eventWsReconnectTimer)
-        eventWsReconnectTimer = null
-      }
-      eventsConnected.value = true
-    }
-
-    eventWs.onmessage = (event) => {
-      handleEventMessage(event.data)
-    }
-
-    eventWs.onclose = () => {
-      console.log('Events WebSocket closed')
-      eventsConnected.value = false
-      // 只有非主动断开才重连
-      if (!isManualDisconnect && !eventWsReconnectTimer && fmoAddress) {
-        eventWsReconnectTimer = setTimeout(() => {
-          eventWsReconnectTimer = null
-          connectEventWs(fmoAddress, protocol)
-        }, 5000)
-      }
-    }
-
-    eventWs.onerror = () => {
-      // onclose 会自动触发
-    }
+    // 使用 'single' 作为 addressId，标记为主服务器
+    createEventWsConnection('single', fmoAddress, protocol, true)
   }
 
-  // 断开事件 WebSocket
+  // 断开事件 WebSocket（兼容单连接模式）
   function disconnectEventWs() {
-    isManualDisconnect = true
-
-    if (eventWsReconnectTimer) {
-      clearTimeout(eventWsReconnectTimer)
-      eventWsReconnectTimer = null
-    }
-
-    if (eventWs) {
-      try {
-        const state = eventWs.readyState
-        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
-          eventWs.close()
-        }
-      } catch (err) {
-        console.error('关闭事件 WebSocket 失败:', err)
-      }
-      eventWs = null
-    }
-
-    currentSpeaker.value = ''
-    eventsConnected.value = false
+    disconnectAllEventWs()
   }
 
   // 消息事件回调
@@ -135,7 +199,8 @@ export function useSpeakingStatus() {
   }
 
   // 处理事件消息
-  function handleEventMessage(data) {
+  // isPrimary: 是否来自主服务器连接，只有主服务器的消息才更新 currentSpeaker 和触发消息摘要回调
+  function handleEventMessage(data, isPrimary) {
     const messages = data.split('}{').map((msg, index, arr) => {
       if (arr.length === 1) return msg
       if (index === 0) return msg + '}'
@@ -157,7 +222,10 @@ export function useSpeakingStatus() {
                 h.endTime = now
               }
             })
-            currentSpeaker.value = callsign
+            // 只有主服务器才更新当前发言者
+            if (isPrimary) {
+              currentSpeaker.value = callsign
+            }
             const existingIndex = speakingHistory.value.findIndex((h) => h.callsign === callsign)
             if (existingIndex >= 0) {
               const existing = speakingHistory.value.splice(existingIndex, 1)[0]
@@ -179,12 +247,15 @@ export function useSpeakingStatus() {
                 h.endTime = now
               }
             })
-            currentSpeaker.value = ''
+            // 只有主服务器才清空当前发言者
+            if (isPrimary) {
+              currentSpeaker.value = ''
+            }
             saveSpeakingHistoryToStorage()
           }
         } else if (msg.type === 'message' && msg.subType === 'summary') {
-          // 转发消息摘要事件
-          if (onMessageCallback) {
+          // 只有主服务器才转发消息摘要事件
+          if (isPrimary && onMessageCallback) {
             onMessageCallback(msg.data)
           }
         }
@@ -231,15 +302,18 @@ export function useSpeakingStatus() {
   // 组件卸载时清理
   onUnmounted(() => {
     stopSpeakingHistoryCleanup()
-    disconnectEventWs()
+    disconnectAllEventWs()
   })
 
   return {
     currentSpeaker,
     speakingHistory,
     eventsConnected,
+    primaryConnected,
     connectEventWs,
     disconnectEventWs,
+    connectMultipleEventWs,
+    disconnectAllEventWs,
     startSpeakingHistoryCleanup,
     stopSpeakingHistoryCleanup,
     clearSpeakingHistory,
