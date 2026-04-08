@@ -6,6 +6,7 @@
           :connected="stationConnected"
           :current-station="currentStation"
           :is-busy="stationBusy"
+          :show-primary-badge="multiSelectMode"
           @prev="$emit('station-prev')"
           @next="$emit('station-next')"
           @open-list="$emit('station-open-list')"

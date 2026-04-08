@@ -2,7 +2,7 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-station-list">
       <div class="modal-header">
-        <h3>选择服务器</h3>
+        <h3>选择信道 <span v-if="showPrimaryBadge" class="title-primary-badge">主</span></h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
       <div ref="modalBodyRef" class="modal-body" @scroll="handleScroll">
@@ -17,6 +17,7 @@
             @click="handleSelect(station.uid)"
           >
             {{ station.name }}
+            <span v-if="showPrimaryBadge && currentStation?.uid === station.uid" class="primary-badge">主</span>
           </button>
         </div>
         <div v-else-if="loading" class="station-loading">加载中...</div>
@@ -57,6 +58,10 @@ const props = defineProps({
     default: false
   },
   noMore: {
+    type: Boolean,
+    default: false
+  },
+  showPrimaryBadge: {
     type: Boolean,
     default: false
   }
@@ -155,6 +160,18 @@ function checkAndLoadMore() {
 .modal-header h3 {
   margin: 0;
   font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.title-primary-badge {
+  background: #4a9eff;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-weight: 600;
 }
 
 .close-btn {
@@ -208,6 +225,17 @@ function checkAndLoadMore() {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: white;
+}
+
+.primary-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-weight: 600;
+  margin-left: 0.25rem;
+  vertical-align: middle;
 }
 
 .station-item:disabled {

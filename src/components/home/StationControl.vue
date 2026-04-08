@@ -6,6 +6,7 @@
     <div class="station-info" @click="handleOpenList">
       <span v-if="connected && currentStation" class="station-name clickable">
         {{ currentStation.name }}
+        <span v-if="showPrimaryBadge" class="primary-badge">主</span>
         <span class="dropdown-arrow">▼</span>
       </span>
       <span v-else-if="connected" class="station-loading"> 加载中... </span>
@@ -28,6 +29,10 @@ const props = defineProps({
     default: null
   },
   isBusy: {
+    type: Boolean,
+    default: false
+  },
+  showPrimaryBadge: {
     type: Boolean,
     default: false
   }
@@ -99,6 +104,16 @@ function handleOpenList() {
 .dropdown-arrow {
   font-size: 0.7rem;
   color: var(--text-tertiary);
+}
+
+.primary-badge {
+  background: #4a9eff;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-weight: 600;
+  margin-left: 0.1rem;
 }
 
 .station-loading {

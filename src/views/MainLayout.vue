@@ -150,6 +150,7 @@
       :current-station="currentStation"
       :loading="stationListLoading"
       :no-more="stationListNoMore"
+      :show-primary-badge="settings.multiSelectMode.value"
       @close="handleCloseStationList"
       @select="handleStationSelect"
       @load-more="handleLoadMoreStations"
