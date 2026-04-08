@@ -1,3 +1,12 @@
+/* 中文字体 - 思源黑体 Source Han Sans SC VF */
+@font-face {
+  font-family: 'SourceHanSansSC';
+  src: url('/fonts/SourceHanSansSC-VF.otf.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* 英文等宽字体 - Intel One Mono Regular */
 @font-face {
   font-family: 'IntelOneMono';
@@ -59,7 +68,7 @@
 }
 
 :root {
-  font-family: 'MixedFont', system-ui, sans-serif;
+  font-family: 'MixedFont', 'SourceHanSansSC', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
