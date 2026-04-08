@@ -1,26 +1,31 @@
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, reactive } from 'vue'
 import { formatTimeAgo } from '../components/home/constants'
 import { normalizeHost } from '../utils/urlUtils'
 
-const STORAGE_KEY = 'fmo_speaking_history'
-
 export function useSpeakingStatus() {
-  const currentSpeaker = ref('')
-  const speakingHistory = ref(loadSpeakingHistoryFromStorage())
+  // ========== 数据结构改造：按 addressId 隔离 ==========
+  // currentSpeakerMap: key 为 addressId，value 为 callsign 字符串
+  const currentSpeakerMap = reactive(new Map())
+  // speakingHistoryMap: key 为 addressId，value 为 history 数组
+  const speakingHistoryMap = reactive(new Map())
 
   // 多连接管理
   const eventConnections = new Map() // key: addressId, value: WebSocket
   const reconnectTimers = new Map() // key: addressId, value: timer
   const connectionConfigs = new Map() // key: addressId, value: {host, protocol, isPrimary}
-  let speakingHistoryCleanupTimer = null
+  const speakingHistoryCleanupTimers = new Map() // key: addressId, value: timer
   let isManualDisconnect = false
-  let primaryAddressId = null
+  const primaryAddressId = ref(null)
 
   // 主服务器连接状态
   const primaryConnected = ref(false)
 
+  // 连接状态变化计数器，用于触发响应式更新
+  const connectionChangeCounter = ref(0)
+
   // 任一连接存活即为 true
   const eventsConnected = computed(() => {
+    connectionChangeCounter.value // track reactivity
     for (const ws of eventConnections.values()) {
       if (ws && ws.readyState === WebSocket.OPEN) {
         return true
@@ -29,10 +34,55 @@ export function useSpeakingStatus() {
     return false
   })
 
-  // 从 localStorage 加载发言历史
-  function loadSpeakingHistoryFromStorage() {
+  // ========== 向后兼容的 computed ==========
+  // 返回主服务器的当前发言者
+  const currentSpeaker = computed(() => {
+    if (!primaryAddressId.value) return ''
+    return currentSpeakerMap.get(primaryAddressId.value) || ''
+  })
+
+  // 返回主服务器的发言历史
+  const speakingHistory = computed(() => {
+    if (!primaryAddressId.value) return []
+    return speakingHistoryMap.get(primaryAddressId.value) || []
+  })
+
+  // 合并所有服务器的发言历史，按时间排序，每条记录带 addressId 字段
+  const allSpeakingHistories = computed(() => {
+    const allHistories = []
+    for (const [addressId, history] of speakingHistoryMap.entries()) {
+      for (const record of history) {
+        allHistories.push({
+          ...record,
+          addressId
+        })
+      }
+    }
+    // 按 startTime 降序排序
+    return allHistories.sort((a, b) => b.startTime - a.startTime)
+  })
+
+  // 返回所有服务器的当前发言者数组 [{addressId, callsign}]
+  const allCurrentSpeakers = computed(() => {
+    const speakers = []
+    for (const [addressId, callsign] of currentSpeakerMap.entries()) {
+      if (callsign) {
+        speakers.push({ addressId, callsign })
+      }
+    }
+    return speakers
+  })
+
+  // ========== localStorage 相关方法（按 addressId 分离） ==========
+  // 获取指定 addressId 的 storage key
+  function getStorageKey(addressId) {
+    return `fmo_speaking_history_${addressId}`
+  }
+
+  // 从 localStorage 加载指定服务器的发言历史
+  function loadSpeakingHistoryFromStorage(addressId) {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = localStorage.getItem(getStorageKey(addressId))
       if (stored) {
         const history = JSON.parse(stored)
         // 过滤掉超过30分钟的记录
@@ -48,20 +98,34 @@ export function useSpeakingStatus() {
         }))
       }
     } catch (err) {
-      console.error('加载发言历史失败:', err)
+      console.error(`[${addressId}] 加载发言历史失败:`, err)
     }
     return []
   }
 
-  // 保存发言历史到 localStorage
-  function saveSpeakingHistoryToStorage() {
+  // 保存指定服务器的发言历史到 localStorage
+  function saveSpeakingHistoryToStorage(addressId) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(speakingHistory.value))
+      const history = speakingHistoryMap.get(addressId) || []
+      localStorage.setItem(getStorageKey(addressId), JSON.stringify(history))
     } catch (err) {
-      console.error('保存发言历史失败:', err)
+      console.error(`[${addressId}] 保存发言历史失败:`, err)
     }
   }
 
+  // ========== 新增方法 ==========
+  // 获取指定服务器的发言历史数组
+  function getSpeakingHistoryFor(addressId) {
+    return speakingHistoryMap.get(addressId) || []
+  }
+
+  // 检查指定 addressId 的 WebSocket 是否连接
+  function isAddressConnected(addressId) {
+    const ws = eventConnections.get(addressId)
+    return ws && ws.readyState === WebSocket.OPEN
+  }
+
+  // ========== WebSocket 连接管理 ==========
   // 创建单个事件 WebSocket 连接
   function createEventWsConnection(addressId, host, protocol, isPrimary) {
     const normalizedHost = normalizeHost(host)
@@ -73,8 +137,16 @@ export function useSpeakingStatus() {
     eventConnections.set(addressId, ws)
     connectionConfigs.set(addressId, { host, protocol, isPrimary })
 
+    // 连接建立时自动从 localStorage 加载对应 addressId 的历史
+    const loadedHistory = loadSpeakingHistoryFromStorage(addressId)
+    speakingHistoryMap.set(addressId, loadedHistory)
+
+    // 启动该 addressId 的清理定时器
+    startSpeakingHistoryCleanup(addressId)
+
     ws.onopen = () => {
       console.log(`[${addressId}] Events WebSocket connected`)
+      connectionChangeCounter.value++
       // 清除该连接的重连定时器
       if (reconnectTimers.has(addressId)) {
         clearTimeout(reconnectTimers.get(addressId))
@@ -87,15 +159,18 @@ export function useSpeakingStatus() {
     }
 
     ws.onmessage = (event) => {
-      handleEventMessage(event.data, isPrimary)
+      handleEventMessage(event.data, addressId, isPrimary)
     }
 
     ws.onclose = () => {
       console.log(`[${addressId}] Events WebSocket closed`)
+      connectionChangeCounter.value++
       // 更新主服务器连接状态
       if (isPrimary) {
         primaryConnected.value = false
       }
+      // 停止该 addressId 的清理定时器
+      stopSpeakingHistoryCleanup(addressId)
       // 只有非主动断开才重连
       if (!isManualDisconnect && !reconnectTimers.has(addressId)) {
         const timer = setTimeout(() => {
@@ -120,11 +195,14 @@ export function useSpeakingStatus() {
   function connectMultipleEventWs(addresses, primaryId) {
     if (!addresses || addresses.length === 0) return
 
-    isManualDisconnect = false
-    primaryAddressId = primaryId
-
     // 先断开所有旧连接
     disconnectAllEventWs()
+
+    // 重置手动断开标志，允许新连接自动重连
+    isManualDisconnect = false
+
+    // 设置主服务器ID（必须在 disconnectAllEventWs 之后）
+    primaryAddressId.value = primaryId
 
     // 为每个地址创建连接
     for (const addr of addresses) {
@@ -143,6 +221,12 @@ export function useSpeakingStatus() {
     }
     reconnectTimers.clear()
 
+    // 停止所有清理定时器
+    for (const addressId of speakingHistoryCleanupTimers.keys()) {
+      stopSpeakingHistoryCleanup(addressId)
+    }
+    speakingHistoryCleanupTimers.clear()
+
     // 关闭所有连接
     for (const [addressId, ws] of eventConnections.entries()) {
       try {
@@ -157,9 +241,53 @@ export function useSpeakingStatus() {
     eventConnections.clear()
     connectionConfigs.clear()
 
-    currentSpeaker.value = ''
+    // 清理 Map 中的状态
+    currentSpeakerMap.clear()
+    speakingHistoryMap.clear()
+
     primaryConnected.value = false
-    primaryAddressId = null
+    primaryAddressId.value = null
+    connectionChangeCounter.value++
+  }
+
+  // 断开单个事件 WebSocket（内部方法）
+  function disconnectEventWs(addressId) {
+    // 先从 connectionConfigs 中删除配置，防止 onclose 回调中自动重连
+    connectionConfigs.delete(addressId)
+
+    const ws = eventConnections.get(addressId)
+    if (ws) {
+      try {
+        const state = ws.readyState
+        if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
+          ws.close()
+        }
+      } catch (err) {
+        console.error(`[${addressId}] 关闭事件 WebSocket 失败:`, err)
+      }
+      eventConnections.delete(addressId)
+    }
+
+    // 清除该连接的重连定时器
+    if (reconnectTimers.has(addressId)) {
+      clearTimeout(reconnectTimers.get(addressId))
+      reconnectTimers.delete(addressId)
+    }
+
+    // 停止该 addressId 的清理定时器
+    stopSpeakingHistoryCleanup(addressId)
+
+    // 清理该 addressId 在 Map 中的状态
+    currentSpeakerMap.delete(addressId)
+    speakingHistoryMap.delete(addressId)
+
+    // 如果是主服务器，更新状态
+    if (addressId === primaryAddressId.value) {
+      primaryConnected.value = false
+      primaryAddressId.value = null
+    }
+
+    connectionChangeCounter.value++
   }
 
   // 连接单个事件 WebSocket（单选模式兼容）
@@ -182,12 +310,8 @@ export function useSpeakingStatus() {
     }
 
     // 使用 'single' 作为 addressId，标记为主服务器
+    primaryAddressId.value = 'single'
     createEventWsConnection('single', fmoAddress, protocol, true)
-  }
-
-  // 断开事件 WebSocket（兼容单连接模式）
-  function disconnectEventWs() {
-    disconnectAllEventWs()
   }
 
   // 消息事件回调
@@ -198,15 +322,25 @@ export function useSpeakingStatus() {
     onMessageCallback = callback
   }
 
-  // 处理事件消息
-  // isPrimary: 是否来自主服务器连接，只有主服务器的消息才更新 currentSpeaker 和触发消息摘要回调
-  function handleEventMessage(data, isPrimary) {
+  // ========== 处理事件消息（改造后） ==========
+  // addressId: 服务器标识
+  // isPrimary: 是否来自主服务器连接
+  function handleEventMessage(data, addressId, isPrimary) {
     const messages = data.split('}{').map((msg, index, arr) => {
       if (arr.length === 1) return msg
       if (index === 0) return msg + '}'
       if (index === arr.length - 1) return '{' + msg
       return '{' + msg + '}'
     })
+
+    // 获取该 addressId 的发言历史数组
+    let history = speakingHistoryMap.get(addressId)
+    if (!history) {
+      history = []
+      speakingHistoryMap.set(addressId, history)
+    }
+
+    let hasChanges = false
 
     for (const msgStr of messages) {
       try {
@@ -216,42 +350,41 @@ export function useSpeakingStatus() {
           const now = Date.now()
 
           if (isSpeaking && callsign) {
-            // 开始发言 - 先结束之前所有未结束的记录
-            speakingHistory.value.forEach((h) => {
+            // 开始发言 - 只结束该服务器列表中的旧发言，不影响其他服务器
+            history.forEach((h) => {
               if (!h.endTime) {
                 h.endTime = now
               }
             })
-            // 只有主服务器才更新当前发言者
-            if (isPrimary) {
-              currentSpeaker.value = callsign
-            }
-            const existingIndex = speakingHistory.value.findIndex((h) => h.callsign === callsign)
+            // 更新该服务器的当前发言者
+            currentSpeakerMap.set(addressId, callsign)
+
+            const existingIndex = history.findIndex((h) => h.callsign === callsign)
             if (existingIndex >= 0) {
-              const existing = speakingHistory.value.splice(existingIndex, 1)[0]
+              const existing = history.splice(existingIndex, 1)[0]
               existing.startTime = now
               existing.endTime = null
-              speakingHistory.value.unshift(existing)
+              history.unshift(existing)
             } else {
-              speakingHistory.value.unshift({
+              history.unshift({
                 callsign,
                 startTime: now,
                 endTime: null
               })
             }
-            saveSpeakingHistoryToStorage()
+            hasChanges = true
+            saveSpeakingHistoryToStorage(addressId)
           } else {
-            // 结束发言
-            speakingHistory.value.forEach((h) => {
+            // 结束发言 - 只结束该服务器列表中的记录
+            history.forEach((h) => {
               if (!h.endTime) {
                 h.endTime = now
               }
             })
-            // 只有主服务器才清空当前发言者
-            if (isPrimary) {
-              currentSpeaker.value = ''
-            }
-            saveSpeakingHistoryToStorage()
+            // 清空该服务器的当前发言者
+            currentSpeakerMap.set(addressId, '')
+            hasChanges = true
+            saveSpeakingHistoryToStorage(addressId)
           }
         } else if (msg.type === 'message' && msg.subType === 'summary') {
           // 只有主服务器才转发消息摘要事件
@@ -263,61 +396,95 @@ export function useSpeakingStatus() {
         // 忽略解析错误
       }
     }
+
+    // 强制触发 Map 响应更新
+    if (hasChanges) {
+      speakingHistoryMap.set(addressId, [...history])
+    }
   }
 
-  // 清理超过30分钟的发言历史
-  function cleanupSpeakingHistory() {
+  // ========== 清理定时器（按 addressId 分离） ==========
+  // 清理指定服务器超过30分钟的发言历史
+  function cleanupSpeakingHistory(addressId) {
+    const history = speakingHistoryMap.get(addressId)
+    if (!history) return
+
     const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
-    const oldLength = speakingHistory.value.length
-    speakingHistory.value = speakingHistory.value.filter((h) => {
+    const oldLength = history.length
+    const filteredHistory = history.filter((h) => {
       const time = h.endTime || h.startTime
       return time > thirtyMinutesAgo
     })
-    if (oldLength !== speakingHistory.value.length) {
-      saveSpeakingHistoryToStorage()
+
+    if (oldLength !== filteredHistory.length) {
+      speakingHistoryMap.set(addressId, filteredHistory)
+      saveSpeakingHistoryToStorage(addressId)
     }
   }
 
-  // 启动发言历史清理定时器
-  function startSpeakingHistoryCleanup() {
-    if (speakingHistoryCleanupTimer) return
-    speakingHistoryCleanupTimer = setInterval(cleanupSpeakingHistory, 60000)
+  // 启动指定 addressId 的发言历史清理定时器
+  function startSpeakingHistoryCleanup(addressId) {
+    if (speakingHistoryCleanupTimers.has(addressId)) return
+    const timer = setInterval(() => {
+      cleanupSpeakingHistory(addressId)
+    }, 60000)
+    speakingHistoryCleanupTimers.set(addressId, timer)
   }
 
-  // 停止清理定时器
-  function stopSpeakingHistoryCleanup() {
-    if (speakingHistoryCleanupTimer) {
-      clearInterval(speakingHistoryCleanupTimer)
-      speakingHistoryCleanupTimer = null
+  // 停止指定 addressId 的清理定时器
+  function stopSpeakingHistoryCleanup(addressId) {
+    const timer = speakingHistoryCleanupTimers.get(addressId)
+    if (timer) {
+      clearInterval(timer)
+      speakingHistoryCleanupTimers.delete(addressId)
     }
   }
 
-  // 清空发言历史
+  // 清空所有发言历史
   function clearSpeakingHistory() {
-    speakingHistory.value = []
-    currentSpeaker.value = ''
-    saveSpeakingHistoryToStorage()
+    // 清空所有服务器的当前发言者和历史
+    for (const addressId of currentSpeakerMap.keys()) {
+      currentSpeakerMap.set(addressId, '')
+    }
+    for (const addressId of speakingHistoryMap.keys()) {
+      speakingHistoryMap.set(addressId, [])
+      saveSpeakingHistoryToStorage(addressId)
+    }
   }
 
   // 组件卸载时清理
   onUnmounted(() => {
-    stopSpeakingHistoryCleanup()
+    // 停止所有清理定时器
+    for (const addressId of speakingHistoryCleanupTimers.keys()) {
+      stopSpeakingHistoryCleanup(addressId)
+    }
     disconnectAllEventWs()
   })
 
   return {
-    currentSpeaker,
-    speakingHistory,
-    eventsConnected,
-    primaryConnected,
-    connectEventWs,
-    disconnectEventWs,
-    connectMultipleEventWs,
-    disconnectAllEventWs,
-    startSpeakingHistoryCleanup,
-    stopSpeakingHistoryCleanup,
-    clearSpeakingHistory,
+    // 向后兼容的 computed
+    currentSpeaker, // computed - 主服务器的当前发言者
+    speakingHistory, // computed - 主服务器的发言历史
+
+    // 新增的 computed
+    allSpeakingHistories, // computed - 合并所有服务器的发言历史（带 addressId）
+    allCurrentSpeakers, // computed - 所有服务器的当前发言者
+
+    // 新增的方法
+    getSpeakingHistoryFor, // method - 获取指定服务器的发言历史
+    isAddressConnected, // method - 检查指定 addressId 的连接状态
+
+    // 原有导出
+    eventsConnected, // computed - 任一连接存活即为 true
+    primaryConnected, // ref - 主服务器连接状态
+    connectEventWs, // 单连接
+    disconnectEventWs, // 断开单个（内部使用）
+    connectMultipleEventWs, // 多连接
+    disconnectAllEventWs, // 断开所有
+    startSpeakingHistoryCleanup, // 启动清理（内部使用）
+    stopSpeakingHistoryCleanup, // 停止清理（内部使用）
+    clearSpeakingHistory, // 清除所有服务器的历史
     formatTimeAgo,
-    setOnMessageCallback
+    setOnMessageCallback // 消息回调
   }
 }

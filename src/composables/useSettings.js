@@ -132,6 +132,14 @@ export function useSettings() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2, 11)
   }
 
+  // 生成数字ID（用于UI显示，从1开始递增）
+  function generateNumId() {
+    const usedIds = new Set(fmoAddressStorage.value.addresses.map((a) => a.numId).filter(Boolean))
+    let id = 1
+    while (usedIds.has(id)) id++
+    return id
+  }
+
   // 切换地址勾选状态
   async function toggleAddressSelection(id) {
     const index = selectedAddressIds.value.indexOf(id)
@@ -168,7 +176,8 @@ export function useSettings() {
     }
 
     const id = generateId()
-    const newAddress = { id, name: name || host, host, protocol: proto }
+    const numId = generateNumId()
+    const newAddress = { id, numId, name: name || host, host, protocol: proto }
 
     // 尝试获取用户信息
     try {
@@ -440,6 +449,12 @@ export function useSettings() {
     }
   }
 
+  // 设置主服务器ID
+  async function setActiveAddressId(id) {
+    fmoAddressStorage.value.activeId = id
+    await saveFmoAddresses(fmoAddressStorage.value)
+  }
+
   return {
     // 兼容旧接口
     fmoAddress,
@@ -467,6 +482,7 @@ export function useSettings() {
     selectedAddressIds,
     multiSelectMode,
     toggleAddressSelection,
-    setMultiSelectMode
+    setMultiSelectMode,
+    setActiveAddressId
   }
 }

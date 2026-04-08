@@ -9,8 +9,24 @@
       <span v-else class="speaking-indicator idle"></span>
       <span class="speaking-text">
         <template v-if="currentSpeaker">
-          正在发言: <strong>{{ currentSpeaker }}</strong
-          ><strong v-if="currentSpeaker === selectedFromCallsign">（您）</strong>
+          <template v-if="multiSelectMode">
+            <!-- 多选模式：显示所有服务器的当前发言者，格式：呼号[标记]、呼号[标记] -->
+            正在发言:
+            <span
+              v-for="(speaker, index) in allCurrentSpeakers"
+              :key="speaker.addressId"
+              class="speaker-item"
+            >
+              <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong
+              ><strong v-if="speaker.callsign === selectedFromCallsign">（您）</strong
+              ><strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
+            </span>
+          </template>
+          <template v-else>
+            <!-- 单选模式：只显示当前发言者，不加标记 -->
+            正在发言: <strong>{{ currentSpeaker }}</strong
+            ><strong v-if="currentSpeaker === selectedFromCallsign">（您）</strong>
+          </template>
         </template>
         <template v-else> 当前无人发言 </template>
       </span>
@@ -20,7 +36,7 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   currentSpeaker: {
     type: String,
     default: ''
@@ -40,8 +56,36 @@ defineProps({
   selectedFromCallsign: {
     type: String,
     default: ''
+  },
+  allCurrentSpeakers: {
+    type: Array,
+    default: () => []
+  },
+  addressList: {
+    type: Array,
+    default: () => []
+  },
+  multiSelectMode: {
+    type: Boolean,
+    default: false
+  },
+  activeAddressId: {
+    type: String,
+    default: ''
   }
 })
+
+// 根据 addressId 获取服务器显示名称
+function getServerName(addressId) {
+  // 主服务器显示"主"
+  if (addressId === props.activeAddressId) return '主'
+  const address = props.addressList.find((a) => a.id === addressId)
+  if (!address) return '?'
+  // 显示 numId，如果没有则降级显示在列表中的 index+1
+  if (address.numId) return address.numId.toString()
+  const index = props.addressList.findIndex((a) => a.id === addressId)
+  return index !== -1 ? (index + 1).toString() : '?'
+}
 
 defineEmits(['click'])
 </script>
@@ -100,6 +144,9 @@ defineEmits(['click'])
   font-size: 1.1rem;
   color: var(--text-primary);
   line-height: 1.3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .speaking-text strong {
@@ -111,6 +158,12 @@ defineEmits(['click'])
 .speaking-expand {
   font-size: 1rem;
   color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* 发言者项样式 */
+.speaker-item {
+  display: inline;
 }
 
 @media (max-width: 768px) {

@@ -169,10 +169,10 @@ export function useFmoSync(options = {}) {
     return { callsigns, wasEmpty }
   }
 
-  // 检查是否应该同步
-  function checkShouldSync() {
-    const eventsConnected = getEventsConnected?.() || false
-    const speakingHistory = getSpeakingHistory?.() || []
+  // 检查是否应该同步（按服务器独立决策）
+  function checkShouldSync(addressId) {
+    const eventsConnected = getEventsConnected?.(addressId) || false
+    const speakingHistory = getSpeakingHistory?.(addressId) || []
     const currentCallsign = getSelectedFromCallsign?.()
 
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
@@ -181,7 +181,7 @@ export function useFmoSync(options = {}) {
       return h.callsign === currentCallsign && time > fiveMinutesAgo
     })
 
-    // 如果 /events 连接成功，则严格按照“5 分钟内有发言记录”来决定是否同步
+    // 如果 /events 连接成功，则严格按照"5 分钟内有发言记录"来决定是否同步
     if (eventsConnected) {
       return hasRecentSpeaking
     }
@@ -298,8 +298,7 @@ export function useFmoSync(options = {}) {
         const needsFullSync = now - lastFullSyncTime >= oneHour
 
         // 依次同步所有地址（非并行）
-        for (let i = 0; i < addresses.length; i++) {
-          const address = addresses[i]
+        for (const address of addresses) {
           if (!address || !address.host) continue
 
           try {
@@ -307,11 +306,12 @@ export function useFmoSync(options = {}) {
               console.log(`执行每小时今日数据同步: ${address.host}`)
               await performTodaySync(address.host, address.protocol)
             } else {
-              const shouldSync = checkShouldSync()
+              // 每个地址用自己的 addressId 判断
+              const shouldSync = checkShouldSync(address.id)
               if (shouldSync) {
                 await performIncrementalSync(address.host, address.protocol)
               } else {
-                console.log(`当前呼号5分钟内未发言，跳过本次同步: ${address.host}`)
+                console.log(`当前呼号5分钟内未在 ${address.host} 发言，跳过本次同步`)
               }
             }
           } catch (err) {
@@ -319,9 +319,7 @@ export function useFmoSync(options = {}) {
           }
 
           // 地址之间间隔 300ms
-          if (i < addresses.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 300))
-          }
+          await new Promise((resolve) => setTimeout(resolve, 300))
         }
 
         // 更新最后全量同步时间（整个周期结束后统一更新）
@@ -761,7 +759,7 @@ export function useFmoSync(options = {}) {
         // 连接失败或请求失败，抛出错误让上层处理
         throw new Error(`获取日志列表失败: ${err.message}`)
       }
-      
+
       const list = response.list || []
 
       if (list.length === 0) break
@@ -837,7 +835,7 @@ export function useFmoSync(options = {}) {
         // 连接失败或请求失败，抛出错误让上层处理
         throw new Error(`获取日志列表失败: ${err.message}`)
       }
-      
+
       const list = response.list || []
 
       if (list.length === 0) break

@@ -17,6 +17,11 @@
       :fmo-address="settings.fmoAddress.value"
       :events-connected="speakingStatus.eventsConnected.value"
       :selected-from-callsign="selectedFromCallsign"
+      :all-speaking-histories="speakingStatus.allSpeakingHistories.value"
+      :all-current-speakers="speakingStatus.allCurrentSpeakers.value"
+      :address-list="settings.addressList.value"
+      :multi-select-mode="settings.multiSelectMode.value"
+      :active-address-id="settings.activeAddressId.value"
       @click="showSpeakingHistory = true"
     />
 
@@ -85,9 +90,9 @@
       :syncing="fmoSync.syncing.value"
       :sync-status="fmoSync.syncStatus.value"
       :multi-select-mode="settings.multiSelectMode.value"
-      @update:multi-select-mode="handleSetMultiSelectMode"
       :selected-address-ids="settings.selectedAddressIds.value"
       :multi-sync-progress="fmoSync.multiSyncProgress.value"
+      @update:multi-select-mode="handleSetMultiSelectMode"
       @close="showSettings = false"
       @select-files="triggerFileInput"
       @export-data="handleExportData"
@@ -96,7 +101,7 @@
       @sync-full="handleSyncFull"
       @backup-logs="settings.backupLogs()"
       @clear-all-data="handleClearAllData"
-      @toggle-address-selection="settings.toggleAddressSelection"
+      @toggle-address-selection="handleToggleAddressSelection"
       @sync-multiple="handleSyncMultiple"
       @add-address="handleAddAddress"
       @update-address="handleUpdateAddress"
@@ -126,6 +131,11 @@
       :current-station="currentStation"
       :station-busy="stationBusy"
       :selected-from-callsign="selectedFromCallsign"
+      :all-speaking-histories="speakingStatus.allSpeakingHistories.value"
+      :all-current-speakers="speakingStatus.allCurrentSpeakers.value"
+      :address-list="settings.addressList.value"
+      :multi-select-mode="settings.multiSelectMode.value"
+      :active-address-id="settings.activeAddressId.value"
       @close="showSpeakingHistory = false"
       @show-callsign-records="handleShowCallsignRecords"
       @station-prev="handleStationPrev"
@@ -338,11 +348,11 @@ const fmoSync = useFmoSync({
       }
     }
   },
-  getSpeakingHistory: () => speakingStatus.speakingHistory.value,
+  getSpeakingHistory: (addressId) => speakingStatus.getSpeakingHistoryFor(addressId),
   getSelectedFromCallsign: () => selectedFromCallsign.value,
   getDbLoaded: () => dbLoaded.value,
   getTotalLogs: () => totalLogs.value,
-  getEventsConnected: () => speakingStatus.eventsConnected.value
+  getEventsConnected: (addressId) => speakingStatus.isAddressConnected(addressId)
 })
 
 // 计算当前查询类型（根据路由名称映射）
@@ -656,7 +666,7 @@ async function handleAddAddress({ name, host, protocol }) {
 
   // 添加成功后重连到新地址
   if (result.reconnect) {
-    speakingStatus.disconnectEventWs()
+    speakingStatus.disconnectEventWs('single')
     fmoSync.stopAutoSyncTask()
     messageService.disconnect()
     speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
@@ -666,7 +676,7 @@ async function handleAddAddress({ name, host, protocol }) {
     messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
       console.error('消息服务连接失败:', err)
     })
-    fmoSync.startAutoSyncTask(settings.fmoAddress.value, settings.protocol.value)
+    fmoSync.startAutoSyncTask(getSyncAddresses)
   }
 }
 
@@ -697,7 +707,7 @@ async function handleDeleteAddress(id) {
       speakingStatus.connectMultipleEventWs(selectedAddresses, settings.activeAddressId.value)
     } else if (settings.fmoAddress.value) {
       // 单选模式：连接到新的选中地址
-      speakingStatus.disconnectEventWs()
+      speakingStatus.disconnectEventWs('single')
       speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
     } else {
       // 没有地址了，断开所有连接
@@ -733,7 +743,7 @@ async function handleSelectAddress(id) {
         speakingStatus.connectMultipleEventWs(selectedAddresses, id)
       } else {
         // 单选模式：保持现有逻辑
-        speakingStatus.disconnectEventWs()
+        speakingStatus.disconnectEventWs('single')
         speakingStatus.connectEventWs(settings.fmoAddress.value, settings.protocol.value)
       }
 
@@ -815,7 +825,7 @@ async function handleSyncMultiple({ syncType, days }) {
 
   try {
     await fmoSync.syncMultiple(addresses, syncType, days)
-    
+
     // 同步完成后，检查失败的地址并取消选中
     const failedResults = fmoSync.multiSyncProgress.value.results.filter((r) => !r.success)
     if (failedResults.length > 0) {
@@ -874,7 +884,7 @@ async function handleSetMultiSelectMode(value) {
   if (oldMode !== newMode) {
     if (newMode) {
       // 从单选切到多选
-      speakingStatus.disconnectEventWs()
+      speakingStatus.disconnectEventWs('single')
       if (settings.selectedAddressIds.value.length > 0) {
         const selectedAddresses = settings.addressList.value
           .filter((a) => settings.selectedAddressIds.value.includes(a.id))
@@ -892,6 +902,52 @@ async function handleSetMultiSelectMode(value) {
     // 重建定时同步（使用新的 getAddresses 函数）
     fmoSync.stopAutoSyncTask()
     fmoSync.startAutoSyncTask(getSyncAddresses)
+  }
+}
+
+// 处理地址选择切换（多选模式下）
+async function handleToggleAddressSelection(id) {
+  const isCurrentlySelected = settings.selectedAddressIds.value.includes(id)
+
+  // 执行 toggle
+  await settings.toggleAddressSelection(id)
+
+  // 如果是取消选择，需要清理连接和数据
+  if (isCurrentlySelected) {
+    // 断开该服务器的 events 连接并清理发言数据
+    speakingStatus.disconnectEventWs(id)
+
+    // 判断是否需要切换主服务器
+    const remainingSelected = settings.selectedAddressIds.value
+    const wasPrimary = id === settings.activeAddressId.value
+
+    if (wasPrimary && remainingSelected.length > 0) {
+      // 切换主服务器到剩余选中中 numId 最小的
+      const smallestAddr = settings.addressList.value
+        .filter((a) => remainingSelected.includes(a.id))
+        .sort((a, b) => (a.numId || Infinity) - (b.numId || Infinity))[0]
+
+      if (smallestAddr) {
+        // 设置新的主服务器
+        await settings.setActiveAddressId(smallestAddr.id)
+      }
+    }
+
+    // 重建剩余服务器的 events 连接
+    if (remainingSelected.length > 0) {
+      connectEventsWebSocket()
+    } else {
+      speakingStatus.disconnectAllEventWs()
+    }
+
+    // 重启同步任务
+    fmoSync.stopAutoSyncTask()
+    if (remainingSelected.length > 0) {
+      fmoSync.startAutoSyncTask(getSyncAddresses)
+    }
+  } else {
+    // 新增选择：重建连接以包含新服务器
+    connectEventsWebSocket()
   }
 }
 
@@ -962,11 +1018,11 @@ function getSyncAddresses() {
   if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
     return settings.addressList.value
       .filter((a) => settings.selectedAddressIds.value.includes(a.id))
-      .map((a) => ({ host: a.host, protocol: a.protocol }))
+      .map((a) => ({ id: a.id, host: a.host, protocol: a.protocol }))
   }
   // 单选模式
   if (settings.fmoAddress.value) {
-    return [{ host: settings.fmoAddress.value, protocol: settings.protocol.value }]
+    return [{ id: 'single', host: settings.fmoAddress.value, protocol: settings.protocol.value }]
   }
   return []
 }
@@ -1020,7 +1076,6 @@ onMounted(async () => {
 
   // 定时同步：使用 getAddresses 函数模式
   fmoSync.startAutoSyncTask(getSyncAddresses)
-  speakingStatus.startSpeakingHistoryCleanup()
 })
 
 onUnmounted(() => {

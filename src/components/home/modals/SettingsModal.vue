@@ -43,7 +43,7 @@
               <span class="setting-label">FMO地址</span>
               <div class="setting-actions">
                 <!-- 多选同步开关 -->
-                <div class="multi-select-toggle" v-if="addressList.length > 0">
+                <div v-if="addressList.length > 0" class="multi-select-toggle">
                   <span class="toggle-label">多选同步</span>
                   <label class="toggle-switch">
                     <input
@@ -68,11 +68,13 @@
             <!-- 地址列表 -->
             <div v-if="addressList.length > 0" class="address-list">
               <div
-                v-for="addr in addressList"
+                v-for="(addr, index) in addressList"
                 :key="addr.id"
                 class="address-card"
                 :class="{
-                  active: multiSelectMode ? selectedAddressIds.includes(addr.id) : addr.id === activeAddressId,
+                  active: multiSelectMode
+                    ? selectedAddressIds.includes(addr.id)
+                    : addr.id === activeAddressId,
                   connecting: connectingId === addr.id
                 }"
                 @click="handleSelectAddress(addr.id)"
@@ -80,14 +82,32 @@
                 <!-- 连接状态灯 -->
                 <div class="address-status">
                   <span v-if="connectingId === addr.id" class="status-connecting"></span>
-                  <span v-else-if="multiSelectMode ? selectedAddressIds.includes(addr.id) : addr.id === activeAddressId" class="status-active"></span>
+                  <span
+                    v-else-if="
+                      multiSelectMode
+                        ? selectedAddressIds.includes(addr.id)
+                        : addr.id === activeAddressId
+                    "
+                    class="status-active"
+                  ></span>
                   <span v-else class="status-inactive"></span>
                 </div>
                 <div class="address-info">
                   <div class="address-name">
+                    <!-- 服务器数字 ID 标签 -->
+                    <span
+                      class="server-id-tag"
+                      :style="{ backgroundColor: '#4a9eff' }"
+                    >
+                      {{ getServerNumId(addr, index) }}
+                    </span>
                     {{ addr.name }}
                     <!-- 主服务器标签 -->
-                    <span v-if="multiSelectMode && addr.id === activeAddressId" class="primary-badge">主服务器</span>
+                    <span
+                      v-if="multiSelectMode && addr.id === activeAddressId"
+                      class="primary-badge"
+                      >主服务器</span
+                    >
                   </div>
                   <div class="address-url">{{ addr.protocol }}://{{ addr.host }}</div>
                   <div
@@ -112,7 +132,9 @@
                     @click="handleSetPrimary(addr.id)"
                   >
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                      <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                      <path
+                        d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                      />
                     </svg>
                   </button>
                   <button
@@ -166,7 +188,9 @@
               </select>
               <button
                 class="btn-secondary"
-                :disabled="(!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing"
+                :disabled="
+                  (!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing
+                "
                 @click="handleSyncDays"
               >
                 {{ getSyncDaysButtonText }}
@@ -175,14 +199,18 @@
             <div v-if="addressList.length > 0" class="setting-item-buttons">
               <button
                 class="btn-secondary"
-                :disabled="(!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing"
+                :disabled="
+                  (!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing
+                "
                 @click="handleSyncIncremental"
               >
                 {{ getSyncIncrementalButtonText }}
               </button>
               <button
                 class="btn-secondary"
-                :disabled="(!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing"
+                :disabled="
+                  (!fmoAddress && !(multiSelectMode && selectedAddressIds.length > 0)) || syncing
+                "
                 @click="handleSyncFull"
               >
                 {{ getSyncFullButtonText }}
@@ -437,6 +465,8 @@ import AprsRemoteControl from './AprsRemoteControl.vue'
 import confirmDialog from '../../../composables/useConfirm'
 import packageInfo from '../../../../package.json'
 
+
+
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -533,7 +563,11 @@ const isMobileDevice = computed(() => {
 const getSyncDaysButtonText = computed(() => {
   if (props.syncing) {
     // 多选模式下显示进度
-    if (props.multiSelectMode && props.selectedAddressIds.length > 1 && props.multiSyncProgress.total > 0) {
+    if (
+      props.multiSelectMode &&
+      props.selectedAddressIds.length > 1 &&
+      props.multiSyncProgress.total > 0
+    ) {
       return `正在同步 ${props.multiSyncProgress.current}/${props.multiSyncProgress.total}...`
     }
     return '正在同步...'
@@ -547,7 +581,11 @@ const getSyncDaysButtonText = computed(() => {
 
 const getSyncIncrementalButtonText = computed(() => {
   if (props.syncing) {
-    if (props.multiSelectMode && props.selectedAddressIds.length > 1 && props.multiSyncProgress.total > 0) {
+    if (
+      props.multiSelectMode &&
+      props.selectedAddressIds.length > 1 &&
+      props.multiSyncProgress.total > 0
+    ) {
       return `正在同步 ${props.multiSyncProgress.current}/${props.multiSyncProgress.total}...`
     }
     return '正在同步...'
@@ -560,7 +598,11 @@ const getSyncIncrementalButtonText = computed(() => {
 
 const getSyncFullButtonText = computed(() => {
   if (props.syncing) {
-    if (props.multiSelectMode && props.selectedAddressIds.length > 1 && props.multiSyncProgress.total > 0) {
+    if (
+      props.multiSelectMode &&
+      props.selectedAddressIds.length > 1 &&
+      props.multiSyncProgress.total > 0
+    ) {
       return `正在同步 ${props.multiSyncProgress.current}/${props.multiSyncProgress.total}...`
     }
     return '正在同步...'
@@ -718,22 +760,26 @@ async function handleSelectAddress(id) {
   // 多选模式下，点击卡片切换选中/取消选中
   if (props.multiSelectMode) {
     const isCurrentlySelected = props.selectedAddressIds.includes(id)
-    
+
     // 取消选中时：直接 toggle，无需验证
     if (isCurrentlySelected) {
       emit('toggle-address-selection', id)
       return
     }
-    
+
     // 选中时：先验证连接
     const addr = props.addressList.find((a) => a.id === id)
     if (!addr) return
-    
+
     connectingId.value = id
-    
+
     try {
       // 调用父组件验证并选中
-      const result = await emit('validate-and-select', { id, host: addr.host, protocol: addr.protocol })
+      const result = await emit('validate-and-select', {
+        id,
+        host: addr.host,
+        protocol: addr.protocol
+      })
       // 父组件处理完成后会自动清除 connectingId（通过 prop 变化或回调）
     } catch (err) {
       // 验证失败，清除 connecting 状态
@@ -845,6 +891,13 @@ function clearConnecting() {
 
 function clearRefreshing() {
   refreshingId.value = null
+}
+
+// 根据地址获取服务器数字 ID 显示文本
+function getServerNumId(address, index) {
+  // 显示 numId，如果没有则降级显示在列表中的 index+1
+  if (address.numId) return address.numId.toString()
+  return (index + 1).toString()
 }
 
 defineExpose({ clearConnecting, clearRefreshing })
@@ -2037,6 +2090,20 @@ defineExpose({ clearConnecting, clearRefreshing })
   color: white;
   border-radius: 3px;
   font-weight: 500;
+  vertical-align: middle;
+}
+
+/* 服务器数字 ID 标签样式 */
+.server-id-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1;
+  margin-right: 0.4rem;
   vertical-align: middle;
 }
 

@@ -14,9 +14,9 @@
       </div>
       <div class="modal-body">
         <!-- 发言历史列表 -->
-        <div v-if="history.length > 0" class="speaking-history-list">
+        <div v-if="displayHistory.length > 0" class="speaking-history-list">
           <div
-            v-for="(record, index) in history"
+            v-for="(record, index) in displayHistory"
             :key="index"
             class="speaking-history-item"
             :class="{
@@ -30,6 +30,13 @@
           >
             <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
             <span class="history-callsign">
+              <!-- 多选模式下显示服务器标签 -->
+              <span
+                v-if="multiSelectMode && record.addressId"
+                class="server-tag"
+                :style="{ backgroundColor: '#4a9eff' }"
+                >{{ getServerName(record.addressId) }}</span
+              >
               {{ record.callsign }}
               <span v-if="record.callsign === selectedFromCallsign" class="self-tag">（您）</span>
               <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
@@ -57,7 +64,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { formatTimeAgo, formatDurationMmSs } from '../constants'
 import StationControl from '../StationControl.vue'
 
@@ -77,7 +84,7 @@ onUnmounted(() => {
   }
 })
 
-defineProps({
+const props = defineProps({
   visible: {
     type: Boolean,
     default: false
@@ -105,8 +112,48 @@ defineProps({
   selectedFromCallsign: {
     type: String,
     default: ''
+  },
+  allSpeakingHistories: {
+    type: Array,
+    default: () => []
+  },
+  allCurrentSpeakers: {
+    type: Array,
+    default: () => []
+  },
+  addressList: {
+    type: Array,
+    default: () => []
+  },
+  multiSelectMode: {
+    type: Boolean,
+    default: false
+  },
+  activeAddressId: {
+    type: String,
+    default: ''
   }
 })
+
+// 计算要显示的历史记录（多选模式使用 allSpeakingHistories，单选模式使用 history）
+const displayHistory = computed(() => {
+  if (props.multiSelectMode && props.allSpeakingHistories?.length > 0) {
+    return props.allSpeakingHistories
+  }
+  return props.history
+})
+
+// 根据 addressId 获取服务器显示名称
+function getServerName(addressId) {
+  // 主服务器显示"主"
+  if (addressId === props.activeAddressId) return '主'
+  const address = props.addressList.find((a) => a.id === addressId)
+  if (!address) return '?'
+  // 显示 numId，如果没有则降级显示在列表中的 index+1
+  if (address.numId) return address.numId.toString()
+  const index = props.addressList.findIndex((a) => a.id === addressId)
+  return index !== -1 ? (index + 1).toString() : '?'
+}
 
 defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-open-list'])
 </script>
@@ -246,6 +293,19 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   gap: 0.4rem;
 }
 
+/* 服务器标签样式 */
+.history-callsign .server-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #ffffff;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .today-star {
   font-size: 1.2rem;
   line-height: 1.6rem;
@@ -330,6 +390,12 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 
   .history-callsign {
     font-size: 1.3rem;
+    gap: 0.3rem;
+  }
+
+  .history-callsign .server-tag {
+    padding: 0.15rem 0.35rem;
+    font-size: 0.65rem;
   }
 
   .today-star {
