@@ -47,6 +47,7 @@
                   <span class="toggle-label">多选同步</span>
                   <label class="toggle-switch">
                     <input
+                      id="multi-select-toggle"
                       type="checkbox"
                       :checked="multiSelectMode"
                       @change="$emit('update:multiSelectMode', $event.target.checked)"
@@ -180,7 +181,7 @@
 
             <!-- 操作按钮 -->
             <div v-if="addressList.length > 0" class="setting-item-buttons">
-              <select v-model.number="syncDays" class="sync-days-select" :disabled="syncing">
+              <select id="sync-days" v-model.number="syncDays" class="sync-days-select" :disabled="syncing">
                 <option :value="1">今天</option>
                 <option :value="3">最近3天</option>
                 <option :value="7">最近7天</option>
@@ -416,6 +417,7 @@
           <div class="form-group">
             <label class="form-label">名称（可选）</label>
             <input
+              id="address-name"
               v-model="formData.name"
               type="text"
               placeholder="如：家里的FMO"
@@ -425,11 +427,12 @@
           <div class="form-group">
             <label class="form-label">地址</label>
             <div class="form-row">
-              <select v-model="formData.protocol" class="protocol-select">
+              <select id="address-protocol" v-model="formData.protocol" class="protocol-select">
                 <option value="ws">ws://</option>
                 <option value="wss">wss://</option>
               </select>
               <input
+                id="address-host"
                 v-model="formData.host"
                 type="text"
                 :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"

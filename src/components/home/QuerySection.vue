@@ -3,6 +3,7 @@
     <div class="filter-controls">
       <div v-if="currentQueryType === 'all'" class="search-box">
         <input
+          id="search-keyword"
           :value="searchKeyword"
           type="text"
           placeholder="接收方呼号"
@@ -20,6 +21,7 @@
       </div>
       <div v-if="currentQueryType === 'oldFriends'" class="search-box">
         <input
+          id="old-friends-search"
           :value="oldFriendsSearchKeyword"
           type="text"
           placeholder="搜索呼号"

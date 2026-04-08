@@ -20,7 +20,7 @@
 
       <div class="server-selector">
         <div class="server-dropdown">
-          <select v-model="activeServerId" class="server-select" @change="handleServerChange">
+          <select id="server-select" v-model="activeServerId" class="server-select" @change="handleServerChange">
             <option v-for="server in serverList" :key="server.id" :value="server.id">
               {{ server.url }}
             </option>
@@ -62,6 +62,7 @@
         <label class="form-label">呼号</label>
         <div class="callsign-input">
           <input
+            id="callsign-base"
             v-model="callsignBase"
             type="text"
             placeholder="如 BG5ESN"
@@ -76,6 +77,7 @@
         <label class="form-label">FMO呼号</label>
         <div class="callsign-input">
           <input
+            id="fmo-callsign-base"
             v-model="fmoCallsignBase"
             type="text"
             placeholder="如 BH5HSJ（默认与呼号相同）"
@@ -88,7 +90,7 @@
       <!-- 控制尾缀 -->
       <div class="form-group form-group-ssid">
         <label class="form-label">控制尾缀</label>
-        <select v-model="controlSsid" class="form-input ssid-select" @change="onCallsignChange">
+        <select id="control-ssid" v-model="controlSsid" class="form-input ssid-select" @change="onCallsignChange">
           <option v-for="n in 16" :key="n - 1" :value="n - 1" :disabled="n - 1 === fmoSsid">
             {{ n - 1 }}
           </option>
@@ -98,7 +100,7 @@
       <!-- FMO尾缀 -->
       <div class="form-group form-group-ssid">
         <label class="form-label">FMO尾缀</label>
-        <select v-model="fmoSsid" class="form-input ssid-select" @change="onFmoSsidChange">
+        <select id="fmo-ssid" v-model="fmoSsid" class="form-input ssid-select" @change="onFmoSsidChange">
           <option v-for="n in 16" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
         </select>
       </div>
@@ -108,6 +110,7 @@
         <label class="form-label">APRS密钥</label>
         <div class="password-input-wrapper">
           <input
+            id="aprs-passcode"
             v-model="passcode"
             :type="showPasscode ? 'text' : 'password'"
             placeholder="5位数字"
@@ -140,6 +143,7 @@
         <label class="form-label">设备密钥</label>
         <div class="password-input-wrapper">
           <input
+            id="device-secret"
             v-model="secret"
             :type="showSecret ? 'text' : 'password'"
             placeholder="在设备配置中设置的密钥"
@@ -164,7 +168,7 @@
       <!-- 高级选项 -->
       <div class="form-group form-group-full advanced-option">
         <label class="form-checkbox">
-          <input v-model="advancedMode" type="checkbox" @change="onAdvancedModeChange" />
+          <input id="advanced-mode" v-model="advancedMode" type="checkbox" @change="onAdvancedModeChange" />
           <span>高级选项（允许设置不同的FMO呼号）</span>
         </label>
       </div>
@@ -232,6 +236,7 @@
         <div class="form-group">
           <label class="form-label">服务器地址</label>
           <input
+            id="server-url"
             v-model="serverFormData.url"
             type="text"
             placeholder="ws://your-server:8090/api/ws"

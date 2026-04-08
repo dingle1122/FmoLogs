@@ -191,6 +191,7 @@
           <div class="form-group">
             <label>目标呼号</label>
             <input
+              id="target-callsign"
               v-model="sendForm.callsign"
               type="text"
               placeholder="输入呼号 (如: BG1AAA)"
@@ -202,7 +203,7 @@
 
           <div class="form-group">
             <label>SSID</label>
-            <select v-model="sendForm.ssid">
+            <select id="target-ssid" v-model="sendForm.ssid">
               <option v-for="n in 15" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
@@ -210,6 +211,7 @@
           <div class="form-group">
             <label>消息内容</label>
             <textarea
+              id="message-content"
               v-model="sendForm.message"
               rows="4"
               placeholder="输入消息内容..."

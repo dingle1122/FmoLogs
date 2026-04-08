@@ -114,6 +114,7 @@
 
     <!-- 隐藏的文件输入 -->
     <input
+      id="db-file-input"
       ref="fileInputRef"
       type="file"
       accept=".db"
