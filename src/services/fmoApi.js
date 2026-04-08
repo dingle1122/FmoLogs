@@ -53,7 +53,17 @@ export class FmoApiClient {
       console.log(`Connecting to FMO: ${wsUrl}`)
       this.socket = new WebSocket(wsUrl)
 
+      // 设置连接超时：5秒
+      const connectTimeout = setTimeout(() => {
+        console.error('FMO WebSocket connection timeout')
+        this.connectPromise = null
+        this.socket.close()
+        this.socket = null
+        reject(new Error('WebSocket connection timeout'))
+      }, 5000)
+
       this.socket.onopen = () => {
+        clearTimeout(connectTimeout)
         console.log('FMO WebSocket connected')
         this.connectPromise = null
         resolve()
@@ -69,12 +79,14 @@ export class FmoApiClient {
       }
 
       this.socket.onerror = (error) => {
+        clearTimeout(connectTimeout)
         console.error('FMO WebSocket error:', error)
         this.connectPromise = null
         reject(error)
       }
 
       this.socket.onclose = () => {
+        clearTimeout(connectTimeout)
         console.log('FMO WebSocket closed')
         this.connectPromise = null
       }
