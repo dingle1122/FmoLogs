@@ -96,6 +96,7 @@
       @close="showSettings = false"
       @select-files="triggerFileInput"
       @export-data="handleExportData"
+      @export-adif="handleExportAdif"
       @sync-days="handleSyncDays"
       @sync-incremental="handleSyncIncremental"
       @sync-full="handleSyncFull"
@@ -262,11 +263,12 @@ import { useDbManager } from '../composables/useDbManager'
 import { useSettings } from '../composables/useSettings'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
-import { exportDataToDbFile } from '../services/db'
+import { exportDataToDbFile, exportDataToAdif } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
 import { NAV_ROUTES } from '../components/home/constants'
 import { getMessageService } from '../services/messageService'
+import packageInfo from '../../package.json'
 
 // 路由
 const route = useRoute()
@@ -655,6 +657,31 @@ async function handleExportData() {
   } catch (err) {
     loading.value = false
     toast.error(`导出失败: ${err.message}`)
+  }
+}
+
+// 导出ADIF文件
+async function handleExportAdif() {
+  try {
+    loading.value = true
+    const appVersion = packageInfo.version
+    const result = await exportDataToAdif(selectedFromCallsign.value, appVersion)
+
+    // 创建 Blob 并下载
+    const blob = new Blob([result.content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = result.filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    loading.value = false
+  } catch (err) {
+    loading.value = false
+    toast.error(`导出ADIF失败: ${err.message}`)
   }
 }
 

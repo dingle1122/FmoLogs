@@ -12,6 +12,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "adif-parser-ts": "^0.6.37",
     "crypto-js": "^4.2.0",
     "pinia": "^3.0.4",
     "sql.js": "^1.13.0",
