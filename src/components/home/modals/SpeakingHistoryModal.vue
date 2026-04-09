@@ -35,7 +35,6 @@
               <span
                 v-if="multiSelectMode && record.addressId"
                 class="server-tag"
-                :style="{ backgroundColor: '#4a9eff' }"
                 >{{ getServerName(record.addressId) }}</span
               >
               {{ record.callsign }}
@@ -294,17 +293,21 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   gap: 0.4rem;
 }
 
-/* 服务器标签样式 */
+/* 服务器标签样式 - 与 user-uid 同款绿色 */
 .history-callsign .server-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  justify-content: center;
+  padding: 0.2rem 0.2rem;
+  border-radius: 2px;
   font-size: 0.75rem;
-  font-weight: 500;
-  color: #ffffff;
+  font-weight: 700;
+  background: rgba(103, 194, 58, 0.15);
+  color: var(--color-success);
   line-height: 1;
   flex-shrink: 0;
+  min-width: 1.2rem;
+  min-height: 1.2rem;
 }
 
 .today-star {

@@ -106,14 +106,20 @@ function handleOpenList() {
   color: var(--text-tertiary);
 }
 
+/* 主服务器标签样式 - 与 user-uid 同款绿色 */
 .primary-badge {
-  background: #4a9eff;
-  color: #fff;
+  background: rgba(103, 194, 58, 0.15);
+  color: var(--color-success);
   font-size: 0.7rem;
-  padding: 0.1rem 0.35rem;
-  border-radius: 3px;
-  font-weight: 600;
+  padding: 0.1rem 0.1rem;
+  border-radius: 2px;
+  font-weight: 700;
   margin-left: 0.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1rem;
+  min-height: 1rem;
 }
 
 .station-loading {

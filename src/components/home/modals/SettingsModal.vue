@@ -96,7 +96,7 @@
                 <div class="address-info">
                   <div class="address-name">
                     <!-- 服务器数字 ID 标签 -->
-                    <span class="server-id-tag" :style="{ backgroundColor: '#4a9eff' }">
+                    <span class="server-id-tag">
                       {{ getServerNumId(addr, index) }}
                     </span>
                     {{ addr.name }}
@@ -2160,18 +2160,22 @@ defineExpose({ clearConnecting, clearRefreshing })
   vertical-align: middle;
 }
 
-/* 服务器数字 ID 标签样式 */
+/* 服务器数字 ID 标签样式 - 与 user-uid 同款绿色 */
 .server-id-tag {
   display: inline-flex;
   align-items: center;
-  padding: 0.15rem 0.4rem;
-  border-radius: 4px;
+  justify-content: center;
+  padding: 0.15rem 0.15rem;
+  border-radius: 2px;
   font-size: 0.75rem;
-  font-weight: 500;
-  color: #ffffff;
+  font-weight: 700;
+  background: rgba(103, 194, 58, 0.15);
+  color: var(--color-success);
   line-height: 1;
   margin-right: 0.4rem;
   vertical-align: middle;
+  min-width: 1.2rem;
+  min-height: 1.2rem;
 }
 
 /* 移动端适配 */
