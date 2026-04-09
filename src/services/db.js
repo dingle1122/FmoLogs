@@ -1234,11 +1234,11 @@ export async function exportDataToAdif(fromCallsign, appVersion = '1.0.0') {
         time_on: timeOn,
         freq: record.freqHz ? (record.freqHz / 10000).toFixed(4) : '',
         band: getBandFromFreq(record.freqHz),
-        mode: record.mode || 'FM',
+        mode: 'FM',
         rst_sent: '59',
         rst_rcvd: '59',
-        comment: record.toComment || '',
-        app_fmo_mode: 'FMO',
+        comment: 'via FMO network',
+        app_fmo_mode: record.mode || 'FMO',
         app_fmo_logid: String(index + 1)
       }
 
