@@ -96,10 +96,7 @@
                 <div class="address-info">
                   <div class="address-name">
                     <!-- 服务器数字 ID 标签 -->
-                    <span
-                      class="server-id-tag"
-                      :style="{ backgroundColor: '#4a9eff' }"
-                    >
+                    <span class="server-id-tag" :style="{ backgroundColor: '#4a9eff' }">
                       {{ getServerNumId(addr, index) }}
                     </span>
                     {{ addr.name }}
@@ -181,7 +178,12 @@
 
             <!-- 操作按钮 -->
             <div v-if="addressList.length > 0" class="setting-item-buttons">
-              <select id="sync-days" v-model.number="syncDays" class="sync-days-select" :disabled="syncing">
+              <select
+                id="sync-days"
+                v-model.number="syncDays"
+                class="sync-days-select"
+                :disabled="syncing"
+              >
                 <option :value="1">今天</option>
                 <option :value="3">最近3天</option>
                 <option :value="7">最近7天</option>
@@ -240,7 +242,9 @@
               <span class="setting-label">数据管理</span>
             </div>
             <div class="setting-item-data-row">
-              <button class="btn-primary btn-full" @click="$emit('select-files')">导入FMO日志</button>
+              <button class="btn-primary btn-full" @click="$emit('select-files')">
+                导入FMO日志
+              </button>
             </div>
             <div class="setting-item-data-row">
               <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
@@ -472,8 +476,6 @@ import { useAprsControl } from '../../../composables/useAprsControl'
 import AprsRemoteControl from './AprsRemoteControl.vue'
 import confirmDialog from '../../../composables/useConfirm'
 import packageInfo from '../../../../package.json'
-
-
 
 const props = defineProps({
   visible: {

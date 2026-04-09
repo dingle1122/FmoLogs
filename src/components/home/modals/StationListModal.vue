@@ -17,7 +17,11 @@
             @click="handleSelect(station.uid)"
           >
             {{ station.name }}
-            <span v-if="showPrimaryBadge && currentStation?.uid === station.uid" class="primary-badge">主</span>
+            <span
+              v-if="showPrimaryBadge && currentStation?.uid === station.uid"
+              class="primary-badge"
+              >主</span
+            >
           </button>
         </div>
         <div v-else-if="loading" class="station-loading">加载中...</div>

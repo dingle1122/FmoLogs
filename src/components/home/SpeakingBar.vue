@@ -19,7 +19,9 @@
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong
               ><strong v-if="speaker.callsign === selectedFromCallsign">（您）</strong
-              ><strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
+              ><strong v-if="index < allCurrentSpeakers.length - 1"
+                >&nbsp;&nbsp;&nbsp;&nbsp;</strong
+              >
             </span>
           </template>
           <template v-else>

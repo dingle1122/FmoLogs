@@ -20,7 +20,12 @@
 
       <div class="server-selector">
         <div class="server-dropdown">
-          <select id="server-select" v-model="activeServerId" class="server-select" @change="handleServerChange">
+          <select
+            id="server-select"
+            v-model="activeServerId"
+            class="server-select"
+            @change="handleServerChange"
+          >
             <option v-for="server in serverList" :key="server.id" :value="server.id">
               {{ server.url }}
             </option>
@@ -90,7 +95,12 @@
       <!-- 控制尾缀 -->
       <div class="form-group form-group-ssid">
         <label class="form-label">控制尾缀</label>
-        <select id="control-ssid" v-model="controlSsid" class="form-input ssid-select" @change="onCallsignChange">
+        <select
+          id="control-ssid"
+          v-model="controlSsid"
+          class="form-input ssid-select"
+          @change="onCallsignChange"
+        >
           <option v-for="n in 16" :key="n - 1" :value="n - 1" :disabled="n - 1 === fmoSsid">
             {{ n - 1 }}
           </option>
@@ -100,7 +110,12 @@
       <!-- FMO尾缀 -->
       <div class="form-group form-group-ssid">
         <label class="form-label">FMO尾缀</label>
-        <select id="fmo-ssid" v-model="fmoSsid" class="form-input ssid-select" @change="onFmoSsidChange">
+        <select
+          id="fmo-ssid"
+          v-model="fmoSsid"
+          class="form-input ssid-select"
+          @change="onFmoSsidChange"
+        >
           <option v-for="n in 16" :key="n - 1" :value="n - 1">{{ n - 1 }}</option>
         </select>
       </div>
@@ -168,7 +183,12 @@
       <!-- 高级选项 -->
       <div class="form-group form-group-full advanced-option">
         <label class="form-checkbox">
-          <input id="advanced-mode" v-model="advancedMode" type="checkbox" @change="onAdvancedModeChange" />
+          <input
+            id="advanced-mode"
+            v-model="advancedMode"
+            type="checkbox"
+            @change="onAdvancedModeChange"
+          />
           <span>高级选项（允许设置不同的FMO呼号）</span>
         </label>
       </div>

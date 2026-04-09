@@ -118,7 +118,7 @@
       id="db-file-input"
       ref="fileInputRef"
       type="file"
-      accept=".db"
+      accept=".db,.adi,.adif"
       multiple
       class="hidden-input"
       @change="handleFileSelect"

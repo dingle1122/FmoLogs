@@ -1,5 +1,5 @@
 import initSqlJs from 'sql.js'
-import { AdifFormatter } from 'adif-parser-ts'
+import { AdifFormatter, AdifParser } from 'adif-parser-ts'
 
 let SQL = null
 
@@ -427,37 +427,13 @@ async function openLogsDatabase(newCallsigns = []) {
   return logsDbPromise
 }
 
-// 将db文件数据导入到IndexedDB
-export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
-  await initSQL()
-
-  // 第一步：扫描所有文件，收集所有fromCallsign
+// 将记录数组导入到IndexedDB（共用逻辑）
+async function importRecordsToIndexedDB(records, onProgress = null) {
+  // 收集所有fromCallsign
   const allCallsigns = new Set()
-  const allRecords = []
-
-  for (const file of dbFiles) {
-    try {
-      const db = new SQL.Database(file.data)
-      const result = db.exec('SELECT * FROM qso_logs')
-
-      if (result.length > 0) {
-        const columns = result[0].columns
-        const values = result[0].values
-
-        for (const row of values) {
-          const record = {}
-          columns.forEach((col, index) => {
-            record[col] = row[index]
-          })
-          allRecords.push(record)
-          if (record.fromCallsign) {
-            allCallsigns.add(record.fromCallsign)
-          }
-        }
-      }
-      db.close()
-    } catch (err) {
-      console.error(`读取数据库文件 ${file.name} 失败:`, err)
+  for (const record of records) {
+    if (record.fromCallsign) {
+      allCallsigns.add(record.fromCallsign)
     }
   }
 
@@ -465,16 +441,16 @@ export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
     return { totalRecords: 0, callsigns: [] }
   }
 
-  // 第二步：打开/升级IndexedDB，确保所有需要的存储都存在
+  // 打开/升级IndexedDB，确保所有需要的存储都存在
   const callsignArray = Array.from(allCallsigns)
   await openLogsDatabase(callsignArray)
 
-  // 第三步：按fromCallsign分组并写入数据（带去重）
+  // 按fromCallsign分组并写入数据（带去重）
   const recordsByCallsign = new Map()
   for (const callsign of callsignArray) {
     recordsByCallsign.set(callsign, [])
   }
-  for (const record of allRecords) {
+  for (const record of records) {
     if (record.fromCallsign && recordsByCallsign.has(record.fromCallsign)) {
       recordsByCallsign.get(record.fromCallsign).push(record)
     }
@@ -482,14 +458,14 @@ export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
 
   let totalImported = 0
   let processed = 0
-  const totalToProcess = allRecords.length
+  const totalToProcess = records.length
 
-  for (const [callsign, records] of recordsByCallsign) {
+  for (const [callsign, recs] of recordsByCallsign) {
     const storeName = `logs_from_${callsign}`
-    const imported = await writeRecordsToStore(storeName, records)
+    const imported = await writeRecordsToStore(storeName, recs)
     totalImported += imported
 
-    processed += records.length
+    processed += recs.length
     if (onProgress) {
       onProgress({
         current: processed,
@@ -507,6 +483,191 @@ export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
     totalRecords: totalImported,
     callsigns: callsignArray
   }
+}
+
+// 将db文件数据导入到IndexedDB
+export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
+  await initSQL()
+
+  // 解析SQLite文件
+  const allRecords = []
+
+  for (const file of dbFiles) {
+    try {
+      const db = new SQL.Database(file.data)
+      const result = db.exec('SELECT * FROM qso_logs')
+
+      if (result.length > 0) {
+        const columns = result[0].columns
+        const values = result[0].values
+
+        for (const row of values) {
+          const record = {}
+          columns.forEach((col, index) => {
+            record[col] = row[index]
+          })
+          allRecords.push(record)
+        }
+      }
+      db.close()
+    } catch (err) {
+      console.error(`读取数据库文件 ${file.name} 失败:`, err)
+    }
+  }
+
+  // 统一导入
+  return importRecordsToIndexedDB(allRecords, onProgress)
+}
+
+// ADIF日期时间转Unix时间戳
+function parseAdifDateTime(qsoDate, timeOn) {
+  if (!qsoDate || !timeOn) return 0
+  // qso_date: "20250409", time_on: "143052"
+  const year = parseInt(qsoDate.substring(0, 4))
+  const month = parseInt(qsoDate.substring(4, 6)) - 1
+  const day = parseInt(qsoDate.substring(6, 8))
+  const hour = parseInt(timeOn.substring(0, 2))
+  const minute = parseInt(timeOn.substring(2, 4))
+  const second = parseInt(timeOn.substring(4, 6))
+
+  return Math.floor(Date.UTC(year, month, day, hour, minute, second) / 1000)
+}
+
+// 快速检测内容是否包含多字节字符（中文等）
+function hasMultibyteChars(str) {
+  for (let i = 0; i < str.length; i++) {
+    if (str.charCodeAt(i) > 127) return true
+  }
+  return false
+}
+
+// 优化的ADIF预处理：只对包含多字节字符的字段进行长度转换
+function preprocessAdifContent(content) {
+  // 快速路径：如果没有多字节字符，直接返回原内容
+  if (!hasMultibyteChars(content)) {
+    return content
+  }
+
+  const encoder = new TextEncoder()
+  const decoder = new TextDecoder('utf-8')
+  let result = ''
+  let cursor = 0
+
+  // 预分配大致容量
+  const contentLength = content.length
+
+  while (cursor < contentLength) {
+    // 查找标签开始
+    const tagStart = content.indexOf('<', cursor)
+    if (tagStart === -1) {
+      result += content.substring(cursor)
+      break
+    }
+
+    result += content.substring(cursor, tagStart)
+
+    const tagEnd = content.indexOf('>', tagStart)
+    if (tagEnd === -1) {
+      result += content.substring(tagStart)
+      break
+    }
+
+    const tagContent = content.substring(tagStart + 1, tagEnd)
+    const colonIndex = tagContent.indexOf(':')
+
+    // 无长度声明的标签直接复制
+    if (colonIndex === -1) {
+      result += `<${tagContent}>`
+      cursor = tagEnd + 1
+      continue
+    }
+
+    const tagName = tagContent.substring(0, colonIndex).toLowerCase()
+
+    // 处理结束标记
+    if (tagName === 'eor' || tagName === 'eoh') {
+      result += `<${tagName}>`
+      cursor = tagEnd + 1
+      continue
+    }
+
+    // 解析长度
+    const afterColon = tagContent.substring(colonIndex + 1)
+    const secondColonIndex = afterColon.indexOf(':')
+    const lengthStr = secondColonIndex === -1 ? afterColon : afterColon.substring(0, secondColonIndex)
+    const declaredLength = parseInt(lengthStr, 10)
+
+    if (isNaN(declaredLength)) {
+      result += `<${tagContent}>`
+      cursor = tagEnd + 1
+      continue
+    }
+
+    const valueStart = tagEnd + 1
+    const remainingContent = content.substring(valueStart)
+
+    // 快速路径：检查字段值是否包含多字节字符
+    if (!hasMultibyteChars(remainingContent.substring(0, Math.min(declaredLength + 10, remainingContent.length)))) {
+      // 纯ASCII，直接复制
+      const value = remainingContent.substring(0, declaredLength)
+      result += `<${tagContent}>${value}`
+      cursor = valueStart + declaredLength
+      continue
+    }
+
+    // 需要字节级处理
+    const valueBytes = encoder.encode(remainingContent)
+    const actualValueBytes = valueBytes.slice(0, declaredLength)
+    const actualValue = decoder.decode(actualValueBytes)
+    const charLength = actualValue.length
+
+    // 重建标签
+    const typeIndicator = secondColonIndex === -1 ? '' : afterColon.substring(secondColonIndex)
+    const newTag = `<${tagName}:${charLength}${typeIndicator}>`
+    result += newTag + actualValue
+
+    cursor = valueStart + actualValue.length
+  }
+
+  return result
+}
+
+// 将ADIF文件数据导入到IndexedDB
+export async function importAdifFilesToIndexedDB(adifFiles, onProgress = null) {
+  // 解析ADIF文件
+  const allRecords = []
+
+  for (const file of adifFiles) {
+    try {
+      const content = await file.text()
+      // 预处理：将字节长度转换为字符长度
+      const preprocessedContent = preprocessAdifContent(content)
+      const parsed = AdifParser.parseAdi(preprocessedContent)
+
+      // 筛选 app_fmo_mode === 'FMO' 的记录
+      const fmoRecords = parsed.records.filter((r) => r.app_fmo_mode?.toUpperCase() === 'FMO')
+
+      for (const r of fmoRecords) {
+        allRecords.push({
+          timestamp: parseAdifDateTime(r.qso_date, r.time_on),
+          freqHz: r.freq ? Math.round(parseFloat(r.freq) * 10000) : null,
+          fromCallsign: r.station_callsign || '',
+          fromGrid: r.my_gridsquare || '',
+          toCallsign: r.call || '',
+          toGrid: r.gridsquare || '',
+          toComment: r.app_fmo_comment_utf8 || r.comment || '',
+          mode: r.app_fmo_mode || 'FMO',
+          relayName: r.app_fmo_relayname || '',
+          relayAdmin: r.app_fmo_relayadmin || ''
+        })
+      }
+    } catch (err) {
+      console.error(`解析ADIF文件 ${file.name} 失败:`, err)
+    }
+  }
+
+  // 统一导入
+  return importRecordsToIndexedDB(allRecords, onProgress)
 }
 
 // 将记录写入指定存储（基于UTC日期+toCallsign去重，重复时覆盖）

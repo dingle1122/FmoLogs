@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import {
   loadDbFilesFromFileList,
   importDbFilesToIndexedDB,
+  importAdifFilesToIndexedDB,
   getAvailableFromCallsigns,
   clearIndexedDBData,
   getTotalRecordsCountFromIndexedDB,
@@ -23,14 +24,40 @@ export function useDbManager() {
   const todayLogs = ref(0)
   const uniqueCallsigns = ref(0)
 
-  async function loadDatabases(dbFiles) {
+  async function loadImportFiles(files) {
     importProgress.value = { current: 0, total: 0 }
-    const importResult = await importDbFilesToIndexedDB(dbFiles, (progress) => {
-      importProgress.value = progress
-    })
+
+    // 按文件类型分组
+    const dbFiles = []
+    const adifFiles = []
+
+    for (const file of files) {
+      const name = file.name.toLowerCase()
+      if (name.endsWith('.db')) dbFiles.push(file)
+      else if (name.endsWith('.adi') || name.endsWith('.adif')) adifFiles.push(file)
+    }
+
+    // 并行导入两种类型的文件
+    const results = await Promise.all([
+      dbFiles.length > 0
+        ? importDbFilesToIndexedDB(dbFiles, (progress) => {
+            importProgress.value = progress
+          })
+        : Promise.resolve({ totalRecords: 0, callsigns: [] }),
+      adifFiles.length > 0
+        ? importAdifFilesToIndexedDB(adifFiles, (progress) => {
+            importProgress.value = progress
+          })
+        : Promise.resolve({ totalRecords: 0, callsigns: [] })
+    ])
+
     importProgress.value = null
 
-    if (importResult.totalRecords === 0 && importResult.callsigns.length === 0) {
+    // 合并结果
+    const totalRecords = results[0].totalRecords + results[1].totalRecords
+    const allCallsigns = [...new Set([...results[0].callsigns, ...results[1].callsigns])]
+
+    if (totalRecords === 0 && allCallsigns.length === 0) {
       const existingCallsigns = await getAvailableFromCallsigns()
       if (existingCallsigns.length === 0) {
         error.value = '没有成功导入任何数据'
@@ -38,8 +65,8 @@ export function useDbManager() {
       }
       availableFromCallsigns.value = existingCallsigns
     } else {
-      const allCallsigns = await getAvailableFromCallsigns()
-      availableFromCallsigns.value = allCallsigns
+      const currentCallsigns = await getAvailableFromCallsigns()
+      availableFromCallsigns.value = currentCallsigns
     }
 
     if (
@@ -51,7 +78,7 @@ export function useDbManager() {
 
     await updateStats()
 
-    dbCount.value = dbFiles.length
+    dbCount.value = files.length
     dbLoaded.value = true
 
     return true
@@ -88,14 +115,35 @@ export function useDbManager() {
     error.value = null
 
     try {
-      const dbFiles = await loadDbFilesFromFileList(files)
-      if (dbFiles.length === 0) {
-        error.value = '所选文件中没有有效的 .db 文件'
+      // 验证文件类型
+      const validFiles = []
+      for (const file of files) {
+        const name = file.name.toLowerCase()
+        if (name.endsWith('.db') || name.endsWith('.adi') || name.endsWith('.adif')) {
+          validFiles.push(file)
+        }
+      }
+
+      if (validFiles.length === 0) {
+        error.value = '所选文件中没有有效的 .db 或 .adi/.adif 文件'
         loading.value = false
         return false
       }
 
-      const success = await loadDatabases(dbFiles)
+      // .db 文件需要先通过 loadDbFilesFromFileList 验证
+      const dbFiles = await loadDbFilesFromFileList(validFiles)
+      const adifFiles = validFiles.filter((f) => f.name.toLowerCase().match(/\.(adi|adif)$/))
+
+      if (dbFiles.length === 0 && adifFiles.length === 0) {
+        error.value = '所选文件中没有有效的数据文件'
+        loading.value = false
+        return false
+      }
+
+      // 合并验证后的文件
+      const allFiles = [...dbFiles.map((f) => ({ name: f.name, data: f.data })), ...adifFiles]
+
+      const success = await loadImportFiles(allFiles)
       loading.value = false
       return success
     } catch (err) {
