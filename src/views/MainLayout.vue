@@ -621,7 +621,7 @@ async function handleFileSelect(event) {
 }
 
 async function handleClearAllData() {
-  const confirmed = await confirmDialog.show('确定要清空所有数据吗？此操作不可恢复。')
+  const confirmed = await confirmDialog.show('确定要清空所有通联日志吗？此操作不可恢复。')
   if (!confirmed) {
     return
   }

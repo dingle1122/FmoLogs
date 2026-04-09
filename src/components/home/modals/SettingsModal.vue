@@ -236,19 +236,19 @@
 
           <!-- 数据管理 -->
           <div class="setting-group-data">
-            <div class="setting-item">
+            <div class="setting-item-data-header">
               <span class="setting-label">数据管理</span>
-              <div class="setting-actions">
-                <button class="btn-primary" @click="$emit('select-files')">导入FMO日志</button>
-                <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
-                  导出数据文件
-                </button>
-              </div>
             </div>
-            <div v-if="dbLoaded" class="setting-item setting-item-danger">
-              <span class="setting-label"></span>
-              <div class="setting-actions">
-                <button class="btn-danger" @click="$emit('clear-all-data')">清空所有数据</button>
+            <div class="setting-item-data-row">
+              <button class="btn-primary" @click="$emit('select-files')">导入FMO日志</button>
+              <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
+                导出为数据库文件
+              </button>
+            </div>
+            <div v-if="dbLoaded" class="setting-item-data-clear">
+              <div class="data-clear-info">
+                <span class="data-clear-warning">此操作将永久删除所有本地通联日志，不可恢复！</span>
+                <button class="btn-danger" @click="$emit('clear-all-data')">清空通联日志</button>
               </div>
             </div>
           </div>
@@ -1056,6 +1056,57 @@ defineExpose({ clearConnecting, clearRefreshing })
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-light);
+}
+
+.setting-item-data-header {
+  margin-bottom: 0.75rem;
+}
+
+.setting-item-data-header .setting-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.setting-item-data-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.setting-item-data-row .btn-primary,
+.setting-item-data-row .btn-secondary {
+  flex: 1;
+  min-width: 120px;
+  white-space: nowrap;
+}
+
+.setting-item-data-clear {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.data-clear-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(245, 108, 108, 0.08);
+  border: 1px solid rgba(245, 108, 108, 0.2);
+  border-radius: 6px;
+  gap: 1rem;
+}
+
+.data-clear-warning {
+  font-size: 0.85rem;
+  color: var(--color-danger);
+  flex: 1;
+}
+
+.setting-item-data-clear .btn-danger {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-add {
