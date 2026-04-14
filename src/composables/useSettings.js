@@ -12,6 +12,12 @@ export function useSettings() {
   const selectedAddressIds = ref([])
   const multiSelectMode = ref(false)
 
+  // 音量设置（全局，不跟地址绑定）
+  const audioVolume = ref(100) // 播放音量百分比，范围 0-200，默认 100
+
+  // 音频播放状态（全局，用于恢复播放）
+  const audioPlaying = ref(false)
+
   const isHttps = window.location.protocol === 'https:'
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
@@ -49,8 +55,50 @@ export function useSettings() {
     return `http://${host}/remote.html`
   })
 
+  // 音量设置的 localStorage key
+  const AUDIO_VOLUME_KEY = 'fmo_audio_volume'
+
+  // 音频播放状态的 localStorage key
+  const AUDIO_PLAYING_KEY = 'fmo_audio_playing'
+
+  // 初始化音量设置
+  function initAudioVolume() {
+    const saved = localStorage.getItem(AUDIO_VOLUME_KEY)
+    if (saved !== null) {
+      const val = Number(saved)
+      if (!isNaN(val) && val >= 0 && val <= 200) {
+        audioVolume.value = val
+      }
+    }
+  }
+
+  // 设置音量并持久化
+  function setAudioVolume(value) {
+    const val = Math.max(0, Math.min(200, Number(value) || 100))
+    audioVolume.value = val
+    localStorage.setItem(AUDIO_VOLUME_KEY, String(val))
+  }
+
+  // 初始化音频播放状态
+  function initAudioPlaying() {
+    const saved = localStorage.getItem(AUDIO_PLAYING_KEY)
+    audioPlaying.value = saved === 'true'
+  }
+
+  // 设置音频播放状态并持久化
+  function setAudioPlaying(value) {
+    audioPlaying.value = !!value
+    localStorage.setItem(AUDIO_PLAYING_KEY, String(!!value))
+  }
+
   // 初始化地址（支持迁移）
   async function initFmoAddress() {
+    // 初始化音量设置
+    initAudioVolume()
+
+    // 初始化音频播放状态
+    initAudioPlaying()
+
     const storage = await getFmoAddresses()
     fmoAddressStorage.value = storage
 
@@ -483,6 +531,12 @@ export function useSettings() {
     multiSelectMode,
     toggleAddressSelection,
     setMultiSelectMode,
-    setActiveAddressId
+    setActiveAddressId,
+    // 音量设置
+    audioVolume,
+    setAudioVolume,
+    // 音频播放状态
+    audioPlaying,
+    setAudioPlaying
   }
 }

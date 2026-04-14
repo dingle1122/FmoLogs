@@ -236,6 +236,29 @@
             </div>
           </div>
 
+          <!-- 播放设置 -->
+          <div class="setting-group-audio">
+            <div class="setting-group-title">播放设置</div>
+            <div class="setting-item">
+              <label class="setting-label-normal">播放音量</label>
+              <div class="volume-control">
+                <input
+                  type="range"
+                  min="0"
+                  max="200"
+                  step="1"
+                  :value="audioVolume"
+                  class="volume-slider"
+                  :style="{
+                    background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${audioVolume / 2}%, var(--border-primary) ${audioVolume / 2}%, var(--border-primary) 100%)`
+                  }"
+                  @input="handleVolumeChange"
+                />
+                <span class="volume-value">{{ audioVolume }}%</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 数据管理 -->
           <div class="setting-group-data">
             <div class="setting-item-data-header">
@@ -522,6 +545,10 @@ const props = defineProps({
   multiSyncProgress: {
     type: Object,
     default: () => ({ current: 0, total: 0, currentName: '', results: [] })
+  },
+  audioVolume: {
+    type: Number,
+    default: 100
   }
 })
 
@@ -545,7 +572,8 @@ const emit = defineEmits([
   'update:multiSelectMode',
   'toggle-address-selection',
   'sync-multiple',
-  'validate-and-select'
+  'validate-and-select',
+  'update-audio-volume'
 ])
 
 const activeTab = ref('general')
@@ -911,6 +939,11 @@ function getServerNumId(address, index) {
   return (index + 1).toString()
 }
 
+function handleVolumeChange(e) {
+  const value = Number(e.target.value)
+  emit('update-audio-volume', value)
+}
+
 defineExpose({ clearConnecting, clearRefreshing })
 </script>
 
@@ -1028,6 +1061,50 @@ defineExpose({ clearConnecting, clearRefreshing })
   font-weight: 500;
 }
 
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.volume-slider {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-primary);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-primary, #409eff);
+  cursor: pointer;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-primary, #409eff);
+  border: none;
+  cursor: pointer;
+}
+
+.volume-value {
+  min-width: 3em;
+  text-align: right;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 .setting-actions {
   display: flex;
   gap: 0.5rem;
@@ -1058,6 +1135,22 @@ defineExpose({ clearConnecting, clearRefreshing })
 .setting-group {
   margin-top: 0;
   padding-top: 0;
+}
+
+.setting-group-audio {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.setting-group-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.setting-label-normal {
+  font-weight: normal;
 }
 
 .setting-group-data {

@@ -22,7 +22,10 @@
       :address-list="settings.addressList.value"
       :multi-select-mode="settings.multiSelectMode.value"
       :active-address-id="settings.activeAddressId.value"
+      :is-audio-playing="isAudioPlaying"
+      :is-audio-muted="isAudioMuted"
       @click="showSpeakingHistory = true"
+      @toggle-audio="handleToggleAudio"
     />
 
     <!-- 路由视图 -->
@@ -92,6 +95,7 @@
       :multi-select-mode="settings.multiSelectMode.value"
       :selected-address-ids="settings.selectedAddressIds.value"
       :multi-sync-progress="fmoSync.multiSyncProgress.value"
+      :audio-volume="settings.audioVolume.value"
       @update:multi-select-mode="handleSetMultiSelectMode"
       @close="showSettings = false"
       @select-files="triggerFileInput"
@@ -111,6 +115,7 @@
       @clear-all-addresses="handleClearAllAddresses"
       @refresh-user-info="handleRefreshUserInfo"
       @validate-and-select="handleValidateAndSelect"
+      @update-audio-volume="handleUpdateAudioVolume"
     />
 
     <!-- 隐藏的文件输入 -->
@@ -261,6 +266,7 @@ import { useFmoSync } from '../composables/useFmoSync'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
 import { useSettings } from '../composables/useSettings'
+import { useAudioPlayer } from '../composables/useAudioPlayer'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToAdif } from '../services/db'
@@ -328,6 +334,17 @@ const callsignRecords = useCallsignRecords()
 
 // 消息服务
 const messageService = getMessageService()
+
+const {
+  isPlaying: isAudioPlaying,
+  isMuted: isAudioMuted,
+  toggleAudio,
+  stopAudio,
+  muteAudio,
+  unmuteAudio,
+  setVolume: setAudioVolumePlayer,
+  resumeAudio
+} = useAudioPlayer()
 
 const fmoSync = useFmoSync({
   onSyncComplete: async ({ callsigns, syncedCount }) => {
@@ -693,6 +710,11 @@ async function handleAddAddress({ name, host, protocol }) {
     return
   }
 
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
+
   // 添加成功后重连到新地址
   if (result.reconnect) {
     speakingStatus.disconnectEventWs('single')
@@ -721,6 +743,11 @@ async function handleDeleteAddress(id) {
   if (!result.success) {
     toast.warning(result.message)
     return
+  }
+
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
   }
 
   // 如果删除的是当前选中地址，需要重连
@@ -757,6 +784,11 @@ async function handleDeleteAddress(id) {
 }
 
 async function handleSelectAddress(id) {
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
+
   const result = await settings.selectFmoAddress(id)
   settingsModalRef.value?.clearConnecting()
 
@@ -795,6 +827,11 @@ async function handleClearAllAddresses() {
   if (!result.success) {
     toast.warning(result.message)
     return
+  }
+
+  // 如果正在播放音频，先停止
+  if (isAudioPlaying.value) {
+    stopAudio()
   }
 
   // 断开连接并停止同步任务
@@ -906,6 +943,11 @@ async function handleSetMultiSelectMode(value) {
   const oldMode = settings.multiSelectMode.value
   const newMode = value
 
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
+
   // 先更新设置
   await settings.setMultiSelectMode(value)
 
@@ -937,6 +979,11 @@ async function handleSetMultiSelectMode(value) {
 // 处理地址选择切换（多选模式下）
 async function handleToggleAddressSelection(id) {
   const isCurrentlySelected = settings.selectedAddressIds.value.includes(id)
+
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
 
   // 执行 toggle
   await settings.toggleAddressSelection(id)
@@ -1042,6 +1089,66 @@ watch(
   }
 )
 
+// 音频控制
+function handleToggleAudio() {
+  toggleAudio(settings.fmoAddress.value, settings.protocol.value)
+  // 同步播放状态到缓存
+  settings.setAudioPlaying(isAudioPlaying.value)
+  // 如果刚开始播放，应用用户设定的音量
+  if (isAudioPlaying.value && !isAudioMuted.value) {
+    setAudioVolumePlayer(settings.audioVolume.value)
+  }
+}
+
+// 恢复音频播放状态（页面加载时调用）
+function restoreAudioPlayback() {
+  if (settings.audioPlaying.value && settings.fmoAddress.value) {
+    toggleAudio(settings.fmoAddress.value, settings.protocol.value)
+    if (isAudioPlaying.value && !isAudioMuted.value) {
+      setAudioVolumePlayer(settings.audioVolume.value)
+    }
+    // 注册一次性用户交互监听，恢复 AudioContext
+    setupAudioContextResume()
+  }
+}
+
+function setupAudioContextResume() {
+  const handler = () => {
+    resumeAudio()
+    document.removeEventListener('click', handler)
+    document.removeEventListener('touchstart', handler)
+  }
+  document.addEventListener('click', handler, { once: true })
+  document.addEventListener('touchstart', handler, { once: true })
+}
+
+// 处理音量更新
+function handleUpdateAudioVolume(value) {
+  settings.setAudioVolume(value)
+  // 如果正在播放且未静音，实时应用新音量
+  if (isAudioPlaying.value && !isAudioMuted.value) {
+    setAudioVolumePlayer(value)
+  }
+}
+
+// 监听 isAudioPlaying 变化，同步到 settings
+watch(isAudioPlaying, (val) => {
+  settings.setAudioPlaying(val)
+})
+
+// 自动静音：当自己在发言时自动静音
+watch(
+  () => speakingStatus.currentSpeaker.value,
+  (speaker) => {
+    if (!isAudioPlaying.value) return
+    if (speaker && speaker === selectedFromCallsign.value) {
+      muteAudio()
+    } else {
+      unmuteAudio(settings.audioVolume.value)
+    }
+  }
+)
+
 // 获取同步地址列表的函数（用于定时同步）
 function getSyncAddresses() {
   if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
@@ -1105,6 +1212,9 @@ onMounted(async () => {
 
   // 定时同步：使用 getAddresses 函数模式
   fmoSync.startAutoSyncTask(getSyncAddresses)
+
+  // 恢复音频播放状态（地址初始化完成后）
+  restoreAudioPlayback()
 })
 
 onUnmounted(() => {
