@@ -4,17 +4,17 @@ import { normalizeHost } from '../utils/urlUtils'
 
 /**
  * 将音量百分比转换为非线性 gain 值
- * 使用指数曲线使音量调节更符合人耳感知，基础增益为 6
- * 0% → 0, 50% → 1.5, 100% → 6.0, 150% → 13.5, 200% → 24.0
+ * 使用指数曲线使音量调节更符合人耳感知，基础增益为 5
+ * 0% → 0, 50% → 1.77, 100% → 5.0, 150% → 9.19, 200% → 14.14
  * @param {number} percent - 音量百分比（0-200）
  * @returns {number} gain 值
  */
 function percentToGain(percent) {
   if (percent <= 0) return 0
-  // 使用指数曲线: gain = 6 * (percent/100)^2
-  // 基础增益 6 使 100% 时音量更响亮，适合原始音频流偏小的场景
+  // 使用指数曲线: gain = 5 * (percent/100)^1.5
+  // 基础增益 5 使 100% 时音量更响亮，适合原始音频流偏小的场景
   const ratio = percent / 100
-  return 6 * ratio * ratio
+  return 5 * Math.pow(ratio, 1.5)
 }
 
 /**
