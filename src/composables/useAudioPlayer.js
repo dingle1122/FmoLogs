@@ -3,6 +3,21 @@ import { AudioStreamPlayer } from '../services/audioPlayer'
 import { normalizeHost } from '../utils/urlUtils'
 
 /**
+ * 将音量百分比转换为非线性 gain 值
+ * 使用指数曲线使音量调节更符合人耳感知
+ * 0% → 0, 100% → 1.0, 200% → 4.0（指数增长，提供更明显的增益）
+ * @param {number} percent - 音量百分比（0-200）
+ * @returns {number} gain 值
+ */
+function percentToGain(percent) {
+  if (percent <= 0) return 0
+  // 使用指数曲线: gain = (percent/100)^2
+  // 这样: 50% → 0.25, 100% → 1.0, 150% → 2.25, 200% → 4.0
+  const ratio = percent / 100
+  return ratio * ratio
+}
+
+/**
  * 音频播放器组合式函数
  * 封装音频播放控制逻辑，管理 AudioStreamPlayer 实例
  * @returns {Object} 音频播放控制方法和状态
@@ -95,7 +110,7 @@ export function useAudioPlayer() {
    */
   function unmuteAudio(volumePercent = 100) {
     if (player && isPlaying.value) {
-      player.setVolume(volumePercent / 100) // 百分比转为 0-2.0 的系数
+      player.setVolume(percentToGain(volumePercent)) // 百分比转为非线性 gain 值
       isMuted.value = false
     }
   }
@@ -106,7 +121,7 @@ export function useAudioPlayer() {
    */
   function setVolume(volumePercent) {
     if (player && isPlaying.value && !isMuted.value) {
-      player.setVolume(volumePercent / 100)
+      player.setVolume(percentToGain(volumePercent)) // 百分比转为非线性 gain 值
     }
   }
 
