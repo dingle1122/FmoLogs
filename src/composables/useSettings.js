@@ -74,7 +74,8 @@ export function useSettings() {
 
   // 设置音量并持久化
   function setAudioVolume(value) {
-    const val = Math.max(0, Math.min(200, Number(value) || 100))
+    const num = Number(value)
+    const val = Math.max(0, Math.min(200, isNaN(num) ? 100 : num))
     audioVolume.value = val
     localStorage.setItem(AUDIO_VOLUME_KEY, String(val))
   }
