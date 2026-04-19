@@ -239,7 +239,7 @@ defineEmits(['open-settings', 'open-nav-menu'])
 
 .icon-btn:hover {
   background: var(--bg-table-hover);
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 @media (max-width: 768px) {

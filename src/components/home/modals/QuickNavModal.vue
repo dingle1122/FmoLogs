@@ -91,15 +91,13 @@ function handleNavClick(routeItem) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
-  border-bottom: 2px solid rgba(103, 194, 58, 0.3);
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-success);
 }
 
 .close-btn {

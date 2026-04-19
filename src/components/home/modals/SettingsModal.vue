@@ -996,11 +996,11 @@ defineExpose({ clearConnecting, clearRefreshing })
 
 .tab-btn:hover {
   background: var(--bg-table-hover);
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 .tab-btn.active {
-  color: var(--color-primary);
+  color: var(--color-success);
   font-weight: 600;
 }
 
@@ -1011,7 +1011,7 @@ defineExpose({ clearConnecting, clearRefreshing })
   left: 0.8rem;
   right: 0.8rem;
   height: 2px;
-  background: var(--color-primary);
+  background: var(--color-success);
   border-radius: 2px;
 }
 

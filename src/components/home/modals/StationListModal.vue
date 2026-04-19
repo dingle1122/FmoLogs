@@ -153,7 +153,7 @@ function handleSelect(uid) {
 }
 
 .refresh-btn:hover:not(:disabled) {
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 .refresh-btn:disabled {
@@ -205,12 +205,12 @@ function handleSelect(uid) {
 .station-item:hover:not(:disabled) {
   background: var(--bg-table-hover);
   color: var(--text-primary);
-  border-color: var(--color-primary);
+  border-color: var(--color-success);
 }
 
 .station-item.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--color-success);
+  border-color: var(--color-success);
   color: white;
 }
 
