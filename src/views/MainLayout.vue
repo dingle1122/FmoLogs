@@ -8,6 +8,7 @@
       :db-loaded="dbLoaded"
       :has-unread-messages="hasUnreadMessages"
       @open-settings="showSettings = true"
+      @open-nav-menu="showQuickNav = true"
     />
 
     <!-- 发言状态条 -->
@@ -163,6 +164,9 @@
       @load-more="handleLoadMoreStations"
     />
 
+    <!-- 快捷导航弹框 -->
+    <QuickNavModal :visible="showQuickNav" :db-loaded="dbLoaded" @close="showQuickNav = false" />
+
     <!-- 底部导航栏（手机端显示） -->
     <nav class="query-nav mobile-nav">
       <router-link
@@ -172,71 +176,7 @@
         class="nav-tab"
         :class="{ disabled: !dbLoaded && route.type !== 'messages' }"
       >
-        <!-- 全部记录图标 -->
-        <svg
-          v-if="route.type === 'logs'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="8" y1="6" x2="21" y2="6" />
-          <line x1="8" y1="12" x2="21" y2="12" />
-          <line x1="8" y1="18" x2="21" y2="18" />
-          <line x1="3" y1="6" x2="3.01" y2="6" />
-          <line x1="3" y1="12" x2="3.01" y2="12" />
-          <line x1="3" y1="18" x2="3.01" y2="18" />
-        </svg>
-        <!-- TOP20图标 -->
-        <svg
-          v-else-if="route.type === 'top20'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C5.3 4 6 4.7 6 5.5V20" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5c-.8 0-1.5.7-1.5 1.5V20" />
-          <path d="M6 13h12" />
-          <path d="M8 20h8" />
-        </svg>
-        <!-- 老朋友图标 -->
-        <svg
-          v-else-if="route.type === 'oldFriends'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-        <!-- 消息图标 -->
-        <svg
-          v-else-if="route.type === 'messages'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-          />
-        </svg>
+        <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
         <span
           v-if="route.type === 'messages' && hasUnreadMessages"
@@ -259,6 +199,8 @@ import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal
 import SettingsModal from '../components/home/modals/SettingsModal.vue'
 import SpeakingHistoryModal from '../components/home/modals/SpeakingHistoryModal.vue'
 import StationListModal from '../components/home/modals/StationListModal.vue'
+import QuickNavModal from '../components/home/modals/QuickNavModal.vue'
+import SvgIcon from '../components/common/SvgIcon.vue'
 
 // Composables
 import { useSpeakingStatus } from '../composables/useSpeakingStatus'
@@ -290,6 +232,9 @@ const settingsModalRef = ref(null)
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
 let scrollTimer = null
+
+// 快捷导航弹框状态
+const showQuickNav = ref(false)
 
 // 服务器列表弹框状态
 const showStationList = ref(false)
@@ -1283,7 +1228,7 @@ provide('protocol', settings.protocol)
 }
 
 .mobile-nav .nav-tab.router-link-active {
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 .mobile-nav .nav-tab.disabled {
@@ -1293,8 +1238,7 @@ provide('protocol', settings.protocol)
 }
 
 .nav-icon {
-  width: 22px;
-  height: 22px;
+  color: currentColor;
 }
 
 .nav-label {
