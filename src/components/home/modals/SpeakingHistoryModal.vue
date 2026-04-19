@@ -38,7 +38,7 @@
                 >{{ getServerName(record.addressId) }}</span
               >
               {{ record.callsign }}
-              <span v-if="record.callsign === selectedFromCallsign" class="self-tag">（您）</span>
+              <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
               <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
                 >&#11088;</span
               >
@@ -318,17 +318,20 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 }
 
 .self-tag {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--color-speaking);
+  line-height: 1;
 }
 
 .speaking-history-item.is-speaking .history-callsign {
   font-weight: 700;
-  color: var(--color-speaking);
-}
-
-.speaking-history-item.is-speaking .self-tag {
   color: var(--color-speaking);
 }
 

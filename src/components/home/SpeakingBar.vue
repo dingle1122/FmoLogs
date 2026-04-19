@@ -18,7 +18,7 @@
               class="speaker-item"
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong
-              ><strong v-if="speaker.callsign === selectedFromCallsign">（您）</strong
+              ><span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span
               ><strong v-if="index < allCurrentSpeakers.length - 1"
                 >&nbsp;&nbsp;&nbsp;&nbsp;</strong
               >
@@ -27,7 +27,7 @@
           <template v-else>
             <!-- 单选模式：只显示当前发言者，不加标记 -->
             正在发言: <strong>{{ currentSpeaker }}</strong
-            ><strong v-if="currentSpeaker === selectedFromCallsign">（您）</strong>
+            ><span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
           </template>
         </template>
         <template v-else> 当前无人发言 </template>
@@ -222,6 +222,21 @@ defineEmits(['click', 'toggle-audio'])
 /* 发言者项样式 */
 .speaker-item {
   display: inline;
+}
+
+/* 当前用户标签样式 */
+.self-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--color-speaking);
+  line-height: 1;
+  margin-left: 0.2em;
 }
 
 @media (max-width: 768px) {
