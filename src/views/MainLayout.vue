@@ -157,11 +157,10 @@
       :station-list="stationList"
       :current-station="currentStation"
       :loading="stationListLoading"
-      :no-more="stationListNoMore"
       :show-primary-badge="settings.multiSelectMode.value"
       @close="handleCloseStationList"
       @select="handleStationSelect"
-      @load-more="handleLoadMoreStations"
+      @refresh="handleRefreshStationList"
     />
 
     <!-- 快捷导航弹框 -->
@@ -238,10 +237,25 @@ const showQuickNav = ref(false)
 
 // 服务器列表弹框状态
 const showStationList = ref(false)
-const stationList = ref([])
+
+// 从 localStorage 读取缓存的服务器列表
+function getCachedStationList() {
+  try {
+    const cached = localStorage.getItem('stationListCache')
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      return { list: parsed.list || [], fetchedAt: parsed.fetchedAt || null }
+    }
+  } catch (e) {
+    console.error('读取服务器列表缓存失败:', e)
+  }
+  return { list: [], fetchedAt: null }
+}
+
+const cachedStations = getCachedStationList()
+const stationList = ref(cachedStations.list)
 const stationListLoading = ref(false)
-const stationListNoMore = ref(false)
-const stationListPage = ref(0)
+const stationListFetchedAt = ref(cachedStations.fetchedAt)
 
 // Station 状态
 const currentStation = ref(null)
@@ -363,9 +377,6 @@ function showDetailModal(row) {
   showDetailModalFlag.value = true
 }
 
-// 服务器列表弹框
-const PAGE_SIZE = 16
-
 // 创建临时 station client（按需连接，用完即关）
 function createStationClient() {
   if (!settings.fmoAddress.value) return null
@@ -466,57 +477,44 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
+  const expired = !stationListFetchedAt.value || (Date.now() - stationListFetchedAt.value > 5 * 60 * 1000)
+  if (expired) {
+    fetchAllStations()
+  }
 }
 
 function handleCloseStationList() {
   showStationList.value = false
-  // 关闭时重置状态
-  stationList.value = []
-  stationListPage.value = 0
-  stationListNoMore.value = false
 }
 
-async function loadStationPage() {
+async function fetchAllStations() {
+  if (stationListLoading.value) return
   const client = createStationClient()
-  if (!client) {
-    stationListNoMore.value = true
-    return
-  }
-
+  if (!client) return
   stationListLoading.value = true
-  const start = stationListPage.value * PAGE_SIZE
-
   try {
-    await client.connect()
-    const result = await client.getStationList(start, PAGE_SIZE)
-    if (result?.list) {
-      if (result.list.length > 0) {
-        stationList.value = [...stationList.value, ...result.list]
-        // 加载成功后页码+1，为下次加载做准备
-        stationListPage.value++
-      }
-      if (result.list.length < PAGE_SIZE) {
-        stationListNoMore.value = true
-      }
-    } else {
-      stationListNoMore.value = true
-    }
-  } catch (err) {
-    console.error('获取服务器列表失败:', err)
-    stationListNoMore.value = true
-  } finally {
+    const list = await client.getAllStations()
+    stationList.value = list
+    stationListFetchedAt.value = Date.now()
+    // 写入 localStorage 缓存
     try {
-      client.close()
-    } catch (closeErr) {
-      console.error('关闭客户端连接失败:', closeErr)
+      localStorage.setItem(
+        'stationListCache',
+        JSON.stringify({ list: stationList.value, fetchedAt: stationListFetchedAt.value })
+      )
+    } catch (e) {
+      console.error('保存服务器列表缓存失败:', e)
     }
+  } catch (e) {
+    console.error('获取服务器列表失败:', e)
+  } finally {
     stationListLoading.value = false
+    client.close()
   }
 }
 
-function handleLoadMoreStations() {
-  if (stationListLoading.value || stationListNoMore.value) return
-  loadStationPage()
+function handleRefreshStationList() {
+  fetchAllStations()
 }
 
 async function handleStationSelect(uid) {
