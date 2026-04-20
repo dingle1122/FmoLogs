@@ -291,88 +291,38 @@
           <div class="links-section">
             <div class="links-card-grid">
               <a
-                href="https://map.fmo.net.cn/"
+                v-for="link in friendLinksList"
+                :key="link.id"
+                :href="link.url"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="link-card"
-              >
-                <div class="link-icon">&#128506;&#65039;</div>
-                <div class="link-info">
-                  <div class="link-name">FMO 地图</div>
-                  <div class="link-url">map.fmo.net.cn</div>
-                </div>
-                <div class="link-arrow">&rarr;</div>
-              </a>
-              <a
-                :href="remoteControlUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="link-card"
-                :class="{ disabled: !fmoAddress }"
-              >
-                <div class="link-icon">&#128251;</div>
-                <div class="link-info">
-                  <div class="link-name">FMO远程控制</div>
-                  <div class="link-url">{{ fmoAddress || '未设置地址' }}</div>
-                </div>
-                <div class="link-arrow">&rarr;</div>
-              </a>
-              <a
-                href="http://fmo.bg5eit.cn/"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="link-card"
+                :class="{ disabled: link.disabled }"
+                :title="link.description"
               >
                 <div class="link-icon">
-                  <svg
-                    width="44"
-                    height="44"
-                    viewBox="0 0 44 44"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <rect width="44" height="44" rx="10" fill="#ff9800" />
-                    <text
-                      x="22"
-                      y="30"
-                      font-size="24"
-                      font-weight="bold"
-                      fill="white"
-                      text-anchor="middle"
-                      font-family="Arial, sans-serif"
+                  <template v-if="link.icon.type === 'emoji'">
+                    {{ link.icon.content }}
+                  </template>
+                  <template v-else-if="link.icon.type === 'svg'">
+                    <span v-html="link.icon.content"></span>
+                  </template>
+                  <template v-else-if="link.icon.type === 'url'">
+                    <img :src="link.icon.content" :alt="link.name" />
+                  </template>
+                </div>
+                <div class="link-info">
+                  <div class="link-name">
+                    {{ link.name }}
+                    <span
+                      v-if="link.tag"
+                      class="link-tag"
+                      :class="link.tagType ? `tag-${link.tagType}` : 'tag-info'"
                     >
-                      F
-                    </text>
-                  </svg>
-                </div>
-                <div class="link-info">
-                  <div class="link-name">FMOC</div>
-                  <div class="link-url">fmo.bg5eit.cn</div>
-                </div>
-                <div class="link-arrow">&rarr;</div>
-              </a>
-              <a
-                href="https://bg5esn.com/docs/fmo-user-shares/"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="link-card"
-              >
-                <div class="link-icon">&#128214;</div>
-                <div class="link-info">
-                  <div class="link-name">FMO实践分享</div>
-                  <div class="link-url">bg5esn.com</div>
-                </div>
-                <div class="link-arrow">&rarr;</div>
-              </a>
-              <a
-                href="https://bg5esn.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="link-card"
-              >
-                <div class="link-icon">&#9875;</div>
-                <div class="link-info">
-                  <div class="link-name">大船地下室</div>
-                  <div class="link-url">bg5esn.com</div>
+                      {{ link.tag }}
+                    </span>
+                  </div>
+                  <div class="link-url">{{ link.displayUrl }}</div>
                 </div>
                 <div class="link-arrow">&rarr;</div>
               </a>
@@ -499,6 +449,7 @@ import { useAprsControl } from '../../../composables/useAprsControl'
 import AprsRemoteControl from './AprsRemoteControl.vue'
 import confirmDialog from '../../../composables/useConfirm'
 import packageInfo from '../../../../package.json'
+import { getProcessedLinks } from './friendLinks'
 
 const props = defineProps({
   visible: {
@@ -671,11 +622,8 @@ watch(
   { immediate: true, deep: true }
 )
 
-const remoteControlUrl = computed(() => {
-  if (!props.fmoAddress) return '#'
-  const host = normalizeHost(props.fmoAddress)
-  return `http://${host}/remote.html`
-})
+// 友链列表
+const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
 
 const appVersion = computed(() => {
   return `v${packageInfo.version}`
@@ -1761,6 +1709,18 @@ defineExpose({ clearConnecting, clearRefreshing })
   margin-right: 1rem;
   flex-shrink: 0;
   border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.link-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.link-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .link-info {
@@ -1776,6 +1736,36 @@ defineExpose({ clearConnecting, clearRefreshing })
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.link-tag {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid;
+}
+
+.link-tag.tag-info {
+  background: rgba(64, 158, 255, 0.1);
+  color: var(--color-primary);
+  border-color: rgba(64, 158, 255, 0.3);
+}
+
+.link-tag.tag-warn {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.link-tag.tag-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .link-url {
