@@ -3,9 +3,19 @@
     <div class="modal modal-station-list">
       <div class="modal-header">
         <h3>选择信道 <span v-if="showPrimaryBadge" class="title-primary-badge">主</span></h3>
-        <button class="close-btn" @click="$emit('close')">&times;</button>
+        <div class="header-actions">
+          <button
+            class="refresh-btn"
+            :disabled="loading"
+            title="刷新列表"
+            @click="$emit('refresh')"
+          >
+            {{ loading ? '刷新中...' : '刷新' }}
+          </button>
+          <button class="close-btn" @click="$emit('close')">&times;</button>
+        </div>
       </div>
-      <div ref="modalBodyRef" class="modal-body" @scroll="handleScroll">
+      <div class="modal-body">
         <div v-if="stationList.length > 0" class="station-grid">
           <button
             v-for="station in stationList"
@@ -26,24 +36,12 @@
         </div>
         <div v-else-if="loading" class="station-loading">加载中...</div>
         <div v-else class="station-empty">暂无服务器</div>
-
-        <!-- 加载状态提示 -->
-        <div v-if="stationList.length > 0" class="load-status">
-          <template v-if="loading">
-            <span class="loading-text">加载中...</span>
-          </template>
-          <template v-else-if="noMore">
-            <span class="no-more-text">没有更多了</span>
-          </template>
-        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -61,67 +59,17 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  noMore: {
-    type: Boolean,
-    default: false
-  },
   showPrimaryBadge: {
     type: Boolean,
     default: false
   }
 })
 
-const emit = defineEmits(['close', 'select', 'load-more'])
-
-const modalBodyRef = ref(null)
-
-// 弹框显示时自动加载服务器列表
-watch(
-  () => props.visible,
-  (newVisible) => {
-    if (newVisible && props.stationList.length === 0 && !props.loading) {
-      emit('load-more')
-    }
-  }
-)
-
-// 监听加载状态，加载完成后检查是否需要继续加载
-watch(
-  () => props.loading,
-  (newLoading) => {
-    if (!newLoading && props.visible && !props.noMore) {
-      // 使用 nextTick 确保 DOM 已更新
-      setTimeout(() => {
-        checkAndLoadMore()
-      }, 0)
-    }
-  }
-)
+const emit = defineEmits(['close', 'select', 'refresh'])
 
 function handleSelect(uid) {
   emit('select', uid)
   emit('close')
-}
-
-function handleScroll() {
-  if (!modalBodyRef.value || props.loading || props.noMore) return
-
-  const { scrollTop, scrollHeight, clientHeight } = modalBodyRef.value
-  // 距离底部 50px 时触发加载
-  if (scrollHeight - scrollTop - clientHeight < 50) {
-    emit('load-more')
-  }
-}
-
-// 检查内容是否填满容器，如未填满则继续加载
-function checkAndLoadMore() {
-  if (!modalBodyRef.value || props.noMore || props.loading) return
-
-  const { scrollHeight, clientHeight } = modalBodyRef.value
-  // 如果内容高度小于等于容器高度，说明没有滚动条，继续加载
-  if (scrollHeight <= clientHeight) {
-    emit('load-more')
-  }
 }
 </script>
 
@@ -184,6 +132,35 @@ function checkAndLoadMore() {
   min-height: 1rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.refresh-btn {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--text-primary);
+  line-height: 1;
+  padding: 0.25rem 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  color: var(--color-success);
+}
+
+.refresh-btn:disabled {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
 .close-btn {
   background: none;
   border: none;
@@ -228,12 +205,12 @@ function checkAndLoadMore() {
 .station-item:hover:not(:disabled) {
   background: var(--bg-table-hover);
   color: var(--text-primary);
-  border-color: var(--color-primary);
+  border-color: var(--color-success);
 }
 
 .station-item.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--color-success);
+  border-color: var(--color-success);
   color: white;
 }
 
@@ -264,36 +241,6 @@ function checkAndLoadMore() {
   text-align: center;
   padding: 2rem;
   color: var(--text-tertiary);
-}
-
-.load-status {
-  margin-top: 1rem;
-  text-align: center;
-  padding: 0.5rem;
-}
-
-.loading-text,
-.no-more-text {
-  font-size: 0.9rem;
-  color: var(--text-tertiary);
-}
-
-.loading-text::after {
-  content: '';
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-left: 8px;
-  border: 2px solid var(--border-secondary);
-  border-top-color: var(--color-primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @media (max-width: 600px) {

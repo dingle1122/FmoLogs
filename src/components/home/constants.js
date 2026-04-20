@@ -3,10 +3,10 @@ export { QueryTypes, ColumnNames, formatTimestamp, formatFreqHz } from '../../se
 
 // 导航路由配置（桌面端和手机端共用）
 export const NAV_ROUTES = [
-  { path: '/logs', label: '通联日志', type: 'logs' },
-  { path: '/top20', label: '排行榜', type: 'top20' },
-  { path: '/old-friends', label: '老朋友', type: 'oldFriends' },
-  { path: '/messages', label: '消息', type: 'messages' }
+  { path: '/logs', label: '通联日志', type: 'logs', icon: 'logs' },
+  { path: '/top20', label: '排行榜', type: 'top20', icon: 'top20' },
+  { path: '/old-friends', label: '老朋友', type: 'oldFriends', icon: 'oldFriends' },
+  { path: '/messages', label: '消息', type: 'messages', icon: 'messages' }
 ]
 
 // 默认列（查看所有模式）

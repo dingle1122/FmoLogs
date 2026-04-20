@@ -172,6 +172,19 @@ export class FmoApiClient {
     return this.sendRequest('station', 'getListRange', { start, count })
   }
 
+  async getAllStations() {
+    const all = []
+    let start = 0
+    const count = 25
+    while (true) {
+      const result = await this.getStationList(start, count)
+      all.push(...result.list)
+      if (result.list.length < count) break
+      start += count
+    }
+    return all
+  }
+
   async getCurrentStation() {
     return this.sendRequest('station', 'getCurrent', {})
   }

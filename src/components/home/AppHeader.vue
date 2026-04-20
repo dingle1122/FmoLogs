@@ -1,9 +1,9 @@
 <template>
   <header class="header">
     <div class="header-left">
-      <img src="/vite.svg" alt="FMO Logs" class="header-logo" />
+      <img src="/vite.svg" alt="FMO Logs" class="header-logo" @click="$emit('open-nav-menu')" />
       <span class="header-divider"></span>
-      <h1 class="header-title">FMO 日志查看器</h1>
+      <h1 class="header-title" @click="$emit('open-nav-menu')">FMO 日志查看器</h1>
       <span class="total-logs">
         <span class="star">&#11088;</span>
         <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
@@ -76,7 +76,7 @@ defineProps({
   }
 })
 
-defineEmits(['open-settings'])
+defineEmits(['open-settings', 'open-nav-menu'])
 </script>
 
 <style scoped>
@@ -101,6 +101,12 @@ defineEmits(['open-settings'])
 .header-title {
   margin: 0;
   font-size: 1.1rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.header-title:hover {
+  color: var(--color-success);
 }
 
 .header-logo {
@@ -108,6 +114,12 @@ defineEmits(['open-settings'])
   width: 28px;
   height: 28px;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.header-logo:hover {
+  opacity: 0.8;
 }
 
 .header-divider {
@@ -168,12 +180,12 @@ defineEmits(['open-settings'])
 }
 
 .nav-tab:hover:not(.disabled) {
-  color: var(--color-primary);
+  color: var(--color-success);
   background: none;
 }
 
 .nav-tab.router-link-active {
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 .nav-tab.router-link-active::after {
@@ -183,7 +195,7 @@ defineEmits(['open-settings'])
   left: 0.5rem;
   right: 0.5rem;
   height: 2px;
-  background: var(--color-primary);
+  background: var(--color-success);
   border-radius: 1px 1px 0 0;
 }
 
@@ -227,7 +239,7 @@ defineEmits(['open-settings'])
 
 .icon-btn:hover {
   background: var(--bg-table-hover);
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 @media (max-width: 768px) {

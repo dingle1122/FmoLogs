@@ -98,7 +98,7 @@ function handleOpenList() {
 }
 
 .station-name.clickable:hover {
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 .dropdown-arrow {

@@ -8,6 +8,7 @@
       :db-loaded="dbLoaded"
       :has-unread-messages="hasUnreadMessages"
       @open-settings="showSettings = true"
+      @open-nav-menu="showQuickNav = true"
     />
 
     <!-- 发言状态条 -->
@@ -22,7 +23,10 @@
       :address-list="settings.addressList.value"
       :multi-select-mode="settings.multiSelectMode.value"
       :active-address-id="settings.activeAddressId.value"
+      :is-audio-playing="isAudioPlaying"
+      :is-audio-muted="isAudioMuted"
       @click="showSpeakingHistory = true"
+      @toggle-audio="handleToggleAudio"
     />
 
     <!-- 路由视图 -->
@@ -92,6 +96,7 @@
       :multi-select-mode="settings.multiSelectMode.value"
       :selected-address-ids="settings.selectedAddressIds.value"
       :multi-sync-progress="fmoSync.multiSyncProgress.value"
+      :audio-volume="settings.audioVolume.value"
       @update:multi-select-mode="handleSetMultiSelectMode"
       @close="showSettings = false"
       @select-files="triggerFileInput"
@@ -111,6 +116,7 @@
       @clear-all-addresses="handleClearAllAddresses"
       @refresh-user-info="handleRefreshUserInfo"
       @validate-and-select="handleValidateAndSelect"
+      @update-audio-volume="handleUpdateAudioVolume"
     />
 
     <!-- 隐藏的文件输入 -->
@@ -151,12 +157,14 @@
       :station-list="stationList"
       :current-station="currentStation"
       :loading="stationListLoading"
-      :no-more="stationListNoMore"
       :show-primary-badge="settings.multiSelectMode.value"
       @close="handleCloseStationList"
       @select="handleStationSelect"
-      @load-more="handleLoadMoreStations"
+      @refresh="handleRefreshStationList"
     />
+
+    <!-- 快捷导航弹框 -->
+    <QuickNavModal :visible="showQuickNav" :db-loaded="dbLoaded" @close="showQuickNav = false" />
 
     <!-- 底部导航栏（手机端显示） -->
     <nav class="query-nav mobile-nav">
@@ -167,71 +175,7 @@
         class="nav-tab"
         :class="{ disabled: !dbLoaded && route.type !== 'messages' }"
       >
-        <!-- 全部记录图标 -->
-        <svg
-          v-if="route.type === 'logs'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="8" y1="6" x2="21" y2="6" />
-          <line x1="8" y1="12" x2="21" y2="12" />
-          <line x1="8" y1="18" x2="21" y2="18" />
-          <line x1="3" y1="6" x2="3.01" y2="6" />
-          <line x1="3" y1="12" x2="3.01" y2="12" />
-          <line x1="3" y1="18" x2="3.01" y2="18" />
-        </svg>
-        <!-- TOP20图标 -->
-        <svg
-          v-else-if="route.type === 'top20'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C5.3 4 6 4.7 6 5.5V20" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5c-.8 0-1.5.7-1.5 1.5V20" />
-          <path d="M6 13h12" />
-          <path d="M8 20h8" />
-        </svg>
-        <!-- 老朋友图标 -->
-        <svg
-          v-else-if="route.type === 'oldFriends'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-        <!-- 消息图标 -->
-        <svg
-          v-else-if="route.type === 'messages'"
-          class="nav-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-          />
-        </svg>
+        <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
         <span
           v-if="route.type === 'messages' && hasUnreadMessages"
@@ -254,6 +198,8 @@ import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal
 import SettingsModal from '../components/home/modals/SettingsModal.vue'
 import SpeakingHistoryModal from '../components/home/modals/SpeakingHistoryModal.vue'
 import StationListModal from '../components/home/modals/StationListModal.vue'
+import QuickNavModal from '../components/home/modals/QuickNavModal.vue'
+import SvgIcon from '../components/common/SvgIcon.vue'
 
 // Composables
 import { useSpeakingStatus } from '../composables/useSpeakingStatus'
@@ -261,6 +207,7 @@ import { useFmoSync } from '../composables/useFmoSync'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
 import { useSettings } from '../composables/useSettings'
+import { useAudioPlayer } from '../composables/useAudioPlayer'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToAdif } from '../services/db'
@@ -285,12 +232,30 @@ const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
 let scrollTimer = null
 
+// 快捷导航弹框状态
+const showQuickNav = ref(false)
+
 // 服务器列表弹框状态
 const showStationList = ref(false)
-const stationList = ref([])
+
+// 从 localStorage 读取缓存的服务器列表
+function getCachedStationList() {
+  try {
+    const cached = localStorage.getItem('stationListCache')
+    if (cached) {
+      const parsed = JSON.parse(cached)
+      return { list: parsed.list || [], fetchedAt: parsed.fetchedAt || null }
+    }
+  } catch (e) {
+    console.error('读取服务器列表缓存失败:', e)
+  }
+  return { list: [], fetchedAt: null }
+}
+
+const cachedStations = getCachedStationList()
+const stationList = ref(cachedStations.list)
 const stationListLoading = ref(false)
-const stationListNoMore = ref(false)
-const stationListPage = ref(0)
+const stationListFetchedAt = ref(cachedStations.fetchedAt)
 
 // Station 状态
 const currentStation = ref(null)
@@ -328,6 +293,17 @@ const callsignRecords = useCallsignRecords()
 
 // 消息服务
 const messageService = getMessageService()
+
+const {
+  isPlaying: isAudioPlaying,
+  isMuted: isAudioMuted,
+  toggleAudio,
+  stopAudio,
+  muteAudio,
+  unmuteAudio,
+  setVolume: setAudioVolumePlayer,
+  resumeAudio
+} = useAudioPlayer()
 
 const fmoSync = useFmoSync({
   onSyncComplete: async ({ callsigns, syncedCount }) => {
@@ -400,9 +376,6 @@ function showDetailModal(row) {
   selectedRowData.value = row
   showDetailModalFlag.value = true
 }
-
-// 服务器列表弹框
-const PAGE_SIZE = 16
 
 // 创建临时 station client（按需连接，用完即关）
 function createStationClient() {
@@ -504,57 +477,44 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
+  const expired = !stationListFetchedAt.value || (Date.now() - stationListFetchedAt.value > 5 * 60 * 1000)
+  if (expired) {
+    fetchAllStations()
+  }
 }
 
 function handleCloseStationList() {
   showStationList.value = false
-  // 关闭时重置状态
-  stationList.value = []
-  stationListPage.value = 0
-  stationListNoMore.value = false
 }
 
-async function loadStationPage() {
+async function fetchAllStations() {
+  if (stationListLoading.value) return
   const client = createStationClient()
-  if (!client) {
-    stationListNoMore.value = true
-    return
-  }
-
+  if (!client) return
   stationListLoading.value = true
-  const start = stationListPage.value * PAGE_SIZE
-
   try {
-    await client.connect()
-    const result = await client.getStationList(start, PAGE_SIZE)
-    if (result?.list) {
-      if (result.list.length > 0) {
-        stationList.value = [...stationList.value, ...result.list]
-        // 加载成功后页码+1，为下次加载做准备
-        stationListPage.value++
-      }
-      if (result.list.length < PAGE_SIZE) {
-        stationListNoMore.value = true
-      }
-    } else {
-      stationListNoMore.value = true
-    }
-  } catch (err) {
-    console.error('获取服务器列表失败:', err)
-    stationListNoMore.value = true
-  } finally {
+    const list = await client.getAllStations()
+    stationList.value = list
+    stationListFetchedAt.value = Date.now()
+    // 写入 localStorage 缓存
     try {
-      client.close()
-    } catch (closeErr) {
-      console.error('关闭客户端连接失败:', closeErr)
+      localStorage.setItem(
+        'stationListCache',
+        JSON.stringify({ list: stationList.value, fetchedAt: stationListFetchedAt.value })
+      )
+    } catch (e) {
+      console.error('保存服务器列表缓存失败:', e)
     }
+  } catch (e) {
+    console.error('获取服务器列表失败:', e)
+  } finally {
     stationListLoading.value = false
+    client.close()
   }
 }
 
-function handleLoadMoreStations() {
-  if (stationListLoading.value || stationListNoMore.value) return
-  loadStationPage()
+function handleRefreshStationList() {
+  fetchAllStations()
 }
 
 async function handleStationSelect(uid) {
@@ -693,6 +653,11 @@ async function handleAddAddress({ name, host, protocol }) {
     return
   }
 
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
+
   // 添加成功后重连到新地址
   if (result.reconnect) {
     speakingStatus.disconnectEventWs('single')
@@ -721,6 +686,11 @@ async function handleDeleteAddress(id) {
   if (!result.success) {
     toast.warning(result.message)
     return
+  }
+
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
   }
 
   // 如果删除的是当前选中地址，需要重连
@@ -757,6 +727,11 @@ async function handleDeleteAddress(id) {
 }
 
 async function handleSelectAddress(id) {
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
+
   const result = await settings.selectFmoAddress(id)
   settingsModalRef.value?.clearConnecting()
 
@@ -795,6 +770,11 @@ async function handleClearAllAddresses() {
   if (!result.success) {
     toast.warning(result.message)
     return
+  }
+
+  // 如果正在播放音频，先停止
+  if (isAudioPlaying.value) {
+    stopAudio()
   }
 
   // 断开连接并停止同步任务
@@ -906,6 +886,11 @@ async function handleSetMultiSelectMode(value) {
   const oldMode = settings.multiSelectMode.value
   const newMode = value
 
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
+
   // 先更新设置
   await settings.setMultiSelectMode(value)
 
@@ -937,6 +922,11 @@ async function handleSetMultiSelectMode(value) {
 // 处理地址选择切换（多选模式下）
 async function handleToggleAddressSelection(id) {
   const isCurrentlySelected = settings.selectedAddressIds.value.includes(id)
+
+  // 如果正在播放音频，先停止（地址切换需要重新连接）
+  if (isAudioPlaying.value) {
+    stopAudio()
+  }
 
   // 执行 toggle
   await settings.toggleAddressSelection(id)
@@ -1042,6 +1032,66 @@ watch(
   }
 )
 
+// 音频控制
+function handleToggleAudio() {
+  toggleAudio(settings.fmoAddress.value, settings.protocol.value)
+  // 同步播放状态到缓存
+  settings.setAudioPlaying(isAudioPlaying.value)
+  // 如果刚开始播放，应用用户设定的音量
+  if (isAudioPlaying.value && !isAudioMuted.value) {
+    setAudioVolumePlayer(settings.audioVolume.value)
+  }
+}
+
+// 恢复音频播放状态（页面加载时调用）
+function restoreAudioPlayback() {
+  if (settings.audioPlaying.value && settings.fmoAddress.value) {
+    toggleAudio(settings.fmoAddress.value, settings.protocol.value)
+    if (isAudioPlaying.value && !isAudioMuted.value) {
+      setAudioVolumePlayer(settings.audioVolume.value)
+    }
+    // 注册一次性用户交互监听，恢复 AudioContext
+    setupAudioContextResume()
+  }
+}
+
+function setupAudioContextResume() {
+  const handler = () => {
+    resumeAudio()
+    document.removeEventListener('click', handler)
+    document.removeEventListener('touchstart', handler)
+  }
+  document.addEventListener('click', handler, { once: true })
+  document.addEventListener('touchstart', handler, { once: true })
+}
+
+// 处理音量更新
+function handleUpdateAudioVolume(value) {
+  settings.setAudioVolume(value)
+  // 如果正在播放且未静音，实时应用新音量
+  if (isAudioPlaying.value && !isAudioMuted.value) {
+    setAudioVolumePlayer(value)
+  }
+}
+
+// 监听 isAudioPlaying 变化，同步到 settings
+watch(isAudioPlaying, (val) => {
+  settings.setAudioPlaying(val)
+})
+
+// 自动静音：当自己在发言时自动静音
+watch(
+  () => speakingStatus.currentSpeaker.value,
+  (speaker) => {
+    if (!isAudioPlaying.value) return
+    if (speaker && speaker === selectedFromCallsign.value) {
+      muteAudio()
+    } else {
+      unmuteAudio(settings.audioVolume.value)
+    }
+  }
+)
+
 // 获取同步地址列表的函数（用于定时同步）
 function getSyncAddresses() {
   if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
@@ -1105,6 +1155,9 @@ onMounted(async () => {
 
   // 定时同步：使用 getAddresses 函数模式
   fmoSync.startAutoSyncTask(getSyncAddresses)
+
+  // 恢复音频播放状态（地址初始化完成后）
+  restoreAudioPlayback()
 })
 
 onUnmounted(() => {
@@ -1173,7 +1226,7 @@ provide('protocol', settings.protocol)
 }
 
 .mobile-nav .nav-tab.router-link-active {
-  color: var(--color-primary);
+  color: var(--color-success);
 }
 
 .mobile-nav .nav-tab.disabled {
@@ -1183,8 +1236,7 @@ provide('protocol', settings.protocol)
 }
 
 .nav-icon {
-  width: 22px;
-  height: 22px;
+  color: currentColor;
 }
 
 .nav-label {

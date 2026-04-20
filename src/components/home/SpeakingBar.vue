@@ -18,7 +18,7 @@
               class="speaker-item"
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong
-              ><strong v-if="speaker.callsign === selectedFromCallsign">（您）</strong
+              ><span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span
               ><strong v-if="index < allCurrentSpeakers.length - 1"
                 >&nbsp;&nbsp;&nbsp;&nbsp;</strong
               >
@@ -27,11 +27,19 @@
           <template v-else>
             <!-- 单选模式：只显示当前发言者，不加标记 -->
             正在发言: <strong>{{ currentSpeaker }}</strong
-            ><strong v-if="currentSpeaker === selectedFromCallsign">（您）</strong>
+            ><span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
           </template>
         </template>
         <template v-else> 当前无人发言 </template>
       </span>
+      <button
+        class="audio-toggle-btn"
+        :class="{ playing: isAudioPlaying, muted: isAudioMuted }"
+        :title="isAudioPlaying ? (isAudioMuted ? '已静音' : '停止播放') : '播放音频'"
+        @click.stop="$emit('toggle-audio')"
+      >
+        <span class="audio-icon">{{ isAudioPlaying ? '■' : '▶' }}</span>
+      </button>
       <span class="speaking-expand">点击展开</span>
     </div>
   </div>
@@ -74,6 +82,14 @@ const props = defineProps({
   activeAddressId: {
     type: String,
     default: ''
+  },
+  isAudioPlaying: {
+    type: Boolean,
+    default: false
+  },
+  isAudioMuted: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -89,7 +105,7 @@ function getServerName(addressId) {
   return index !== -1 ? (index + 1).toString() : '?'
 }
 
-defineEmits(['click'])
+defineEmits(['click', 'toggle-audio'])
 </script>
 
 <style scoped>
@@ -163,9 +179,64 @@ defineEmits(['click'])
   flex-shrink: 0;
 }
 
+/* 音频播放按钮 */
+.audio-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.audio-toggle-btn:hover {
+  background-color: var(--bg-table-hover);
+}
+
+.audio-toggle-btn .audio-icon {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 播放中状态 */
+.audio-toggle-btn.playing .audio-icon {
+  color: var(--color-speaking);
+}
+
+/* 静音状态 */
+.audio-toggle-btn.muted .audio-icon {
+  color: var(--text-disabled);
+}
+
 /* 发言者项样式 */
 .speaker-item {
   display: inline;
+}
+
+/* 当前用户标签样式 */
+.self-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 600;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--color-speaking);
+  line-height: 1;
+  margin-left: 0.2em;
 }
 
 @media (max-width: 768px) {
@@ -187,6 +258,15 @@ defineEmits(['click'])
 
   .speaking-expand {
     font-size: 0.9rem;
+  }
+
+  .audio-toggle-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .audio-toggle-btn .audio-icon {
+    font-size: 1rem;
   }
 }
 
@@ -214,6 +294,15 @@ defineEmits(['click'])
   }
 
   .speaking-expand {
+    font-size: 0.85rem;
+  }
+
+  .audio-toggle-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .audio-toggle-btn .audio-icon {
     font-size: 0.85rem;
   }
 }

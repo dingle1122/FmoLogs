@@ -1,0 +1,60 @@
+<template>
+  <svg
+    :width="size"
+    :height="size"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- logs: 列表/文档图标 -->
+    <template v-if="name === 'logs'">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <line x1="10" y1="9" x2="8" y2="9" />
+    </template>
+
+    <!-- top20: 奖杯图标 -->
+    <template v-else-if="name === 'top20'">
+      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+      <path d="M4 22h16" />
+      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+    </template>
+
+    <!-- oldFriends: 双人图标 -->
+    <template v-else-if="name === 'oldFriends'">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </template>
+
+    <!-- messages: 对话气泡图标 -->
+    <template v-else-if="name === 'messages'">
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+    </template>
+  </svg>
+</template>
+
+<script setup>
+defineProps({
+  name: {
+    type: String,
+    required: true,
+    validator(value) {
+      return ['logs', 'top20', 'oldFriends', 'messages'].includes(value)
+    }
+  },
+  size: {
+    type: [Number, String],
+    default: 24
+  }
+})
+</script>
