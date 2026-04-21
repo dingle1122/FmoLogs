@@ -7,7 +7,6 @@
       :unique-callsigns="uniqueCallsigns"
       :db-loaded="dbLoaded"
       :has-unread-messages="hasUnreadMessages"
-      @open-settings="showSettings = true"
       @open-nav-menu="showQuickNav = true"
     />
 
@@ -45,9 +44,35 @@
           :active-address-id="settings.activeAddressId.value"
           :address-list="settings.addressList.value"
           :fmo-address="settings.fmoAddress.value"
+          :protocol="settings.protocol.value"
+          :syncing="fmoSync.syncing.value"
+          :sync-status="fmoSync.syncStatus.value"
+          :multi-select-mode="settings.multiSelectMode.value"
+          :selected-address-ids="settings.selectedAddressIds.value"
+          :multi-sync-progress="fmoSync.multiSyncProgress.value"
+          :audio-volume="settings.audioVolume.value"
           @execute-query="executeQuery"
           @show-detail="showDetailModal"
           @show-callsign-records="handleShowCallsignRecords"
+          @select-files="triggerFileInput"
+          @export-data="handleExportData"
+          @export-adif="handleExportAdif"
+          @sync-days="handleSyncDays"
+          @sync-incremental="handleSyncIncremental"
+          @sync-full="handleSyncFull"
+          @backup-logs="settings.backupLogs()"
+          @clear-all-data="handleClearAllData"
+          @update:multi-select-mode="handleSetMultiSelectMode"
+          @toggle-address-selection="handleToggleAddressSelection"
+          @sync-multiple="handleSyncMultiple"
+          @add-address="handleAddAddress"
+          @update-address="handleUpdateAddress"
+          @delete-address="handleDeleteAddress"
+          @select-address="handleSelectAddress"
+          @clear-all-addresses="handleClearAllAddresses"
+          @refresh-user-info="handleRefreshUserInfo"
+          @validate-and-select="handleValidateAndSelect"
+          @update-audio-volume="handleUpdateAudioVolume"
         />
       </router-view>
 
@@ -85,42 +110,7 @@
       @page-change="handleCallsignRecordsPageChange"
     />
 
-    <!-- 设置弹框 -->
-    <SettingsModal
-      ref="settingsModalRef"
-      :visible="showSettings"
-      :db-loaded="dbLoaded"
-      :fmo-address="settings.fmoAddress.value"
-      :protocol="settings.protocol.value"
-      :address-list="settings.addressList.value"
-      :active-address-id="settings.activeAddressId.value"
-      :syncing="fmoSync.syncing.value"
-      :sync-status="fmoSync.syncStatus.value"
-      :multi-select-mode="settings.multiSelectMode.value"
-      :selected-address-ids="settings.selectedAddressIds.value"
-      :multi-sync-progress="fmoSync.multiSyncProgress.value"
-      :audio-volume="settings.audioVolume.value"
-      @update:multi-select-mode="handleSetMultiSelectMode"
-      @close="showSettings = false"
-      @select-files="triggerFileInput"
-      @export-data="handleExportData"
-      @export-adif="handleExportAdif"
-      @sync-days="handleSyncDays"
-      @sync-incremental="handleSyncIncremental"
-      @sync-full="handleSyncFull"
-      @backup-logs="settings.backupLogs()"
-      @clear-all-data="handleClearAllData"
-      @toggle-address-selection="handleToggleAddressSelection"
-      @sync-multiple="handleSyncMultiple"
-      @add-address="handleAddAddress"
-      @update-address="handleUpdateAddress"
-      @delete-address="handleDeleteAddress"
-      @select-address="handleSelectAddress"
-      @clear-all-addresses="handleClearAllAddresses"
-      @refresh-user-info="handleRefreshUserInfo"
-      @validate-and-select="handleValidateAndSelect"
-      @update-audio-volume="handleUpdateAudioVolume"
-    />
+
 
     <!-- 隐藏的文件输入 -->
     <input
@@ -198,7 +188,7 @@ import AppHeader from '../components/home/AppHeader.vue'
 import SpeakingBar from '../components/home/SpeakingBar.vue'
 import DetailModal from '../components/home/modals/DetailModal.vue'
 import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal.vue'
-import SettingsModal from '../components/home/modals/SettingsModal.vue'
+
 import SpeakingHistoryModal from '../components/home/modals/SpeakingHistoryModal.vue'
 import StationListModal from '../components/home/modals/StationListModal.vue'
 import QuickNavModal from '../components/home/modals/QuickNavModal.vue'
@@ -225,12 +215,10 @@ const route = useRoute()
 const router = useRouter()
 
 // UI 状态
-const showSettings = ref(false)
 const showSpeakingHistory = ref(false)
 const showDetailModalFlag = ref(false)
 const selectedRowData = ref(null)
 const fileInputRef = ref(null)
-const settingsModalRef = ref(null)
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
 let scrollTimer = null
@@ -574,7 +562,6 @@ function triggerFileInput() {
 
 async function handleFileSelect(event) {
   const files = event.target.files
-  showSettings.value = false
   const success = await selectFiles(files)
   if (success) {
     dataQuery.currentQueryType.value = 'all'
@@ -596,7 +583,6 @@ async function handleClearAllData() {
   dataQuery.oldFriendsResult.value = null
   dataQuery.searchKeyword.value = ''
   dataQuery.oldFriendsSearchKeyword.value = ''
-  showSettings.value = false
 }
 
 // 导出数据
@@ -736,7 +722,6 @@ async function handleSelectAddress(id) {
   }
 
   const result = await settings.selectFmoAddress(id)
-  settingsModalRef.value?.clearConnecting()
 
   if (result.success) {
     if (result.reconnect) {
@@ -789,15 +774,15 @@ async function handleClearAllAddresses() {
   }
 }
 
-async function handleRefreshUserInfo(id) {
+async function handleRefreshUserInfo(id, onDone) {
   const result = await settings.refreshUserInfo(id)
-  settingsModalRef.value?.clearRefreshing()
 
   if (result.success) {
     toast.success(result.message)
   } else {
     toast.error(result.message)
   }
+  onDone?.()
 }
 
 async function handleSyncDays(days = 1) {
@@ -879,8 +864,7 @@ async function handleValidateAndSelect({ id, host, protocol }) {
   } catch (err) {
     toast.error(`连接验证失败: ${err.message}`)
   } finally {
-    // 清除 connecting 状态
-    settingsModalRef.value?.clearConnecting()
+    // connecting 状态由页面自行管理
   }
 }
 

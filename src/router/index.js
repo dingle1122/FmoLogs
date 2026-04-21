@@ -8,6 +8,7 @@ import MoreView from '../views/MoreView.vue'
 import RemoteControlView from '../views/RemoteControlView.vue'
 import FriendLinksView from '../views/FriendLinksView.vue'
 import AboutView from '../views/AboutView.vue'
+import SettingsView from '../views/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -59,6 +60,11 @@ const router = createRouter({
           path: 'about',
           name: 'about',
           component: AboutView
+        },
+        {
+          path: 'settings',
+          name: 'settings',
+          component: SettingsView
         }
       ]
     }

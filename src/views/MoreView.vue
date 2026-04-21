@@ -88,8 +88,11 @@ import SvgIcon from '../components/common/SvgIcon.vue'
 }
 
 .menu-desc {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
 }
 
 .menu-arrow {
