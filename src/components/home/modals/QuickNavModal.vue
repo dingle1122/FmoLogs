@@ -116,6 +116,9 @@ function handleNavClick(routeItem) {
 
 .modal-body {
   padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .nav-list {
