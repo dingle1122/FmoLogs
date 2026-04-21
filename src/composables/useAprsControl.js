@@ -1,6 +1,7 @@
 // useAprsControl.js - APRS 远程控制 Composable
 import { ref, computed } from 'vue'
 import CryptoJS from 'crypto-js'
+import { validateAPRS } from '../utils/aprsUtils'
 
 // LocalStorage 键名
 const STORAGE_KEY = {
@@ -473,6 +474,11 @@ export function useAprsControl() {
       const { call: myCall, ssid: mySsid } = parseCallsignSsid(mycallInput)
       const { call: toCall, ssid: toSsid } = parseCallsignSsid(tocallInput)
 
+      // 验证 APRS 密钥与呼号匹配
+      if (!validateAPRS(myCall, passcodeInput)) {
+        throw new Error('APRS 密钥与呼号不匹配')
+      }
+
       // 保存参数（不包含尾缀，尾缀在组件中单独保存）
       saveParams({
         mycall: mycallInput,
@@ -643,6 +649,14 @@ export function useAprsControl() {
 
     // 验证 Passcode
     if (!VALIDATION.PASSCODE.test(passcode.value)) return false
+
+    // 验证 APRS 密钥与呼号匹配
+    try {
+      const { call: myCallBase } = parseCallsignSsid(mycall.value)
+      if (!validateAPRS(myCallBase, passcode.value)) return false
+    } catch {
+      return false
+    }
 
     // 验证密钥
     if (!VALIDATION.SECRET.test(secret.value)) return false
