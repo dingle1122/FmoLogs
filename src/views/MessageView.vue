@@ -67,12 +67,14 @@
               }"
               @click="selectMessage(msg)"
             >
-              <div class="message-content-preview">
-                <span v-if="!msg.isRead" class="unread-indicator">未读</span>
-                <span class="preview-text">{{ msg.message || msg.preview || '点击查看详情' }}</span>
+              <div class="message-item-header">
+                <div class="message-item-sender">
+                  <span class="sender">{{ msg.from }}</span>
+                  <span v-if="!msg.isRead" class="unread-indicator">未读</span>
+                </div>
+                <span v-if="!msg.message && !msg.preview" class="detail-tag">点击查看详情</span>
               </div>
-              <div class="message-item-footer">
-                <span class="sender">{{ msg.from }}</span>
+              <div class="message-item-time">
                 <span class="time">{{ formatTime(msg.timestamp) }}</span>
               </div>
             </div>
@@ -294,9 +296,10 @@ function formatTime(timestamp) {
   const isToday = date.toDateString() === now.toDateString()
 
   if (isToday) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' +
+    date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 function formatDateTime(timestamp) {
@@ -713,70 +716,54 @@ onUnmounted(() => {
 
 .message-item.active {
   border-color: var(--color-primary);
-  background: var(--bg-speaking-bar);
+  background: var(--bg-primary-light);
 }
 
-.message-item.unread {
-  background: var(--bg-success-light);
-  border-color: var(--color-success-border);
-  box-shadow: 0 0 0 1px var(--color-success-border);
-}
-
-.message-item.unread .sender {
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.message-item.unread .time {
-  color: var(--color-primary);
-  font-weight: 500;
-}
-
-.message-content-preview {
+.message-item-header {
   display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.message-item-sender {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sender {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'IntelOneMono', monospace;
 }
 
 .unread-indicator {
   flex-shrink: 0;
-  background: var(--color-primary);
-  color: white;
+  background: var(--bg-error-light);
+  color: var(--color-danger);
   font-size: 0.625rem;
-  font-weight: 600;
+  font-weight: 400;
   padding: 0.125rem 0.375rem;
   border-radius: 4px;
-  text-transform: uppercase;
+  border: 1px solid var(--color-danger);
 }
 
-.preview-text {
-  font-size: 0.9375rem;
-  color: var(--text-primary);
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  white-space: normal;
-}
-
-.message-item.unread .preview-text {
+.detail-tag {
+  flex-shrink: 0;
+  background: var(--bg-table-hover);
+  color: var(--text-tertiary);
+  font-size: 0.625rem;
   font-weight: 500;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
 }
 
-.message-item-footer {
+.message-item-time {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sender {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  font-family: 'IntelOneMono', monospace;
+  justify-content: flex-end;
 }
 
 .time {

@@ -91,6 +91,7 @@
   --bg-warning-light: #fff7ed;
   --bg-error-light: #fef0f0;
   --bg-https-hint: #fff7e6;
+  --bg-primary-light: #ecf5ff;
 
   /* 文字色 */
   --text-primary: #333333;
@@ -158,6 +159,7 @@
     --bg-warning-light: #3a2e1f;
     --bg-error-light: #3a1f1f;
     --bg-https-hint: #3a2e1f;
+    --bg-primary-light: #1a2a3a;
 
     /* 文字色 - 高对比度 */
     --text-primary: #e8e8e8;
