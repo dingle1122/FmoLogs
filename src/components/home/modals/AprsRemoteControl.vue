@@ -1076,7 +1076,7 @@ onUnmounted(() => {
 /* 时间轴连线 */
 .timeline-line {
   position: absolute;
-  left: calc(0.5rem + 7px);
+  left: calc(0.5rem + 5px);
   top: 20px;
   bottom: -24px;
   width: 2px;
