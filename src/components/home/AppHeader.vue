@@ -17,9 +17,9 @@
       <router-link
         v-for="route in NAV_ROUTES"
         :key="route.path"
-        :to="dbLoaded || route.type === 'messages' ? route.path : $route.path"
+        :to="dbLoaded || ['messages', 'more'].includes(route.type) ? route.path : $route.path"
         class="nav-tab"
-        :class="{ disabled: !dbLoaded && route.type !== 'messages' }"
+        :class="{ disabled: !dbLoaded && !['messages', 'more'].includes(route.type) }"
       >
         {{ route.label }}
         <span v-if="route.type === 'messages' && hasUnreadMessages" class="unread-badge"></span>

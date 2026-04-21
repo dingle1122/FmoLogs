@@ -1,13 +1,21 @@
 // 从 db.js 重新导出常量，保持兼容性
 export { QueryTypes, ColumnNames, formatTimestamp, formatFreqHz } from '../../services/db'
 
-// 导航路由配置（桌面端和手机端共用）
+// 主导航路由（桌面端 Header + 手机端底部 Tab）
 export const NAV_ROUTES = [
   { path: '/logs', label: '通联日志', type: 'logs', icon: 'logs' },
-  { path: '/top20', label: '排行榜', type: 'top20', icon: 'top20' },
   { path: '/old-friends', label: '老朋友', type: 'oldFriends', icon: 'oldFriends' },
-  { path: '/messages', label: '消息', type: 'messages', icon: 'messages' }
+  { path: '/messages', label: '消息', type: 'messages', icon: 'messages' },
+  { path: '/more', label: '更多', type: 'more', icon: 'more' }
 ]
+
+// 更多页面内的子路由
+export const MORE_ROUTES = [
+  { path: '/top20', label: '排行榜', type: 'top20', icon: 'top20', description: '查看通联统计排行' }
+]
+
+// 所有可导航页面（供快捷导航弹框使用）
+export const ALL_PAGE_ROUTES = [...NAV_ROUTES, ...MORE_ROUTES]
 
 // 默认列（查看所有模式）
 export const DEFAULT_COLUMNS = [

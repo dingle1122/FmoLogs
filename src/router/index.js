@@ -4,6 +4,7 @@ import LogsView from '../views/LogsView.vue'
 import Top20View from '../views/Top20View.vue'
 import OldFriendsView from '../views/OldFriendsView.vue'
 import MessageView from '../views/MessageView.vue'
+import MoreView from '../views/MoreView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -35,6 +36,11 @@ const router = createRouter({
           path: 'messages',
           name: 'messages',
           component: MessageView
+        },
+        {
+          path: 'more',
+          name: 'more',
+          component: MoreView
         }
       ]
     }

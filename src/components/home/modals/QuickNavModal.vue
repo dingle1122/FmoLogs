@@ -8,19 +8,19 @@
       <div class="modal-body">
         <nav class="nav-list">
           <router-link
-            v-for="route in NAV_ROUTES"
+            v-for="route in ALL_PAGE_ROUTES"
             :key="route.path"
-            :to="dbLoaded || route.type === 'messages' ? route.path : $route.path"
+            :to="dbLoaded || ['messages', 'more'].includes(route.type) ? route.path : $route.path"
             class="nav-item"
             :class="{
               active: currentRoute === route.path,
-              disabled: !dbLoaded && route.type !== 'messages'
+              disabled: !dbLoaded && !['messages', 'more'].includes(route.type)
             }"
             @click="handleNavClick(route)"
           >
             <SvgIcon :name="route.icon" :size="20" class="nav-icon" />
             <span class="nav-label">{{ route.label }}</span>
-            <span v-if="!dbLoaded && route.type !== 'messages'" class="need-db-badge">需数据</span>
+            <span v-if="!dbLoaded && !['messages', 'more'].includes(route.type)" class="need-db-badge">需数据</span>
           </router-link>
         </nav>
       </div>
@@ -31,7 +31,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { NAV_ROUTES } from '../constants'
+import { ALL_PAGE_ROUTES } from '../constants'
 import SvgIcon from '../../common/SvgIcon.vue'
 
 const props = defineProps({
@@ -52,7 +52,7 @@ const route = useRoute()
 const currentRoute = computed(() => route.path)
 
 function handleNavClick(routeItem) {
-  if (!props.dbLoaded && routeItem.type !== 'messages') {
+  if (!props.dbLoaded && !['messages', 'more'].includes(routeItem.type)) {
     return
   }
   emit('close')

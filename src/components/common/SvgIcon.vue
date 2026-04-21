@@ -40,6 +40,19 @@
     <template v-else-if="name === 'messages'">
       <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
     </template>
+
+    <!-- more: 九宫格/更多图标 -->
+    <template v-else-if="name === 'more'">
+      <circle cx="5" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="5" cy="19" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="19" r="1.5" fill="currentColor" stroke="none" />
+    </template>
   </svg>
 </template>
 
@@ -49,7 +62,7 @@ defineProps({
     type: String,
     required: true,
     validator(value) {
-      return ['logs', 'top20', 'oldFriends', 'messages'].includes(value)
+      return ['logs', 'top20', 'oldFriends', 'messages', 'more'].includes(value)
     }
   },
   size: {

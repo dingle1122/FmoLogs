@@ -171,9 +171,9 @@
       <router-link
         v-for="route in NAV_ROUTES"
         :key="route.path"
-        :to="dbLoaded || route.type === 'messages' ? route.path : $route.path"
+        :to="dbLoaded || ['messages', 'more'].includes(route.type) ? route.path : $route.path"
         class="nav-tab"
-        :class="{ disabled: !dbLoaded && route.type !== 'messages' }"
+        :class="{ disabled: !dbLoaded && !['messages', 'more'].includes(route.type) }"
       >
         <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
