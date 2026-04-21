@@ -5,6 +5,9 @@ import Top20View from '../views/Top20View.vue'
 import OldFriendsView from '../views/OldFriendsView.vue'
 import MessageView from '../views/MessageView.vue'
 import MoreView from '../views/MoreView.vue'
+import RemoteControlView from '../views/RemoteControlView.vue'
+import FriendLinksView from '../views/FriendLinksView.vue'
+import AboutView from '../views/AboutView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -41,6 +44,21 @@ const router = createRouter({
           path: 'more',
           name: 'more',
           component: MoreView
+        },
+        {
+          path: 'remote-control',
+          name: 'remoteControl',
+          component: RemoteControlView
+        },
+        {
+          path: 'friend-links',
+          name: 'friendLinks',
+          component: FriendLinksView
+        },
+        {
+          path: 'about',
+          name: 'about',
+          component: AboutView
         }
       ]
     }

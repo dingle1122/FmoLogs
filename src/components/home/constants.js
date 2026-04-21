@@ -11,7 +11,10 @@ export const NAV_ROUTES = [
 
 // 更多页面内的子路由
 export const MORE_ROUTES = [
-  { path: '/top20', label: '排行榜', type: 'top20', icon: 'top20', description: '查看通联统计排行' }
+  { path: '/top20', label: '排行榜', type: 'top20', icon: 'top20', description: '查看通联统计排行' },
+  { path: '/remote-control', label: '远程控制', type: 'remoteControl', icon: 'remoteControl', description: 'APRS 远程设备控制' },
+  { path: '/friend-links', label: '友情链接', type: 'friendLinks', icon: 'friendLinks', description: '业余无线电相关站点' },
+  { path: '/about', label: '关于', type: 'about', icon: 'about', description: '版本信息与特别感谢' }
 ]
 
 // 所有可导航页面（供快捷导航弹框使用）
