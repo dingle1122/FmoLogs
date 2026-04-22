@@ -1,14 +1,22 @@
 [
-  {
-    "name": "BG5ESN",
-    "contribution": "提供完美的FMO硬件平台"
-  },
-  {
-    "name": "BG9JYT",
-    "contribution": "提供甘肃集群服务器，并提供被控支持"
-  },
-  {
-    "name": "BG2LRU、BD6JDU、BI3SQP等各位友台",
-    "contribution": "提供宝贵的想法和建议"
-  }
+    {
+        "name": "BG5ESN",
+        "contribution": "提供完美的FMO硬件平台"
+    },
+    {
+        "name": "BG9JYT",
+        "contribution": "提供甘肃集群服务器，并提供被控支持"
+    },
+    {
+        "name": "BG2LRU",
+        "contribution": "提供宝贵的想法和建议"
+    },
+    {
+        "name": "BD6JDU",
+        "contribution": "提供宝贵的想法和建议"
+    },
+    {
+        "name": "BI3SQP",
+        "contribution": "提供宝贵的想法和建议"
+    }
 ]
