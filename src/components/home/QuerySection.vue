@@ -2,13 +2,12 @@
   <div v-if="hasFilters" class="query-section">
     <div class="filter-controls">
       <div v-if="currentQueryType === 'all'" class="search-box">
-        <input
+        <CallsignInput
           id="search-keyword"
-          :value="searchKeyword"
-          type="text"
+          :model-value="searchKeyword"
           placeholder="接收方呼号"
           :disabled="!dbLoaded"
-          @input="$emit('update:searchKeyword', $event.target.value)"
+          @update:model-value="$emit('update:searchKeyword', $event)"
         />
       </div>
       <div v-if="currentQueryType === 'all'" class="date-filter">
@@ -20,13 +19,12 @@
         />
       </div>
       <div v-if="currentQueryType === 'oldFriends'" class="search-box">
-        <input
+        <CallsignInput
           id="old-friends-search"
-          :value="oldFriendsSearchKeyword"
-          type="text"
+          :model-value="oldFriendsSearchKeyword"
           placeholder="搜索呼号"
           :disabled="!dbLoaded"
-          @input="$emit('update:oldFriendsSearchKeyword', $event.target.value)"
+          @update:model-value="$emit('update:oldFriendsSearchKeyword', $event)"
         />
       </div>
     </div>
@@ -36,6 +34,7 @@
 <script setup>
 import { computed } from 'vue'
 import DatePicker from '../common/DatePicker.vue'
+import CallsignInput from '../common/CallsignInput.vue'
 
 const props = defineProps({
   currentQueryType: {
@@ -89,7 +88,7 @@ const hasFilters = computed(() => {
   align-items: center;
 }
 
-.search-box input {
+.search-box :deep(input) {
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--border-primary);
   border-radius: 4px;
@@ -101,7 +100,7 @@ const hasFilters = computed(() => {
   color: var(--text-primary);
 }
 
-.search-box input:focus {
+.search-box :deep(input:focus) {
   outline: none;
   border-color: var(--color-primary);
 }
@@ -117,7 +116,7 @@ const hasFilters = computed(() => {
     width: 100%;
   }
 
-  .search-box input {
+  .search-box :deep(input) {
     width: 100%;
     flex: 1;
   }

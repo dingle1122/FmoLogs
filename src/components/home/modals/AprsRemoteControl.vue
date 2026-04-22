@@ -66,10 +66,9 @@
       <div class="form-group" :class="{ 'form-group-full': !advancedMode }">
         <label class="form-label">呼号</label>
         <div class="callsign-input">
-          <input
+          <CallsignInput
             id="callsign-base"
             v-model="callsignBase"
-            type="text"
             placeholder="如 BG5ESN"
             class="form-input callsign-base"
             @input="onCallsignChange"
@@ -81,10 +80,9 @@
       <div v-if="advancedMode" class="form-group form-group-fmo-callsign">
         <label class="form-label">FMO呼号</label>
         <div class="callsign-input">
-          <input
+          <CallsignInput
             id="fmo-callsign-base"
             v-model="fmoCallsignBase"
-            type="text"
             placeholder="如 BH5HSJ（默认与呼号相同）"
             class="form-input"
             @input="onFmoCallsignChange"
@@ -281,6 +279,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAprsControl } from '../../../composables/useAprsControl'
 import confirmDialog from '../../../composables/useConfirm'
+import CallsignInput from '../../common/CallsignInput.vue'
 
 const props = defineProps({
   activeAddressId: {

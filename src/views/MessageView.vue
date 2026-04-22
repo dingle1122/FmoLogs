@@ -192,13 +192,11 @@
         <div class="modal-body">
           <div class="form-group">
             <label>目标呼号</label>
-            <input
+            <CallsignInput
               id="target-callsign"
               v-model="sendForm.callsign"
-              type="text"
               placeholder="输入呼号 (如: BG1AAA)"
               maxlength="15"
-              @input="sendForm.callsign = sendForm.callsign.toUpperCase()"
             />
             <span v-if="callsignError" class="error-text">{{ callsignError }}</span>
           </div>
@@ -245,6 +243,7 @@ import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { getMessageService, validateCallsign, validateSSID } from '../services/messageService'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
+import CallsignInput from '../components/common/CallsignInput.vue'
 
 // 注入父组件提供的状态
 const fmoAddress = inject('fmoAddress', ref(''))
