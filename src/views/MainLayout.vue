@@ -1237,7 +1237,7 @@ provide('protocol', settings.protocol)
 
 .content-area {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
   padding: 1rem;
   display: flex;
   flex-direction: column;
