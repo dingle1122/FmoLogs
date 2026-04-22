@@ -95,7 +95,7 @@
       <!-- 右侧：消息详情 -->
       <div v-if="showDetail" class="message-detail-section">
         <div class="detail-header">
-          <button class="back-btn" @click="closeDetail">
+          <button class="back-btn" @click="closeDetail(true)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15 18 9 12 15 6" />
             </svg>
@@ -311,6 +311,7 @@ function formatDateTime(timestamp) {
 async function selectMessage(msg) {
   selectedMessageId.value = msg.messageId
   showDetail.value = true
+  openDetailState()
   detailLoading.value = true
   currentDetail.value = null
 
@@ -332,10 +333,43 @@ async function selectMessage(msg) {
   }
 }
 
-function closeDetail() {
+function closeDetail(manual = false) {
+  if (manual && detailPushedState && isMobileLayout()) {
+    closeDetailState()
+    return
+  }
   showDetail.value = false
   selectedMessageId.value = 0
   currentDetail.value = null
+}
+
+// 详情历史状态管理（仅用于移动端返回键关闭详情）
+let detailPushedState = false
+
+function isMobileLayout() {
+  return window.innerWidth <= 768
+}
+
+function openDetailState() {
+  if (!detailPushedState && isMobileLayout()) {
+    history.pushState({ messageDetail: true }, '')
+    detailPushedState = true
+  }
+}
+
+function closeDetailState() {
+  if (detailPushedState) {
+    history.back()
+    detailPushedState = false
+  }
+}
+
+function handlePopState(event) {
+  if (showDetail.value && isMobileLayout()) {
+    event.stopImmediatePropagation()
+    closeDetail()
+    detailPushedState = false
+  }
 }
 
 async function markAsRead() {
@@ -534,12 +568,15 @@ onMounted(async () => {
       loading.value = false
     }
   }
+  // 监听浏览器返回事件，用于移动端关闭详情
+  window.addEventListener('popstate', handlePopState)
 })
 
 onUnmounted(() => {
   if (sendResultTimer.value) {
     clearTimeout(sendResultTimer.value)
   }
+  window.removeEventListener('popstate', handlePopState)
 })
 </script>
 
