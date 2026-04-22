@@ -175,7 +175,7 @@ export class FmoApiClient {
   async getAllStations() {
     const all = []
     let start = 0
-    const count = 25
+    const count = 20
     while (true) {
       const result = await this.getStationList(start, count)
       all.push(...result.list)
