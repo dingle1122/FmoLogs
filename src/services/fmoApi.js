@@ -181,6 +181,7 @@ export class FmoApiClient {
       all.push(...result.list)
       if (result.list.length < count) break
       start += count
+      await new Promise((resolve) => setTimeout(resolve, 5))
     }
     return all
   }
