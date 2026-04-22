@@ -1,6 +1,9 @@
 <template>
   <div v-if="hasFilters" class="query-section">
     <div class="filter-controls">
+      <div v-if="currentQueryType === 'oldFriends' && totalCount > 0" class="stats-label">
+        老友数：{{ totalCount }}
+      </div>
       <div v-if="currentQueryType === 'all'" class="search-box">
         <CallsignInput
           id="search-keyword"
@@ -60,6 +63,10 @@ const props = defineProps({
   dbLoaded: {
     type: Boolean,
     default: false
+  },
+  totalCount: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -80,7 +87,13 @@ const hasFilters = computed(() => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+}
+
+.stats-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .search-box {

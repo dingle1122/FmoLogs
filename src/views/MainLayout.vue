@@ -307,6 +307,8 @@ const fmoSync = useFmoSync({
       dbCount.value = callsigns.length
     }
     if (syncedCount > 0) {
+      // 重置老朋友页面流式加载状态，确保同步后从第1页重新加载
+      dataQuery.oldFriendsPage.value = 1
       await executeQuery()
       // 更新顶部统计数据
       await updateStats()

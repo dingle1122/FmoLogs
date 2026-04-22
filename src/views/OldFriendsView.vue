@@ -9,6 +9,7 @@
       :current-query-type="'oldFriends'"
       :from-callsign="selectedFromCallsign"
       :db-loaded="dbLoaded"
+      :total-count="dataQuery.oldFriendsResult.value?.total || 0"
       @update:old-friends-search-keyword="onOldFriendsSearchInput"
     />
 
@@ -22,15 +23,7 @@
       @load-more="handleLoadMore"
     />
 
-    <!-- 分页 -->
-    <PaginationControl
-      v-if="dataQuery.oldFriendsResult.value"
-      :current-page="dataQuery.oldFriendsPage.value"
-      :total-pages="dataQuery.oldFriendsTotalPages.value"
-      :total-records="dataQuery.oldFriendsResult.value?.total"
-      :disabled="!dbLoaded"
-      @page-change="handleOldFriendsPageChange"
-    />
+
   </div>
 </template>
 
@@ -41,7 +34,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import StatusHints from '../components/common/StatusHints.vue'
 import QuerySection from '../components/home/QuerySection.vue'
 import OldFriendsList from '../components/home/OldFriendsList.vue'
-import PaginationControl from '../components/home/PaginationControl.vue'
+
 
 const props = defineProps({
   dbLoaded: Boolean,
@@ -71,11 +64,6 @@ function onOldFriendsSearchInput() {
     props.dataQuery.oldFriendsPage.value = 1
     emit('execute-query')
   }, 300)
-}
-
-function handleOldFriendsPageChange(page) {
-  props.dataQuery.goToOldFriendsPage(page)
-  emit('execute-query')
 }
 
 async function handleLoadMore() {

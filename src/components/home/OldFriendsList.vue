@@ -13,17 +13,17 @@
           <div class="friend-header">
             <div class="friend-callsign">
               {{ item.toCallsign || '-' }}
-              <span class="contact-count">（{{ item.count }}）</span>
+              <span class="contact-count">&nbsp;x{{ item.count }}</span>
             </div>
-            <div class="friend-grid">{{ item.toGrid || '-' }}</div>
           </div>
+          <div class="friend-grid">{{ item.toGrid || '-' }}</div>
           <div class="friend-time">
-            <div class="time-label">首次：{{ formatTimestamp(item.firstTime) }}</div>
-            <div class="time-label">最新：{{ formatTimestamp(item.latestTime) }}</div>
+            <div class="time-label">首次：{{ formatTimestampMinute(item.firstTime) }}</div>
+            <div class="time-label">最新：{{ formatTimestampMinute(item.latestTime) }}</div>
           </div>
         </div>
       </div>
-      <!-- 滚动加载观察器（仅移动端显示） -->
+      <!-- 滚动加载观察器 -->
       <div ref="loadMoreRef" class="load-more-trigger">
         <template v-if="loadingMore">
           <span class="loading-spinner"></span>
@@ -39,7 +39,7 @@
 <script setup>
 /* global IntersectionObserver */
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { formatTimestamp, isTodayContact } from './constants'
+import { formatTimestampMinute, isTodayContact } from './constants'
 
 const props = defineProps({
   oldFriendsResult: {
@@ -66,12 +66,8 @@ const containerRef = ref(null)
 const loadMoreRef = ref(null)
 let observer = null
 
-function isMobile() {
-  return window.innerWidth <= 768
-}
-
 function setupObserver() {
-  if (!isMobile() || !loadMoreRef.value) return
+  if (!loadMoreRef.value) return
 
   observer = new IntersectionObserver(
     (entries) => {
@@ -81,7 +77,7 @@ function setupObserver() {
       }
     },
     {
-      root: isMobile() ? null : containerRef.value,
+      root: containerRef.value,
       rootMargin: '100px',
       threshold: 0
     }
@@ -108,7 +104,7 @@ onUnmounted(() => {
 
 function handleResize() {
   cleanupObserver()
-  if (isMobile() && loadMoreRef.value) {
+  if (loadMoreRef.value) {
     setupObserver()
   }
 }
@@ -118,7 +114,7 @@ watch(
   () => {
     cleanupObserver()
     setTimeout(() => {
-      if (isMobile() && loadMoreRef.value) {
+      if (loadMoreRef.value) {
         setupObserver()
       }
     }, 100)
@@ -131,6 +127,7 @@ watch(
   flex: 1;
   overflow: auto;
   margin-top: 1rem;
+  padding-top: 2px;
 }
 
 .empty-hint {
@@ -190,7 +187,6 @@ watch(
 .friend-grid {
   font-size: 0.85rem;
   color: var(--text-secondary);
-  flex-shrink: 0;
 }
 
 .friend-time {
@@ -207,7 +203,6 @@ watch(
 
 /* 滚动加载提示 */
 .load-more-trigger {
-  display: none;
   text-align: center;
   padding: 1rem;
   color: var(--text-tertiary);
@@ -248,9 +243,6 @@ watch(
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .load-more-trigger {
-    display: block;
-  }
 }
 
 @media (max-width: 600px) {
