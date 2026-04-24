@@ -470,7 +470,7 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
-  const expired = !stationListFetchedAt.value || (Date.now() - stationListFetchedAt.value > 5 * 60 * 1000)
+  const expired = !stationListFetchedAt.value || (Date.now() - stationListFetchedAt.value > 60 * 60 * 1000)
   if (expired) {
     fetchAllStations()
   }
