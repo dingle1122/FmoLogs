@@ -254,6 +254,12 @@
                 <button class="btn-danger" @click="$emit('clear-all-data')">清空通联日志</button>
               </div>
             </div>
+            <div class="setting-item-data-clear setting-item-data-clear-mt">
+              <div class="grid-cache-info">
+                <span class="grid-cache-desc">清理网格地址本地缓存，下次查询将重新请求远程接口</span>
+                <button class="btn-secondary" @click="handleClearGridCache">清理地址缓存</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -317,6 +323,7 @@
 import { ref, computed } from 'vue'
 import { normalizeHost } from '../../../utils/urlUtils'
 import confirmDialog from '../../../composables/useConfirm'
+import { clearGridCache } from '../../../services/gridService'
 
 const props = defineProps({
   visible: {
@@ -643,6 +650,18 @@ async function handleClearAllAddresses() {
   }
 }
 
+async function handleClearGridCache() {
+  const confirmed = await confirmDialog.show('确定要清理网格地址本地缓存吗？')
+  if (confirmed) {
+    try {
+      await clearGridCache()
+      confirmDialog.show('地址缓存已清理')
+    } catch (err) {
+      confirmDialog.show(`清理失败: ${err.message}`)
+    }
+  }
+}
+
 async function handleRefreshUserInfo(id) {
   refreshingId.value = id
   emit('refresh-user-info', id)
@@ -951,6 +970,28 @@ defineExpose({ clearConnecting, clearRefreshing })
   border: 1px solid rgba(245, 108, 108, 0.2);
   border-radius: 6px;
   gap: 1rem;
+}
+
+.setting-item-data-clear-mt {
+  margin-top: 0.75rem;
+}
+
+.grid-cache-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(230, 162, 60, 0.08);
+  border: 1px solid rgba(230, 162, 60, 0.25);
+  border-radius: 6px;
+  gap: 1rem;
+}
+
+.grid-cache-desc {
+  font-size: 0.85rem;
+  color: var(--color-warning, #e6a23c);
+  flex: 1;
 }
 
 .data-clear-warning {
