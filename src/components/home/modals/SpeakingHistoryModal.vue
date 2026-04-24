@@ -42,7 +42,10 @@
               <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
                 >&#11088;</span
               >
-              <span v-if="record.grid" class="history-grid-tag">{{ record.grid }}</span>
+              <span v-if="record.grid" class="callsign-tag-stack">
+                <span class="history-grid-tag">{{ record.grid }}</span>
+                <span v-if="gridAddressMap[record.grid]" class="history-address-tag">{{ gridAddressMap[record.grid] }}</span>
+              </span>
             </span>
             <div class="history-time">
               <div class="speaking-time">
@@ -65,12 +68,56 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue'
 import { formatTimeAgo, formatDurationMmSs } from '../constants'
+import { gridToAddress } from '../../../services/gridService'
 import StationControl from '../StationControl.vue'
 
 const now = ref(Date.now())
 let nowTimer = null
+
+// grid -> 格式化地址的缓存映射
+const gridAddressMap = reactive({})
+
+// 格式化地址数据（精确到区，使用 - 分隔）
+function formatAddress(data) {
+  if (!data) return ''
+  const province = data.province || ''
+  const city = data.city || ''
+  const district = data.district || ''
+
+  const parts = []
+  if (province) parts.push(province)
+  if (city && city !== province) parts.push(city)
+  if (district) parts.push(district)
+
+  const full = parts.join('-')
+  // 完整地址超过 12 个字符时，降级只显示城市
+  if (full.length > 12 && city) {
+    return city
+  }
+  return full
+}
+
+// 异步加载历史记录中 grid 对应的地址
+async function loadGridAddresses(records) {
+  const grids = new Set()
+  for (const record of records) {
+    if (record.grid && !gridAddressMap[record.grid]) {
+      grids.add(record.grid)
+    }
+  }
+  for (const grid of grids) {
+    try {
+      const result = await gridToAddress(grid)
+      const formatted = formatAddress(result.data)
+      gridAddressMap[grid] = formatted
+    } catch (err) {
+      console.warn(`[SpeakingHistoryModal] grid 转地址失败: ${grid}`, err.message)
+      gridAddressMap[grid] = ''
+    }
+  }
+}
 
 onMounted(() => {
   nowTimer = setInterval(() => {
@@ -143,6 +190,17 @@ const displayHistory = computed(() => {
   }
   return props.history
 })
+
+// 监听历史记录变化，自动加载 grid 地址
+watch(
+  () => displayHistory.value,
+  (records) => {
+    if (records?.length > 0) {
+      loadGridAddresses(records)
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 // 根据 addressId 获取服务器显示名称
 function getServerName(addressId) {
@@ -330,6 +388,28 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   color: var(--text-tertiary);
   line-height: 1;
   flex-shrink: 0;
+  margin-left: 0.2em;
+}
+
+.history-address-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(64, 158, 255, 0.12);
+  color: var(--color-primary, #409eff);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.callsign-tag-stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: flex-start;
   margin-left: 0.2em;
 }
 
