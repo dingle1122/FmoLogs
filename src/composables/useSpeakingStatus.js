@@ -1,6 +1,7 @@
 import { ref, computed, onUnmounted, reactive } from 'vue'
 import { formatTimeAgo } from '../components/home/constants'
 import { normalizeHost } from '../utils/urlUtils'
+import { gridToAddress } from '../services/gridService'
 
 export function useSpeakingStatus() {
   // ========== 数据结构改造：按 addressId 隔离 ==========
@@ -8,6 +9,10 @@ export function useSpeakingStatus() {
   const currentSpeakerMap = reactive(new Map())
   // speakingHistoryMap: key 为 addressId，value 为 history 数组
   const speakingHistoryMap = reactive(new Map())
+  // speakerAddressMap: key 为 addressId，value 为格式化后的地址字符串
+  const speakerAddressMap = reactive(new Map())
+  // gridAddressCache: 内存缓存，key 为 grid，value 为格式化地址
+  const gridAddressCache = new Map()
 
   // 多连接管理
   const eventConnections = new Map() // key: addressId, value: WebSocket
@@ -16,6 +21,16 @@ export function useSpeakingStatus() {
   const speakingHistoryCleanupTimers = new Map() // key: addressId, value: timer
   let isManualDisconnect = false
   const primaryAddressId = ref(null)
+
+  // 格式化地址数据（精确到区，使用 - 分隔）
+  function formatAddress(data) {
+    if (!data) return ''
+    const parts = []
+    if (data.province) parts.push(data.province)
+    if (data.city && data.city !== data.province) parts.push(data.city)
+    if (data.district) parts.push(data.district)
+    return parts.join('-')
+  }
 
   // 主服务器连接状态
   const primaryConnected = ref(false)
@@ -47,6 +62,22 @@ export function useSpeakingStatus() {
     return speakingHistoryMap.get(primaryAddressId.value) || []
   })
 
+  // 返回主服务器当前发言者的 grid
+  const currentSpeakerGrid = computed(() => {
+    if (!primaryAddressId.value) return ''
+    const callsign = currentSpeakerMap.get(primaryAddressId.value)
+    if (!callsign) return ''
+    const history = speakingHistoryMap.get(primaryAddressId.value) || []
+    const record = history.find((h) => !h.endTime && h.callsign === callsign)
+    return record?.grid || ''
+  })
+
+  // 返回主服务器当前发言者的地址
+  const currentSpeakerAddress = computed(() => {
+    if (!primaryAddressId.value) return ''
+    return speakerAddressMap.get(primaryAddressId.value) || ''
+  })
+
   // 合并所有服务器的发言历史，按时间排序，每条记录带 addressId 字段
   const allSpeakingHistories = computed(() => {
     const allHistories = []
@@ -62,12 +93,12 @@ export function useSpeakingStatus() {
     return allHistories.sort((a, b) => b.startTime - a.startTime)
   })
 
-  // 返回所有服务器的当前发言者数组 [{addressId, callsign}]
+  // 返回所有服务器的当前发言者数组 [{addressId, callsign, address}]
   const allCurrentSpeakers = computed(() => {
     const speakers = []
     for (const [addressId, callsign] of currentSpeakerMap.entries()) {
       if (callsign) {
-        speakers.push({ addressId, callsign })
+        speakers.push({ addressId, callsign, address: speakerAddressMap.get(addressId) || '' })
       }
     }
     return speakers
@@ -244,6 +275,7 @@ export function useSpeakingStatus() {
     // 清理 Map 中的状态
     currentSpeakerMap.clear()
     speakingHistoryMap.clear()
+    speakerAddressMap.clear()
 
     primaryConnected.value = false
     primaryAddressId.value = null
@@ -280,6 +312,7 @@ export function useSpeakingStatus() {
     // 清理该 addressId 在 Map 中的状态
     currentSpeakerMap.delete(addressId)
     speakingHistoryMap.delete(addressId)
+    speakerAddressMap.delete(addressId)
 
     // 如果是主服务器，更新状态
     if (addressId === primaryAddressId.value) {
@@ -350,6 +383,27 @@ export function useSpeakingStatus() {
           const now = Date.now()
 
           if (isSpeaking && callsign) {
+            const grid = msg.data.grid || ''
+            // 异步获取地址信息
+            if (grid) {
+              if (gridAddressCache.has(grid)) {
+                speakerAddressMap.set(addressId, gridAddressCache.get(grid))
+              } else {
+                gridToAddress(grid)
+                  .then((result) => {
+                    const formatted = formatAddress(result.data)
+                    gridAddressCache.set(grid, formatted)
+                    speakerAddressMap.set(addressId, formatted)
+                  })
+                  .catch((err) => {
+                    console.warn(`[${addressId}] grid 转地址失败:`, err.message)
+                    gridAddressCache.set(grid, '')
+                    speakerAddressMap.set(addressId, '')
+                  })
+              }
+            } else {
+              speakerAddressMap.set(addressId, '')
+            }
             // 开始发言 - 只结束该服务器列表中的旧发言，不影响其他服务器
             history.forEach((h) => {
               if (!h.endTime) {
@@ -364,10 +418,12 @@ export function useSpeakingStatus() {
               const existing = history.splice(existingIndex, 1)[0]
               existing.startTime = now
               existing.endTime = null
+              existing.grid = grid
               history.unshift(existing)
             } else {
               history.unshift({
                 callsign,
+                grid,
                 startTime: now,
                 endTime: null
               })
@@ -464,11 +520,13 @@ export function useSpeakingStatus() {
   return {
     // 向后兼容的 computed
     currentSpeaker, // computed - 主服务器的当前发言者
+    currentSpeakerGrid, // computed - 主服务器当前发言者的 grid
+    currentSpeakerAddress, // computed - 主服务器当前发言者的地址
     speakingHistory, // computed - 主服务器的发言历史
 
     // 新增的 computed
     allSpeakingHistories, // computed - 合并所有服务器的发言历史（带 addressId）
-    allCurrentSpeakers, // computed - 所有服务器的当前发言者
+    allCurrentSpeakers, // computed - 所有服务器的当前发言者（带 address）
 
     // 新增的方法
     getSpeakingHistoryFor, // method - 获取指定服务器的发言历史

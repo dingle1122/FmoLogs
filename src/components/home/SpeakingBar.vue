@@ -17,17 +17,17 @@
               :key="speaker.addressId"
               class="speaker-item"
             >
-              <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong
-              ><span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span
-              ><strong v-if="index < allCurrentSpeakers.length - 1"
-                >&nbsp;&nbsp;&nbsp;&nbsp;</strong
-              >
+              <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong>
+              <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span>
+              <span v-if="speaker.address" class="speaker-address">{{ speaker.address }}</span>
+              <strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
             </span>
           </template>
           <template v-else>
             <!-- 单选模式：只显示当前发言者，不加标记 -->
-            正在发言: <strong>{{ currentSpeaker }}</strong
-            ><span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
+            正在发言: <strong>{{ currentSpeaker }}</strong>
+            <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
+            <span v-if="currentSpeakerAddress" class="speaker-address">{{ currentSpeakerAddress }}</span>
           </template>
         </template>
         <template v-else> 当前无人发言 </template>
@@ -51,6 +51,10 @@ const props = defineProps({
     type: String,
     default: ''
   },
+  currentSpeakerAddress: {
+    type: String,
+    default: ''
+  },
   speakingHistory: {
     type: Array,
     default: () => []
@@ -71,6 +75,7 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  // 元素结构: { addressId, callsign, address }
   addressList: {
     type: Array,
     default: () => []
@@ -237,6 +242,15 @@ defineEmits(['click', 'toggle-audio'])
   color: var(--color-speaking);
   line-height: 1;
   margin-left: 0.2em;
+}
+
+/* 地址显示样式 */
+.speaker-address {
+  display: inline;
+  font-size: 0.85em;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  margin-left: 0.3em;
 }
 
 @media (max-width: 768px) {

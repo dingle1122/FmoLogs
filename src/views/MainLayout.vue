@@ -13,6 +13,7 @@
     <!-- 发言状态条 -->
     <SpeakingBar
       :current-speaker="speakingStatus.currentSpeaker.value"
+      :current-speaker-address="speakingStatus.currentSpeakerAddress.value"
       :speaking-history="speakingStatus.speakingHistory.value"
       :fmo-address="settings.fmoAddress.value"
       :events-connected="speakingStatus.eventsConnected.value"

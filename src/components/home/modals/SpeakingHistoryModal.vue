@@ -42,6 +42,7 @@
               <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
                 >&#11088;</span
               >
+              <span v-if="record.grid" class="history-grid-tag">{{ record.grid }}</span>
             </span>
             <div class="history-time">
               <div class="speaking-time">
@@ -315,6 +316,21 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   line-height: 1.6rem;
   display: inline-flex;
   align-items: center;
+}
+
+.history-grid-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--bg-table-hover);
+  color: var(--text-tertiary);
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 0.2em;
 }
 
 .self-tag {
