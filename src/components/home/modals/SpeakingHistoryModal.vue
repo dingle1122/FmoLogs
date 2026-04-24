@@ -29,31 +29,37 @@
               $emit('show-callsign-records', record.callsign)
             "
           >
-            <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
-            <span class="history-callsign">
-              <!-- 多选模式下显示服务器标签 -->
-              <span
-                v-if="multiSelectMode && record.addressId"
-                class="server-tag"
-                >{{ getServerName(record.addressId) }}</span
-              >
-              {{ record.callsign }}
-              <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
-              <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
-                >&#11088;</span
-              >
-              <span v-if="record.grid" class="callsign-tag-stack">
-                <span class="history-grid-tag">{{ record.grid }}</span>
-                <span v-if="gridAddressMap[record.grid]" class="history-address-tag">{{ gridAddressMap[record.grid] }}</span>
-              </span>
-            </span>
-            <div class="history-time">
-              <div class="speaking-time">
-                <template v-if="!record.endTime">正在发言</template>
-                <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
+            <div class="history-main">
+              <div class="history-top-row">
+                <div class="history-callsign-area">
+                  <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
+                  <span class="history-callsign">
+                  <!-- 多选模式下显示服务器标签 -->
+                  <span
+                    v-if="multiSelectMode && record.addressId"
+                    class="server-tag"
+                    >{{ getServerName(record.addressId) }}</span
+                  >
+                  {{ record.callsign }}
+                  <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
+                  <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
+                    >&#11088;</span
+                  >
+                </span>
+                </div>
+                <div class="history-time">
+                  <div class="speaking-time">
+                    <template v-if="!record.endTime">正在发言</template>
+                    <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
+                  </div>
+                  <div class="duration-time">
+                    {{ formatDurationMmSs((record.endTime || now) - record.startTime) }}
+                  </div>
+                </div>
               </div>
-              <div class="duration-time">
-                {{ formatDurationMmSs((record.endTime || now) - record.startTime) }}
+              <div v-if="record.grid" class="history-address-row">
+                <span class="history-grid-tag">{{ record.grid }}</span>
+                <span v-if="gridAddressMap[record.grid]" class="history-address-text">{{ gridAddressMap[record.grid] }}</span>
               </div>
             </div>
           </div>
@@ -92,10 +98,6 @@ function formatAddress(data) {
   if (district) parts.push(district)
 
   const full = parts.join('-')
-  // 完整地址超过 12 个字符时，降级只显示城市
-  if (full.length > 12 && city) {
-    return city
-  }
   return full
 }
 
@@ -286,9 +288,8 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 
 .speaking-history-item {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1rem;
+  align-items: flex-start;
+  padding: 0.5rem 1rem;
   background: var(--bg-card);
   border: 1px solid var(--border-secondary);
   border-radius: 6px;
@@ -342,14 +343,35 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   }
 }
 
-.history-callsign {
+.history-main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.history-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.history-callsign-area {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.history-callsign {
   font-weight: 700;
   font-size: 1.6rem;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex-shrink: 0;
 }
 
 /* 服务器标签样式 - 与 user-uid 同款绿色 */
@@ -377,40 +399,27 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 }
 
 .history-grid-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  background: var(--bg-table-hover);
   color: var(--text-tertiary);
   line-height: 1;
   flex-shrink: 0;
-  margin-left: 0.2em;
 }
 
-.history-address-tag {
-  display: inline-flex;
+.history-address-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.1rem 0.3rem;
-  border-radius: 3px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  background: rgba(64, 158, 255, 0.12);
-  color: var(--color-primary, #409eff);
-  line-height: 1;
-  flex-shrink: 0;
+  gap: 0.3rem;
+  min-width: 0;
 }
 
-.callsign-tag-stack {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  align-items: flex-start;
-  margin-left: 0.2em;
+.history-address-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .self-tag {
@@ -482,8 +491,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 
 @media (max-width: 480px) {
   .speaking-history-item {
-    padding: 0.85rem 0.75rem;
-    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
   }
 
   .history-indicator {

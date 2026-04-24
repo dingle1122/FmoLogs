@@ -20,14 +20,10 @@ export function useSpeakingStatus() {
   let isManualDisconnect = false
   const primaryAddressId = ref(null)
 
-  // 格式化地址数据（精确到区，使用 - 分隔）
+  // 格式化地址数据（只显示市名）
   function formatAddress(data) {
     if (!data) return ''
-    const parts = []
-    if (data.province) parts.push(data.province)
-    if (data.city && data.city !== data.province) parts.push(data.city)
-    if (data.district) parts.push(data.district)
-    return parts.join('-')
+    return data.city || ''
   }
 
   // 主服务器连接状态
