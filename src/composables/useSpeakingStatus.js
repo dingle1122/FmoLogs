@@ -11,8 +11,6 @@ export function useSpeakingStatus() {
   const speakingHistoryMap = reactive(new Map())
   // speakerAddressMap: key 为 addressId，value 为格式化后的地址字符串
   const speakerAddressMap = reactive(new Map())
-  // gridAddressCache: 内存缓存，key 为 grid，value 为格式化地址
-  const gridAddressCache = new Map()
 
   // 多连接管理
   const eventConnections = new Map() // key: addressId, value: WebSocket
@@ -116,11 +114,11 @@ export function useSpeakingStatus() {
       const stored = localStorage.getItem(getStorageKey(addressId))
       if (stored) {
         const history = JSON.parse(stored)
-        // 过滤掉超过30分钟的记录
-        const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+        // 过滤掉超过1小时的记录
+        const oneHourAgo = Date.now() - 60 * 60 * 1000
         const filteredHistory = history.filter((h) => {
           const time = h.endTime || h.startTime
-          return time > thirtyMinutesAgo
+          return time > oneHourAgo
         })
         // 将所有记录标记为已结束（设置 endTime）
         return filteredHistory.map((h) => ({
@@ -384,23 +382,17 @@ export function useSpeakingStatus() {
 
           if (isSpeaking && callsign) {
             const grid = msg.data.grid || ''
-            // 异步获取地址信息
+            // 异步获取地址信息（实时请求，不走缓存）
             if (grid) {
-              if (gridAddressCache.has(grid)) {
-                speakerAddressMap.set(addressId, gridAddressCache.get(grid))
-              } else {
-                gridToAddress(grid)
-                  .then((result) => {
-                    const formatted = formatAddress(result.data)
-                    gridAddressCache.set(grid, formatted)
-                    speakerAddressMap.set(addressId, formatted)
-                  })
-                  .catch((err) => {
-                    console.warn(`[${addressId}] grid 转地址失败:`, err.message)
-                    gridAddressCache.set(grid, '')
-                    speakerAddressMap.set(addressId, '')
-                  })
-              }
+              gridToAddress(grid)
+                .then((result) => {
+                  const formatted = formatAddress(result)
+                  speakerAddressMap.set(addressId, formatted)
+                })
+                .catch((err) => {
+                  console.warn(`[${addressId}] grid 转地址失败:`, err.message)
+                  speakerAddressMap.set(addressId, '')
+                })
             } else {
               speakerAddressMap.set(addressId, '')
             }
@@ -460,16 +452,16 @@ export function useSpeakingStatus() {
   }
 
   // ========== 清理定时器（按 addressId 分离） ==========
-  // 清理指定服务器超过30分钟的发言历史
+  // 清理指定服务器超过1小时的发言历史
   function cleanupSpeakingHistory(addressId) {
     const history = speakingHistoryMap.get(addressId)
     if (!history) return
 
-    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000
+    const oneHourAgo = Date.now() - 60 * 60 * 1000
     const oldLength = history.length
     const filteredHistory = history.filter((h) => {
       const time = h.endTime || h.startTime
-      return time > thirtyMinutesAgo
+      return time > oneHourAgo
     })
 
     if (oldLength !== filteredHistory.length) {

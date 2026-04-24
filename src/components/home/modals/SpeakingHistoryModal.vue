@@ -60,7 +60,7 @@
         </div>
         <div v-else class="speaking-history-empty">
           <div class="empty-divider"></div>
-          <div class="empty-text">暂无30分钟内的发言记录</div>
+          <div class="empty-text">暂无1小时内的发言记录</div>
         </div>
       </div>
     </div>
@@ -99,18 +99,18 @@ function formatAddress(data) {
   return full
 }
 
-// 异步加载历史记录中 grid 对应的地址
+// 异步加载历史记录中 grid 对应的地址（实时请求，不走缓存）
 async function loadGridAddresses(records) {
   const grids = new Set()
   for (const record of records) {
-    if (record.grid && !gridAddressMap[record.grid]) {
+    if (record.grid) {
       grids.add(record.grid)
     }
   }
   for (const grid of grids) {
     try {
       const result = await gridToAddress(grid)
-      const formatted = formatAddress(result.data)
+      const formatted = formatAddress(result)
       gridAddressMap[grid] = formatted
     } catch (err) {
       console.warn(`[SpeakingHistoryModal] grid 转地址失败: ${grid}`, err.message)

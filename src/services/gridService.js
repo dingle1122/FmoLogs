@@ -6,6 +6,85 @@ const API_BASE_URL = 'https://grid.lzyike.cn'
 let dbInstance = null
 let dbPromise = null
 
+// 内存缓存，减少对 IndexedDB 的频繁读取
+const memoryCache = new Map()
+
+// 内存缓存 TTL：30 分钟
+const MEMORY_CACHE_TTL = 30 * 60 * 1000
+// 清理间隔：5 分钟
+const MEMORY_CACHE_CLEANUP_INTERVAL = 5 * 60 * 1000
+
+/**
+ * 清理内存缓存中过期的数据
+ */
+function cleanupMemoryCache() {
+  const now = Date.now()
+  for (const [key, entry] of memoryCache.entries()) {
+    if (now - entry.timestamp > MEMORY_CACHE_TTL) {
+      memoryCache.delete(key)
+    }
+  }
+}
+
+// 启动定时清理
+setInterval(cleanupMemoryCache, MEMORY_CACHE_CLEANUP_INTERVAL)
+
+// ========== 并发控制与频率限制 ==========
+
+/**
+ * Grid 级别并发锁
+ * key: normalizedGrid, value: Promise（锁释放时 resolve）
+ */
+const gridLocks = new Map()
+
+/**
+ * 获取指定 grid 的独占锁
+ * @param {string} grid
+ * @returns {Promise<Function>} 返回释放锁的函数
+ */
+async function acquireGridLock(grid) {
+  while (gridLocks.has(grid)) {
+    await gridLocks.get(grid)
+  }
+  let release
+  const promise = new Promise((resolve) => {
+    release = resolve
+  })
+  gridLocks.set(grid, promise)
+  return () => {
+    gridLocks.delete(grid)
+    release()
+  }
+}
+
+/**
+ * API 频率限制器（2次/秒）
+ */
+const rateLimiter = {
+  promise: Promise.resolve(),
+  lastTime: 0,
+  minInterval: 600, // 1000ms / 2 = 500ms
+
+  async acquire() {
+    let resolveNext
+    const newPromise = new Promise((resolve) => {
+      resolveNext = resolve
+    })
+    const prevPromise = this.promise
+    this.promise = newPromise
+
+    await prevPromise
+
+    const now = Date.now()
+    const wait = Math.max(0, this.lastTime + this.minInterval - now)
+    if (wait > 0) {
+      await new Promise((r) => setTimeout(r, wait))
+    }
+    this.lastTime = Date.now()
+    resolveNext()
+  }
+}
+
 /**
  * 打开或初始化 Grid 缓存数据库
  */
@@ -95,7 +174,7 @@ async function saveGridAddress(grid, data) {
  * @param {string} grid
  * @returns {string}
  */
-export function normalizeGrid(grid) {
+function normalizeGrid(grid) {
   if (!grid) return ''
   return grid.trim().toUpperCase()
 }
@@ -105,7 +184,7 @@ export function normalizeGrid(grid) {
  * @param {string} grid
  * @returns {{valid: boolean, grid?: string, error?: string}}
  */
-export function validateGrid(grid) {
+function validateGrid(grid) {
   if (!grid) {
     return { valid: false, error: '缺少 grid 参数' }
   }
@@ -148,25 +227,16 @@ export function validateGrid(grid) {
 }
 
 /**
- * Grid 转地址（优先本地缓存，否则请求远程 API）
+ * Grid 转地址（内存缓存 → IndexedDB → 远程 API）
  *
  * @param {string} grid - Maidenhead 网格编码
- * @param {Object} options
- * @param {boolean} [options.skipCache=false] - 是否跳过本地缓存强制请求远程
- * @returns {Promise<{retcode: number, retmsg: string, data: Object, fromCache?: boolean}>}
+ * @returns {Promise<Object>} 地址数据对象
  *
  * @example
- * const result = await gridToAddress('PM00AA')
- * // {
- * //   retcode: 0,
- * //   retmsg: 'success',
- * //   data: { grid: 'PM00AA', country: '中国', province: '北京市', city: '北京市', district: '朝阳区', township: '望京街道' },
- * //   fromCache: false
- * // }
+ * const data = await gridToAddress('PM00AA')
+ * // { grid: 'PM00AA', country: '中国', province: '北京市', city: '北京市', district: '朝阳区', township: '望京街道' }
  */
-export async function gridToAddress(grid, options = {}) {
-  const { skipCache = false } = options
-
+export async function gridToAddress(grid) {
   // 本地格式校验
   const validation = validateGrid(grid)
   if (!validation.valid) {
@@ -175,75 +245,91 @@ export async function gridToAddress(grid, options = {}) {
 
   const normalizedGrid = validation.grid
 
-  // 1. 优先读取本地缓存
-  if (!skipCache) {
+  // 1. 优先读取内存缓存（无锁快速路径）
+  const memEntry = memoryCache.get(normalizedGrid)
+  if (memEntry) {
+    return memEntry.data
+  }
+
+  // 2. 获取该 grid 的并发锁
+  const release = await acquireGridLock(normalizedGrid)
+
+  try {
+    // 3. 获取锁后再次检查内存缓存（双重检查，防止等锁期间其他请求已写入）
+    const memEntry = memoryCache.get(normalizedGrid)
+    if (memEntry) {
+      return memEntry.data
+    }
+
+    // 4. 再检查 IndexedDB
     try {
       const cached = await getCachedGridAddress(normalizedGrid)
       if (cached) {
-        return {
-          retcode: 0,
-          retmsg: 'success (from cache)',
-          data: cached,
-          fromCache: true
-        }
+        memoryCache.set(normalizedGrid, { data: cached, timestamp: Date.now() })
+        return cached
       }
     } catch (err) {
       console.warn('[gridService] 读取本地缓存失败:', err)
     }
-  }
 
-  // 2. 请求远程 API
-  let response
-  try {
-    response = await fetch(`${API_BASE_URL}/api/grid2addr/${encodeURIComponent(normalizedGrid)}`, {
-      method: 'GET',
-      headers: { Accept: 'application/json' }
-    })
-  } catch (err) {
-    throw new Error(`grid 转换失败: 网络请求异常 (${err.message})`)
-  }
+    // 5. 频率限制（2次/秒）
+    await rateLimiter.acquire()
 
-  // 处理限流
-  if (response.status === 429) {
-    throw new Error('请求过于频繁，请稍后再试')
-  }
-
-  // 处理非 2xx 响应
-  if (!response.ok) {
-    let errorMsg = `HTTP ${response.status}`
+    // 6. 请求远程 API
+    let response
     try {
-      const errorData = await response.json()
-      if (errorData.retmsg) errorMsg = errorData.retmsg
-    } catch {
-      // 忽略 JSON 解析失败，使用默认错误信息
+      response = await fetch(`${API_BASE_URL}/api/grid2addr/${encodeURIComponent(normalizedGrid)}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' }
+      })
+    } catch (err) {
+      throw new Error(`grid 转换失败: 网络请求异常 (${err.message})`)
     }
-    throw new Error(`调用 grid2addr API 失败: ${errorMsg}`)
-  }
 
-  const result = await response.json()
+    // 处理限流
+    if (response.status === 429) {
+      throw new Error('请求过于频繁，请稍后再试')
+    }
 
-  if (result.retcode !== 0 || !result.data) {
-    throw new Error(result.retmsg || 'grid 转换失败')
-  }
+    // 处理非 2xx 响应
+    if (!response.ok) {
+      let errorMsg = `HTTP ${response.status}`
+      try {
+        const errorData = await response.json()
+        if (errorData.retmsg) errorMsg = errorData.retmsg
+      } catch {
+        // 忽略 JSON 解析失败，使用默认错误信息
+      }
+      throw new Error(`调用 grid2addr API 失败: ${errorMsg}`)
+    }
 
-  // 3. 写入本地缓存（失败不影响返回结果）
-  try {
-    await saveGridAddress(normalizedGrid, result.data)
-  } catch (err) {
-    console.warn('[gridService] 保存本地缓存失败:', err)
-  }
+    const result = await response.json()
 
-  return {
-    ...result,
-    fromCache: false
+    if (result.retcode !== 0 || !result.data) {
+      throw new Error(result.retmsg || 'grid 转换失败')
+    }
+
+    // 7. 写入内存缓存和本地缓存（失败不影响返回结果）
+    memoryCache.set(normalizedGrid, { data: result.data, timestamp: Date.now() })
+    try {
+      await saveGridAddress(normalizedGrid, result.data)
+    } catch (err) {
+      console.warn('[gridService] 保存本地缓存失败:', err)
+    }
+
+    return result.data
+  } finally {
+    // 8. 释放锁
+    release()
   }
 }
 
 /**
- * 清空所有 Grid 缓存数据
+ * 清空所有 Grid 缓存数据（先 IndexedDB，后内存缓存）
  */
 export async function clearGridCache() {
-  return new Promise((resolve, reject) => {
+  // 1. 先清理 IndexedDB
+  await new Promise((resolve, reject) => {
     if (dbInstance) {
       try {
         dbInstance.close()
@@ -262,4 +348,7 @@ export async function clearGridCache() {
       resolve()
     }
   })
+
+  // 2. 再清理内存缓存
+  memoryCache.clear()
 }
