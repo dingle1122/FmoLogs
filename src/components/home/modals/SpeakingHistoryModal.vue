@@ -443,13 +443,14 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.1em 0.4em;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: 600;
-  background: rgba(34, 197, 94, 0.12);
-  color: var(--color-speaking);
+  padding: 0.3em;
+  border-radius: 2px;
+  font-size: 0.5em;
+  font-weight: 400;
+  background: rgba(212, 107, 8, 0.12);
+  color: var(--color-warning);
   line-height: 1;
+  text-align: center;
 }
 
 .speaking-history-item.is-speaking .history-callsign {

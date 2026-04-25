@@ -236,13 +236,17 @@ defineEmits(['click', 'toggle-audio'])
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.1em 0.4em;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: 600;
-  background: rgba(34, 197, 94, 0.12);
-  color: var(--color-speaking);
+  padding: 0.3em;
+  border-radius: 2px;
+  font-size: 0.6em;
+  font-weight: 400;
+  background: rgba(212, 107, 8, 0.12);
+  color: var(--color-warning);
   line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  position: relative;
+  top: -0.08em;
   margin-left: 0.2em;
 }
 
