@@ -20,10 +20,10 @@ export function useSpeakingStatus() {
   let isManualDisconnect = false
   const primaryAddressId = ref(null)
 
-  // 格式化地址数据（只显示市名）
+  // 格式化地址数据（优先显示市名，直辖市回退到省名）
   function formatAddress(data) {
     if (!data) return ''
-    return data.city || ''
+    return data.city || data.province || ''
   }
 
   // 主服务器连接状态
