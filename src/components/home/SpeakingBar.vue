@@ -19,6 +19,9 @@
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong>
               <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span>
+              <span v-if="todayContactedCallsigns.has(speaker.callsign)" class="today-star"
+                >&#11088;</span
+              >
               <span v-if="speaker.address" class="speaker-address">{{ speaker.address }}</span>
               <strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
             </span>
@@ -27,6 +30,9 @@
             <!-- 单选模式：只显示当前发言者，不加标记 -->
             正在发言: <strong>{{ currentSpeaker }}</strong>
             <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
+            <span v-if="todayContactedCallsigns.has(currentSpeaker)" class="today-star"
+              >&#11088;</span
+            >
             <span v-if="currentSpeakerAddress" class="speaker-address">{{
               currentSpeakerAddress
             }}</span>
@@ -97,6 +103,10 @@ const props = defineProps({
   isAudioMuted: {
     type: Boolean,
     default: false
+  },
+  todayContactedCallsigns: {
+    type: Set,
+    default: () => new Set()
   }
 })
 
@@ -248,6 +258,13 @@ defineEmits(['click', 'toggle-audio'])
   position: relative;
   top: -0.08em;
   margin-left: 0.2em;
+}
+
+.today-star {
+  font-size: 1rem;
+  line-height: 1.3rem;
+  display: inline;
+  margin-left: 0.1em;
 }
 
 /* 地址显示样式 */

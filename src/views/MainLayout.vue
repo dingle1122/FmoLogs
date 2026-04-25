@@ -25,6 +25,7 @@
       :active-address-id="settings.activeAddressId.value"
       :is-audio-playing="isAudioPlaying"
       :is-audio-muted="isAudioMuted"
+      :today-contacted-callsigns="settings.todayContactedCallsigns.value"
       @click="showSpeakingHistory = true"
       @toggle-audio="handleToggleAudio"
     />
