@@ -27,7 +27,9 @@
             <!-- 单选模式：只显示当前发言者，不加标记 -->
             正在发言: <strong>{{ currentSpeaker }}</strong>
             <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
-            <span v-if="currentSpeakerAddress" class="speaker-address">{{ currentSpeakerAddress }}</span>
+            <span v-if="currentSpeakerAddress" class="speaker-address">{{
+              currentSpeakerAddress
+            }}</span>
           </template>
         </template>
         <template v-else> 当前无人发言 </template>

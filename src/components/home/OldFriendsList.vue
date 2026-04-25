@@ -242,7 +242,6 @@ watch(
   .old-friends-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-
 }
 
 @media (max-width: 600px) {

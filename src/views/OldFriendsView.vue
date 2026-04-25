@@ -22,8 +22,6 @@
       @show-records="$emit('show-callsign-records', $event)"
       @load-more="handleLoadMore"
     />
-
-
   </div>
 </template>
 
@@ -34,7 +32,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import StatusHints from '../components/common/StatusHints.vue'
 import QuerySection from '../components/home/QuerySection.vue'
 import OldFriendsList from '../components/home/OldFriendsList.vue'
-
 
 const props = defineProps({
   dbLoaded: Boolean,

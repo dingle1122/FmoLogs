@@ -20,7 +20,11 @@
           >
             <SvgIcon :name="route.icon" :size="20" class="nav-icon" />
             <span class="nav-label">{{ route.label }}</span>
-            <span v-if="!dbLoaded && !['messages', 'more'].includes(route.type)" class="need-db-badge">需数据</span>
+            <span
+              v-if="!dbLoaded && !['messages', 'more'].includes(route.type)"
+              class="need-db-badge"
+              >需数据</span
+            >
           </router-link>
         </nav>
       </div>

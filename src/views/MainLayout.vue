@@ -111,8 +111,6 @@
       @page-change="handleCallsignRecordsPageChange"
     />
 
-
-
     <!-- 隐藏的文件输入 -->
     <input
       id="db-file-input"
@@ -129,8 +127,8 @@
       :visible="showSpeakingHistory"
       :history="speakingStatus.speakingHistory.value"
       :today-contacted-callsigns="settings.todayContactedCallsigns.value"
-      :station-connected="stationLoading || currentStation !== null"
-      :current-station="currentStation"
+      :station-connected="speakingStatus.primaryConnected.value"
+      :current-station="speakingStatus.primaryServerInfo.value"
       :station-busy="stationBusy"
       :selected-from-callsign="selectedFromCallsign"
       :all-speaking-histories="speakingStatus.allSpeakingHistories.value"
@@ -149,7 +147,7 @@
     <StationListModal
       :visible="showStationList"
       :station-list="stationList"
-      :current-station="currentStation"
+      :current-station="speakingStatus.primaryServerInfo.value"
       :loading="stationListLoading"
       :show-primary-badge="settings.multiSelectMode.value"
       @close="handleCloseStationList"
@@ -250,11 +248,7 @@ const stationListLoading = ref(false)
 const stationListFetchedAt = ref(cachedStations.fetchedAt)
 
 // Station 状态
-const currentStation = ref(null)
 const stationBusy = ref(false)
-const stationLoading = ref(false)
-let stationPollTimer = null
-let stationPollCount = 0
 
 // 消息未读状态
 const hasUnreadMessages = computed(() => {
@@ -379,46 +373,6 @@ function createStationClient() {
   return new FmoApiClient(fullAddress)
 }
 
-// 获取当前服务器（按需连接）
-async function fetchCurrentStation() {
-  const client = createStationClient()
-  if (!client) return
-
-  stationLoading.value = true
-  try {
-    await client.connect()
-    const data = await client.getCurrentStation()
-    if (data) {
-      currentStation.value = { uid: data.uid, name: data.name }
-    }
-  } catch (err) {
-    console.error('获取当前服务器失败:', err)
-  } finally {
-    try {
-      client.close()
-    } catch (closeErr) {
-      console.error('关闭客户端连接失败:', closeErr)
-    }
-    stationLoading.value = false
-  }
-}
-
-// 轮询当前服务器状态（切换后服务器状态不是立即变化的）
-function pollCurrentStation() {
-  if (stationPollTimer) {
-    clearTimeout(stationPollTimer)
-  }
-  stationPollCount = 0
-  doPollStation()
-}
-
-function doPollStation() {
-  if (stationPollCount >= 3) return // 最多 3 次
-  stationPollCount++
-  fetchCurrentStation()
-  stationPollTimer = setTimeout(doPollStation, 1000) // 间隔 1 秒，总计约 3 秒
-}
-
 async function handleStationPrev() {
   if (stationBusy.value) return
   const client = createStationClient()
@@ -429,8 +383,10 @@ async function handleStationPrev() {
     await client.connect()
     const result = await client.prevStation()
     if (result?.result === 0) {
-      pollCurrentStation()
-      speakingStatus.clearSpeakingHistory()
+      const primaryId = speakingStatus.primaryAddressId.value
+      if (primaryId) {
+        await speakingStatus.getServerInfo(primaryId, true)
+      }
     }
   } catch (err) {
     console.error('切换上一个服务器失败:', err)
@@ -454,8 +410,10 @@ async function handleStationNext() {
     await client.connect()
     const result = await client.nextStation()
     if (result?.result === 0) {
-      pollCurrentStation()
-      speakingStatus.clearSpeakingHistory()
+      const primaryId = speakingStatus.primaryAddressId.value
+      if (primaryId) {
+        await speakingStatus.getServerInfo(primaryId, true)
+      }
     }
   } catch (err) {
     console.error('切换下一个服务器失败:', err)
@@ -471,7 +429,8 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
-  const expired = !stationListFetchedAt.value || (Date.now() - stationListFetchedAt.value > 60 * 60 * 1000)
+  const expired =
+    !stationListFetchedAt.value || Date.now() - stationListFetchedAt.value > 60 * 60 * 1000
   if (expired) {
     fetchAllStations()
   }
@@ -521,7 +480,10 @@ async function handleStationSelect(uid) {
     await client.connect()
     const result = await client.setCurrentStation(uid)
     if (result?.result === 0) {
-      pollCurrentStation()
+      const primaryId = speakingStatus.primaryAddressId.value
+      if (primaryId) {
+        await speakingStatus.getServerInfo(primaryId, true)
+      }
     }
   } catch (err) {
     console.error('设置当前服务器失败:', err)
@@ -533,7 +495,6 @@ async function handleStationSelect(uid) {
     }
     stationBusy.value = false
   }
-  speakingStatus.clearSpeakingHistory()
 }
 
 // 回到顶部 - 带防抖的滚动处理
@@ -773,7 +734,6 @@ async function handleClearAllAddresses() {
     speakingStatus.disconnectAllEventWs()
     messageService.disconnect()
     fmoSync.stopAutoSyncTask()
-    currentStation.value = null
   }
 }
 
@@ -964,15 +924,6 @@ async function handleToggleAddressSelection(id) {
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
     await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
-    // 打开时获取当前服务器
-    fetchCurrentStation()
-  } else {
-    // 关闭时清理状态和轮询
-    if (stationPollTimer) {
-      clearTimeout(stationPollTimer)
-      stationPollTimer = null
-    }
-    currentStation.value = null
   }
 })
 
@@ -1151,7 +1102,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (stationPollTimer) clearTimeout(stationPollTimer)
   if (scrollTimer) clearTimeout(scrollTimer)
   contentAreaRef.value?.removeEventListener('scroll', handleScroll)
 

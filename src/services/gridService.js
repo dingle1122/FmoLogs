@@ -278,10 +278,13 @@ export async function gridToAddress(grid) {
     // 6. 请求远程 API
     let response
     try {
-      response = await fetch(`${API_BASE_URL}/api/grid2addr/${encodeURIComponent(normalizedGrid)}`, {
-        method: 'GET',
-        headers: { Accept: 'application/json' }
-      })
+      response = await fetch(
+        `${API_BASE_URL}/api/grid2addr/${encodeURIComponent(normalizedGrid)}`,
+        {
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        }
+      )
     } catch (err) {
       throw new Error(`grid 转换失败: 网络请求异常 (${err.message})`)
     }

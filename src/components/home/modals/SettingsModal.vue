@@ -256,7 +256,9 @@
             </div>
             <div class="setting-item-data-clear setting-item-data-clear-mt">
               <div class="grid-cache-info">
-                <span class="grid-cache-desc">清理网格地址本地缓存，下次查询将重新请求远程接口</span>
+                <span class="grid-cache-desc"
+                  >清理网格地址本地缓存，下次查询将重新请求远程接口</span
+                >
                 <button class="btn-secondary" @click="handleClearGridCache">清理地址缓存</button>
               </div>
             </div>

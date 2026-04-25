@@ -295,10 +295,17 @@ function formatTime(timestamp) {
   const isToday = date.toDateString() === now.toDateString()
 
   if (isToday) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
   }
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' +
+  return (
+    date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) +
+    ' ' +
     date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  )
 }
 
 function formatDateTime(timestamp) {

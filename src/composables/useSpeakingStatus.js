@@ -2,6 +2,7 @@ import { ref, computed, onUnmounted, reactive } from 'vue'
 import { formatTimeAgo } from '../components/home/constants'
 import { normalizeHost } from '../utils/urlUtils'
 import { gridToAddress } from '../services/gridService'
+import { FmoApiClient } from '../services/fmoApi'
 
 export function useSpeakingStatus() {
   // ========== 数据结构改造：按 addressId 隔离 ==========
@@ -17,6 +18,9 @@ export function useSpeakingStatus() {
   const reconnectTimers = new Map() // key: addressId, value: timer
   const connectionConfigs = new Map() // key: addressId, value: {host, protocol, isPrimary}
   const speakingHistoryCleanupTimers = new Map() // key: addressId, value: timer
+  const serverInfoTimers = new Map() // key: addressId, value: timer
+  const serverInfoPollTimers = new Map() // key: addressId, value: timer
+  const serverInfoMap = reactive(new Map()) // key: addressId, value: {uid, name}
   let isManualDisconnect = false
   const primaryAddressId = ref(null)
 
@@ -181,6 +185,8 @@ export function useSpeakingStatus() {
       if (isPrimary) {
         primaryConnected.value = true
       }
+      // 启动服务器信息定时获取
+      startServerInfoPolling(addressId)
     }
 
     ws.onmessage = (event) => {
@@ -252,6 +258,18 @@ export function useSpeakingStatus() {
     }
     speakingHistoryCleanupTimers.clear()
 
+    // 停止所有服务器信息定时获取
+    for (const addressId of serverInfoTimers.keys()) {
+      stopServerInfoPolling(addressId)
+    }
+    serverInfoTimers.clear()
+    // 停止所有服务器信息轮询
+    for (const [addressId, timer] of serverInfoPollTimers.entries()) {
+      clearTimeout(timer)
+    }
+    serverInfoPollTimers.clear()
+    serverInfoMap.clear()
+
     // 关闭所有连接
     for (const [addressId, ws] of eventConnections.entries()) {
       try {
@@ -294,7 +312,7 @@ export function useSpeakingStatus() {
       eventConnections.delete(addressId)
     }
 
-    // 清除该连接的重连定时器
+    // 清理该连接的重连定时器
     if (reconnectTimers.has(addressId)) {
       clearTimeout(reconnectTimers.get(addressId))
       reconnectTimers.delete(addressId)
@@ -303,10 +321,19 @@ export function useSpeakingStatus() {
     // 停止该 addressId 的清理定时器
     stopSpeakingHistoryCleanup(addressId)
 
+    // 停止该 addressId 的服务器信息定时获取
+    stopServerInfoPolling(addressId)
+    // 停止该 addressId 的服务器信息轮询
+    if (serverInfoPollTimers.has(addressId)) {
+      clearTimeout(serverInfoPollTimers.get(addressId))
+      serverInfoPollTimers.delete(addressId)
+    }
+
     // 清理该 addressId 在 Map 中的状态
     currentSpeakerMap.delete(addressId)
     speakingHistoryMap.delete(addressId)
     speakerAddressMap.delete(addressId)
+    serverInfoMap.delete(addressId)
 
     // 如果是主服务器，更新状态
     if (addressId === primaryAddressId.value) {
@@ -401,20 +428,30 @@ export function useSpeakingStatus() {
             // 更新该服务器的当前发言者
             currentSpeakerMap.set(addressId, callsign)
 
+            const serverInfo = serverInfoMap.get(addressId)
             const existingIndex = history.findIndex((h) => h.callsign === callsign)
             if (existingIndex >= 0) {
               const existing = history.splice(existingIndex, 1)[0]
               existing.startTime = now
               existing.endTime = null
               existing.grid = grid
+              if (serverInfo) {
+                existing.serverName = serverInfo.name
+                existing.serverUid = serverInfo.uid
+              }
               history.unshift(existing)
             } else {
-              history.unshift({
+              const newRecord = {
                 callsign,
                 grid,
                 startTime: now,
                 endTime: null
-              })
+              }
+              if (serverInfo) {
+                newRecord.serverName = serverInfo.name
+                newRecord.serverUid = serverInfo.uid
+              }
+              history.unshift(newRecord)
             }
             hasChanges = true
             saveSpeakingHistoryToStorage(addressId)
@@ -484,6 +521,89 @@ export function useSpeakingStatus() {
     }
   }
 
+  // ========== 服务器信息定时获取 ==========
+  async function fetchServerInfo(addressId) {
+    const config = connectionConfigs.get(addressId)
+    if (!config) return
+
+    try {
+      const normalizedHost = normalizeHost(config.host)
+      const fullAddress = `${config.protocol}://${normalizedHost}`
+      const client = new FmoApiClient(fullAddress)
+      await client.connect()
+      const data = await client.getCurrentStation()
+      if (data && data.uid) {
+        serverInfoMap.set(addressId, { uid: data.uid, name: data.name || '' })
+      }
+      client.close()
+    } catch (err) {
+      console.warn(`[${addressId}] 获取服务器信息失败:`, err.message)
+    }
+  }
+
+  function startServerInfoPolling(addressId) {
+    if (serverInfoTimers.has(addressId)) return
+    // 立即获取一次
+    fetchServerInfo(addressId)
+    // 每30秒定时获取
+    const timer = setInterval(() => {
+      fetchServerInfo(addressId)
+    }, 30000)
+    serverInfoTimers.set(addressId, timer)
+  }
+
+  function stopServerInfoPolling(addressId) {
+    const timer = serverInfoTimers.get(addressId)
+    if (timer) {
+      clearInterval(timer)
+      serverInfoTimers.delete(addressId)
+    }
+  }
+
+  // 手动更新指定 addressId 的服务器信息（供外部调用，如电台切换后）
+  function updateServerInfo(addressId, info) {
+    if (info && info.uid) {
+      serverInfoMap.set(addressId, { uid: info.uid, name: info.name || '' })
+    }
+  }
+
+  // 轮询获取服务器信息（切换后状态不是立即变化的，最多3次，间隔1秒）
+  function pollServerInfo(addressId) {
+    if (serverInfoPollTimers.has(addressId)) return
+
+    let count = 0
+    const maxCount = 3
+
+    async function doPoll() {
+      if (count >= maxCount) {
+        serverInfoPollTimers.delete(addressId)
+        return
+      }
+      count++
+      await fetchServerInfo(addressId)
+      const timer = setTimeout(doPoll, 1000)
+      serverInfoPollTimers.set(addressId, timer)
+    }
+
+    doPoll()
+  }
+
+  // 获取指定 addressId 的服务器信息
+  // forceRefresh = true 时，先立即同步获取一次并等待完成，再启动轮询做后续确认
+  async function getServerInfo(addressId, forceRefresh = false) {
+    if (forceRefresh) {
+      await fetchServerInfo(addressId)
+      pollServerInfo(addressId)
+    }
+    return serverInfoMap.get(addressId) || null
+  }
+
+  // 主服务器当前电台信息
+  const primaryServerInfo = computed(() => {
+    if (!primaryAddressId.value) return null
+    return serverInfoMap.get(primaryAddressId.value) || null
+  })
+
   // 清空所有发言历史
   function clearSpeakingHistory() {
     // 清空所有服务器的当前发言者和历史
@@ -502,6 +622,11 @@ export function useSpeakingStatus() {
     for (const addressId of speakingHistoryCleanupTimers.keys()) {
       stopSpeakingHistoryCleanup(addressId)
     }
+    // 停止所有服务器信息轮询
+    for (const timer of serverInfoPollTimers.values()) {
+      clearTimeout(timer)
+    }
+    serverInfoPollTimers.clear()
     disconnectAllEventWs()
   })
 
@@ -519,6 +644,12 @@ export function useSpeakingStatus() {
     // 新增的方法
     getSpeakingHistoryFor, // method - 获取指定服务器的发言历史
     isAddressConnected, // method - 检查指定 addressId 的连接状态
+
+    // 服务器信息
+    primaryAddressId, // ref - 主服务器 addressId
+    primaryServerInfo, // computed - 主服务器当前电台信息
+    getServerInfo, // method - 获取指定服务器信息，支持 forceRefresh 强制轮询
+    updateServerInfo, // 手动更新服务器信息（供外部调用）
 
     // 原有导出
     eventsConnected, // computed - 任一连接存活即为 true

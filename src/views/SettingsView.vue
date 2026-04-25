@@ -67,17 +67,12 @@
                   </span>
                   {{ addr.name }}
                   <!-- 主服务器标签 -->
-                  <span
-                    v-if="multiSelectMode && addr.id === activeAddressId"
-                    class="primary-badge"
+                  <span v-if="multiSelectMode && addr.id === activeAddressId" class="primary-badge"
                     >主服务器</span
                   >
                 </div>
                 <div class="address-url">{{ addr.protocol }}://{{ addr.host }}</div>
-                <div
-                  v-if="addr.id === activeAddressId && addr.userInfo"
-                  class="address-user-info"
-                >
+                <div v-if="addr.id === activeAddressId && addr.userInfo" class="address-user-info">
                   <span v-if="addr.userInfo.callsign" class="user-callsign">{{
                     addr.userInfo.callsign
                   }}</span>
@@ -185,10 +180,7 @@
               {{ getSyncFullButtonText }}
             </button>
           </div>
-          <div
-            v-if="addressList.length > 0"
-            class="setting-item-buttons setting-item-buttons-full"
-          >
+          <div v-if="addressList.length > 0" class="setting-item-buttons setting-item-buttons-full">
             <button
               class="btn-ghost"
               :disabled="!fmoAddress || syncing"
@@ -231,9 +223,7 @@
             <span class="setting-label">数据管理</span>
           </div>
           <div class="setting-item-data-row">
-            <button class="btn-primary btn-full" @click="$emit('select-files')">
-              导入FMO日志
-            </button>
+            <button class="btn-primary btn-full" @click="$emit('select-files')">导入FMO日志</button>
           </div>
           <div class="setting-item-data-row">
             <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">

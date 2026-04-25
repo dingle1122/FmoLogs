@@ -34,18 +34,16 @@
                 <div class="history-callsign-area">
                   <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
                   <span class="history-callsign">
-                  <!-- 多选模式下显示服务器标签 -->
-                  <span
-                    v-if="multiSelectMode && record.addressId"
-                    class="server-tag"
-                    >{{ getServerName(record.addressId) }}</span
-                  >
-                  {{ record.callsign }}
-                  <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
-                  <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
-                    >&#11088;</span
-                  >
-                </span>
+                    <!-- 多选模式下显示服务器标签 -->
+                    <span v-if="multiSelectMode && record.addressId" class="server-tag">{{
+                      getServerName(record.addressId)
+                    }}</span>
+                    {{ record.callsign }}
+                    <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
+                    <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
+                      >&#11088;</span
+                    >
+                  </span>
                 </div>
                 <div class="history-time">
                   <div class="speaking-time">
@@ -57,9 +55,14 @@
                   </div>
                 </div>
               </div>
-              <div v-if="record.grid" class="history-address-row">
-                <span class="history-grid-tag">{{ record.grid }}</span>
-                <span v-if="gridAddressMap[record.grid]" class="history-address-text">{{ gridAddressMap[record.grid] }}</span>
+              <div v-if="record.grid || record.serverUid" class="history-address-row">
+                <span v-if="record.serverUid" class="history-server-tag">{{
+                  formatServerInfo(record.serverUid, record.serverName)
+                }}</span>
+                <span v-if="record.grid" class="history-grid-tag">{{ record.grid }}</span>
+                <span v-if="gridAddressMap[record.grid]" class="history-address-text">{{
+                  gridAddressMap[record.grid]
+                }}</span>
               </div>
             </div>
           </div>
@@ -214,6 +217,13 @@ function getServerName(addressId) {
   if (address.numId) return address.numId.toString()
   const index = props.addressList.findIndex((a) => a.id === addressId)
   return index !== -1 ? (index + 1).toString() : '?'
+}
+
+// 格式化服务器信息：uid 服务器名称（服务器名称最多10个字符）
+function formatServerInfo(uid, name) {
+  const serverName = name || ''
+  const displayName = serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
+  return `${uid} ${displayName}`
 }
 
 defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-open-list'])
@@ -398,9 +408,17 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   align-items: center;
 }
 
+.history-server-tag {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-primary);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
 .history-grid-tag {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-tertiary);
   line-height: 1;
   flex-shrink: 0;
@@ -415,7 +433,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 
 .history-address-text {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
