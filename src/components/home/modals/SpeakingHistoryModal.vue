@@ -219,11 +219,10 @@ function getServerName(addressId) {
   return index !== -1 ? (index + 1).toString() : '?'
 }
 
-// 格式化服务器信息：uid 服务器名称（服务器名称最多10个字符）
+// 格式化服务器信息：仅显示服务器名称（最多10个字符）
 function formatServerInfo(uid, name) {
   const serverName = name || ''
-  const displayName = serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
-  return `${uid} ${displayName}`
+  return serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
 }
 
 defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-open-list'])
