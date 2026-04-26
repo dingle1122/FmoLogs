@@ -933,8 +933,8 @@ export async function getAllRecordsFromIndexedDB(
       pageSize,
       totalPages: 0,
       columns: [
-        'timestamp',
         'dailyIndex',
+        'timestamp',
         'toCallsign',
         'fromCallsign',
         'freqHz',
@@ -999,8 +999,8 @@ export async function getAllRecordsFromIndexedDB(
     pageSize,
     totalPages,
     columns: [
-      'timestamp',
       'dailyIndex',
+      'timestamp',
       'toCallsign',
       'fromCallsign',
       'freqHz',

@@ -24,7 +24,17 @@
             :class="{ 'row-today': isTodayContact(row.timestamp) }"
             @click="$emit('show-detail', row)"
           >
-            <td v-for="col in queryResult.columns" :key="col" :class="'col-' + col">
+            <td
+              v-for="col in queryResult.columns"
+              :key="col"
+              :class="[
+                'col-' + col,
+                col === 'dailyIndex' && row.dailyIndex === 1 ? 'rank-bg-1' : '',
+                col === 'dailyIndex' && row.dailyIndex === 2 ? 'rank-bg-2' : '',
+                col === 'dailyIndex' && row.dailyIndex === 3 ? 'rank-bg-3' : '',
+                col === 'dailyIndex' && isTodayContact(row.timestamp) && row.dailyIndex > 3 ? 'today-index' : ''
+              ]"
+            >
               <template v-if="col === 'timestamp'">
                 <div class="timestamp-div">
                   <div>{{ formatDatePart(formatTimestamp(row[col])) }}</div>
@@ -40,7 +50,7 @@
                       'rank-2': row.dailyIndex === 2,
                       'rank-3': row.dailyIndex === 3
                     }"
-                    >{{ row.dailyIndex }}</span
+                    >#{{ row.dailyIndex }}</span
                   >
                 </div>
               </template>
@@ -365,30 +375,40 @@ function formatTimePart(dateTimeStr) {
 }
 
 .daily-index {
-  display: inline-block;
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: var(--text-secondary);
-  background: var(--bg-disabled);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  min-width: 1.8rem;
-  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .daily-index.rank-1 {
-  color: var(--text-white);
-  background: linear-gradient(135deg, #f7c247, #e6a23c);
+  color: #c69500;
+  font-weight: 700;
 }
 
 .daily-index.rank-2 {
-  color: var(--text-white);
-  background: linear-gradient(135deg, #a8b0ba, #909399);
+  color: #5c6b7f;
+  font-weight: 700;
 }
 
 .daily-index.rank-3 {
-  color: var(--text-white);
-  background: linear-gradient(135deg, #cd8c52, #b87333);
+  color: #a0522d;
+  font-weight: 700;
+}
+
+.col-dailyIndex.rank-bg-1 {
+  background-color: #fffbe6;
+}
+
+.col-dailyIndex.rank-bg-2 {
+  background-color: #f2f3f5;
+}
+
+.col-dailyIndex.rank-bg-3 {
+  background-color: #fce8d5;
+}
+
+.col-dailyIndex.today-index {
+  background-color: #f0fdf4;
 }
 
 .daily-index-cell {
