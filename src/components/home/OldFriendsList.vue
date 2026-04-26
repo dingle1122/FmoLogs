@@ -16,7 +16,12 @@
               <span class="contact-count">&nbsp;x{{ item.count }}</span>
             </div>
           </div>
-          <div class="friend-grid">{{ item.toGrid || '-' }}</div>
+          <div class="friend-grid">
+            <span v-if="item.toGrid">{{ item.toGrid }}</span>
+            <span v-if="item.toGrid && gridAddressMap[item.toGrid]">&nbsp;</span>
+            <span v-if="gridAddressMap[item.toGrid]" class="friend-address">{{ gridAddressMap[item.toGrid] }}</span>
+            <span v-if="!item.toGrid">-</span>
+          </div>
           <div class="friend-time">
             <div class="time-label">首次：{{ formatTimestampMinute(item.firstTime) }}</div>
             <div class="time-label">最新：{{ formatTimestampMinute(item.latestTime) }}</div>
@@ -38,8 +43,9 @@
 
 <script setup>
 /* global IntersectionObserver */
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, reactive } from 'vue'
 import { formatTimestampMinute, isTodayContact } from './constants'
+import { gridToAddress } from '../../services/gridService.js'
 
 const props = defineProps({
   oldFriendsResult: {
@@ -61,6 +67,32 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['show-records', 'load-more'])
+
+const gridAddressMap = reactive({})
+
+function formatGridAddress(data) {
+  if (!data) return ''
+  return data.city || data.province || ''
+}
+
+async function loadGridAddresses() {
+  if (!props.oldFriendsResult?.data) return
+  const grids = new Set()
+  for (const item of props.oldFriendsResult.data) {
+    if (item.toGrid) grids.add(item.toGrid)
+  }
+  for (const grid of grids) {
+    if (gridAddressMap[grid]) continue
+    try {
+      const result = await gridToAddress(grid)
+      gridAddressMap[grid] = formatGridAddress(result)
+    } catch {
+      gridAddressMap[grid] = ''
+    }
+  }
+}
+
+watch(() => props.oldFriendsResult, loadGridAddresses, { immediate: true, deep: true })
 
 const containerRef = ref(null)
 const loadMoreRef = ref(null)
@@ -154,6 +186,7 @@ watch(
     transform 0.2s,
     box-shadow 0.2s;
   cursor: pointer;
+  min-width: 0;
 }
 
 .friend-card:hover {
@@ -187,12 +220,22 @@ watch(
 .friend-grid {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.friend-address {
+  font-weight: 400;
 }
 
 .friend-time {
   font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.5;
+  min-width: 0;
 }
 
 .friend-time .time-label {
