@@ -830,20 +830,12 @@ export async function getContactCountsFromIndexedDB(fromCallsign = null) {
   return countsMap
 }
 
-// 获取特定呼号的通联记录
-export async function getCallsignRecordsFromIndexedDB(
-  callsign,
-  page = 1,
-  pageSize = 10,
-  fromCallsign = null
-) {
+// 获取特定呼号的通联记录（全部加载，不分页）
+export async function getCallsignRecordsFromIndexedDB(callsign, fromCallsign = null) {
   if (!fromCallsign) {
     return {
       data: [],
       total: 0,
-      page,
-      pageSize,
-      totalPages: 0,
       columns: [
         'timestamp',
         'toCallsign',
@@ -864,18 +856,9 @@ export async function getCallsignRecordsFromIndexedDB(
   // 按时间倒序排序
   filtered.sort((a, b) => b.timestamp - a.timestamp)
 
-  // 分页
-  const total = filtered.length
-  const totalPages = Math.ceil(total / pageSize)
-  const start = (page - 1) * pageSize
-  const data = filtered.slice(start, start + pageSize)
-
   return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages,
+    data: filtered,
+    total: filtered.length,
     columns: [
       'timestamp',
       'toCallsign',

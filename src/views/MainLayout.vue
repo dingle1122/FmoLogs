@@ -109,9 +109,8 @@
       :visible="callsignRecords.showCallsignModal.value"
       :callsign="callsignRecords.currentCallsign.value"
       :records="callsignRecords.callsignRecords.value"
-      :current-page="callsignRecords.callsignRecordsPage.value"
+      :highlight-timestamp="callsignRecords.highlightTimestamp.value"
       @close="callsignRecords.closeCallsignModal()"
-      @page-change="handleCallsignRecordsPageChange"
     />
 
     <!-- 隐藏的文件输入 -->
@@ -529,12 +528,14 @@ function scrollToTop() {
   contentAreaRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-async function handleShowCallsignRecords(callsign) {
-  await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value)
-}
-
-async function handleCallsignRecordsPageChange(page) {
-  await callsignRecords.goToCallsignRecordsPage(page, selectedFromCallsign.value)
+async function handleShowCallsignRecords(payload) {
+  let callsign = payload
+  let timestamp = null
+  if (typeof payload === 'object' && payload !== null) {
+    callsign = payload.callsign
+    timestamp = payload.timestamp
+  }
+  await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value, timestamp)
 }
 
 // 数据库操作

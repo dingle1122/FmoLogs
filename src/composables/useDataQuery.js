@@ -222,44 +222,36 @@ export function useDataQuery() {
 // 通联记录查询 composable
 export function useCallsignRecords() {
   const callsignRecords = ref(null)
-  const callsignRecordsPage = ref(1)
   const currentCallsign = ref('')
   const showCallsignModal = ref(false)
+  const highlightTimestamp = ref(null)
 
   async function loadCallsignRecords(selectedFromCallsign) {
     callsignRecords.value = await getCallsignRecordsFromIndexedDB(
       currentCallsign.value,
-      callsignRecordsPage.value,
-      10,
       selectedFromCallsign
     )
   }
 
-  async function showCallsignRecordsModal(callsign, selectedFromCallsign) {
+  async function showCallsignRecordsModal(callsign, selectedFromCallsign, targetTimestamp = null) {
     currentCallsign.value = callsign
-    callsignRecordsPage.value = 1
+    highlightTimestamp.value = targetTimestamp
     await loadCallsignRecords(selectedFromCallsign)
     showCallsignModal.value = true
   }
 
-  async function goToCallsignRecordsPage(page, selectedFromCallsign) {
-    if (!callsignRecords.value || page < 1 || page > callsignRecords.value.totalPages) return
-    callsignRecordsPage.value = page
-    await loadCallsignRecords(selectedFromCallsign)
-  }
-
   function closeCallsignModal() {
     showCallsignModal.value = false
+    highlightTimestamp.value = null
   }
 
   return {
     callsignRecords,
-    callsignRecordsPage,
     currentCallsign,
     showCallsignModal,
+    highlightTimestamp,
     loadCallsignRecords,
     showCallsignRecordsModal,
-    goToCallsignRecordsPage,
     closeCallsignModal
   }
 }

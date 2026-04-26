@@ -22,7 +22,7 @@
             v-for="(row, index) in queryResult.data"
             :key="index"
             :class="{ 'row-today': isTodayContact(row.timestamp) }"
-            @click="$emit('show-detail', row)"
+            @click="handleRowClick(row)"
           >
             <td
               v-for="col in queryResult.columns"
@@ -32,7 +32,9 @@
                 col === 'dailyIndex' && row.dailyIndex === 1 ? 'rank-bg-1' : '',
                 col === 'dailyIndex' && row.dailyIndex === 2 ? 'rank-bg-2' : '',
                 col === 'dailyIndex' && row.dailyIndex === 3 ? 'rank-bg-3' : '',
-                col === 'dailyIndex' && isTodayContact(row.timestamp) && row.dailyIndex > 3 ? 'today-index' : ''
+                col === 'dailyIndex' && isTodayContact(row.timestamp) && row.dailyIndex > 3
+                  ? 'today-index'
+                  : ''
               ]"
             >
               <template v-if="col === 'timestamp'">
@@ -74,7 +76,9 @@
                   <div v-if="row.toGrid || gridAddressMap[row.toGrid]" class="callsign-grid">
                     <span v-if="row.toGrid">{{ row.toGrid }}</span>
                     <span v-if="row.toGrid && gridAddressMap[row.toGrid]">&nbsp;</span>
-                    <span v-if="gridAddressMap[row.toGrid]" class="callsign-address">{{ gridAddressMap[row.toGrid] }}</span>
+                    <span v-if="gridAddressMap[row.toGrid]" class="callsign-address">
+                      {{ gridAddressMap[row.toGrid] }}
+                    </span>
                   </div>
                 </div>
               </template>
@@ -134,7 +138,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['show-detail', 'load-more'])
+const emit = defineEmits(['show-callsign-records', 'load-more'])
+
+function handleRowClick(row) {
+  emit('show-callsign-records', { callsign: row.toCallsign, timestamp: row.timestamp })
+}
 
 const gridAddressMap = reactive({})
 

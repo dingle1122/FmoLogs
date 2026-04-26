@@ -5,20 +5,24 @@
         <h3>{{ callsign }} &#11088; {{ records ? records.total : 0 }}</h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
-      <div class="modal-body">
+      <div ref="modalBodyRef" class="modal-body">
         <div v-if="records && records.data.length > 0" class="record-cards-grid">
           <div
             v-for="(record, index) in records.data"
-            :key="'record-' + index"
+            :key="record.timestamp + '-' + index"
+            ref="cardRefs"
             class="record-card"
-            :class="{ 'today-record': isTodayContact(record.timestamp) }"
+            :class="{
+              'today-record': isTodayContact(record.timestamp),
+              'highlighted-record': highlightTimestamp === record.timestamp
+            }"
           >
             <div class="record-row">
               <span class="record-label">日期：</span>
               <span class="record-value">{{ formatTimestamp(record.timestamp) }}</span>
             </div>
             <div class="record-row">
-              <span class="record-label">对方呼号：</span>
+              <span class="record-label">接收方：</span>
               <span class="record-value">{{ record.toCallsign }} / {{ record.toGrid || '-' }}</span>
             </div>
             <div class="record-row">
@@ -46,42 +50,16 @@
         </div>
         <div v-else class="empty-hint">暂无记录</div>
       </div>
-      <div v-if="records && records.totalPages > 1" class="modal-footer">
-        <div class="pagination">
-          <button
-            :disabled="currentPage === 1"
-            class="hidden-on-small"
-            @click="$emit('page-change', 1)"
-          >
-            首页
-          </button>
-          <button :disabled="currentPage === 1" @click="$emit('page-change', currentPage - 1)">
-            上一页
-          </button>
-          <span class="page-info">第 {{ currentPage }} / {{ records.totalPages }} 页</span>
-          <button
-            :disabled="currentPage === records.totalPages"
-            @click="$emit('page-change', currentPage + 1)"
-          >
-            下一页
-          </button>
-          <button
-            :disabled="currentPage === records.totalPages"
-            class="hidden-on-small"
-            @click="$emit('page-change', records.totalPages)"
-          >
-            末页
-          </button>
-        </div>
-      </div>
+
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, watch, nextTick } from 'vue'
 import { formatTimestamp, formatFreqHz, isTodayContact } from '../constants'
 
-defineProps({
+const props = defineProps({
   visible: {
     type: Boolean,
     default: false
@@ -94,13 +72,39 @@ defineProps({
     type: Object,
     default: null
   },
-  currentPage: {
+  highlightTimestamp: {
     type: Number,
-    default: 1
+    default: null
   }
 })
 
-defineEmits(['close', 'page-change'])
+const emit = defineEmits(['close'])
+
+const cardRefs = ref([])
+const modalBodyRef = ref(null)
+
+function scrollToHighlight() {
+  if (!props.highlightTimestamp || !props.records?.data?.length) return
+  const index = props.records.data.findIndex(
+    (r) => r.timestamp === props.highlightTimestamp
+  )
+  if (index === -1) return
+  const el = cardRefs.value[index]
+  if (!el || !modalBodyRef.value) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+watch(
+  () => [props.visible, props.records],
+  ([newVisible]) => {
+    if (newVisible && props.highlightTimestamp) {
+      nextTick(() => {
+        setTimeout(scrollToHighlight, 100)
+      })
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>
@@ -197,40 +201,15 @@ defineEmits(['close', 'page-change'])
   border-color: var(--border-today-card);
 }
 
+.record-card.highlighted-record {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
 .empty-hint {
   text-align: center;
   color: var(--text-tertiary);
   padding: 3rem;
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.pagination button {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-primary);
-  background: var(--bg-container);
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-primary);
-}
-
-.pagination button:hover:not(:disabled) {
-  background: var(--bg-table-hover);
-}
-
-.pagination button:disabled {
-  color: var(--text-disabled);
-  cursor: not-allowed;
-}
-
-.page-info {
-  margin: 0 1rem;
-  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {
@@ -246,28 +225,6 @@ defineEmits(['close', 'page-change'])
   .modal-body {
     padding: 0.75rem;
     max-height: calc(80vh - 120px);
-  }
-
-  .modal-footer {
-    padding: 0.5rem;
-  }
-
-  .modal-footer .pagination {
-    gap: 0.25rem;
-  }
-
-  .modal-footer .pagination button {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .modal-footer .page-info {
-    font-size: 0.75rem;
-    margin: 0 0.25rem;
-  }
-
-  .pagination .hidden-on-small {
-    display: none;
   }
 }
 </style>

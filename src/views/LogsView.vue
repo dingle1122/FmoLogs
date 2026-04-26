@@ -27,7 +27,7 @@
       :loading-more="loadingMore"
       :has-more="hasMore"
       :contact-counts="contactCounts"
-      @show-detail="$emit('show-detail', $event)"
+      @show-callsign-records="handleShowCallsignRecords"
       @load-more="handleLoadMore"
     />
 
@@ -68,7 +68,11 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['execute-query', 'show-detail'])
+const emit = defineEmits(['execute-query', 'show-callsign-records'])
+
+function handleShowCallsignRecords(payload) {
+  emit('show-callsign-records', payload)
+}
 
 // 滚动加载状态
 const loadingMore = ref(false)
