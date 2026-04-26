@@ -8,7 +8,7 @@
         <CallsignInput
           id="search-keyword"
           :model-value="searchKeyword"
-          placeholder="接收方呼号"
+          placeholder="对方呼号"
           :disabled="!dbLoaded"
           @update:model-value="$emit('update:searchKeyword', $event)"
         />

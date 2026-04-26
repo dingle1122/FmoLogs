@@ -253,9 +253,7 @@ export const ColumnNames = {
   dailyIndex: '序号',
   timestamp: '日期',
   freqHz: '频率(MHz)',
-  fromCallsign: '您的呼号',
-  fromGrid: '发送网格',
-  toCallsign: '接收方呼号',
+  toCallsign: '对方呼号',
   toGrid: '接收网格',
   toComment: '留言',
   mode: '模式',
@@ -718,7 +716,7 @@ export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
 
   const allRecords = await getDataFromIndexedDB(fromCallsign)
 
-  // 接收方呼号统计
+  // 对方呼号统计
   const toCallsignMap = new Map()
   for (const record of allRecords) {
     const key = record.toCallsign || ''
@@ -851,8 +849,6 @@ export async function getCallsignRecordsFromIndexedDB(
         'toCallsign',
         'toGrid',
         'freqHz',
-        'fromCallsign',
-        'fromGrid',
         'toComment',
         'mode',
         'relayName'
@@ -885,8 +881,6 @@ export async function getCallsignRecordsFromIndexedDB(
       'toCallsign',
       'toGrid',
       'freqHz',
-      'fromCallsign',
-      'fromGrid',
       'toComment',
       'mode',
       'relayName'
@@ -936,7 +930,6 @@ export async function getAllRecordsFromIndexedDB(
         'dailyIndex',
         'timestamp',
         'toCallsign',
-        'fromCallsign',
         'freqHz',
         'toComment',
         'mode',
@@ -1002,7 +995,6 @@ export async function getAllRecordsFromIndexedDB(
       'dailyIndex',
       'timestamp',
       'toCallsign',
-      'fromCallsign',
       'freqHz',
       'toComment',
       'mode',

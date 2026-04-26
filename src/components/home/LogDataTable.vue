@@ -78,12 +78,6 @@
                   </div>
                 </div>
               </template>
-              <template v-else-if="col === 'fromCallsign'">
-                <div class="callsign-with-grid">
-                  <div>{{ row.fromCallsign }}</div>
-                  <div v-if="row.fromGrid" class="callsign-grid">{{ row.fromGrid }}</div>
-                </div>
-              </template>
               <template v-else>
                 {{ row[col] }}
               </template>
@@ -298,20 +292,11 @@ function formatTimePart(dateTimeStr) {
 .col-freqHz {
   width: 95px;
 }
-.col-fromCallsign {
-  width: 100px;
-}
-.col-fromGrid {
-  width: 100px;
-}
 .col-toCallsign {
-  width: 210px;
-}
-.col-toGrid {
-  width: 100px;
+  width: 240px;
 }
 .col-toComment {
-  width: auto;
+  width: 100%;
 }
 .col-mode {
   width: 80px;
@@ -523,7 +508,6 @@ function formatTimePart(dateTimeStr) {
 
 @media (max-width: 1024px) {
   .col-freqHz,
-  .col-fromCallsign,
   .col-mode,
   .col-relayName {
     display: none;
@@ -556,7 +540,6 @@ function formatTimePart(dateTimeStr) {
 
 @media (max-width: 480px) {
   .col-freqHz,
-  .col-fromCallsign,
   .col-toComment,
   .col-mode,
   .col-relayName {

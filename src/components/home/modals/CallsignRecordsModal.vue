@@ -18,7 +18,7 @@
               <span class="record-value">{{ formatTimestamp(record.timestamp) }}</span>
             </div>
             <div class="record-row">
-              <span class="record-label">接收方：</span>
+              <span class="record-label">对方呼号：</span>
               <span class="record-value">{{ record.toCallsign }} / {{ record.toGrid || '-' }}</span>
             </div>
             <div class="record-row">

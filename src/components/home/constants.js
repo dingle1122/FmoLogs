@@ -49,7 +49,6 @@ export const ALL_PAGE_ROUTES = [...NAV_ROUTES, ...MORE_ROUTES]
 export const DEFAULT_COLUMNS = [
   'timestamp',
   'toCallsign',
-  'fromCallsign',
   'freqHz',
   'toComment',
   'mode',
