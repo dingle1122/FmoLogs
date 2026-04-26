@@ -260,8 +260,8 @@ function formatTimePart(dateTimeStr) {
 
 .data-table th,
 .data-table td {
-  border-bottom: 1px solid var(--border-table);
-  border-right: 1px solid var(--border-table);
+  border-bottom: 1px solid #b0b0b0;
+  border-right: 1px solid #b0b0b0;
   padding: 0.5rem;
   text-align: left;
   word-wrap: break-word;
@@ -270,7 +270,7 @@ function formatTimePart(dateTimeStr) {
 
 .data-table th:first-child,
 .data-table td:first-child {
-  border-left: 1px solid var(--border-table);
+  border-left: 1px solid #b0b0b0;
 }
 
 .data-table th {
@@ -280,7 +280,7 @@ function formatTimePart(dateTimeStr) {
   top: 0;
   z-index: 1;
   text-align: center;
-  border-top: 1px solid var(--border-table);
+  border-top: 1px solid #b0b0b0;
 }
 
 /* 列宽设置 */
@@ -395,39 +395,53 @@ function formatTimePart(dateTimeStr) {
   font-weight: 700;
 }
 
-.col-dailyIndex.rank-bg-1 {
-  background-color: #fffbe6;
+/* ========== 序号列背景色（按优先级分层） ========== */
+
+/* 基础层：默认序号列 */
+.data-table tbody td.col-dailyIndex {
+  background-color: #e8eaf0;
 }
 
-.col-dailyIndex.rank-bg-2 {
-  background-color: #f2f3f5;
+/* 状态层：今日通联行 */
+.data-table tbody tr.row-today td {
+  background-color: #d9f2c8;
+  border-color: #6aaa50;
 }
 
-.col-dailyIndex.rank-bg-3 {
-  background-color: #fce8d5;
+.data-table tbody tr.row-today td.col-dailyIndex,
+.data-table tbody tr.row-today td.col-dailyIndex.today-index {
+  background-color: #a3d184;
 }
 
-.col-dailyIndex.today-index {
+/* 特殊层：排名 & today-index（覆盖所有状态） */
+.data-table tbody tr td.col-dailyIndex.rank-bg-1 {
+  background-color: #f5e6a3;
+}
+.data-table tbody tr td.col-dailyIndex.rank-bg-2 {
+  background-color: #d0d4db;
+}
+.data-table tbody tr td.col-dailyIndex.rank-bg-3 {
+  background-color: #f0c898;
+}
+.data-table tbody tr td.col-dailyIndex.today-index {
   background-color: #f0fdf4;
+}
+
+/* 交互层：hover */
+.data-table tbody tr:hover:not(.empty-row) td {
+  background-color: var(--bg-table-hover);
+  cursor: pointer;
+}
+
+.data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex[class*='rank-bg'],
+.data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex.today-index {
+  background-color: var(--bg-table-hover);
 }
 
 .daily-index-cell {
   display: flex;
   justify-content: center;
   align-items: center;
-}
-
-.data-table tbody tr.row-today {
-  background-color: var(--bg-today-row);
-}
-
-.data-table tbody tr.row-today td {
-  border-color: var(--border-today-row);
-}
-
-.data-table tbody tr:hover:not(.empty-row) {
-  background: var(--bg-table-hover);
-  cursor: pointer;
 }
 
 .data-table tbody tr {
@@ -464,6 +478,46 @@ function formatTimePart(dateTimeStr) {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  /* 恢复深色模式边框 */
+  .data-table th,
+  .data-table td,
+  .data-table th:first-child,
+  .data-table td:first-child {
+    border-color: #404040;
+  }
+
+  /* 基础层：默认序号列 */
+  .data-table tbody td.col-dailyIndex {
+    background-color: #363636;
+  }
+
+  /* 状态层：今日通联行 */
+  .data-table tbody tr.row-today td {
+    background-color: #2d5a2d;
+    border-color: #1a3a1a;
+  }
+
+  .data-table tbody tr.row-today td.col-dailyIndex,
+  .data-table tbody tr.row-today td.col-dailyIndex.today-index {
+    background-color: #254a25;
+  }
+
+  /* 特殊层：排名 & today-index */
+  .data-table tbody tr td.col-dailyIndex.rank-bg-1 {
+    background-color: #5c4a1a;
+  }
+  .data-table tbody tr td.col-dailyIndex.rank-bg-2 {
+    background-color: #4a4a4a;
+  }
+  .data-table tbody tr td.col-dailyIndex.rank-bg-3 {
+    background-color: #5c3a1a;
+  }
+  .data-table tbody tr td.col-dailyIndex.today-index {
+    background-color: #1a3a1a;
   }
 }
 
