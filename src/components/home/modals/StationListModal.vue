@@ -2,13 +2,21 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-station-list">
       <div class="modal-header">
-        <input
-          v-model="searchQuery"
-          type="text"
-          class="search-input"
-          placeholder="查询信道"
-          @keydown.enter.prevent
-        />
+        <div class="search-area">
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="查询信道"
+            @keydown.enter.prevent
+          />
+          <label class="pin-filter" @click.prevent="showPinnedOnly = !showPinnedOnly">
+            <span>仅收藏</span>
+            <span class="toggle-switch" :class="{ active: showPinnedOnly }">
+              <span class="toggle-slider"></span>
+            </span>
+          </label>
+        </div>
         <div class="header-actions">
           <button
             class="refresh-btn"
@@ -32,6 +40,7 @@
             :title="station.name"
             @click="handleSelect(station.uid)"
           >
+            <span v-if="station.isPinned" class="pin-badge">收藏</span>
             {{ station.name }}
             <span
               v-if="showPrimaryBadge && currentStation?.uid === station.uid"
@@ -48,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   visible: {
@@ -76,26 +85,43 @@ const props = defineProps({
 const emit = defineEmits(['close', 'select', 'refresh'])
 
 const searchQuery = ref('')
+const showPinnedOnly = ref(false)
+
+// 弹框关闭后重置开关状态
+watch(
+  () => props.visible,
+  (val) => {
+    if (!val) {
+      showPinnedOnly.value = false
+      searchQuery.value = ''
+    }
+  }
+)
 
 const filteredStationList = computed(() => {
+  let list = props.stationList
+
+  // 仅显示收藏
+  if (showPinnedOnly.value) {
+    list = list.filter((station) => station.isPinned)
+  }
+
   const query = searchQuery.value.trim()
   if (!query) {
-    return props.stationList
+    return list
   }
 
   // #开头的按uid精确查询
   if (query.startsWith('#')) {
     const uid = query.slice(1).trim()
     if (!uid) {
-      return props.stationList
+      return list
     }
-    return props.stationList.filter((station) => String(station.uid) === uid)
+    return list.filter((station) => String(station.uid) === uid)
   }
 
   // 按名称模糊查询
-  return props.stationList.filter((station) =>
-    station.name?.toLowerCase().includes(query.toLowerCase())
-  )
+  return list.filter((station) => station.name?.toLowerCase().includes(query.toLowerCase()))
 })
 
 function handleSelect(uid) {
@@ -161,6 +187,52 @@ function handleSelect(uid) {
   border-color: var(--color-success);
 }
 
+.search-area {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pin-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  background: var(--border-secondary, #ccc);
+  border-radius: 9px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-switch.active {
+  background: var(--color-success, #67c23a);
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-switch.active .toggle-slider {
+  transform: translateX(14px);
+}
+
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
 .title-primary-badge {
   background: rgba(103, 194, 58, 0.15);
@@ -218,6 +290,7 @@ function handleSelect(uid) {
 }
 
 .station-item {
+  position: relative;
   padding: 0.8rem 1.2rem;
   border: 2px solid rgba(150, 150, 150, 0.3);
   background: var(--bg-card);
@@ -233,6 +306,20 @@ function handleSelect(uid) {
   text-overflow: ellipsis;
 }
 
+.pin-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-warning, #e6a23c);
+  line-height: 1;
+  pointer-events: none;
+  background: rgba(230, 162, 60, 0.22);
+  border-radius: 3px;
+  padding: 3px;
+}
+
 .station-item:hover:not(:disabled) {
   background: var(--bg-table-hover);
   color: var(--text-primary);
@@ -243,6 +330,12 @@ function handleSelect(uid) {
   background: var(--color-success);
   border-color: var(--color-success);
   color: white;
+}
+
+.station-item.active .pin-badge {
+  color: white;
+  background: rgba(255, 255, 255, 0.35);
+  font-weight: 300;
 }
 
 /* 信道按钮内的主标签样式 - 与 user-uid 同款绿色 */
