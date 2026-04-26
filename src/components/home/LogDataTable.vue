@@ -61,7 +61,11 @@
                       x{{ contactCounts.get(row.toCallsign) }}
                     </span>
                   </div>
-                  <div v-if="row.toGrid" class="callsign-grid">{{ row.toGrid }}</div>
+                  <div v-if="row.toGrid || gridAddressMap[row.toGrid]" class="callsign-grid">
+                    <span v-if="row.toGrid">{{ row.toGrid }}</span>
+                    <span v-if="row.toGrid && gridAddressMap[row.toGrid]">&nbsp;</span>
+                    <span v-if="gridAddressMap[row.toGrid]" class="callsign-address">{{ gridAddressMap[row.toGrid] }}</span>
+                  </div>
                 </div>
               </template>
               <template v-else-if="col === 'fromCallsign'">
@@ -95,8 +99,9 @@
 
 <script setup>
 /* global IntersectionObserver */
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { ColumnNames, formatTimestamp, formatFreqHz, isTodayContact } from './constants'
+import { gridToAddress } from '../../services/gridService.js'
 
 const props = defineProps({
   queryResult: {
@@ -126,6 +131,32 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['show-detail', 'load-more'])
+
+const gridAddressMap = reactive({})
+
+function formatGridAddress(data) {
+  if (!data) return ''
+  return data.city || data.province || ''
+}
+
+async function loadGridAddresses() {
+  if (!props.queryResult?.data) return
+  const grids = new Set()
+  for (const row of props.queryResult.data) {
+    if (row.toGrid) grids.add(row.toGrid)
+  }
+  for (const grid of grids) {
+    if (gridAddressMap[grid]) continue
+    try {
+      const result = await gridToAddress(grid)
+      gridAddressMap[grid] = formatGridAddress(result)
+    } catch {
+      gridAddressMap[grid] = ''
+    }
+  }
+}
+
+watch(() => props.queryResult, loadGridAddresses, { immediate: true, deep: true })
 
 const resultSectionRef = ref(null)
 const loadMoreRef = ref(null)
@@ -264,7 +295,7 @@ function formatTimePart(dateTimeStr) {
   width: 100px;
 }
 .col-toCallsign {
-  width: 140px;
+  width: 210px;
 }
 .col-toGrid {
   width: 100px;
@@ -314,6 +345,16 @@ function formatTimePart(dateTimeStr) {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-weight: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.callsign-address {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 400;
 }
 
 .contact-count {
@@ -406,6 +447,15 @@ function formatTimePart(dateTimeStr) {
   }
 }
 
+@media (max-width: 1024px) {
+  .col-freqHz,
+  .col-fromCallsign,
+  .col-mode,
+  .col-relayName {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .result-section {
     margin-top: 0.5rem;
@@ -421,11 +471,7 @@ function formatTimePart(dateTimeStr) {
     padding: 0.4rem;
   }
 
-  .col-freqHz,
-  .col-fromCallsign,
-  .col-toComment,
-  .col-mode,
-  .col-relayName {
+  .col-toComment {
     display: none;
   }
 
