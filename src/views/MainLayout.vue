@@ -313,6 +313,8 @@ const fmoSync = useFmoSync({
       await updateStats()
       if (showSpeakingHistory.value) {
         await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
+      }
+      if (selectedFromCallsign.value) {
         await settings.loadContactCounts(selectedFromCallsign.value)
       }
       // 如果通联记录弹框正在打开，自动刷新数据
@@ -935,10 +937,12 @@ watch(showSpeakingHistory, async (newValue) => {
 
 watch(
   () => selectedFromCallsign.value,
-  async () => {
-    if (showSpeakingHistory.value) {
-      await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
-      await settings.loadContactCounts(selectedFromCallsign.value)
+  async (newVal) => {
+    if (newVal) {
+      await settings.loadContactCounts(newVal)
+    }
+    if (showSpeakingHistory.value && newVal) {
+      await settings.loadTodayContactedCallsigns(newVal)
     }
   }
 )
