@@ -2,7 +2,13 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-station-list">
       <div class="modal-header">
-        <h3>选择信道 <span v-if="showPrimaryBadge" class="title-primary-badge">主</span></h3>
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="查询信道"
+          @keydown.enter.prevent
+        />
         <div class="header-actions">
           <button
             class="refresh-btn"
@@ -16,9 +22,9 @@
         </div>
       </div>
       <div class="modal-body">
-        <div v-if="stationList.length > 0" class="station-grid">
+        <div v-if="filteredStationList.length > 0" class="station-grid">
           <button
-            v-for="station in stationList"
+            v-for="station in filteredStationList"
             :key="station.uid"
             class="station-item"
             :class="{ active: currentStation?.uid === station.uid }"
@@ -42,6 +48,8 @@
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
+
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -66,6 +74,29 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'select', 'refresh'])
+
+const searchQuery = ref('')
+
+const filteredStationList = computed(() => {
+  const query = searchQuery.value.trim()
+  if (!query) {
+    return props.stationList
+  }
+
+  // #开头的按uid精确查询
+  if (query.startsWith('#')) {
+    const uid = query.slice(1).trim()
+    if (!uid) {
+      return props.stationList
+    }
+    return props.stationList.filter((station) => String(station.uid) === uid)
+  }
+
+  // 按名称模糊查询
+  return props.stationList.filter((station) =>
+    station.name?.toLowerCase().includes(query.toLowerCase())
+  )
+})
 
 function handleSelect(uid) {
   emit('select', uid)
@@ -96,7 +127,8 @@ function handleSelect(uid) {
 .modal-station-list {
   width: 550px;
   max-width: 90%;
-  max-height: 70vh;
+  height: 70vh;
+  min-height: 320px;
   display: flex;
   flex-direction: column;
 }
@@ -109,12 +141,24 @@ function handleSelect(uid) {
   border-bottom: 1px solid var(--border-light);
 }
 
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+.search-input {
+  width: 180px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-input, var(--bg-page));
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.search-input:focus {
+  border-color: var(--color-success);
 }
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
