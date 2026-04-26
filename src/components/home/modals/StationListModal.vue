@@ -29,7 +29,7 @@
           <button class="close-btn" @click="$emit('close')">&times;</button>
         </div>
       </div>
-      <div class="modal-body">
+      <div ref="modalBodyRef" class="modal-body">
         <div v-if="filteredStationList.length > 0" class="station-grid">
           <button
             v-for="station in filteredStationList"
@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   visible: {
@@ -86,17 +86,39 @@ const emit = defineEmits(['close', 'select', 'refresh'])
 
 const searchQuery = ref('')
 const showPinnedOnly = ref(false)
+const modalBodyRef = ref(null)
 
-// 弹框关闭后重置开关状态
+// 弹框关闭后重置开关状态，打开时滚动到当前选中项
 watch(
   () => props.visible,
-  (val) => {
+  async (val) => {
     if (!val) {
       showPinnedOnly.value = false
       searchQuery.value = ''
+      return
     }
+    await nextTick()
+    scrollToActiveStation()
   }
 )
+
+function scrollToActiveStation() {
+  const container = modalBodyRef.value
+  if (!container) return
+  const activeItem = container.querySelector('.station-item.active')
+  if (activeItem) {
+    const containerRect = container.getBoundingClientRect()
+    const itemRect = activeItem.getBoundingClientRect()
+    container.scrollTop =
+      container.scrollTop +
+      itemRect.top -
+      containerRect.top -
+      containerRect.height / 2 +
+      itemRect.height / 2
+  } else {
+    container.scrollTop = 0
+  }
+}
 
 const filteredStationList = computed(() => {
   let list = props.stationList
