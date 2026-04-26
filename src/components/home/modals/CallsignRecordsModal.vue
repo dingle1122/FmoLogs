@@ -135,25 +135,12 @@ defineEmits(['close', 'page-change'])
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
 .modal-header h3 {
   margin: 0;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
 }
 
 .modal-body {

@@ -254,6 +254,30 @@ button:focus-visible {
   outline: none;
 }
 
+/* 弹框关闭按钮 - macOS 红绿灯风格 */
+.close-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ff5f57;
+  border: none;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.close-btn:hover {
+  background: #ff4444;
+  color: rgba(0, 0, 0, 0.6);
+}
+
 .card {
   padding: 2em;
 }

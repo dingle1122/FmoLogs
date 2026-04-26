@@ -785,19 +785,6 @@ defineExpose({ clearConnecting, clearRefreshing })
   color: var(--text-primary);
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
-}
-
 .modal-body {
   padding: 1.5rem;
   height: 450px;

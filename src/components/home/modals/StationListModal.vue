@@ -105,7 +105,7 @@ function handleSelect(uid) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -159,19 +159,6 @@ function handleSelect(uid) {
 .refresh-btn:disabled {
   color: var(--text-tertiary);
   cursor: not-allowed;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
 }
 
 .modal-body {

@@ -1139,7 +1139,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -1147,20 +1147,6 @@ onUnmounted(() => {
   font-weight: 600;
   font-size: 1.1rem;
   color: var(--text-primary);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-  transition: color 0.2s;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
 }
 
 .dialog-body {

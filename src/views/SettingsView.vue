@@ -1306,7 +1306,7 @@ function handleVolumeChange(e) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
