@@ -1,7 +1,7 @@
 <template>
   <div class="date-picker">
     <div class="date-picker-trigger" @click="toggleCalendar">
-      <span class="trigger-text">{{ displayText }}</span>
+      <span class="trigger-text" :class="{ placeholder: !selectedDate }">{{ displayText }}</span>
       <span v-if="selectedDate" class="clear-btn" @click.stop="clearDate">×</span>
     </div>
 
@@ -293,6 +293,12 @@ onUnmounted(() => {
 
 .clear-btn:hover {
   color: var(--color-danger);
+}
+
+.trigger-text.placeholder {
+  color: var(--text-secondary);
+  font-weight: 350;
+  opacity: 0.85;
 }
 
 .calendar-backdrop {
