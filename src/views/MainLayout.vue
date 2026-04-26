@@ -453,8 +453,19 @@ async function fetchAllStations() {
   if (!client) return
   stationListLoading.value = true
   try {
-    const list = await client.getAllStations()
-    stationList.value = list
+    const [list, pinnedList] = await Promise.all([
+      client.getAllStations(),
+      client.getAllPinnedStations()
+    ])
+
+    // 将收藏信息合并到服务器列表
+    const pinnedUids = new Set(pinnedList.map((s) => s.uid))
+    const mergedList = list.map((station) => ({
+      ...station,
+      isPinned: pinnedUids.has(station.uid)
+    }))
+
+    stationList.value = mergedList
     stationListFetchedAt.value = Date.now()
     // 写入 localStorage 缓存
     try {

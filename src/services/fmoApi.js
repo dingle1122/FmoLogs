@@ -186,6 +186,24 @@ export class FmoApiClient {
     return all
   }
 
+  async getPinnedList(start = 0, count = 10) {
+    return this.sendRequest('station', 'getPinnedList', { start, count })
+  }
+
+  async getAllPinnedStations() {
+    const all = []
+    let start = 0
+    const count = 10
+    while (true) {
+      const result = await this.getPinnedList(start, count)
+      all.push(...result.list)
+      if (result.list.length < count) break
+      start += count
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    return all
+  }
+
   async getCurrentStation() {
     return this.sendRequest('station', 'getCurrent', {})
   }
