@@ -26,6 +26,7 @@
       :is-audio-playing="isAudioPlaying"
       :is-audio-muted="isAudioMuted"
       :today-contacted-callsigns="settings.todayContactedCallsigns.value"
+      :contact-counts="settings.contactCounts.value"
       @click="showSpeakingHistory = true"
       @toggle-audio="handleToggleAudio"
     />
@@ -53,6 +54,7 @@
           :selected-address-ids="settings.selectedAddressIds.value"
           :multi-sync-progress="fmoSync.multiSyncProgress.value"
           :audio-volume="settings.audioVolume.value"
+          :contact-counts="settings.contactCounts.value"
           @execute-query="executeQuery"
           @show-detail="showDetailModal"
           @show-callsign-records="handleShowCallsignRecords"
@@ -137,6 +139,7 @@
       :address-list="settings.addressList.value"
       :multi-select-mode="settings.multiSelectMode.value"
       :active-address-id="settings.activeAddressId.value"
+      :contact-counts="settings.contactCounts.value"
       @close="showSpeakingHistory = false"
       @show-callsign-records="handleShowCallsignRecords"
       @station-prev="handleStationPrev"
@@ -310,6 +313,7 @@ const fmoSync = useFmoSync({
       await updateStats()
       if (showSpeakingHistory.value) {
         await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
+        await settings.loadContactCounts(selectedFromCallsign.value)
       }
       // 如果通联记录弹框正在打开，自动刷新数据
       if (callsignRecords.showCallsignModal.value) {
@@ -925,6 +929,7 @@ async function handleToggleAddressSelection(id) {
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
     await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
+    await settings.loadContactCounts(selectedFromCallsign.value)
   }
 })
 
@@ -933,6 +938,7 @@ watch(
   async () => {
     if (showSpeakingHistory.value) {
       await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
+      await settings.loadContactCounts(selectedFromCallsign.value)
     }
   }
 )

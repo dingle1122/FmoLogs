@@ -20,6 +20,9 @@
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong>
               <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span>
               <span v-if="todayContactedCallsigns.has(speaker.callsign)" class="today-star">★</span>
+              <span v-if="contactCounts.get(speaker.callsign)" class="contact-count">
+                x{{ contactCounts.get(speaker.callsign) }}
+              </span>
               <span v-if="speaker.address" class="speaker-address">{{ speaker.address }}</span>
               <strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
             </span>
@@ -29,6 +32,9 @@
             正在发言: <strong>{{ currentSpeaker }}</strong>
             <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
             <span v-if="todayContactedCallsigns.has(currentSpeaker)" class="today-star">★</span>
+            <span v-if="contactCounts.get(currentSpeaker)" class="contact-count">
+              x{{ contactCounts.get(currentSpeaker) }}
+            </span>
             <span v-if="currentSpeakerAddress" class="speaker-address">{{
               currentSpeakerAddress
             }}</span>
@@ -103,6 +109,10 @@ const props = defineProps({
   todayContactedCallsigns: {
     type: Set,
     default: () => new Set()
+  },
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -281,6 +291,19 @@ defineEmits(['click', 'toggle-audio'])
   color: var(--text-tertiary);
   font-weight: 400;
   margin-left: 0.3em;
+}
+
+.contact-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 0.2em;
+  vertical-align: middle;
+  position: relative;
+  top: -0.08em;
+  line-height: 1;
 }
 
 @media (max-width: 768px) {

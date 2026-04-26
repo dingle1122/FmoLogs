@@ -43,6 +43,9 @@
                     <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
                       >&#11088;</span
                     >
+                    <span v-if="contactCounts.get(record.callsign)" class="contact-count"
+                      >x{{ contactCounts.get(record.callsign) }}</span
+                    >
                   </span>
                 </div>
                 <div class="history-time">
@@ -185,6 +188,10 @@ const props = defineProps({
   activeAddressId: {
     type: String,
     default: ''
+  },
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -405,6 +412,16 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   line-height: 1.6rem;
   display: inline-flex;
   align-items: center;
+}
+
+.contact-count {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.2rem;
 }
 
 .history-server-tag {

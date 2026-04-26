@@ -26,6 +26,7 @@
       :db-loaded="dbLoaded"
       :loading-more="loadingMore"
       :has-more="hasMore"
+      :contact-counts="contactCounts"
       @show-detail="$emit('show-detail', $event)"
       @load-more="handleLoadMore"
     />
@@ -60,7 +61,11 @@ const props = defineProps({
   error: String,
   importProgress: Object,
   fmoSyncMessage: String,
-  dataQuery: Object
+  dataQuery: Object,
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
+  }
 })
 
 const emit = defineEmits(['execute-query', 'show-detail'])

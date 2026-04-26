@@ -816,6 +816,22 @@ export async function getOldFriendsFromIndexedDB(
   return { data, total, page, pageSize, totalPages }
 }
 
+// 获取所有呼号的累计通联次数（返回 Map<toCallsign, count>）
+export async function getContactCountsFromIndexedDB(fromCallsign = null) {
+  if (!fromCallsign) return new Map()
+
+  const allRecords = await getDataFromIndexedDB(fromCallsign)
+  const countsMap = new Map()
+
+  for (const record of allRecords) {
+    const key = record.toCallsign || ''
+    if (!key) continue
+    countsMap.set(key, (countsMap.get(key) || 0) + 1)
+  }
+
+  return countsMap
+}
+
 // 获取特定呼号的通联记录
 export async function getCallsignRecordsFromIndexedDB(
   callsign,

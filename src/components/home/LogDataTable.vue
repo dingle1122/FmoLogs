@@ -55,7 +55,12 @@
               </template>
               <template v-else-if="col === 'toCallsign'">
                 <div class="callsign-with-grid">
-                  <div class="callsign-main">{{ row.toCallsign }}</div>
+                  <div class="callsign-main">
+                    {{ row.toCallsign }}
+                    <span v-if="contactCounts.get(row.toCallsign)" class="contact-count">
+                      x{{ contactCounts.get(row.toCallsign) }}
+                    </span>
+                  </div>
                   <div v-if="row.toGrid" class="callsign-grid">{{ row.toGrid }}</div>
                 </div>
               </template>
@@ -113,6 +118,10 @@ const props = defineProps({
   hasMore: {
     type: Boolean,
     default: true
+  },
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -305,6 +314,13 @@ function formatTimePart(dateTimeStr) {
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-weight: normal;
+}
+
+.contact-count {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 0.3rem;
 }
 
 .daily-index {

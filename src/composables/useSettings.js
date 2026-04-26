@@ -1,5 +1,10 @@
 import { ref, computed } from 'vue'
-import { saveFmoAddresses, getFmoAddresses, getAllRecordsFromIndexedDB } from '../services/db'
+import {
+  saveFmoAddresses,
+  getFmoAddresses,
+  getAllRecordsFromIndexedDB,
+  getContactCountsFromIndexedDB
+} from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
 
@@ -7,6 +12,7 @@ export function useSettings() {
   // 多地址存储
   const fmoAddressStorage = ref({ addresses: [], activeId: null, selectedIds: [] })
   const todayContactedCallsigns = ref(new Set())
+  const contactCounts = ref(new Map())
 
   // 多选模式状态
   const selectedAddressIds = ref([])
@@ -498,6 +504,20 @@ export function useSettings() {
     }
   }
 
+  async function loadContactCounts(selectedFromCallsign) {
+    if (!selectedFromCallsign) {
+      contactCounts.value = new Map()
+      return
+    }
+
+    try {
+      contactCounts.value = await getContactCountsFromIndexedDB(selectedFromCallsign)
+    } catch (error) {
+      console.error('加载通联次数失败:', error)
+      contactCounts.value = new Map()
+    }
+  }
+
   // 设置主服务器ID
   async function setActiveAddressId(id) {
     fmoAddressStorage.value.activeId = id
@@ -516,6 +536,8 @@ export function useSettings() {
     validateAndSaveFmoAddress,
     backupLogs,
     loadTodayContactedCallsigns,
+    contactCounts,
+    loadContactCounts,
     // 新增多地址管理接口
     addressList,
     activeAddressId,
