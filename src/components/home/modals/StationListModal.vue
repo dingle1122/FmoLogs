@@ -10,12 +10,6 @@
             placeholder="查询信道"
             @keydown.enter.prevent
           />
-          <label class="pin-filter" @click.prevent="showPinnedOnly = !showPinnedOnly">
-            <span>仅收藏</span>
-            <span class="toggle-switch" :class="{ active: showPinnedOnly }">
-              <span class="toggle-slider"></span>
-            </span>
-          </label>
         </div>
         <div class="header-actions">
           <button
@@ -85,7 +79,6 @@ const props = defineProps({
 const emit = defineEmits(['close', 'select', 'refresh'])
 
 const searchQuery = ref('')
-const showPinnedOnly = ref(false)
 const modalBodyRef = ref(null)
 
 // 弹框关闭后重置开关状态，打开时滚动到当前选中项
@@ -93,7 +86,6 @@ watch(
   () => props.visible,
   async (val) => {
     if (!val) {
-      showPinnedOnly.value = false
       searchQuery.value = ''
       return
     }
@@ -123,10 +115,11 @@ function scrollToActiveStation() {
 const filteredStationList = computed(() => {
   let list = props.stationList
 
-  // 仅显示收藏
-  if (showPinnedOnly.value) {
-    list = list.filter((station) => station.isPinned)
-  }
+  // 收藏的服务器前置，其他保持原有顺序
+  list = [...list].sort((a, b) => {
+    if (a.isPinned === b.isPinned) return 0
+    return a.isPinned ? -1 : 1
+  })
 
   const query = searchQuery.value.trim()
   if (!query) {
@@ -213,46 +206,6 @@ function handleSelect(uid) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-}
-
-.pin-filter {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.toggle-switch {
-  position: relative;
-  width: 32px;
-  height: 18px;
-  background: var(--border-secondary, #ccc);
-  border-radius: 9px;
-  transition: background 0.2s;
-  flex-shrink: 0;
-}
-
-.toggle-switch.active {
-  background: var(--color-success, #67c23a);
-}
-
-.toggle-slider {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.toggle-switch.active .toggle-slider {
-  transform: translateX(14px);
 }
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */

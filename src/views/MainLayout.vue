@@ -56,7 +56,6 @@
           :audio-volume="settings.audioVolume.value"
           :contact-counts="settings.contactCounts.value"
           @execute-query="executeQuery"
-          @show-detail="showDetailModal"
           @show-callsign-records="handleShowCallsignRecords"
           @select-files="triggerFileInput"
           @export-data="handleExportData"
@@ -96,13 +95,6 @@
         </button>
       </transition>
     </div>
-
-    <!-- 详情弹框 -->
-    <DetailModal
-      :visible="showDetailModalFlag"
-      :row-data="selectedRowData"
-      @close="showDetailModalFlag = false"
-    />
 
     <!-- 通联记录弹框 -->
     <CallsignRecordsModal
@@ -188,7 +180,6 @@ import { useRoute, useRouter } from 'vue-router'
 // 组件
 import AppHeader from '../components/home/AppHeader.vue'
 import SpeakingBar from '../components/home/SpeakingBar.vue'
-import DetailModal from '../components/home/modals/DetailModal.vue'
 import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal.vue'
 
 import SpeakingHistoryModal from '../components/home/modals/SpeakingHistoryModal.vue'
@@ -218,8 +209,6 @@ const router = useRouter()
 
 // UI 状态
 const showSpeakingHistory = ref(false)
-const showDetailModalFlag = ref(false)
-const selectedRowData = ref(null)
 const fileInputRef = ref(null)
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
@@ -364,11 +353,6 @@ function inferFromCallsign() {
     // 退回到第一个可用呼号
     selectedFromCallsign.value = availableFromCallsigns.value[0]
   }
-}
-
-function showDetailModal(row) {
-  selectedRowData.value = row
-  showDetailModalFlag.value = true
 }
 
 // 创建临时 station client（按需连接，用完即关）
