@@ -55,3 +55,7 @@ out/
 .AppleDouble
 .LSOverride
 
+# Android keystore
+*.keystore
+*.jks
+
