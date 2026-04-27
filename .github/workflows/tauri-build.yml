@@ -14,6 +14,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   publish-tauri:
     permissions:
@@ -212,11 +215,17 @@ jobs:
           echo "Release tag: ${{ steps.collect.outputs.release_tag }}"
 
       - name: Upload APK to release
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RELEASE_TAG="${{ steps.collect.outputs.release_tag }}"
+          RELEASE_NAME="FmoLogs v${{ steps.collect.outputs.version }}"
+
+          # 如果 release 不存在则创建 draft（与桌面端 tauri-action 保持一致）
+          if ! gh release view "$RELEASE_TAG" &>/dev/null; then
+            gh release create "$RELEASE_TAG" --draft --title "$RELEASE_NAME" --notes "See the assets to download this version and install."
+          fi
+
           echo "Uploading APKs to release $RELEASE_TAG ..."
           ls -lh FmoLogs_*.apk
           gh release upload "$RELEASE_TAG" FmoLogs_*.apk --clobber
@@ -228,7 +237,6 @@ jobs:
           ls -la FmoLogs_*.apk || { echo "::error::No APK files found!"; exit 1; }
 
       - name: Upload APK as artifact
-        if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
           name: FmoLogs-android-${{ steps.collect.outputs.version }}
