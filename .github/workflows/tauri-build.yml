@@ -26,36 +26,36 @@ jobs:
   #           args: ''
   #         - platform: 'windows-latest'
   #           args: ''
-
+  #
   #   runs-on: ${{ matrix.platform }}
   #   steps:
   #     - uses: actions/checkout@v4
-
+  #
   #     - name: install dependencies (ubuntu only)
   #       if: matrix.platform == 'ubuntu-latest'
   #       run: |
   #         sudo apt-get update
   #         sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
+  #
   #     - name: setup node
   #       uses: actions/setup-node@v4
   #       with:
   #         node-version: lts/*
   #         cache: 'npm'
-
+  #
   #     - name: install Rust stable
   #       uses: dtolnay/rust-toolchain@stable
   #       with:
   #         targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
+  #
   #     - name: Rust cache
   #       uses: swatinem/rust-cache@v2
   #       with:
   #         workspaces: './src-tauri -> target'
-
+  #
   #     - name: install frontend dependencies
   #       run: npm install
-
+  #
   #     - uses: tauri-apps/tauri-action@v0
   #       env:
   #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -72,77 +72,122 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: setup node
-        uses: actions/setup-node@v4
+      - name: setup Java
+        uses: actions/setup-java@v4
         with:
-          node-version: lts/*
-          cache: 'npm'
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: install Rust stable
+      - name: Setup Android SDK + NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools ndk;26.1.10909125'
+
+      - name: Export NDK_HOME
+        run: echo "NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+
+      - name: Install Rust + ARM Android targets
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: setup Java
-        uses: actions/setup-java@v4
+      - name: Setup Node
+        uses: actions/setup-node@v5
         with:
-          distribution: 'zulu'
-          java-version: '21'
+          node-version: 22
+          cache: 'npm'
 
-      - name: setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install frontend deps
+        run: npm ci
 
-      - name: install frontend dependencies
-        run: npm install
+      - name: Remove stale Android project
+        run: rm -rf src-tauri/gen/android
 
-      - name: install Android SDK components
+      - name: Init Tauri Android scaffold
+        run: npx tauri android init
+
+      - name: Install required Android SDK components
         run: |
-          COMPILE_SDK=$(grep -oP 'compileSdk\s*=\s*\K\d+' src-tauri/gen/android/app/build.gradle.kts || echo "36")
+          COMPILE_SDK=$(grep -oP 'compileSdk\s*=\s*\K\d+' src-tauri/gen/android/app/build.gradle.kts || echo "34")
           echo "Detected compileSdk: $COMPILE_SDK"
-          sdkmanager "platforms;android-${COMPILE_SDK}" "build-tools;${COMPILE_SDK}.0.0" "ndk;29.0.14206865"
+          sdkmanager "platforms;android-${COMPILE_SDK}" "build-tools;${COMPILE_SDK}.0.0"
 
-      - name: decode keystore
+      - name: Restore release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/app/release.keystore
 
-      - name: write signing properties
+      - name: Inject gradle signingConfig
         run: |
-          cat > src-tauri/gen/android/local.properties << EOF
-          RELEASE_STORE_FILE=release.keystore
-          RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-          RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
-          EOF
+          python3 << 'PYEOF'
+          bf = "src-tauri/gen/android/app/build.gradle.kts"
+          with open(bf, "r") as f:
+              content = f.read()
+          signing_block = (
+              "\n    signingConfigs {"
+              '\n        create("release") {'
+              '\n            storeFile = file("release.keystore")'
+              '\n            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""'
+              '\n            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""'
+              '\n            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""'
+              '\n        }'
+              '\n    }'
+          )
+          content = content.replace("    buildTypes {", signing_block + "\n    buildTypes {")
+          content = content.replace(
+              '        getByName("release") {',
+              '        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
+          )
+          with open(bf, "w") as f:
+              f.write(content)
+          PYEOF
 
-      - name: build Android APK
+      - name: Build Android APK (release signed, arm64 + armv7)
         env:
-          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/29.0.14206865
-        run: npx tauri android build --verbose
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: npx tauri android build --apk --target aarch64 --target armv7
 
-      - name: upload Android artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: |
-            src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk
-            src-tauri/gen/android/app/build/outputs/bundle/universalRelease/*.aab
+      - name: Locate and rename APK
+        shell: bash
+        run: |
+          APK=$(find src-tauri/gen/android -name '*.apk' -print | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::APK not found under src-tauri/gen/android"
+            find src-tauri/gen/android -type f | head -50
+            exit 1
+          fi
+          echo "Found APK at: $APK"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF_NAME#v}
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
+          cp "$APK" "FmoLogs_${VERSION}_android.apk"
+          ls -lh FmoLogs_*_android.apk
 
-      - name: publish to GitHub Release
+      - name: Upload APK to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: FmoLogs ${{ github.ref_name }}
           draft: true
           files: |
-            src-tauri/gen/android/app/build/outputs/apk/universal/release/*.apk
-            src-tauri/gen/android/app/build/outputs/bundle/universalRelease/*.aab
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            FmoLogs_*_android.apk
+
+      - name: Upload APK as artifact
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: FmoLogs-android-apk
+          path: FmoLogs_*_android.apk
