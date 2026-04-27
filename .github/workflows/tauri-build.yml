@@ -102,65 +102,30 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
-      - name: remove stale Android project
-        run: rm -rf src-tauri/gen/android
-
-      - name: init Tauri Android project
-        run: npx tauri android init
-
-      - name: install required Android platform
+      - name: install Android SDK components
         run: |
-          COMPILE_SDK=$(grep -oP 'compileSdk\s*=\s*\K\d+' src-tauri/gen/android/app/build.gradle.kts || echo "34")
+          COMPILE_SDK=$(grep -oP 'compileSdk\s*=\s*\K\d+' src-tauri/gen/android/app/build.gradle.kts || echo "36")
           echo "Detected compileSdk: $COMPILE_SDK"
-          sdkmanager "platforms;android-${COMPILE_SDK}"
-
-      - name: add signing config
-        run: |
-          python3 << 'PYEOF'
-          bf = "src-tauri/gen/android/app/build.gradle.kts"
-          with open(bf, "r") as f:
-              content = f.read()
-          signing_block = (
-              "\n    signingConfigs {"
-              '\n        create("release") {'
-              '\n            storeFile = file(project.property("RELEASE_STORE_FILE") as String)'
-              '\n            storePassword = project.property("RELEASE_STORE_PASSWORD") as String'
-              '\n            keyAlias = project.property("RELEASE_KEY_ALIAS") as String'
-              '\n            keyPassword = project.property("RELEASE_KEY_PASSWORD") as String'
-              '\n        }'
-              '\n    }'
-          )
-          content = content.replace("    buildTypes {", signing_block + "\n    buildTypes {")
-          content = content.replace(
-              '        getByName("release") {',
-              '        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
-          )
-          with open(bf, "w") as f:
-              f.write(content)
-          PYEOF
+          sdkmanager "platforms;android-${COMPILE_SDK}" "build-tools;${COMPILE_SDK}.0.0" "ndk;29.0.14206865"
 
       - name: decode keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/release.keystore
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > src-tauri/gen/android/app/release.keystore
 
       - name: write signing properties
         run: |
-          cat >> src-tauri/gen/android/gradle.properties << EOF
-          RELEASE_STORE_FILE=../release.keystore
+          cat > src-tauri/gen/android/local.properties << EOF
+          RELEASE_STORE_FILE=release.keystore
           RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
 
-      - name: diagnose Gradle setup
-        run: |
-          cd src-tauri/gen/android
-          chmod +x gradlew
-          ./gradlew projects --stacktrace 2>&1 | tail -50 || true
-
       - name: build Android APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/29.0.14206865
         run: npx tauri android build --verbose
 
       - name: upload Android artifacts
