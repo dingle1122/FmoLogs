@@ -25,11 +25,17 @@
               <span class="record-label">接收方：</span>
               <span class="record-value">{{ record.toCallsign }} / {{ record.toGrid || '-' }}</span>
             </div>
+            <div v-if="gridAddressMap[record.toGrid]" class="record-row">
+              <span class="record-label"></span>
+              <span class="record-value address-line">{{ gridAddressMap[record.toGrid] }}</span>
+            </div>
             <div class="record-row">
               <span class="record-label">发送方：</span>
-              <span class="record-value"
-                >{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span
-              >
+              <span class="record-value">{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span>
+            </div>
+            <div v-if="gridAddressMap[record.fromGrid]" class="record-row">
+              <span class="record-label"></span>
+              <span class="record-value address-line">{{ gridAddressMap[record.fromGrid] }}</span>
             </div>
             <div class="record-row">
               <span class="record-label">频率：</span>
@@ -56,8 +62,9 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, reactive } from 'vue'
 import { formatTimestamp, formatFreqHz, isTodayContact } from '../constants'
+import { gridToAddress } from '../../../services/gridService'
 
 const props = defineProps({
   visible: {
@@ -83,6 +90,40 @@ const emit = defineEmits(['close'])
 const cardRefs = ref([])
 const modalBodyRef = ref(null)
 
+const gridAddressMap = reactive({})
+
+function formatAddress(data) {
+  if (!data) return ''
+  const province = data.province || ''
+  const city = data.city || ''
+  const district = data.district || ''
+
+  const parts = []
+  if (province) parts.push(province)
+  if (city && city !== province) parts.push(city)
+  if (district) parts.push(district)
+
+  return parts.join('-')
+}
+
+async function loadGridAddresses(records) {
+  if (!records?.data?.length) return
+  const grids = new Set()
+  for (const record of records.data) {
+    if (record.toGrid) grids.add(record.toGrid)
+    if (record.fromGrid) grids.add(record.fromGrid)
+  }
+  for (const grid of grids) {
+    if (gridAddressMap[grid] !== undefined) continue
+    try {
+      const result = await gridToAddress(grid)
+      gridAddressMap[grid] = formatAddress(result)
+    } catch {
+      gridAddressMap[grid] = ''
+    }
+  }
+}
+
 function scrollToHighlight() {
   if (!props.highlightTimestamp || !props.records?.data?.length) return
   const index = props.records.data.findIndex(
@@ -96,7 +137,10 @@ function scrollToHighlight() {
 
 watch(
   () => [props.visible, props.records],
-  ([newVisible]) => {
+  ([newVisible, newRecords]) => {
+    if (newVisible && newRecords) {
+      loadGridAddresses(newRecords)
+    }
     if (newVisible && props.highlightTimestamp) {
       nextTick(() => {
         setTimeout(scrollToHighlight, 100)
@@ -162,7 +206,7 @@ watch(
 
 .record-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -193,7 +237,16 @@ watch(
 .record-value {
   color: var(--text-primary);
   flex: 1;
+  min-width: 0;
   word-break: break-all;
+}
+
+.address-line {
+  color: var(--text-tertiary);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .record-card.today-record {
@@ -214,7 +267,7 @@ watch(
 
 @media (max-width: 768px) {
   .record-cards-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .modal-callsign-records {
