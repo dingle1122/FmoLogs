@@ -201,30 +201,31 @@ jobs:
         run: |
           echo "## 📦 Android Build Summary"
           echo ""
-          echo "| File | Size |"
-          echo "|------|------|"
-          for f in FmoLogs_*.apk; do
-            SIZE=$(du -h "$f" | cut -f1)
-            echo "| $f | $SIZE |"
-          done
+          echo "Files in workspace root:"
+          ls -la FmoLogs_*.apk 2>/dev/null || echo "(none)"
+          echo ""
+          echo "Original APKs in build outputs:"
+          find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -type f -ls 2>/dev/null || echo "(none)"
           echo ""
           echo "Version: ${{ steps.collect.outputs.version }}"
           echo "APKs found: ${{ steps.collect.outputs.found }}"
+          echo "Release tag: ${{ steps.collect.outputs.release_tag }}"
 
       - name: Upload APK to release
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.collect.outputs.release_tag }}
-          name: FmoLogs ${{ steps.collect.outputs.release_tag }}
-          body: 'See the assets to download this version and install.'
-          draft: true
-          prerelease: false
-          fail_on_unmatched_files: true
-          files: |
-            FmoLogs_*.apk
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="${{ steps.collect.outputs.release_tag }}"
+          echo "Uploading APKs to release $RELEASE_TAG ..."
+          ls -lh FmoLogs_*.apk
+          gh release upload "$RELEASE_TAG" FmoLogs_*.apk --clobber
+
+      - name: Verify files before artifact upload
+        shell: bash
+        run: |
+          echo "Verifying APK files for artifact upload..."
+          ls -la FmoLogs_*.apk || { echo "::error::No APK files found!"; exit 1; }
 
       - name: Upload APK as artifact
         if: "!startsWith(github.ref, 'refs/tags/v')"
@@ -232,3 +233,4 @@ jobs:
         with:
           name: FmoLogs-android-${{ steps.collect.outputs.version }}
           path: FmoLogs_*.apk
+          if-no-files-found: error
