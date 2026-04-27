@@ -99,17 +99,47 @@ jobs:
       - name: setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: install Android SDK components
-        run: sdkmanager "platforms;android-36"
-
       - name: install frontend dependencies
         run: npm install
 
-      - name: clean stale auto-generated files
-        run: rm -f src-tauri/gen/android/tauri.settings.gradle
+      - name: remove stale Android project
+        run: rm -rf src-tauri/gen/android
 
       - name: init Tauri Android project
         run: npx tauri android init
+
+      - name: install required Android platform
+        run: |
+          COMPILE_SDK=$(grep -oP 'compileSdk\s*=\s*\K\d+' src-tauri/gen/android/app/build.gradle.kts || echo "34")
+          echo "Detected compileSdk: $COMPILE_SDK"
+          sdkmanager "platforms;android-${COMPILE_SDK}"
+
+      - name: add signing config
+        run: |
+          BUILD_FILE="src-tauri/gen/android/app/build.gradle.kts"
+          python3 << 'PYEOF'
+          import re
+          bf = "src-tauri/gen/android/app/build.gradle.kts"
+          with open(bf, "r") as f:
+              content = f.read()
+          signing_block = '''
+      signingConfigs {
+          create("release") {
+              storeFile = file(project.property("RELEASE_STORE_FILE") as String)
+              storePassword = project.property("RELEASE_STORE_PASSWORD") as String
+              keyAlias = project.property("RELEASE_KEY_ALIAS") as String
+              keyPassword = project.property("RELEASE_KEY_PASSWORD") as String
+          }
+      }
+  '''
+          content = content.replace("    buildTypes {", signing_block + "    buildTypes {")
+          content = content.replace(
+              '        getByName("release") {',
+              '        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
+          )
+          with open(bf, "w") as f:
+              f.write(content)
+          PYEOF
 
       - name: decode keystore
         env:
@@ -125,6 +155,12 @@ jobs:
           RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}
           EOF
+
+      - name: diagnose Gradle setup
+        run: |
+          cd src-tauri/gen/android
+          chmod +x gradlew
+          ./gradlew projects --stacktrace 2>&1 | tail -50 || true
 
       - name: build Android APK
         run: npx tauri android build --verbose
