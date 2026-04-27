@@ -2,6 +2,11 @@ name: 'publish'
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: '自定义 Release Tag（如 v1.2.3-dev）。留空则使用 package.json 版本自动生成。'
+        required: false
+        default: ''
   push:
     branches:
       - main
@@ -62,13 +67,26 @@ jobs:
   
       - name: install frontend dependencies
         run: npm install
-  
+
+      - name: resolve release tag
+        id: release
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+            echo "name=FmoLogs ${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "name=FmoLogs v${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__
-          releaseName: 'FmoLogs v__VERSION__'
+          tagName: ${{ steps.release.outputs.tag }}
+          releaseName: ${{ steps.release.outputs.name }}
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
@@ -174,7 +192,12 @@ jobs:
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          RELEASE_TAG="v${VERSION}"
+          # 优先使用手动输入的自定义 tag，否则自动构造
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            RELEASE_TAG="${{ github.event.inputs.release_tag }}"
+          else
+            RELEASE_TAG="v${VERSION}"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
