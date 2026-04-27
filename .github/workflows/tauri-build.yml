@@ -116,23 +116,21 @@ jobs:
 
       - name: add signing config
         run: |
-          BUILD_FILE="src-tauri/gen/android/app/build.gradle.kts"
           python3 << 'PYEOF'
-          import re
           bf = "src-tauri/gen/android/app/build.gradle.kts"
           with open(bf, "r") as f:
               content = f.read()
-          signing_block = '''
-      signingConfigs {
-          create("release") {
-              storeFile = file(project.property("RELEASE_STORE_FILE") as String)
-              storePassword = project.property("RELEASE_STORE_PASSWORD") as String
-              keyAlias = project.property("RELEASE_KEY_ALIAS") as String
-              keyPassword = project.property("RELEASE_KEY_PASSWORD") as String
-          }
-      }
-  '''
-          content = content.replace("    buildTypes {", signing_block + "    buildTypes {")
+          signing_block = (
+              "\n    signingConfigs {"
+              '\n        create("release") {'
+              '\n            storeFile = file(project.property("RELEASE_STORE_FILE") as String)'
+              '\n            storePassword = project.property("RELEASE_STORE_PASSWORD") as String'
+              '\n            keyAlias = project.property("RELEASE_KEY_ALIAS") as String'
+              '\n            keyPassword = project.property("RELEASE_KEY_PASSWORD") as String'
+              '\n        }'
+              '\n    }'
+          )
+          content = content.replace("    buildTypes {", signing_block + "\n    buildTypes {")
           content = content.replace(
               '        getByName("release") {',
               '        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
