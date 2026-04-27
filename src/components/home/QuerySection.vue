@@ -94,6 +94,7 @@ const hasFilters = computed(() => {
   font-size: 0.9rem;
   color: var(--text-secondary);
   white-space: nowrap;
+  margin-right: auto;
 }
 
 .search-box {
