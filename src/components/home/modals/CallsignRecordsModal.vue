@@ -130,7 +130,7 @@ watch(
 .modal-callsign-records {
   width: 90%;
   max-width: 900px;
-  max-height: 85vh;
+  height: 80vh;
   display: flex;
   flex-direction: column;
 }
@@ -219,7 +219,7 @@ watch(
 
   .modal-callsign-records {
     width: 95%;
-    max-height: 80vh;
+    height: 75vh;
   }
 
   .modal-body {
