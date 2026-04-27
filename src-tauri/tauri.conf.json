@@ -37,6 +37,7 @@
     "shortDescription": "FMO 日志查看器",
     "longDescription": "FMO 日志查看器是一款用于查看和管理 FMO 日志的桌面应用，支持多平台运行。",
     "icon": [
+      "icons/icon.png",
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
