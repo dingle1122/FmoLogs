@@ -10,6 +10,10 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # publish-tauri:
   #   permissions:
@@ -71,6 +75,7 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
@@ -83,7 +88,7 @@ jobs:
       - name: Setup Android SDK + NDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools ndk;26.1.10909125'
+          packages: 'platform-tools platforms;android-35 platforms;android-36 build-tools;35.0.0 build-tools;36.0.0 ndk;26.1.10909125'
 
       - name: Export NDK_HOME
         run: echo "NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
@@ -113,12 +118,6 @@ jobs:
       - name: Init Tauri Android scaffold
         run: npx tauri android init
 
-      - name: Install required Android SDK components
-        run: |
-          COMPILE_SDK=$(grep -oP 'compileSdk\s*=\s*\K\d+' src-tauri/gen/android/app/build.gradle.kts || echo "34")
-          echo "Detected compileSdk: $COMPILE_SDK"
-          sdkmanager "platforms;android-${COMPILE_SDK}" "build-tools;${COMPILE_SDK}.0.0"
-
       - name: Restore release keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -128,66 +127,106 @@ jobs:
       - name: Inject gradle signingConfig
         run: |
           python3 << 'PYEOF'
+          import re
           bf = "src-tauri/gen/android/app/build.gradle.kts"
           with open(bf, "r") as f:
               content = f.read()
-          signing_block = (
-              "\n    signingConfigs {"
-              '\n        create("release") {'
-              '\n            storeFile = file("release.keystore")'
-              '\n            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""'
-              '\n            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""'
-              '\n            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""'
-              '\n        }'
-              '\n    }'
-          )
-          content = content.replace("    buildTypes {", signing_block + "\n    buildTypes {")
-          content = content.replace(
-              '        getByName("release") {',
-              '        getByName("release") {\n            signingConfig = signingConfigs.getByName("release")'
+
+          # 注入 signingConfigs（如果不存在）
+          if "signingConfigs" not in content:
+              signing_block = (
+                  "\n    signingConfigs {"
+                  '\n        create("release") {'
+                  '\n            storeFile = file("release.keystore")'
+                  '\n            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""'
+                  '\n            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""'
+                  '\n            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""'
+                  '\n        }'
+                  '\n    }'
+              )
+              content = re.sub(r'(\s+buildTypes\s*\{)', signing_block + r'\1', content, count=1)
+
+          # 确保 release buildType 引用签名配置
+          content = re.sub(
+              r'(getByName\("release"\)\s*\{)',
+              r'\1\n            signingConfig = signingConfigs.getByName("release")',
+              content,
+              count=1
           )
           with open(bf, "w") as f:
               f.write(content)
           PYEOF
 
       - name: Build Android APK (release signed, arm64 + armv7)
+        id: build
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: npx tauri android build --apk --target aarch64 --target armv7
 
-      - name: Locate and rename APK
+      - name: Collect and rename APKs
+        id: collect
         shell: bash
         run: |
-          APK=$(find src-tauri/gen/android -name '*.apk' -print | head -1)
-          if [ -z "$APK" ]; then
-            echo "::error::APK not found under src-tauri/gen/android"
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF_NAME#v}
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          APK_DIR="src-tauri/gen/android/app/build/outputs/apk"
+          FOUND=0
+
+          while IFS= read -r apk; do
+            [ -z "$apk" ] && continue
+            ABI=$(echo "$apk" | sed -n 's|.*/apk/\([^/]*\)/release/.*|\1|p')
+            [ -z "$ABI" ] && ABI="universal"
+            OUT="FmoLogs_${VERSION}_${ABI}.apk"
+            cp "$apk" "$OUT"
+            FOUND=$((FOUND + 1))
+            echo "  → $OUT ($(du -h "$apk" | cut -f1))"
+          done < <(find "$APK_DIR" -path '*/release/*.apk' -type f 2>/dev/null)
+
+          if [ "$FOUND" -eq 0 ]; then
+            echo "::error::No APK found under $APK_DIR"
             find src-tauri/gen/android -type f | head -50
             exit 1
           fi
-          echo "Found APK at: $APK"
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF_NAME#v}
-          else
-            VERSION=$(node -p "require('./package.json').version")
-          fi
-          cp "$APK" "FmoLogs_${VERSION}_android.apk"
-          ls -lh FmoLogs_*_android.apk
+
+          echo "found=$FOUND" >> "$GITHUB_OUTPUT"
+
+      - name: Build summary
+        shell: bash
+        run: |
+          echo "## 📦 Android Build Summary"
+          echo ""
+          echo "| File | Size |"
+          echo "|------|------|"
+          for f in FmoLogs_*.apk; do
+            SIZE=$(du -h "$f" | cut -f1)
+            echo "| $f | $SIZE |"
+          done
+          echo ""
+          echo "Version: ${{ steps.collect.outputs.version }}"
+          echo "APKs found: ${{ steps.collect.outputs.found }}"
 
       - name: Upload APK to release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
           name: FmoLogs ${{ github.ref_name }}
           draft: true
+          fail_on_unmatched_files: true
           files: |
-            FmoLogs_*_android.apk
+            FmoLogs_*.apk
 
       - name: Upload APK as artifact
         if: "!startsWith(github.ref, 'refs/tags/v')"
         uses: actions/upload-artifact@v4
         with:
-          name: FmoLogs-android-apk
-          path: FmoLogs_*_android.apk
+          name: FmoLogs-android-${{ steps.collect.outputs.version }}
+          path: FmoLogs_*.apk
