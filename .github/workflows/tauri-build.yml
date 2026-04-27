@@ -76,6 +76,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    needs: publish-tauri
     steps:
       - uses: actions/checkout@v5
 
@@ -170,10 +171,9 @@ jobs:
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF_NAME#v}
-          fi
+          RELEASE_TAG="v${VERSION}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
           APK_DIR="src-tauri/gen/android/app/build/outputs/apk"
           FOUND=0
@@ -217,9 +217,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          name: FmoLogs ${{ github.ref_name }}
+          tag_name: ${{ steps.collect.outputs.release_tag }}
+          name: FmoLogs ${{ steps.collect.outputs.release_tag }}
+          body: 'See the assets to download this version and install.'
           draft: true
+          prerelease: false
           fail_on_unmatched_files: true
           files: |
             FmoLogs_*.apk
