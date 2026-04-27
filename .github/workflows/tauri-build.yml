@@ -99,11 +99,14 @@ jobs:
       - name: setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: install Android NDK
-        run: sdkmanager "ndk;27.0.12077973"
+      - name: install Android SDK components
+        run: sdkmanager "platforms;android-36"
 
       - name: install frontend dependencies
         run: npm install
+
+      - name: clean stale auto-generated files
+        run: rm -f src-tauri/gen/android/tauri.settings.gradle
 
       - name: init Tauri Android project
         run: npx tauri android init
@@ -124,9 +127,7 @@ jobs:
           EOF
 
       - name: build Android APK
-        run: npx tauri android build
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.12077973
+        run: npx tauri android build --verbose
 
       - name: upload Android artifacts
         uses: actions/upload-artifact@v4
