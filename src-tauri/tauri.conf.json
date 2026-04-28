@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ws: wss: https:; script-src 'self' 'wasm-unsafe-eval' https://cdn.lzyike.cn; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' https: data:; media-src 'self' blob: https:;"
+      "csp": "default-src 'self'; connect-src 'self' ws: wss: http: https:; script-src 'self' 'wasm-unsafe-eval' https://cdn.lzyike.cn; img-src 'self' https: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' https: data:; media-src 'self' blob: https:;"
     }
   },
   "bundle": {

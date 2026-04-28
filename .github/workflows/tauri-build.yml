@@ -185,6 +185,29 @@ jobs:
               f.write(content)
           PYEOF
 
+      - name: Allow cleartext traffic in AndroidManifest
+        run: |
+          python3 << 'PYEOF'
+          import re
+          mf = "src-tauri/gen/android/app/src/main/AndroidManifest.xml"
+          with open(mf, "r") as f:
+              content = f.read()
+
+          # 在 <application> 标签中添加 usesCleartextTraffic
+          if "usesCleartextTraffic" not in content:
+              content = re.sub(
+                  r'(<application\s+)',
+                  r'\1android:usesCleartextTraffic="true" \n        ',
+                  content,
+                  count=1
+              )
+              with open(mf, "w") as f:
+                  f.write(content)
+              print("已注入 usesCleartextTraffic")
+          else:
+              print("usesCleartextTraffic 已存在")
+          PYEOF
+
       - name: Build Android APK (release signed, arm64 + armv7)
         id: build
         env:
