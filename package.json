@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
-    "icons": "tauri icon src-tauri/icons/icon.png",
+    "icons": "tauri icon src-tauri/icon-desktop.png",
+    "icons:android": "tauri icon src-tauri/icon-android.png",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
