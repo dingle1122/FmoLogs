@@ -9,6 +9,7 @@ android {
 
 apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
+    implementation project(':anuradev-capacitor-background-mode')
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-share')
 

@@ -1,6 +1,8 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { AudioStreamPlayer } from '../services/audioPlayer'
 import { normalizeHost } from '../utils/urlUtils'
+import { BackgroundMode } from '@anuradev/capacitor-background-mode'
+import { Capacitor } from '@capacitor/core'
 
 /**
  * 将音量百分比转换为非线性 gain 值
@@ -28,11 +30,56 @@ export function useAudioPlayer() {
   const isMuted = ref(false) // 是否静音
   const audioStatus = ref('') // 状态文本
 
+  // 是否为 Android 原生平台
+  const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+
   // 内部：AudioStreamPlayer 实例（非响应式）
   let player = null
 
   // 屏幕唤醒锁引用（跨平台辅助保活）
   let wakeLockRef = null
+
+  /**
+   * 启用安卓后台模式
+   * 创建前台服务通知，防止系统杀死/节流 WebView
+   */
+  async function enableBackgroundMode() {
+    if (!isAndroid) return
+    try {
+      // 配置通知栏信息
+      await BackgroundMode.setSettings({
+        title: 'FMO 音频播放中',
+        text: '正在播放音频流...',
+        subText: 'FMO Logs',
+        bigText: true,
+        resume: true,
+        silent: true,
+        hidden: false,
+        color: '#1a73e8',
+        channelName: 'FMO 音频播放',
+        channelDescription: '保持音频流在后台持续播放',
+        allowClose: true,
+        closeTitle: '停止播放',
+        showWhen: true,
+        visibility: 'public'
+      })
+      await BackgroundMode.enable()
+    } catch (e) {
+      console.debug('后台模式启用失败:', e)
+    }
+  }
+
+  /**
+   * 禁用安卓后台模式
+   */
+  async function disableBackgroundMode() {
+    if (!isAndroid) return
+    try {
+      await BackgroundMode.disable()
+    } catch (e) {
+      console.debug('后台模式禁用失败:', e)
+    }
+  }
 
   // 页面可见性变化监听：重新获取已释放的唤醒锁 + 恢复 AudioContext
   function handleVisibilityChange() {
@@ -41,8 +88,8 @@ export function useAudioPlayer() {
       if (player && player.audioCtx?.state === 'suspended') {
         player.audioCtx.resume().catch(() => {})
       }
-      // 页面重新可见时重新获取唤醒锁
-      if (document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+      // 页面重新可见时重新获取唤醒锁（仅非 Android 原生平台）
+      if (!isAndroid && document.visibilityState === 'visible' && 'wakeLock' in navigator) {
         navigator.wakeLock
           .request('screen')
           .then((lock) => {
@@ -55,9 +102,10 @@ export function useAudioPlayer() {
   document.addEventListener('visibilitychange', handleVisibilityChange)
 
   /**
-   * 请求屏幕唤醒锁
+   * 请求屏幕唤醒锁（仅非 Android 原生平台使用，Android 由后台模式接管）
    */
   function requestWakeLock() {
+    if (isAndroid) return // Android 由 BackgroundMode 接管
     if ('wakeLock' in navigator) {
       navigator.wakeLock
         .request('screen')
@@ -71,9 +119,10 @@ export function useAudioPlayer() {
   }
 
   /**
-   * 释放屏幕唤醒锁
+   * 释放屏幕唤醒锁（仅非 Android 原生平台）
    */
   function releaseWakeLock() {
+    if (isAndroid) return
     if (wakeLockRef) {
       wakeLockRef.release().catch(() => {})
       wakeLockRef = null
@@ -109,6 +158,9 @@ export function useAudioPlayer() {
     // 请求屏幕唤醒锁（跨平台辅助保活）
     requestWakeLock()
 
+    // Android: 启用后台模式，创建前台服务保活
+    enableBackgroundMode()
+
     // 构建 WebSocket URL
     const wsProtocol = protocol === 'wss' ? 'wss' : 'ws'
     const normalizedHost = normalizeHost(host)
@@ -125,6 +177,8 @@ export function useAudioPlayer() {
       if (status === '音频未连接' || status === '音频连接错误') {
         isPlaying.value = false
         isMuted.value = false
+        // Android: 连接彻底断开时禁用后台模式
+        disableBackgroundMode()
       }
     }
 
@@ -147,6 +201,9 @@ export function useAudioPlayer() {
 
     // 释放屏幕唤醒锁
     releaseWakeLock()
+
+    // Android: 禁用后台模式
+    disableBackgroundMode()
   }
 
   /**
