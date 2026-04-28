@@ -1,10 +1,8 @@
 #[cfg(desktop)]
 use tauri::menu::MenuBuilder;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
-    .plugin(tauri_plugin_background_audio::init())
     .setup(|app| {
       // 清空默认菜单栏（仅桌面端）
       #[cfg(desktop)]

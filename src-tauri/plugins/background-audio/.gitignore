@@ -1,7 +1,0 @@
-# Android build outputs
-android/build/
-android/.tauri/
-
-# Rust build outputs (compiled into workspace target/)
-target/
-

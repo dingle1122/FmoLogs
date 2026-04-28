@@ -1,3 +1,0 @@
-[[permission]]
-identifier = "default"
-description = "Allows starting and stopping the background audio playback service"

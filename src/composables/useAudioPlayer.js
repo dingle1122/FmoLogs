@@ -1,5 +1,4 @@
 import { ref, onBeforeUnmount } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import { AudioStreamPlayer } from '../services/audioPlayer'
 import { normalizeHost } from '../utils/urlUtils'
 
@@ -82,24 +81,6 @@ export function useAudioPlayer() {
   }
 
   /**
-   * 启动 Android 后台播放服务
-   */
-  function startBackgroundService() {
-    invoke('plugin:background-audio|start').catch((e) => {
-      console.debug('后台音频服务启动失败或不可用:', e)
-    })
-  }
-
-  /**
-   * 停止 Android 后台播放服务
-   */
-  function stopBackgroundService() {
-    invoke('plugin:background-audio|stop').catch((e) => {
-      console.debug('后台音频服务停止失败或不可用:', e)
-    })
-  }
-
-  /**
    * 切换播放/停止
    * @param {string} host - 主机地址
    * @param {string} protocol - 协议（ws 或 wss）
@@ -124,9 +105,6 @@ export function useAudioPlayer() {
     if (player) {
       stopAudio()
     }
-
-    // 启动 Android 后台播放服务（息屏保活）
-    startBackgroundService()
 
     // 请求屏幕唤醒锁（跨平台辅助保活）
     requestWakeLock()
@@ -166,9 +144,6 @@ export function useAudioPlayer() {
     isPlaying.value = false
     isMuted.value = false
     audioStatus.value = ''
-
-    // 停止 Android 后台播放服务
-    stopBackgroundService()
 
     // 释放屏幕唤醒锁
     releaseWakeLock()
