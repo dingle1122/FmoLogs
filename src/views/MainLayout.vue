@@ -1109,8 +1109,7 @@ provide('protocol', settings.protocol)
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -1121,7 +1120,7 @@ provide('protocol', settings.protocol)
   background: var(--bg-header);
   border-top: 1px solid var(--border-light);
   padding: 0.25rem 0;
-  padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 0.25rem;
   justify-content: space-around;
   z-index: 200;
 }
@@ -1212,8 +1211,7 @@ provide('protocol', settings.protocol)
     justify-content: center;
     position: fixed;
     right: 1rem;
-    /** bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.75rem); */
-    bottom: 0.75rem;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.75rem);
     width: 40px;
     height: 40px;
     border-radius: 50%;
