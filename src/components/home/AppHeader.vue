@@ -247,7 +247,7 @@ defineEmits(['open-nav-menu'])
 
 @media (max-width: 768px) {
   .header {
-    padding: 0.5rem 0.75rem;
+    padding: calc(0.5rem + env(safe-area-inset-top, 0px)) 0.75rem 0.5rem;
   }
 
   .header-title {
