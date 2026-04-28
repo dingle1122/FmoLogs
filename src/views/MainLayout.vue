@@ -1212,7 +1212,8 @@ provide('protocol', settings.protocol)
     justify-content: center;
     position: fixed;
     right: 1rem;
-    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    /** bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.75rem); */
+    bottom: 0.75rem;
     width: 40px;
     height: 40px;
     border-radius: 50%;
