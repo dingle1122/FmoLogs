@@ -35,15 +35,22 @@ export function useAudioPlayer() {
   // 屏幕唤醒锁引用（跨平台辅助保活）
   let wakeLockRef = null
 
-  // 页面可见性变化监听：重新获取已释放的唤醒锁
+  // 页面可见性变化监听：重新获取已释放的唤醒锁 + 恢复 AudioContext
   function handleVisibilityChange() {
-    if (document.visibilityState === 'visible' && isPlaying.value && 'wakeLock' in navigator) {
-      navigator.wakeLock
-        .request('screen')
-        .then((lock) => {
-          wakeLockRef = lock
-        })
-        .catch(() => {})
+    if (isPlaying.value) {
+      // 恢复 AudioContext（浏览器可能因页面隐藏而自动挂起）
+      if (player && player.audioCtx?.state === 'suspended') {
+        player.audioCtx.resume().catch(() => {})
+      }
+      // 页面重新可见时重新获取唤醒锁
+      if (document.visibilityState === 'visible' && 'wakeLock' in navigator) {
+        navigator.wakeLock
+          .request('screen')
+          .then((lock) => {
+            wakeLockRef = lock
+          })
+          .catch(() => {})
+      }
     }
   }
   document.addEventListener('visibilitychange', handleVisibilityChange)
