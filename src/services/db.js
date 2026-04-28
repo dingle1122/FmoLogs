@@ -1,13 +1,14 @@
 import initSqlJs from 'sql.js'
 import { AdifFormatter, AdifParser } from '../adif/index.js'
+import { exportFile } from '../utils/exportFile.js'
 
 let SQL = null
 
-// 初始化sql.js（使用CDN加载wasm文件）
+// 初始化sql.js（使用本地wasm文件）
 async function initSQL() {
   if (!SQL) {
     SQL = await initSqlJs({
-      locateFile: () => 'https://cdn.lzyike.cn/npm/sql.js@1.13.0/dist/sql-wasm.wasm'
+      locateFile: (file) => `/${file}`
     })
   }
   return SQL
@@ -1205,10 +1206,7 @@ export async function exportDataToDbFile(fromCallsign) {
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.db`
 
-  return {
-    data,
-    filename
-  }
+  await exportFile(filename, data, 'application/x-sqlite3')
 }
 
 // 导出IndexedDB数据到ADIF文件
@@ -1294,10 +1292,7 @@ export async function exportDataToAdif(fromCallsign, appVersion = '1.0.0') {
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.adi`
 
-  return {
-    content,
-    filename
-  }
+  await exportFile(filename, content, 'text/plain')
 }
 
 // 根据频率(Hz)获取波段

@@ -556,19 +556,7 @@ async function handleClearAllData() {
 async function handleExportData() {
   try {
     loading.value = true
-    const result = await exportDataToDbFile(selectedFromCallsign.value)
-
-    // 创建 Blob 并下载
-    const blob = new Blob([result.data], { type: 'application/x-sqlite3' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = result.filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
+    await exportDataToDbFile(selectedFromCallsign.value)
     loading.value = false
   } catch (err) {
     loading.value = false
@@ -581,19 +569,7 @@ async function handleExportAdif() {
   try {
     loading.value = true
     const appVersion = packageInfo.version
-    const result = await exportDataToAdif(selectedFromCallsign.value, appVersion)
-
-    // 创建 Blob 并下载
-    const blob = new Blob([result.content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = result.filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
+    await exportDataToAdif(selectedFromCallsign.value, appVersion)
     loading.value = false
   } catch (err) {
     loading.value = false
