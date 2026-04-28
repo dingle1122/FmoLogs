@@ -68,6 +68,9 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: generate icons from source
+        run: npx tauri icon src-tauri/icons/icon.png
+
       - name: resolve release tag
         id: release
         shell: bash
@@ -139,6 +142,9 @@ jobs:
 
       - name: Init Tauri Android scaffold
         run: npx tauri android init
+
+      - name: generate Android icons from source
+        run: npx tauri icon src-tauri/icons/icon.png
 
       - name: Restore release keystore
         env:
