@@ -1,4 +1,5 @@
 import { ref, onBeforeUnmount } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import { AudioStreamPlayer } from '../services/audioPlayer'
 import { normalizeHost } from '../utils/urlUtils'
 
@@ -31,6 +32,66 @@ export function useAudioPlayer() {
   // 内部：AudioStreamPlayer 实例（非响应式）
   let player = null
 
+  // 屏幕唤醒锁引用（跨平台辅助保活）
+  let wakeLockRef = null
+
+  // 页面可见性变化监听：重新获取已释放的唤醒锁
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible' && isPlaying.value && 'wakeLock' in navigator) {
+      navigator.wakeLock
+        .request('screen')
+        .then((lock) => {
+          wakeLockRef = lock
+        })
+        .catch(() => {})
+    }
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  /**
+   * 请求屏幕唤醒锁
+   */
+  function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock
+        .request('screen')
+        .then((lock) => {
+          wakeLockRef = lock
+        })
+        .catch((e) => {
+          console.debug('屏幕唤醒锁请求失败:', e)
+        })
+    }
+  }
+
+  /**
+   * 释放屏幕唤醒锁
+   */
+  function releaseWakeLock() {
+    if (wakeLockRef) {
+      wakeLockRef.release().catch(() => {})
+      wakeLockRef = null
+    }
+  }
+
+  /**
+   * 启动 Android 后台播放服务
+   */
+  function startBackgroundService() {
+    invoke('plugin:background-audio|start').catch((e) => {
+      console.debug('后台音频服务启动失败或不可用:', e)
+    })
+  }
+
+  /**
+   * 停止 Android 后台播放服务
+   */
+  function stopBackgroundService() {
+    invoke('plugin:background-audio|stop').catch((e) => {
+      console.debug('后台音频服务停止失败或不可用:', e)
+    })
+  }
+
   /**
    * 切换播放/停止
    * @param {string} host - 主机地址
@@ -56,6 +117,12 @@ export function useAudioPlayer() {
     if (player) {
       stopAudio()
     }
+
+    // 启动 Android 后台播放服务（息屏保活）
+    startBackgroundService()
+
+    // 请求屏幕唤醒锁（跨平台辅助保活）
+    requestWakeLock()
 
     // 构建 WebSocket URL
     const wsProtocol = protocol === 'wss' ? 'wss' : 'ws'
@@ -92,6 +159,12 @@ export function useAudioPlayer() {
     isPlaying.value = false
     isMuted.value = false
     audioStatus.value = ''
+
+    // 停止 Android 后台播放服务
+    stopBackgroundService()
+
+    // 释放屏幕唤醒锁
+    releaseWakeLock()
   }
 
   /**
@@ -137,6 +210,7 @@ export function useAudioPlayer() {
 
   // 组件卸载时清理
   onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
     stopAudio()
   })
 

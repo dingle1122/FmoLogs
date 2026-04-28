@@ -19,7 +19,9 @@
           <div class="friend-grid">
             <span v-if="item.toGrid">{{ item.toGrid }}</span>
             <span v-if="item.toGrid && gridAddressMap[item.toGrid]">&nbsp;</span>
-            <span v-if="gridAddressMap[item.toGrid]" class="friend-address">{{ gridAddressMap[item.toGrid] }}</span>
+            <span v-if="gridAddressMap[item.toGrid]" class="friend-address">{{
+              gridAddressMap[item.toGrid]
+            }}</span>
             <span v-if="!item.toGrid">-</span>
           </div>
           <div class="friend-time">

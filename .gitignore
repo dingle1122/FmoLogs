@@ -70,3 +70,6 @@ src-tauri/icons/128x128@2x.png
 src-tauri/icons/Square*.png
 src-tauri/icons/StoreLogo.png
 
+# Gradle build output (problem reports etc.)
+build/
+

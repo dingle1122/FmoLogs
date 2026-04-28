@@ -836,15 +836,7 @@ export async function getCallsignRecordsFromIndexedDB(callsign, fromCallsign = n
     return {
       data: [],
       total: 0,
-      columns: [
-        'timestamp',
-        'toCallsign',
-        'toGrid',
-        'freqHz',
-        'toComment',
-        'mode',
-        'relayName'
-      ]
+      columns: ['timestamp', 'toCallsign', 'toGrid', 'freqHz', 'toComment', 'mode', 'relayName']
     }
   }
 
@@ -859,15 +851,7 @@ export async function getCallsignRecordsFromIndexedDB(callsign, fromCallsign = n
   return {
     data: filtered,
     total: filtered.length,
-    columns: [
-      'timestamp',
-      'toCallsign',
-      'toGrid',
-      'freqHz',
-      'toComment',
-      'mode',
-      'relayName'
-    ]
+    columns: ['timestamp', 'toCallsign', 'toGrid', 'freqHz', 'toComment', 'mode', 'relayName']
   }
 }
 
@@ -909,15 +893,7 @@ export async function getAllRecordsFromIndexedDB(
       page,
       pageSize,
       totalPages: 0,
-      columns: [
-        'dailyIndex',
-        'timestamp',
-        'toCallsign',
-        'freqHz',
-        'toComment',
-        'mode',
-        'relayName'
-      ]
+      columns: ['dailyIndex', 'timestamp', 'toCallsign', 'freqHz', 'toComment', 'mode', 'relayName']
     }
   }
 
@@ -974,15 +950,7 @@ export async function getAllRecordsFromIndexedDB(
     page,
     pageSize,
     totalPages,
-    columns: [
-      'dailyIndex',
-      'timestamp',
-      'toCallsign',
-      'freqHz',
-      'toComment',
-      'mode',
-      'relayName'
-    ]
+    columns: ['dailyIndex', 'timestamp', 'toCallsign', 'freqHz', 'toComment', 'mode', 'relayName']
   }
 }
 

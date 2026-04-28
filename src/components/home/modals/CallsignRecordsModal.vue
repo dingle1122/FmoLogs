@@ -31,7 +31,9 @@
             </div>
             <div class="record-row">
               <span class="record-label">发送方：</span>
-              <span class="record-value">{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span>
+              <span class="record-value"
+                >{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span
+              >
             </div>
             <div v-if="gridAddressMap[record.fromGrid]" class="record-row">
               <span class="record-label"></span>
@@ -56,7 +58,6 @@
         </div>
         <div v-else class="empty-hint">暂无记录</div>
       </div>
-
     </div>
   </div>
 </template>
@@ -126,9 +127,7 @@ async function loadGridAddresses(records) {
 
 function scrollToHighlight() {
   if (!props.highlightTimestamp || !props.records?.data?.length) return
-  const index = props.records.data.findIndex(
-    (r) => r.timestamp === props.highlightTimestamp
-  )
+  const index = props.records.data.findIndex((r) => r.timestamp === props.highlightTimestamp)
   if (index === -1) return
   const el = cardRefs.value[index]
   if (!el || !modalBodyRef.value) return
