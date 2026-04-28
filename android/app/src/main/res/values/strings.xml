@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FmoLogs</string>
+    <string name="title_activity_main">FmoLogs</string>
+    <string name="package_name">com.fmologs.app</string>
+    <string name="custom_url_scheme">com.fmologs.app</string>
+</resources>
