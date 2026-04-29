@@ -8,8 +8,13 @@ SRC_PNG="$ROOT/public/vite.png"
 ANDROID_SRC="$ROOT/src-tauri/icon-android.png"
 RES_DIR="$ROOT/android/app/src/main/res"
 
-if ! command -v magick >/dev/null 2>&1; then
-  echo "需要 ImageMagick (magick)，请先安装：brew install imagemagick" >&2
+if command -v magick >/dev/null 2>&1; then
+  MAGICK="magick"
+elif command -v convert >/dev/null 2>&1; then
+  # ImageMagick 6 使用 convert 命令（语法与 magick 兼容本脚本所需的基本操作）
+  MAGICK="convert"
+else
+  echo "需要 ImageMagick（magick 或 convert），请先安装：brew install imagemagick 或 apt-get install imagemagick" >&2
   exit 1
 fi
 
@@ -21,7 +26,7 @@ fi
 mkdir -p "$(dirname "$ANDROID_SRC")"
 
 # 1) 1024x1024 白底母图（内容缩到约 50% 居中）
-magick "$SRC_PNG" \
+"$MAGICK" "$SRC_PNG" \
   -resize 512x512 \
   -background white -gravity center -extent 1024x1024 \
   -alpha remove -alpha off \
@@ -32,7 +37,7 @@ TMP_DIR="$ROOT/.icon-tmp"
 mkdir -p "$TMP_DIR"
 TMP_FG="$TMP_DIR/fmo-fg.png"
 trap 'rm -rf "$TMP_DIR"' EXIT
-magick "$SRC_PNG" \
+"$MAGICK" "$SRC_PNG" \
   -resize 512x512 \
   -background none -gravity center -extent 1024x1024 \
   "$TMP_FG"
@@ -51,16 +56,16 @@ for i in "${!DENSITIES[@]}"; do
   half=$((lsize / 2))
 
   # ic_launcher：方形
-  magick "$ANDROID_SRC" -resize "${lsize}x${lsize}" "$out_dir/ic_launcher.png"
+  "$MAGICK" "$ANDROID_SRC" -resize "${lsize}x${lsize}" "$out_dir/ic_launcher.png"
 
   # ic_launcher_round：圆形裁剪
-  magick "$ANDROID_SRC" -resize "${lsize}x${lsize}" \
+  "$MAGICK" "$ANDROID_SRC" -resize "${lsize}x${lsize}" \
     \( -size "${lsize}x${lsize}" xc:none -fill white -draw "circle ${half},${half} ${half},0" \) \
     -alpha set -compose CopyOpacity -composite \
     "$out_dir/ic_launcher_round.png"
 
   # ic_launcher_foreground：adaptive icon 前景
-  magick "$TMP_FG" -resize "${fsize}x${fsize}" "$out_dir/ic_launcher_foreground.png"
+  "$MAGICK" "$TMP_FG" -resize "${fsize}x${fsize}" "$out_dir/ic_launcher_foreground.png"
 
   echo "✓ mipmap-$density: ic_launcher(${lsize}) / round(${lsize}) / foreground(${fsize})"
 done
