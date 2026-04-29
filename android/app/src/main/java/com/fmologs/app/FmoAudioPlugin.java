@@ -9,6 +9,8 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.util.Log;
 
@@ -66,6 +68,15 @@ public class FmoAudioPlugin extends Plugin {
     private volatile String currentTitle = "FMO 音频播放中";
     private volatile String currentText = "正在后台播放语音流";
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
+
+    // 连接代次：每次 openWebSocket 自增。旧 WS 的回调若 gen 对不上则整段丢弃，
+    // 避免 cancel 旧 ws 触发的 onFailure 去调度新一轮重连，形成连接风暴。
+    private volatile int connGen = 0;
+    // 专用 main looper Handler，替代原来匿名 new Handler()，生命周期可控。
+    private final Handler reconnectHandler = new Handler(Looper.getMainLooper());
+    private Runnable pendingReconnect;
+    // 重连调度去重标志：真正派生连接前置 false。
+    private final AtomicBoolean reconnectScheduled = new AtomicBoolean(false);
 
     @Override
     public void load() {
@@ -273,39 +284,51 @@ public class FmoAudioPlugin extends Plugin {
     }
 
     private void openWebSocket(@NonNull String url) {
-        if (webSocket != null) {
-            try { webSocket.cancel(); } catch (Exception ignore) {}
-            webSocket = null;
+        // 先把 gen 递增：这样下面 cancel 旧 ws 产生的回调，gen 会对不上而被直接忽略。
+        final int myGen = ++connGen;
+        WebSocket old = webSocket;
+        webSocket = null;
+        if (old != null) {
+            try { old.cancel(); } catch (Exception ignore) {}
         }
         Request request = new Request.Builder().url(url).build();
         webSocket = httpClient.newWebSocket(request, new WebSocketListener() {
             @Override
             public void onOpen(@NonNull WebSocket ws, @NonNull Response response) {
-                Log.i(TAG, "WS onOpen");
+                if (myGen != connGen) return;
+                Log.i(TAG, "WS onOpen gen=" + myGen);
+                firstChunk.set(true);
                 reconnectAttempts.set(0);
                 emitStatus("connected");
             }
 
             @Override
             public void onMessage(@NonNull WebSocket ws, @NonNull ByteString bytes) {
+                if (myGen != connGen) return;
                 handlePcm(bytes);
             }
 
             @Override
             public void onClosing(@NonNull WebSocket ws, int code, @NonNull String reason) {
-                Log.w(TAG, "WS onClosing code=" + code + " reason=" + reason);
+                if (myGen != connGen) return;
+                Log.w(TAG, "WS onClosing gen=" + myGen + " code=" + code + " reason=" + reason);
                 try { ws.close(1000, null); } catch (Exception ignore) {}
             }
 
             @Override
             public void onClosed(@NonNull WebSocket ws, int code, @NonNull String reason) {
-                Log.w(TAG, "WS onClosed code=" + code + " reason=" + reason);
+                if (myGen != connGen) return;
+                Log.w(TAG, "WS onClosed gen=" + myGen + " code=" + code + " reason=" + reason);
                 handleDisconnect();
             }
 
             @Override
             public void onFailure(@NonNull WebSocket ws, @NonNull Throwable t, Response response) {
-                Log.w(TAG, "WS onFailure: " + t.getMessage(), t);
+                if (myGen != connGen) {
+                    Log.d(TAG, "WS onFailure ignored (stale gen=" + myGen + " curr=" + connGen + "): " + t.getMessage());
+                    return;
+                }
+                Log.w(TAG, "WS onFailure gen=" + myGen + ": " + t.getMessage(), t);
                 handleDisconnect();
             }
         });
@@ -371,27 +394,46 @@ public class FmoAudioPlugin extends Plugin {
             emitStatus("disconnected");
             return;
         }
+        // 幂等：同一波 onClosed + onFailure 只调度一次重连。
+        if (!reconnectScheduled.compareAndSet(false, true)) {
+            return;
+        }
         emitStatus("reconnecting");
         int attempts = reconnectAttempts.getAndIncrement();
         long delay = BACKOFF_MS[Math.min(attempts, BACKOFF_MS.length - 1)];
         Log.i(TAG, "audio reconnect in " + delay + "ms (attempt " + (attempts + 1) + ")");
-        getActivity().runOnUiThread(() -> {
-            new android.os.Handler().postDelayed(() -> {
+
+        // 去重：若还有上一个未触发的 pending 任务（理论上被 CAS 拦住了，保险起见再清一次）。
+        if (pendingReconnect != null) {
+            reconnectHandler.removeCallbacks(pendingReconnect);
+        }
+        pendingReconnect = new Runnable() {
+            @Override
+            public void run() {
+                pendingReconnect = null;
+                reconnectScheduled.set(false);
                 if (!manualStop.get() && running.get() && currentUrl != null) {
-                    firstChunk.set(true);
                     try {
                         openWebSocket(currentUrl);
                     } catch (Exception e) {
                         Log.w(TAG, "reconnect failed", e);
                     }
                 }
-            }, delay);
-        });
+            }
+        };
+        reconnectHandler.postDelayed(pendingReconnect, delay);
     }
 
     private void releaseInternal() {
         running.set(false);
         firstChunk.set(true);
+        // 作废所有在途 WS 回调，防止停止后仍触发重连链。
+        connGen++;
+        if (pendingReconnect != null) {
+            reconnectHandler.removeCallbacks(pendingReconnect);
+            pendingReconnect = null;
+        }
+        reconnectScheduled.set(false);
         if (webSocket != null) {
             try { webSocket.cancel(); } catch (Exception ignore) {}
             webSocket = null;
