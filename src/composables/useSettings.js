@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import {
   saveFmoAddresses,
   getFmoAddresses,
@@ -479,19 +479,31 @@ export function useSettings() {
       return
     }
 
-    // 原生端（Android/iOS）：WebView 不会处理 <a download>，会跳到外部浏览器
-    // 改为在 App 内通过 fetch 获取数据，再交给 exportFile 走 Filesystem + Share 面板
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText || ''}`.trim())
+    // 原生端（Android/iOS）：WebView fetch 会受 CORS 限制（服务端未返回 CORS 头时会 ERR_FAILED）
+    // 改用 CapacitorHttp 走原生层发请求，绕过 WebView 的 CORS 策略
+    const httpResponse = await CapacitorHttp.request({
+      method: 'GET',
+      url,
+      responseType: 'blob' // 二进制返回为 base64 字符串
+    })
+
+    if (httpResponse.status < 200 || httpResponse.status >= 300) {
+      throw new Error(`HTTP ${httpResponse.status}`)
+    }
+
+    // CapacitorHttp 的 headers 键名不统一，做大小写不敏感查找
+    const headers = httpResponse.headers || {}
+    const getHeader = (name) => {
+      const lower = name.toLowerCase()
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === lower) return headers[key]
+      }
+      return ''
     }
 
     // 从响应头里解析服务端指定的文件名
     let filename = `fmo-backup-${Date.now()}.db`
-    const disposition =
-      response.headers.get('Content-Disposition') ||
-      response.headers.get('content-disposition') ||
-      ''
+    const disposition = getHeader('Content-Disposition') || ''
     // 兼容 filename="xxx" 和 RFC5987 的 filename*=UTF-8''xxx
     const matchStar = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i)
     const matchPlain = disposition.match(/filename="?([^";]+)"?/i)
@@ -505,9 +517,14 @@ export function useSettings() {
       filename = matchPlain[1].trim()
     }
 
-    const blob = await response.blob()
-    const data = new Uint8Array(await blob.arrayBuffer())
-    const mimeType = blob.type || 'application/octet-stream'
+    // responseType='blob' 时，data 是 base64 字符串，解码成 Uint8Array
+    const base64 = httpResponse.data || ''
+    const binary = atob(base64)
+    const data = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      data[i] = binary.charCodeAt(i)
+    }
+    const mimeType = getHeader('Content-Type') || 'application/octet-stream'
 
     return await exportFile(filename, data, mimeType)
   }
