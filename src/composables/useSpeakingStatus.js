@@ -1,8 +1,12 @@
 import { ref, computed, onUnmounted, reactive } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import { formatTimeAgo } from '../components/home/constants'
 import { normalizeHost } from '../utils/urlUtils'
 import { gridToAddress } from '../services/gridService'
 import { FmoApiClient } from '../services/fmoApi'
+import { FmoEvents } from '../services/fmoNativeEvents'
+
+const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
 export function useSpeakingStatus() {
   // ========== 数据结构改造：按 addressId 隔离 ==========
@@ -162,8 +166,6 @@ export function useSpeakingStatus() {
 
     console.log(`[${addressId}] Connecting to events: ${wsUrl}`)
 
-    const ws = new WebSocket(wsUrl)
-    eventConnections.set(addressId, ws)
     connectionConfigs.set(addressId, { host, protocol, isPrimary })
 
     // 连接建立时自动从 localStorage 加载对应 addressId 的历史
@@ -172,6 +174,25 @@ export function useSpeakingStatus() {
 
     // 启动该 addressId 的清理定时器
     startSpeakingHistoryCleanup(addressId)
+
+    // ========== Android 原生路径：交给 FmoEventsPlugin 处理 ==========
+    if (isAndroid) {
+      const fakeWs = {
+        readyState: WebSocket.CONNECTING,
+        close() {
+          /* 真正关闭由 FmoEvents.disconnect 完成 */
+        }
+      }
+      eventConnections.set(addressId, fakeWs)
+      FmoEvents.connect({ addressId, url: wsUrl }).catch((err) => {
+        console.warn(`[${addressId}] FmoEvents.connect failed`, err)
+      })
+      return fakeWs
+    }
+
+    // ========== Web 路径：浏览器原生 WebSocket ==========
+    const ws = new WebSocket(wsUrl)
+    eventConnections.set(addressId, ws)
 
     ws.onopen = () => {
       console.log(`[${addressId}] Events WebSocket connected`)
@@ -222,6 +243,46 @@ export function useSpeakingStatus() {
     return ws
   }
 
+  // ========== Android 原生插件的全局事件监听 ==========
+  let nativeMsgHandle = null
+  let nativeStatusHandle = null
+
+  function onNativeMessage({ addressId, data }) {
+    const cfg = connectionConfigs.get(addressId)
+    if (!cfg) return
+    handleEventMessage(data, addressId, cfg.isPrimary)
+  }
+
+  function onNativeStatus({ addressId, status }) {
+    const cfg = connectionConfigs.get(addressId)
+    if (!cfg) return
+    const fakeWs = eventConnections.get(addressId)
+    if (status === 'connected') {
+      if (fakeWs) fakeWs.readyState = WebSocket.OPEN
+      if (cfg.isPrimary) primaryConnected.value = true
+      connectionChangeCounter.value++
+      startServerInfoPolling(addressId)
+    } else if (status === 'reconnecting') {
+      if (fakeWs) fakeWs.readyState = WebSocket.CLOSED
+      if (cfg.isPrimary) primaryConnected.value = false
+      connectionChangeCounter.value++
+    } else if (status === 'disconnected') {
+      if (fakeWs) fakeWs.readyState = WebSocket.CLOSED
+      if (cfg.isPrimary) primaryConnected.value = false
+      stopSpeakingHistoryCleanup(addressId)
+      connectionChangeCounter.value++
+    }
+  }
+
+  if (isAndroid) {
+    FmoEvents.addListener('message', onNativeMessage).then((h) => {
+      nativeMsgHandle = h
+    })
+    FmoEvents.addListener('status', onNativeStatus).then((h) => {
+      nativeStatusHandle = h
+    })
+  }
+
   // 连接多个事件 WebSocket（多选模式）
   function connectMultipleEventWs(addresses, primaryId) {
     if (!addresses || addresses.length === 0) return
@@ -245,6 +306,11 @@ export function useSpeakingStatus() {
   // 断开所有事件 WebSocket 连接
   function disconnectAllEventWs() {
     isManualDisconnect = true
+
+    // 原生路径：一次性关闭插件内所有连接
+    if (isAndroid) {
+      FmoEvents.disconnectAll().catch(() => {})
+    }
 
     // 清除所有重连定时器
     for (const timer of reconnectTimers.values()) {
@@ -298,6 +364,11 @@ export function useSpeakingStatus() {
   function disconnectEventWs(addressId) {
     // 先从 connectionConfigs 中删除配置，防止 onclose 回调中自动重连
     connectionConfigs.delete(addressId)
+
+    // 原生路径：告知插件关闭该连接
+    if (isAndroid) {
+      FmoEvents.disconnect({ addressId }).catch(() => {})
+    }
 
     const ws = eventConnections.get(addressId)
     if (ws) {
@@ -618,6 +689,15 @@ export function useSpeakingStatus() {
 
   // 组件卸载时清理
   onUnmounted(() => {
+    // 清理 Android 原生插件监听
+    if (nativeMsgHandle) {
+      nativeMsgHandle.remove && nativeMsgHandle.remove()
+      nativeMsgHandle = null
+    }
+    if (nativeStatusHandle) {
+      nativeStatusHandle.remove && nativeStatusHandle.remove()
+      nativeStatusHandle = null
+    }
     // 停止所有清理定时器
     for (const addressId of speakingHistoryCleanupTimers.keys()) {
       stopSpeakingHistoryCleanup(addressId)

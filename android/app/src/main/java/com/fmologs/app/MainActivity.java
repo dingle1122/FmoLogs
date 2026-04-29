@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FmoAudioPlugin.class);
+        registerPlugin(FmoEventsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

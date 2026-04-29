@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.OkHttpClient;
@@ -44,7 +45,7 @@ public class FmoAudioPlugin extends Plugin {
 
     private static final String TAG = "FmoAudioPlugin";
     private static final int SAMPLE_RATE = 8000;
-    private static final int RECONNECT_DELAY_MS = 3000;
+    private static final long[] BACKOFF_MS = { 3000L, 5000L, 10000L, 30000L };
 
     private static volatile FmoAudioPlugin sInstance;
 
@@ -64,6 +65,7 @@ public class FmoAudioPlugin extends Plugin {
     private String currentUrl;
     private volatile String currentTitle = "FMO 音频播放中";
     private volatile String currentText = "正在后台播放语音流";
+    private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
 
     @Override
     public void load() {
@@ -280,6 +282,7 @@ public class FmoAudioPlugin extends Plugin {
             @Override
             public void onOpen(@NonNull WebSocket ws, @NonNull Response response) {
                 Log.i(TAG, "WS onOpen");
+                reconnectAttempts.set(0);
                 emitStatus("connected");
             }
 
@@ -369,6 +372,9 @@ public class FmoAudioPlugin extends Plugin {
             return;
         }
         emitStatus("reconnecting");
+        int attempts = reconnectAttempts.getAndIncrement();
+        long delay = BACKOFF_MS[Math.min(attempts, BACKOFF_MS.length - 1)];
+        Log.i(TAG, "audio reconnect in " + delay + "ms (attempt " + (attempts + 1) + ")");
         getActivity().runOnUiThread(() -> {
             new android.os.Handler().postDelayed(() -> {
                 if (!manualStop.get() && running.get() && currentUrl != null) {
@@ -379,7 +385,7 @@ public class FmoAudioPlugin extends Plugin {
                         Log.w(TAG, "reconnect failed", e);
                     }
                 }
-            }, RECONNECT_DELAY_MS);
+            }, delay);
         });
     }
 
