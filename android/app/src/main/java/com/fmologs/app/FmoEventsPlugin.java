@@ -1,5 +1,7 @@
 package com.fmologs.app;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -13,6 +15,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.Iterator;
@@ -49,6 +52,7 @@ public class FmoEventsPlugin extends Plugin {
     private static final long SERVER_INFO_TIMEOUT_MS = 5_000L;
 
     private OkHttpClient httpClient;
+    private SharedPreferences prefs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, ConnectionState> connections = new ConcurrentHashMap<>();
     // 原生侧维护的业务状态（JS 冻结期间也持续累积），按 addressId 隔离
@@ -57,12 +61,19 @@ public class FmoEventsPlugin extends Plugin {
     // 只有 primary 的 currentSpeaker 变化才会直接驱动通知栏刷新。
     private volatile String primaryAddressId = "";
 
+    private static final String PREFS_NAME = "fmo_events";
+    private static final String KEY_HISTORY_PREFIX = "history_";
+
     @Override
     public void load() {
         httpClient = new OkHttpClient.Builder()
                 .pingInterval(20, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
                 .build();
+        Context ctx = getContext();
+        if (ctx != null) {
+            prefs = ctx.getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        }
     }
 
     @PluginMethod
@@ -89,7 +100,9 @@ public class FmoEventsPlugin extends Plugin {
         ConnectionState state = new ConnectionState(addressId, url);
         state.apiUrl = apiUrl == null ? "" : apiUrl;
         connections.put(addressId, state);
-        business.put(addressId, new BusinessState());
+        BusinessState bs = new BusinessState();
+        business.put(addressId, bs);
+        loadHistoryFromPrefs(addressId, bs);
         openWebSocket(state);
         call.resolve();
     }
@@ -563,6 +576,8 @@ public class FmoEventsPlugin extends Plugin {
             if (addressId.equals(primaryAddressId)) {
                 pushPrimaryToNotification();
             }
+            // 持久化发言历史
+            saveHistoryToPrefs(addressId, bs);
             // 若本次开始发言的 grid 还没缓存，启动原生侧异步解析；
             // 成功后若该 grid 仍是当前发言人的 grid，会再次刷通知补上城市名
             if (isSpeaking && callsign != null && !callsign.isEmpty()) {
@@ -604,6 +619,64 @@ public class FmoEventsPlugin extends Plugin {
             obj.put("history", arr);
         }
         return obj;
+    }
+
+    /** 将发言历史持久化到 SharedPreferences（异步写入）。 */
+    private void saveHistoryToPrefs(String addressId, BusinessState bs) {
+        if (prefs == null) return;
+        synchronized (bs) {
+            long cutoff = System.currentTimeMillis() - HISTORY_RETENTION_MS;
+            JSONArray arr = new JSONArray();
+            for (HistoryEntry h : bs.history) {
+                long t = h.endTime != null ? h.endTime : h.startTime;
+                if (t < cutoff) continue;
+                try {
+                    JSONObject obj = new JSONObject();
+                    obj.put("callsign", h.callsign);
+                    obj.put("grid", h.grid == null ? "" : h.grid);
+                    obj.put("startTime", h.startTime);
+                    obj.put("endTime", h.endTime != null ? h.endTime.longValue() : JSONObject.NULL);
+                    arr.put(obj);
+                } catch (Exception e) {
+                    Log.w(TAG, "saveHistoryToPrefs serialize failed", e);
+                }
+            }
+            prefs.edit().putString(KEY_HISTORY_PREFIX + addressId, arr.toString()).apply();
+        }
+    }
+
+    /** 从 SharedPreferences 加载发言历史到 BusinessState。
+     *  仅在 connect() 创建新 BusinessState 后调用一次。
+     *  进行中的记录（endTime=null）视为已结束，避免重启后残留脏状态。 */
+    private void loadHistoryFromPrefs(String addressId, BusinessState bs) {
+        if (prefs == null) return;
+        String json = prefs.getString(KEY_HISTORY_PREFIX + addressId, null);
+        if (json == null || json.isEmpty()) return;
+        try {
+            JSONArray arr = new JSONArray(json);
+            long cutoff = System.currentTimeMillis() - HISTORY_RETENTION_MS;
+            synchronized (bs) {
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.getJSONObject(i);
+                    long startTime = obj.optLong("startTime", 0);
+                    if (startTime < cutoff) continue;
+                    String callsign = obj.optString("callsign", "");
+                    if (callsign.isEmpty()) continue;
+                    String grid = obj.optString("grid", "");
+                    HistoryEntry entry = new HistoryEntry(callsign, grid, startTime);
+                    if (!obj.isNull("endTime")) {
+                        entry.endTime = obj.getLong("endTime");
+                    } else {
+                        // 进行中的记录在重启后视为已结束
+                        entry.endTime = startTime;
+                    }
+                    bs.history.add(entry);
+                }
+            }
+            Log.i(TAG, "[" + addressId + "] loaded " + bs.history.size() + " history entries from prefs");
+        } catch (Exception e) {
+            Log.w(TAG, "[" + addressId + "] loadHistoryFromPrefs parse failed", e);
+        }
     }
 
     private static class HistoryEntry {

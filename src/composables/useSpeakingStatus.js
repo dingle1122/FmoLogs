@@ -290,10 +290,15 @@ export function useSpeakingStatus() {
     }
   }
 
-  // ========== 从原生插件拉取快照并覆盖到响应式状态 ==========
+  // ========== 从原生插件拉取快照并合并到响应式状态 ==========
+  /**
+   * 合并原生快照与 JS 现有历史，避免原生空快照覆盖 localStorage 数据。
+   * 策略：以 (callsign, startTime) 为去重键，取并集；冲突时优先原生数据
+   * （原生 endTime 更准确），最终按 startTime 降序排列并过滤 >1h 记录。
+   */
   function applyNativeSnapshot(entry) {
     if (!entry || !entry.addressId) return
-    const { addressId, currentSpeaker, currentGrid, currentIsHost, history } = entry
+    const { addressId, currentSpeaker, currentGrid, currentIsHost, history: nativeHistory } = entry
     if (!connectionConfigs.has(addressId)) return
 
     // 当前发言人
@@ -314,9 +319,17 @@ export function useSpeakingStatus() {
       speakerAddressMap.set(addressId, '')
     }
 
-    // history: 补回 serverName/serverUid
+    // 合并原生快照与 JS 现有历史
+    const existingHistory = speakingHistoryMap.get(addressId) || []
     const serverInfo = serverInfoMap.get(addressId)
-    const newHistory = (history || []).map((h) => {
+    const oneHourAgo = Date.now() - 60 * 60 * 1000
+
+    // 用 Map 以 (callsign, startTime) 去重，冲突时原生数据优先
+    const mergedMap = new Map()
+    function histKey(h) {
+      return h.callsign + '@' + h.startTime
+    }
+    function toRecord(h) {
       const rec = {
         callsign: h.callsign,
         grid: h.grid || '',
@@ -328,7 +341,22 @@ export function useSpeakingStatus() {
         rec.serverUid = serverInfo.uid
       }
       return rec
-    })
+    }
+
+    // 先放 JS 现有记录
+    for (const h of existingHistory) {
+      const t = h.endTime || h.startTime
+      if (t < oneHourAgo) continue
+      mergedMap.set(histKey(h), toRecord(h))
+    }
+    // 原生记录覆盖同名键（原生 endTime 更准确，特别是进行中的记录）
+    for (const h of nativeHistory || []) {
+      const t = (h.endTime != null ? h.endTime : h.startTime)
+      if (t < oneHourAgo) continue
+      mergedMap.set(histKey(h), toRecord(h))
+    }
+
+    const newHistory = Array.from(mergedMap.values()).sort((a, b) => b.startTime - a.startTime)
     speakingHistoryMap.set(addressId, newHistory)
     saveSpeakingHistoryToStorage(addressId)
     connectionChangeCounter.value++
