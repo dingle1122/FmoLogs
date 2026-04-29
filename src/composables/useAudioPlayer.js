@@ -1,50 +1,9 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { AudioStreamPlayer } from '../services/audioPlayer'
+import { FmoAudio, mapNativeStatus } from '../services/fmoNativeAudio'
 import { normalizeHost } from '../utils/urlUtils'
 import { BackgroundMode } from '@anuradev/capacitor-background-mode'
 import { Capacitor } from '@capacitor/core'
-
-/**
- * 生成一段极短的静音 WAV 数据 URI
- * 用于创建 <audio> 保活元素，让 WebView 认为有媒体在播放
- * 格式：8kHz 采样率、单声道、16bit、1 秒静音
- */
-function generateSilentWavDataUri() {
-  const sampleRate = 8000
-  const numChannels = 1
-  const bitsPerSample = 16
-  const numSamples = sampleRate // 1 秒
-  const dataSize = numSamples * numChannels * (bitsPerSample / 8)
-  const buffer = new ArrayBuffer(44 + dataSize)
-  const view = new DataView(buffer)
-
-  // RIFF header
-  view.setUint32(0, 0x52494646, false) // 'RIFF'
-  view.setUint32(4, 36 + dataSize, true) // file size - 8
-  view.setUint32(8, 0x57415645, false) // 'WAVE'
-
-  // fmt chunk
-  view.setUint32(12, 0x666d7420, false) // 'fmt '
-  view.setUint32(16, 16, true) // chunk size
-  view.setUint16(20, 1, true) // PCM format
-  view.setUint16(22, numChannels, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, sampleRate * numChannels * (bitsPerSample / 8), true) // byte rate
-  view.setUint16(32, numChannels * (bitsPerSample / 8), true) // block align
-  view.setUint16(34, bitsPerSample, true)
-
-  // data chunk
-  view.setUint32(36, 0x64617461, false) // 'data'
-  view.setUint32(40, dataSize, true)
-  // 样本数据全为 0（静音）
-
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return 'data:audio/wav;base64,' + btoa(binary)
-}
 
 /**
  * 将音量百分比转换为非线性 gain 值
@@ -75,98 +34,15 @@ export function useAudioPlayer() {
   // 是否为 Android 原生平台
   const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
-  // 内部：AudioStreamPlayer 实例（非响应式）
+  // 内部：AudioStreamPlayer 实例（非响应式，仅非 Android 使用）
   let player = null
 
-  // 屏幕唤醒锁引用（跨平台辅助保活）
+  // Android 原生插件状态监听器句柄
+  let nativeStatusHandle = null
+  let nativeMuteHandle = null
+
+  // 屏幕唤醒锁引用（跨平台辅助保活，仅非 Android）
   let wakeLockRef = null
-
-  // 静音 <audio> 保活元素（Android 后台保活关键）
-  let silentAudioEl = null
-  // AudioContext 定时恢复器
-  let _keepAliveInterval = null
-
-  /**
-   * 创建静音 <audio> 保活元素
-   * WebView 在识别到 <audio> 播放时不会挂起 AudioContext
-   * 这是解决后台 WebAudio 停止播放的核心技巧
-   */
-  function startSilentAudioKeepAlive() {
-    if (!isAndroid) return
-    stopSilentAudioKeepAlive()
-
-    const audio = document.createElement('audio')
-    audio.src = generateSilentWavDataUri()
-    audio.loop = true
-    audio.volume = 0.01 // 极低音量，几乎听不到
-    audio.setAttribute('playsinline', '')
-    audio.setAttribute('webkit-playsinline', '')
-    audio.style.display = 'none'
-    document.body.appendChild(audio)
-    audio.play().catch(() => {})
-
-    silentAudioEl = audio
-
-    // 设置 MediaSession，让系统识别为媒体播放
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: 'FMO 音频流',
-        artist: 'FMO Logs',
-        album: ''
-      })
-      navigator.mediaSession.setActionHandler('pause', () => {
-        stopAudio()
-      })
-      navigator.mediaSession.setActionHandler('stop', () => {
-        stopAudio()
-      })
-    }
-  }
-
-  /**
-   * 停止并移除静音 <audio> 保活元素
-   */
-  function stopSilentAudioKeepAlive() {
-    if (silentAudioEl) {
-      silentAudioEl.pause()
-      silentAudioEl.src = ''
-      silentAudioEl.load()
-      if (silentAudioEl.parentNode) {
-        silentAudioEl.parentNode.removeChild(silentAudioEl)
-      }
-      silentAudioEl = null
-    }
-    // 清除 MediaSession
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = null
-      navigator.mediaSession.setActionHandler('pause', null)
-      navigator.mediaSession.setActionHandler('stop', null)
-    }
-  }
-
-  /**
-   * 启动 AudioContext 后台保活定时器
-   * 定期检查并恢复被系统挂起的 AudioContext
-   */
-  function startKeepAliveTimer() {
-    if (!isAndroid) return
-    stopKeepAliveTimer()
-    _keepAliveInterval = setInterval(() => {
-      if (player?.audioCtx?.state === 'suspended') {
-        player.audioCtx.resume().catch(() => {})
-      }
-    }, 2000)
-  }
-
-  /**
-   * 停止 AudioContext 保活定时器
-   */
-  function stopKeepAliveTimer() {
-    if (_keepAliveInterval) {
-      clearInterval(_keepAliveInterval)
-      _keepAliveInterval = null
-    }
-  }
 
   /**
    * 启用安卓后台模式
@@ -208,7 +84,7 @@ export function useAudioPlayer() {
     if (!isAndroid) return
     try {
       await BackgroundMode.enableWebViewOptimizations()
-    } catch (e) {
+    } catch {
       // 忽略
     }
     try {
@@ -267,6 +143,22 @@ export function useAudioPlayer() {
   }
 
   /**
+   * 更新原生通知栏的发言人信息（仅 Android 有效）
+   * @param {string} callsign - 当前发言的呼号（空表示无人发言）
+   * @param {string} address  - 发言人地址
+   */
+  function updateSpeakerInfo(callsign, address) {
+    if (!isAndroid || !isPlaying.value) return
+    const title = callsign
+      ? `正在发言：${callsign}`
+      : 'FMO 音频播放中'
+    const text = callsign
+      ? (address ? `${callsign} · ${address}` : callsign)
+      : '当前无人发言'
+    FmoAudio.updateInfo({ title, text }).catch(() => {})
+  }
+
+  /**
    * 切换播放/停止
    * @param {string} host - 主机地址
    * @param {string} protocol - 协议（ws 或 wss）
@@ -288,52 +180,91 @@ export function useAudioPlayer() {
     if (!host) return
 
     // 如果已有连接，先停止
-    if (player) {
-      stopAudio()
-    }
-
-    // 请求屏幕唤醒锁（跨平台辅助保活）
-    requestWakeLock()
-
-    // Android: 启用后台模式，创建前台服务保活
-    enableBackgroundMode()
-    // Android: 静音 <audio> 保活 + MediaSession
-    startSilentAudioKeepAlive()
-    // Android: AudioContext 定时恢复保活
-    startKeepAliveTimer()
+    stopAudio()
 
     // 构建 WebSocket URL
     const wsProtocol = protocol === 'wss' ? 'wss' : 'ws'
     const normalizedHost = normalizeHost(host)
     const url = `${wsProtocol}://${normalizedHost}/audio`
 
-    // 创建 AudioStreamPlayer 实例
-    player = new AudioStreamPlayer({ url })
+    if (isAndroid) {
+      // Android 原生路径：原生插件自己管理 MEDIA_PLAYBACK 前台服务 + WakeLock，
+      // 不再依赖 @anuradev/capacitor-background-mode
 
-    // 设置状态回调
+      // 监听原生侧状态
+      FmoAudio.addListener('status', ({ status }) => {
+        const text = mapNativeStatus(status)
+        audioStatus.value = text
+        if (text === '音频未连接' || text === '音频连接错误') {
+          isPlaying.value = false
+          isMuted.value = false
+          removeNativeListener()
+        }
+      }).then((handle) => {
+        nativeStatusHandle = handle
+      })
+
+      // 监听通知栏按钮触发的静音切换
+      FmoAudio.addListener('muteChanged', ({ muted }) => {
+        isMuted.value = !!muted
+      }).then((handle) => {
+        nativeMuteHandle = handle
+      })
+
+      FmoAudio.start({ url, volumePercent: 100, muted: false }).catch((e) => {
+        console.debug('原生音频启动失败:', e)
+        audioStatus.value = '音频连接错误'
+        isPlaying.value = false
+        removeNativeListener()
+      })
+      isPlaying.value = true
+      return
+    }
+
+    // Web / 非 Android 原生路径
+    requestWakeLock()
+    player = new AudioStreamPlayer({ url })
     player.onStatus = (status) => {
       audioStatus.value = status
-      // 连接断开或出错时，自动重置播放状态
-      // 注意：'音频重连中...' 状态下保持 isPlaying = true，以便自动恢复
       if (status === '音频未连接' || status === '音频连接错误') {
         isPlaying.value = false
         isMuted.value = false
-        // Android: 连接彻底断开时禁用后台模式
-        disableBackgroundMode()
-        stopSilentAudioKeepAlive()
-        stopKeepAliveTimer()
       }
     }
-
-    // 连接到音频流
     player.connect()
     isPlaying.value = true
+  }
+
+  /**
+   * 移除原生状态监听
+   */
+  function removeNativeListener() {
+    if (nativeStatusHandle) {
+      try {
+        nativeStatusHandle.remove()
+      } catch {
+        // 忽略
+      }
+      nativeStatusHandle = null
+    }
+    if (nativeMuteHandle) {
+      try {
+        nativeMuteHandle.remove()
+      } catch {
+        // 忽略
+      }
+      nativeMuteHandle = null
+    }
   }
 
   /**
    * 停止播放
    */
   function stopAudio() {
+    if (isAndroid) {
+      FmoAudio.stop().catch(() => {})
+      removeNativeListener()
+    }
     if (player) {
       player.disconnect()
       player = null
@@ -342,22 +273,21 @@ export function useAudioPlayer() {
     isMuted.value = false
     audioStatus.value = ''
 
-    // 释放屏幕唤醒锁
+    // 释放屏幕唤醒锁（仅非 Android）
     releaseWakeLock()
-
-    // Android: 禁用后台模式
-    disableBackgroundMode()
-    // Android: 停止静音保活
-    stopSilentAudioKeepAlive()
-    // Android: 停止 AudioContext 保活定时器
-    stopKeepAliveTimer()
   }
 
   /**
    * 静音（不断开连接）
    */
   function muteAudio() {
-    if (player && isPlaying.value) {
+    if (!isPlaying.value) return
+    if (isAndroid) {
+      FmoAudio.setMuted({ muted: true }).catch(() => {})
+      isMuted.value = true
+      return
+    }
+    if (player) {
       player.setVolume(0)
       isMuted.value = true
     }
@@ -368,8 +298,15 @@ export function useAudioPlayer() {
    * @param {number} volumePercent - 音量百分比（0-200），默认100
    */
   function unmuteAudio(volumePercent = 100) {
-    if (player && isPlaying.value) {
-      player.setVolume(percentToGain(volumePercent)) // 百分比转为非线性 gain 值
+    if (!isPlaying.value) return
+    if (isAndroid) {
+      FmoAudio.setMuted({ muted: false }).catch(() => {})
+      FmoAudio.setVolume({ volumePercent }).catch(() => {})
+      isMuted.value = false
+      return
+    }
+    if (player) {
+      player.setVolume(percentToGain(volumePercent))
       isMuted.value = false
     }
   }
@@ -379,8 +316,13 @@ export function useAudioPlayer() {
    * @param {number} volumePercent - 音量百分比（0-200）
    */
   function setVolume(volumePercent) {
-    if (player && isPlaying.value && !isMuted.value) {
-      player.setVolume(percentToGain(volumePercent)) // 百分比转为非线性 gain 值
+    if (!isPlaying.value || isMuted.value) return
+    if (isAndroid) {
+      FmoAudio.setVolume({ volumePercent }).catch(() => {})
+      return
+    }
+    if (player) {
+      player.setVolume(percentToGain(volumePercent))
     }
   }
 
@@ -409,6 +351,7 @@ export function useAudioPlayer() {
     muteAudio,
     unmuteAudio,
     setVolume,
-    resumeAudio
+    resumeAudio,
+    updateSpeakerInfo
   }
 }

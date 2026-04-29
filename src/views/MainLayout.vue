@@ -280,7 +280,8 @@ const {
   muteAudio,
   unmuteAudio,
   setVolume: setAudioVolumePlayer,
-  resumeAudio
+  resumeAudio,
+  updateSpeakerInfo
 } = useAudioPlayer()
 
 const fmoSync = useFmoSync({
@@ -1013,6 +1014,19 @@ watch(
     } else {
       unmuteAudio(settings.audioVolume.value)
     }
+  }
+)
+
+// 同步当前发言人到原生通知栏（仅 Android）
+watch(
+  [
+    () => speakingStatus.currentSpeaker.value,
+    () => speakingStatus.currentSpeakerAddress.value,
+    isAudioPlaying
+  ],
+  ([speaker, address, playing]) => {
+    if (!playing) return
+    updateSpeakerInfo(speaker || '', address || '')
   }
 )
 

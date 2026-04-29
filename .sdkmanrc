@@ -2,4 +2,4 @@
 # Add the following to your ~/.sdkman/etc/config:
 # sdkman_auto_env=true
 
-java=17.0.19-zulu
+java=21.0.9-zulu
