@@ -63,7 +63,7 @@
           @sync-days="handleSyncDays"
           @sync-incremental="handleSyncIncremental"
           @sync-full="handleSyncFull"
-          @backup-logs="settings.backupLogs()"
+          @backup-logs="handleBackupLogs"
           @clear-all-data="handleClearAllData"
           @update:multi-select-mode="handleSetMultiSelectMode"
           @toggle-address-selection="handleToggleAddressSelection"
@@ -557,8 +557,11 @@ async function handleClearAllData() {
 async function handleExportData() {
   try {
     loading.value = true
-    await exportDataToDbFile(selectedFromCallsign.value)
+    const result = await exportDataToDbFile(selectedFromCallsign.value)
     loading.value = false
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
   } catch (err) {
     loading.value = false
     toast.error(`导出失败: ${err.message}`)
@@ -570,11 +573,26 @@ async function handleExportAdif() {
   try {
     loading.value = true
     const appVersion = packageInfo.version
-    await exportDataToAdif(selectedFromCallsign.value, appVersion)
+    const result = await exportDataToAdif(selectedFromCallsign.value, appVersion)
     loading.value = false
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
   } catch (err) {
     loading.value = false
     toast.error(`导出ADIF失败: ${err.message}`)
+  }
+}
+
+// 备份 FMO 日志（原生端在 App 内完成下载/分享，Web 端走浏览器下载）
+async function handleBackupLogs() {
+  try {
+    const result = await settings.backupLogs()
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
+  } catch (err) {
+    toast.error(`备份失败: ${err.message}`)
   }
 }
 

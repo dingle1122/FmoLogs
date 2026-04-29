@@ -1206,7 +1206,7 @@ export async function exportDataToDbFile(fromCallsign) {
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.db`
 
-  await exportFile(filename, data, 'application/x-sqlite3')
+  return await exportFile(filename, data, 'application/x-sqlite3')
 }
 
 // 导出IndexedDB数据到ADIF文件
@@ -1292,7 +1292,7 @@ export async function exportDataToAdif(fromCallsign, appVersion = '1.0.0') {
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.adi`
 
-  await exportFile(filename, content, 'text/plain')
+  return await exportFile(filename, content, 'text/plain')
 }
 
 // 根据频率(Hz)获取波段

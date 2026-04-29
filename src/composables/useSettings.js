@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import {
   saveFmoAddresses,
   getFmoAddresses,
@@ -7,6 +8,7 @@ import {
 } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
+import { exportFile } from '../utils/exportFile'
 
 export function useSettings() {
   // 多地址存储
@@ -446,7 +448,7 @@ export function useSettings() {
     }
   }
 
-  function backupLogs() {
+  async function backupLogs() {
     if (!fmoAddress.value) return
 
     let address = fmoAddress.value.trim()
@@ -461,16 +463,53 @@ export function useSettings() {
     address = address.replace(/\/+$/, '')
 
     const url = `${address}/api/qso/backup`
+    const platform = Capacitor.getPlatform() // 'web' | 'android' | 'ios'
 
-    // 在 HTTPS 网站上访问 HTTP 资源会被浏览器阻止（混合内容策略）
-    // 去除 target='_blank'，直接在当前页面触发下载
-    const link = document.createElement('a')
-    link.href = url
-    link.download = '' // 添加 download 属性触发下载行为，空值表示使用服务器指定的文件名
-    // 不设置 target='_blank'，避免弹出被阻止的空白窗口
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // Web 端：保持原有的浏览器下载体验
+    if (platform === 'web') {
+      // 在 HTTPS 网站上访问 HTTP 资源会被浏览器阻止（混合内容策略）
+      // 去除 target='_blank'，直接在当前页面触发下载
+      const link = document.createElement('a')
+      link.href = url
+      link.download = '' // 添加 download 属性触发下载行为，空值表示使用服务器指定的文件名
+      // 不设置 target='_blank'，避免弹出被阻止的空白窗口
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
+
+    // 原生端（Android/iOS）：WebView 不会处理 <a download>，会跳到外部浏览器
+    // 改为在 App 内通过 fetch 获取数据，再交给 exportFile 走 Filesystem + Share 面板
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${response.statusText || ''}`.trim())
+    }
+
+    // 从响应头里解析服务端指定的文件名
+    let filename = `fmo-backup-${Date.now()}.db`
+    const disposition =
+      response.headers.get('Content-Disposition') ||
+      response.headers.get('content-disposition') ||
+      ''
+    // 兼容 filename="xxx" 和 RFC5987 的 filename*=UTF-8''xxx
+    const matchStar = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i)
+    const matchPlain = disposition.match(/filename="?([^";]+)"?/i)
+    if (matchStar && matchStar[1]) {
+      try {
+        filename = decodeURIComponent(matchStar[1].trim())
+      } catch {
+        filename = matchStar[1].trim()
+      }
+    } else if (matchPlain && matchPlain[1]) {
+      filename = matchPlain[1].trim()
+    }
+
+    const blob = await response.blob()
+    const data = new Uint8Array(await blob.arrayBuffer())
+    const mimeType = blob.type || 'application/octet-stream'
+
+    return await exportFile(filename, data, mimeType)
   }
 
   async function loadTodayContactedCallsigns(selectedFromCallsign) {

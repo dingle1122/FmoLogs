@@ -262,6 +262,8 @@ export function useSpeakingStatus() {
       if (cfg.isPrimary) primaryConnected.value = true
       connectionChangeCounter.value++
       startServerInfoPolling(addressId)
+      // 连上后从原生插件拉一次快照（JS 冻结期间的累积状态都在原生侧）
+      syncFromNativeSnapshot(addressId)
     } else if (status === 'reconnecting') {
       if (fakeWs) fakeWs.readyState = WebSocket.CLOSED
       if (cfg.isPrimary) primaryConnected.value = false
@@ -274,6 +276,67 @@ export function useSpeakingStatus() {
     }
   }
 
+  // ========== 从原生插件拉取快照并覆盖到响应式状态 ==========
+  function applyNativeSnapshot(entry) {
+    if (!entry || !entry.addressId) return
+    const { addressId, currentSpeaker, currentGrid, history } = entry
+    if (!connectionConfigs.has(addressId)) return
+
+    // 当前发言人
+    currentSpeakerMap.set(addressId, currentSpeaker || '')
+
+    // 地址解析（仅当前发言人的 grid）
+    if (currentGrid) {
+      gridToAddress(currentGrid)
+        .then((result) => {
+          speakerAddressMap.set(addressId, formatAddress(result))
+        })
+        .catch(() => {
+          speakerAddressMap.set(addressId, '')
+        })
+    } else {
+      speakerAddressMap.set(addressId, '')
+    }
+
+    // history: 补回 serverName/serverUid
+    const serverInfo = serverInfoMap.get(addressId)
+    const newHistory = (history || []).map((h) => {
+      const rec = {
+        callsign: h.callsign,
+        grid: h.grid || '',
+        startTime: h.startTime,
+        endTime: h.endTime == null ? null : h.endTime
+      }
+      if (serverInfo) {
+        rec.serverName = serverInfo.name
+        rec.serverUid = serverInfo.uid
+      }
+      return rec
+    })
+    speakingHistoryMap.set(addressId, newHistory)
+    saveSpeakingHistoryToStorage(addressId)
+    connectionChangeCounter.value++
+  }
+
+  async function syncFromNativeSnapshot(addressId) {
+    if (!isAndroid) return
+    try {
+      const payload = addressId ? { addressId } : {}
+      const snapshot = await FmoEvents.getSnapshot(payload)
+      const list = (snapshot && snapshot.connections) || []
+      for (const entry of list) applyNativeSnapshot(entry)
+    } catch (err) {
+      console.warn('[FmoEvents] getSnapshot failed', err)
+    }
+  }
+
+  // 切回前台时从原生拉一次全量快照
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+      syncFromNativeSnapshot()
+    }
+  }
+
   if (isAndroid) {
     FmoEvents.addListener('message', onNativeMessage).then((h) => {
       nativeMsgHandle = h
@@ -281,6 +344,7 @@ export function useSpeakingStatus() {
     FmoEvents.addListener('status', onNativeStatus).then((h) => {
       nativeStatusHandle = h
     })
+    document.addEventListener('visibilitychange', onVisibilityChange)
   }
 
   // 连接多个事件 WebSocket（多选模式）
@@ -497,6 +561,10 @@ export function useSpeakingStatus() {
               }
             })
             // 更新该服务器的当前发言者
+            const prevSpeaker = currentSpeakerMap.get(addressId) || ''
+            console.log(
+              `[speaker][${addressId}] recv START: "${callsign}" (prev="${prevSpeaker || '-'}"${grid ? ', grid=' + grid : ''})`
+            )
             currentSpeakerMap.set(addressId, callsign)
 
             const serverInfo = serverInfoMap.get(addressId)
@@ -534,6 +602,10 @@ export function useSpeakingStatus() {
               }
             })
             // 清空该服务器的当前发言者
+            const prevSpeaker = currentSpeakerMap.get(addressId) || ''
+            console.log(
+              `[speaker][${addressId}] recv END  : raw="${callsign || '-'}" (prev="${prevSpeaker || '-'}")`
+            )
             currentSpeakerMap.set(addressId, '')
             hasChanges = true
             saveSpeakingHistoryToStorage(addressId)
@@ -697,6 +769,9 @@ export function useSpeakingStatus() {
     if (nativeStatusHandle) {
       nativeStatusHandle.remove && nativeStatusHandle.remove()
       nativeStatusHandle = null
+    }
+    if (isAndroid) {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     }
     // 停止所有清理定时器
     for (const addressId of speakingHistoryCleanupTimers.keys()) {

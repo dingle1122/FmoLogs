@@ -1,11 +1,16 @@
 /**
  * 跨平台文件导出工具
- * 在 Web 端使用浏览器原生下载，在 Capacitor 端使用原生文件系统 + 分享面板
+ * - Web 端：走浏览器原生下载
+ * - Android/iOS：优先直接保存到公共 Documents 目录（FmoLogs 子目录），方便用户在文件管理器中查看
+ *   如需分享，可调用单独导出的 shareFile() 发起系统分享
  */
 
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
+
+// 原生端统一写入到 Documents/FmoLogs 子目录，便于用户查找
+const NATIVE_SUBDIR = 'FmoLogs'
 
 /**
  * 将 Blob 转换为 Base64 字符串
@@ -41,45 +46,82 @@ function downloadInBrowser(filename, blob) {
 }
 
 /**
+ * 将入参统一转换为 Blob
+ */
+function toBlob(data, mimeType) {
+  if (data instanceof Blob) return data
+  if (data instanceof Uint8Array) return new Blob([data], { type: mimeType })
+  return new Blob([data], { type: mimeType || 'text/plain' })
+}
+
+/**
  * 跨平台文件导出
  * @param {string} filename - 文件名
- * @param {Uint8Array|string} data - 文件数据
+ * @param {Uint8Array|string|Blob} data - 文件数据
  * @param {string} mimeType - MIME 类型
+ * @returns {Promise<{platform: string, savedPath?: string, uri?: string, displayPath?: string}>}
+ *   - platform: 'web' | 'android' | 'ios'
+ *   - savedPath: 原生端保存时在存储中的相对路径（如 FmoLogs/xxx.adi）
+ *   - displayPath: 面向用户展示的路径（如 文档/FmoLogs/xxx.adi）
+ *   - uri: 原生端的文件 URI，可用于后续分享
  */
 export async function exportFile(filename, data, mimeType) {
   const platform = Capacitor.getPlatform() // 'web' | 'android' | 'ios'
 
   // ========== Web 端：保持原有浏览器下载体验 ==========
   if (platform === 'web') {
-    const blob =
-      data instanceof Uint8Array
-        ? new Blob([data], { type: mimeType })
-        : new Blob([data], { type: mimeType || 'text/plain' })
-
-    downloadInBrowser(filename, blob)
-    return
+    downloadInBrowser(filename, toBlob(data, mimeType))
+    return { platform }
   }
 
-  // ========== Android/iOS：先写入缓存再调用系统分享面板 ==========
-  const blob =
-    data instanceof Uint8Array
-      ? new Blob([data], { type: mimeType })
-      : new Blob([data], { type: mimeType || 'text/plain' })
+  // ========== Android/iOS：直接保存到 Documents 目录 ==========
+  const base64 = await blobToBase64(toBlob(data, mimeType))
+  const relativePath = `${NATIVE_SUBDIR}/${filename}`
 
-  const base64 = await blobToBase64(blob)
+  let result
+  try {
+    // 优先写入公共 Documents 目录（用户可在系统文件管理器的"文档"中直接找到）
+    result = await Filesystem.writeFile({
+      path: relativePath,
+      data: base64,
+      directory: Directory.Documents,
+      recursive: true
+    })
+  } catch (err) {
+    // 某些设备/权限下 Documents 不可写，回退到应用数据目录
+    console.warn('[exportFile] 写入 Documents 失败，回退到 Data 目录:', err)
+    result = await Filesystem.writeFile({
+      path: relativePath,
+      data: base64,
+      directory: Directory.Data,
+      recursive: true
+    })
+    return {
+      platform,
+      savedPath: relativePath,
+      uri: result.uri,
+      displayPath: `应用目录/${relativePath}`
+    }
+  }
 
-  // 写入应用缓存目录
-  const result = await Filesystem.writeFile({
-    path: filename,
-    data: base64,
-    directory: Directory.Cache,
-    recursive: true
-  })
+  return {
+    platform,
+    savedPath: relativePath,
+    uri: result.uri,
+    displayPath: `文档/${relativePath}`
+  }
+}
 
-  // 弹出系统分享面板，让用户选择保存位置或分享方式
+/**
+ * 主动分享一个已经保存的文件（如果调用方需要分享入口，可以调用此函数）
+ * @param {string} uri - Filesystem 返回的文件 URI
+ * @param {string} filename - 文件名（用于对话框标题）
+ */
+export async function shareFile(uri, filename) {
+  if (!uri) return
   await Share.share({
-    title: `导出 ${filename}`,
-    files: [result.uri],
-    dialogTitle: '选择导出方式'
+    title: `分享 ${filename}`,
+    files: [uri],
+    dialogTitle: '选择分享方式'
   })
 }
