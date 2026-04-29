@@ -647,6 +647,7 @@ public class FmoEventsPlugin extends Plugin {
 
     /** 从 SharedPreferences 加载发言历史到 BusinessState。
      *  仅在 connect() 创建新 BusinessState 后调用一次。
+     *  按 callsign 去重（与实时处理逻辑一致），保留最新记录。
      *  进行中的记录（endTime=null）视为已结束，避免重启后残留脏状态。 */
     private void loadHistoryFromPrefs(String addressId, BusinessState bs) {
         if (prefs == null) return;
@@ -655,6 +656,7 @@ public class FmoEventsPlugin extends Plugin {
         try {
             JSONArray arr = new JSONArray(json);
             long cutoff = System.currentTimeMillis() - HISTORY_RETENTION_MS;
+            java.util.Set<String> seen = new java.util.HashSet<>();
             synchronized (bs) {
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject obj = arr.getJSONObject(i);
@@ -662,6 +664,8 @@ public class FmoEventsPlugin extends Plugin {
                     if (startTime < cutoff) continue;
                     String callsign = obj.optString("callsign", "");
                     if (callsign.isEmpty()) continue;
+                    // 按 callsign 去重：JSON 数组按时间降序排列，先遇到的更新
+                    if (!seen.add(callsign)) continue;
                     String grid = obj.optString("grid", "");
                     HistoryEntry entry = new HistoryEntry(callsign, grid, startTime);
                     if (!obj.isNull("endTime")) {

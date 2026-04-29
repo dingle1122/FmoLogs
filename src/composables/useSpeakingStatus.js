@@ -121,7 +121,9 @@ export function useSpeakingStatus() {
   }
 
   // 从 localStorage 加载指定服务器的发言历史
+  // Android 端由原生 SharedPreferences 持久化，不需要 localStorage
   function loadSpeakingHistoryFromStorage(addressId) {
+    if (isAndroid) return []
     try {
       const stored = localStorage.getItem(getStorageKey(addressId))
       if (stored) {
@@ -145,7 +147,9 @@ export function useSpeakingStatus() {
   }
 
   // 保存指定服务器的发言历史到 localStorage
+  // Android 端由原生 SharedPreferences 持久化，不需要 localStorage
   function saveSpeakingHistoryToStorage(addressId) {
+    if (isAndroid) return
     try {
       const history = speakingHistoryMap.get(addressId) || []
       localStorage.setItem(getStorageKey(addressId), JSON.stringify(history))
@@ -293,8 +297,8 @@ export function useSpeakingStatus() {
   // ========== 从原生插件拉取快照并合并到响应式状态 ==========
   /**
    * 合并原生快照与 JS 现有历史，避免原生空快照覆盖 localStorage 数据。
-   * 策略：以 (callsign, startTime) 为去重键，取并集；冲突时优先原生数据
-   * （原生 endTime 更准确），最终按 startTime 降序排列并过滤 >1h 记录。
+   * 去重策略与实时处理一致：按 callsign 去重（每个呼号只保留一条记录），
+   * 冲突时优先原生数据（原生 endTime 更准确），最终按 startTime 降序排列并过滤 >1h 记录。
    */
   function applyNativeSnapshot(entry) {
     if (!entry || !entry.addressId) return
@@ -319,16 +323,13 @@ export function useSpeakingStatus() {
       speakerAddressMap.set(addressId, '')
     }
 
-    // 合并原生快照与 JS 现有历史
+    // 合并原生快照与 JS 现有历史（按 callsign 去重，与实时处理逻辑一致）
     const existingHistory = speakingHistoryMap.get(addressId) || []
     const serverInfo = serverInfoMap.get(addressId)
     const oneHourAgo = Date.now() - 60 * 60 * 1000
 
-    // 用 Map 以 (callsign, startTime) 去重，冲突时原生数据优先
+    // 用 Map 以 callsign 去重，冲突时原生数据优先（endTime 更准确，特别是进行中的记录）
     const mergedMap = new Map()
-    function histKey(h) {
-      return h.callsign + '@' + h.startTime
-    }
     function toRecord(h) {
       const rec = {
         callsign: h.callsign,
@@ -347,13 +348,13 @@ export function useSpeakingStatus() {
     for (const h of existingHistory) {
       const t = h.endTime || h.startTime
       if (t < oneHourAgo) continue
-      mergedMap.set(histKey(h), toRecord(h))
+      mergedMap.set(h.callsign, toRecord(h))
     }
-    // 原生记录覆盖同名键（原生 endTime 更准确，特别是进行中的记录）
+    // 原生记录覆盖同名 callsign（原生 endTime 更准确，特别是进行中的记录）
     for (const h of nativeHistory || []) {
       const t = (h.endTime != null ? h.endTime : h.startTime)
       if (t < oneHourAgo) continue
-      mergedMap.set(histKey(h), toRecord(h))
+      mergedMap.set(h.callsign, toRecord(h))
     }
 
     const newHistory = Array.from(mergedMap.values()).sort((a, b) => b.startTime - a.startTime)
