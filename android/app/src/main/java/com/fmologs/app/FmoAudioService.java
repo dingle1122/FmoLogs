@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.os.IBinder;
+import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
@@ -83,6 +84,7 @@ public class FmoAudioService extends Service {
         });
         mediaSession.setActive(true);
         updatePlaybackState(sMuted);
+        updateMetadata();
     }
 
     @Override
@@ -179,8 +181,31 @@ public class FmoAudioService extends Service {
 
     private void refreshNotificationAndState() {
         updatePlaybackState(sMuted);
+        updateMetadata();
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.notify(NOTIFICATION_ID, buildNotification(this, sTitle, sText, sMuted, mediaSession));
+    }
+
+    /**
+     * 同步 MediaMetadata 到 MediaSession。
+     * 这是小米/OPPO/vivo/荣耀等 ROM 的"灵动胶囊"以及锁屏媒体卡片读取
+     * 标题（呼号）和副标题（地址）的唯一来源。
+     */
+    private void updateMetadata() {
+        if (mediaSession == null) return;
+        MediaMetadataCompat.Builder mb = new MediaMetadataCompat.Builder()
+                .putString(MediaMetadataCompat.METADATA_KEY_TITLE, sTitle == null ? "" : sTitle)
+                .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, sText == null ? "" : sText)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, sTitle == null ? "" : sTitle)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, sText == null ? "" : sText);
+        try {
+            Bitmap art = BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher);
+            if (art != null) {
+                mb.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, art);
+                mb.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art);
+            }
+        } catch (Exception ignore) {}
+        mediaSession.setMetadata(mb.build());
     }
 
     private void applyExtras(Intent intent) {
