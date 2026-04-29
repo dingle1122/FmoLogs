@@ -20,20 +20,20 @@ fi
 
 mkdir -p "$(dirname "$ANDROID_SRC")"
 
-# 1) 1024x1024 白底母图（内容缩到约 65% 居中）
+# 1) 1024x1024 白底母图（内容缩到约 50% 居中）
 magick "$SRC_PNG" \
-  -resize 666x666 \
+  -resize 512x512 \
   -background white -gravity center -extent 1024x1024 \
   -alpha remove -alpha off \
   "$ANDROID_SRC"
 
-# 2) 1024x1024 透明底 foreground 母图（内容缩到约 65% 居中，符合 Android adaptive icon 安全区）
+# 2) 1024x1024 透明底 foreground 母图（内容缩到约 50% 居中，符合 Android adaptive icon 安全区）
 TMP_DIR="$ROOT/.icon-tmp"
 mkdir -p "$TMP_DIR"
 TMP_FG="$TMP_DIR/fmo-fg.png"
 trap 'rm -rf "$TMP_DIR"' EXIT
 magick "$SRC_PNG" \
-  -resize 666x666 \
+  -resize 512x512 \
   -background none -gravity center -extent 1024x1024 \
   "$TMP_FG"
 

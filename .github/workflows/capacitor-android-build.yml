@@ -51,6 +51,14 @@ jobs:
       - name: Sync Capacitor Android
         run: npx cap sync android
 
+      - name: Install ImageMagick
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - name: Generate Android icons
+        run: bash scripts/generate-android-icons.sh
+
       - name: Decode keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
