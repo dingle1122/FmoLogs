@@ -11,6 +11,7 @@
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
     "icons": "tauri icon src-tauri/icon-desktop.png && rimraf src-tauri/icons/android src-tauri/icons/ios",
+    "icons:android": "bash scripts/generate-android-icons.sh",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
