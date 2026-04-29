@@ -1,7 +1,7 @@
 <template>
   <div class="aprs-control">
-    <!-- 服务器配置 -->
-    <div class="server-config-section">
+    <!-- 服务器配置（Android 原生分支下隐藏，使用内置 APRS-IS 直连） -->
+    <div v-if="!isNativeAprs" class="server-config-section">
       <div class="section-header">
         <div class="section-label-with-status">
           <span class="section-label">远程控制服务器</span>
@@ -277,9 +277,13 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import { useAprsControl } from '../../../composables/useAprsControl'
 import confirmDialog from '../../../composables/useConfirm'
 import CallsignInput from '../../common/CallsignInput.vue'
+
+// Android 原生 APRS 直连模式：隐藏服务器列表/添加/编辑/删除等中转相关 UI
+const isNativeAprs = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
 const props = defineProps({
   activeAddressId: {

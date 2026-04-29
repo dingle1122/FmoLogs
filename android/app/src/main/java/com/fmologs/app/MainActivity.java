@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FmoAudioPlugin.class);
         registerPlugin(FmoEventsPlugin.class);
+        registerPlugin(FmoAprsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

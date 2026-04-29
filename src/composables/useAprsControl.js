@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import CryptoJS from 'crypto-js'
 import { validateAPRS } from '../utils/aprsUtils'
+import { isNativeAprsAvailable, sendAprsCommand } from '../services/fmoNativeAprs'
 
 // LocalStorage 键名
 const STORAGE_KEY = {
@@ -444,13 +445,6 @@ export function useAprsControl() {
     sending.value = true
 
     try {
-      // 先确保连接
-      await connectWebSocket()
-
-      if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
-        throw new Error('WebSocket 未连接')
-      }
-
       const mycallInput = mycall.value.trim()
       const passcodeInput = passcode.value.trim()
       const secretInput = secret.value.trim()
@@ -489,15 +483,8 @@ export function useAprsControl() {
 
       // 构造 APRS 数据包
       const rawPacket = buildAPRSPacket(myCall, mySsid, toCall, toSsid, action, secretInput)
-
-      const request = {
-        type: 'send',
-        mycall: `${myCall}-${mySsid}`,
-        passcode: passcodeInput,
-        tocall: `${toCall}-${toSsid}`,
-        rawPacket,
-        waitAck: 20
-      }
+      const mycallFull = `${myCall}-${mySsid}`
+      const tocallFull = `${toCall}-${toSsid}`
 
       // 记录发送操作到历史记录
       const actionMap = {
@@ -510,12 +497,53 @@ export function useAprsControl() {
         operationType: 'send',
         success: null, // 发送阶段不设置成功/失败
         type: 'send',
-        message: `${myCall}-${mySsid} -> ${toCall}-${toSsid} 发送「${actionText}」控制指令`,
+        message: `${mycallFull} -> ${tocallFull} 发送「${actionText}」控制指令`,
         raw: rawPacket,
         timestamp: new Date().toISOString()
       }
       saveHistoryRecord(sendHistoryRecord)
       history.value = loadHistory()
+
+      // === Android 原生分支：直连 APRS-IS（不经 WebSocket 中转） ===
+      if (isNativeAprsAvailable()) {
+        statusMessage.value = `正在发送 ${action} 指令...`
+        statusType.value = 'info'
+        try {
+          const result = await sendAprsCommand({
+            mycall: mycallFull,
+            passcode: passcodeInput,
+            tocall: tocallFull,
+            rawPacket,
+            waitAck: 20
+          })
+          handleServerResponse(result)
+        } catch (err) {
+          handleServerResponse({
+            success: false,
+            type: 'error',
+            message: err?.message || String(err),
+            raw: '',
+            timestamp: new Date().toISOString()
+          })
+        }
+        return
+      }
+
+      // === Web 分支：按需连 WebSocket 中转服务 ===
+      await connectWebSocket()
+
+      if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket 未连接')
+      }
+
+      const request = {
+        type: 'send',
+        mycall: mycallFull,
+        passcode: passcodeInput,
+        tocall: tocallFull,
+        rawPacket,
+        waitAck: 20
+      }
 
       ws.value.send(JSON.stringify(request))
       statusMessage.value = `正在发送 ${action} 指令...`
