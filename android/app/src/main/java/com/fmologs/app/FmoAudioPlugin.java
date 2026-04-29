@@ -66,7 +66,7 @@ public class FmoAudioPlugin extends Plugin {
 
     private String currentUrl;
     private volatile String currentTitle = "FMO 音频播放中";
-    private volatile String currentText = "正在后台播放语音流";
+    private volatile String currentText = "当前无人发言";
     private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
 
     // 连接代次：每次 openWebSocket 自增。旧 WS 的回调若 gen 对不上则整段丢弃，
@@ -189,10 +189,11 @@ public class FmoAudioPlugin extends Plugin {
     public void setMuted(PluginCall call) {
         boolean m = Boolean.TRUE.equals(call.getBoolean("muted", false));
         muted.set(m);
-        // 同步通知栏按钮图标
+        // 同步通知栏按钮图标；传 null/null 只刷 muted，不动 sTitle/sText，
+        // 避免把 events 侧已经刷好的"{server}：{callsign}"业务文案洗回默认值。
         if (serviceStarted.get()) {
             Context ctx = getContext();
-            if (ctx != null) FmoAudioService.updateNotification(ctx, currentTitle, currentText, m);
+            if (ctx != null) FmoAudioService.updateNotification(ctx, null, null, m);
         }
         call.resolve();
     }
@@ -228,7 +229,8 @@ public class FmoAudioPlugin extends Plugin {
         muted.set(newMuted);
         Log.i(TAG, "notification toggle -> muted=" + newMuted);
         Context ctx = getContext();
-        if (ctx != null) FmoAudioService.updateNotification(ctx, currentTitle, currentText, newMuted);
+        // 同上，传 null/null 只改 muted，不覆盖业务文案
+        if (ctx != null) FmoAudioService.updateNotification(ctx, null, null, newMuted);
         JSObject data = new JSObject();
         data.put("muted", newMuted);
         notifyListeners("muteChanged", data);

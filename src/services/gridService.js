@@ -1,7 +1,15 @@
+import { Capacitor } from '@capacitor/core'
+import { FmoGrid } from './fmoNativeGrid'
+
 const GRID_DB_NAME = 'FmoGridCache'
 const GRID_STORE_NAME = 'gridCache'
 const GRID_DB_VERSION = 1
 const API_BASE_URL = 'https://grid.lzyike.cn'
+
+// Android 原生环境下，gridToAddress / clearGridCache 将全部转发到原生插件
+// 原生侧统一走「内存 LRU → SQLite 持久化 → 远程 API」的三级缓存，数据长期保存
+const useNativeGrid =
+  Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 
 let dbInstance = null
 let dbPromise = null
@@ -237,6 +245,12 @@ function validateGrid(grid) {
  * // { grid: 'PM00AA', country: '中国', province: '北京市', city: '北京市', district: '朝阳区', township: '望京街道' }
  */
 export async function gridToAddress(grid) {
+  // Android 原生：委派到 FmoGrid 插件（内存 LRU + SQLite 持久化 + 频率限制）
+  if (useNativeGrid) {
+    const result = await FmoGrid.gridToAddress({ grid })
+    return result
+  }
+
   // 本地格式校验
   const validation = validateGrid(grid)
   if (!validation.valid) {
@@ -331,6 +345,12 @@ export async function gridToAddress(grid) {
  * 清空所有 Grid 缓存数据（先 IndexedDB，后内存缓存）
  */
 export async function clearGridCache() {
+  // Android 原生：委派到 FmoGrid 插件
+  if (useNativeGrid) {
+    await FmoGrid.clearCache()
+    return
+  }
+
   // 1. 先清理 IndexedDB
   await new Promise((resolve, reject) => {
     if (dbInstance) {

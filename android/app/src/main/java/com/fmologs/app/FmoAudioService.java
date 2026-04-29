@@ -47,7 +47,7 @@ public class FmoAudioService extends Service {
     public static final String EXTRA_MUTED = "muted";
 
     private static volatile String sTitle = "FMO 音频播放中";
-    private static volatile String sText = "正在后台播放语音流";
+    private static volatile String sText = "当前无人发言";
     private static volatile boolean sMuted = false;
 
     private static volatile FmoAudioService sInstance;
@@ -317,24 +317,45 @@ public class FmoAudioService extends Service {
         ctx.startService(i);
     }
 
-    /** 更新通知栏标题/副文本/静音图标 */
+    /**
+     * 更新通知栏标题/副文本/静音图标。
+     *
+     * Android 12+ 对后台 startService 有限制（BackgroundServiceStartNotAllowedException），
+     * 故仅在服务已运行（sInstance != null）时直接刷新；服务未运行时只写静态缓存，
+     * 下次 onCreate / onStartCommand 会自动读取最新值，避免后台启动崩溃。
+     */
     public static void updateNotification(Context ctx, String title, String text, boolean muted) {
-        // 优先通过单例同步刷新，避免 intent 异步转发
+        if (title != null && !title.isEmpty()) sTitle = title;
+        if (text != null) sText = text;
+        sMuted = muted;
+
         FmoAudioService inst = sInstance;
         if (inst != null) {
-            if (title != null && !title.isEmpty()) sTitle = title;
-            if (text != null) sText = text;
-            sMuted = muted;
             inst.refreshNotificationAndState();
-            return;
         }
-        Intent i = new Intent(ctx, FmoAudioService.class)
-                .setAction(ACTION_UPDATE)
-                .putExtra(EXTRA_TITLE, title)
-                .putExtra(EXTRA_TEXT, text)
-                .putExtra(EXTRA_MUTED, muted);
-        try {
-            ctx.startService(i);
-        } catch (Exception ignore) {}
+        // 服务未运行时不再 startService，值已缓存；既无可刷新的通知，也规避后台启动异常。
+    }
+
+    /**
+     * 由 FmoEventsPlugin 直接调用的纯原生通知文案入口，息屏时也能实时生效。
+     * 标题：{serverName}：{callsign} / {serverName}（无人发言时）
+     * 副本：{callsign} · {addressText} / {callsign} / 当前无人发言
+     * serverName 为空时退化为 "FMO 音频播放中"。
+     */
+    public static void updateSpeakerFromEvents(
+            Context ctx, String serverName, String callsign, String addressText) {
+        String sn = (serverName == null || serverName.isEmpty()) ? "FMO 音频播放中" : serverName;
+        String title;
+        String text;
+        if (callsign != null && !callsign.isEmpty()) {
+            title = sn + "：" + callsign;
+            text = (addressText != null && !addressText.isEmpty())
+                    ? (callsign + " · " + addressText)
+                    : callsign;
+        } else {
+            title = sn;
+            text = "当前无人发言";
+        }
+        updateNotification(ctx, title, text, sMuted);
     }
 }

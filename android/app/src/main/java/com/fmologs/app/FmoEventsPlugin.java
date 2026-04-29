@@ -43,12 +43,19 @@ public class FmoEventsPlugin extends Plugin {
     private static final long[] BACKOFF_MS = { 3000L, 5000L, 10000L, 30000L };
     // 发言历史保留时长：1 小时
     private static final long HISTORY_RETENTION_MS = 60L * 60L * 1000L;
+    // 服务器信息（getCurrent）轮询间隔
+    private static final long SERVER_INFO_POLL_MS = 30_000L;
+    // 单次 getCurrent 请求的超时
+    private static final long SERVER_INFO_TIMEOUT_MS = 5_000L;
 
     private OkHttpClient httpClient;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Map<String, ConnectionState> connections = new ConcurrentHashMap<>();
     // 原生侧维护的业务状态（JS 冻结期间也持续累积），按 addressId 隔离
     private final Map<String, BusinessState> business = new ConcurrentHashMap<>();
+    // 当前主服务器 addressId，由 JS 侧通过 setPrimary 告知。
+    // 只有 primary 的 currentSpeaker 变化才会直接驱动通知栏刷新。
+    private volatile String primaryAddressId = "";
 
     @Override
     public void load() {
@@ -72,15 +79,30 @@ public class FmoEventsPlugin extends Plugin {
         if (existing != null) {
             existing.manualClose.set(true);
             existing.cancelReconnect();
+            stopServerInfoPolling(existing);
             if (existing.ws != null) {
                 try { existing.ws.cancel(); } catch (Exception ignore) {}
             }
         }
 
+        String apiUrl = call.getString("apiUrl", "");
         ConnectionState state = new ConnectionState(addressId, url);
+        state.apiUrl = apiUrl == null ? "" : apiUrl;
         connections.put(addressId, state);
         business.put(addressId, new BusinessState());
         openWebSocket(state);
+        call.resolve();
+    }
+
+    /** JS 主动触发一次服务器信息查询（用于电台切换后立即刷新）。 */
+    @PluginMethod
+    public void refreshServerInfo(PluginCall call) {
+        String addressId = call.getString("addressId");
+        if (addressId == null || addressId.isEmpty()) { call.resolve(); return; }
+        ConnectionState state = connections.get(addressId);
+        if (state != null) {
+            fetchServerInfoOnce(state);
+        }
         call.resolve();
     }
 
@@ -120,6 +142,93 @@ public class FmoEventsPlugin extends Plugin {
         call.resolve();
     }
 
+    /** JS 告知当前主服务器 addressId，空字符串表示清空。调用后会立即刷新一次通知栏。 */
+    @PluginMethod
+    public void setPrimary(PluginCall call) {
+        String addressId = call.getString("addressId", "");
+        primaryAddressId = addressId == null ? "" : addressId;
+        Log.i(TAG, "setPrimary -> \"" + primaryAddressId + "\"");
+        if (primaryAddressId.isEmpty()) {
+            // 清空 primary：通知恢复默认文案
+            FmoAudioService.updateSpeakerFromEvents(getContext(), null, null, null);
+        } else {
+            pushPrimaryToNotification();
+        }
+        call.resolve();
+    }
+
+    /** JS 推送服务器名称（用作通知标题前缀） */
+    @PluginMethod
+    public void updateServerName(PluginCall call) {
+        String addressId = call.getString("addressId");
+        String name = call.getString("name", "");
+        if (addressId == null) { call.resolve(); return; }
+        BusinessState bs = business.get(addressId);
+        if (bs != null) {
+            bs.serverName = name == null ? "" : name;
+        }
+        if (addressId.equals(primaryAddressId)) pushPrimaryToNotification();
+        call.resolve();
+    }
+
+    /** 将 primary 的最新业务状态推送给 FmoAudioService。
+     *  城市名直接从 {@link GridAddressResolver} 的进程内共享缓存按 grid 取；
+     *  无需走 JS 桥。未命中缓存时由 {@link #scheduleGridResolveIfNeeded} 启动异步
+     *  解析，成功后会再次触发本方法刷通知。 */
+    private void pushPrimaryToNotification() {
+        String pid = primaryAddressId;
+        if (pid == null || pid.isEmpty()) return;
+        BusinessState bs = business.get(pid);
+        if (bs == null) {
+            FmoAudioService.updateSpeakerFromEvents(getContext(), null, null, null);
+            return;
+        }
+        String sn;
+        String cs;
+        String grid;
+        synchronized (bs) {
+            sn = bs.serverName;
+            cs = bs.currentSpeaker;
+            grid = bs.currentGrid;
+        }
+        String addr = "";
+        if (grid != null && !grid.isEmpty()) {
+            JSONObject cached = GridAddressResolver.get(getContext()).getCached(grid);
+            if (cached != null) {
+                addr = GridAddressResolver.formatCity(cached);
+            }
+        }
+        FmoAudioService.updateSpeakerFromEvents(getContext(), sn, cs, addr);
+    }
+
+    /** 当前发言的 grid 若没缓存，启动后台异步解析；成功后如果仍然是同一呼号+grid
+     *  在发言，就再次刷新通知栏。 */
+    private void scheduleGridResolveIfNeeded(String addressId, String callsign, String grid) {
+        if (grid == null || grid.isEmpty()) return;
+        GridAddressResolver resolver = GridAddressResolver.get(getContext());
+        if (resolver.getCached(grid) != null) return; // 已有，pushPrimary 当场已经用上
+        resolver.resolveAsync(grid, new GridAddressResolver.Callback() {
+            @Override
+            public void onSuccess(JSONObject data) {
+                // 只有在当前还是这条 grid 才刷新，避免过时回调抓乱通知
+                BusinessState bs = business.get(addressId);
+                if (bs == null) return;
+                boolean stillMatch;
+                synchronized (bs) {
+                    stillMatch = grid.equals(bs.currentGrid);
+                }
+                if (stillMatch && addressId.equals(primaryAddressId)) {
+                    pushPrimaryToNotification();
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                // 静默，缓存不命中就维持无地址通知
+            }
+        });
+    }
+
     @Override
     protected void handleOnDestroy() {
         for (String id : connections.keySet().toArray(new String[0])) {
@@ -134,6 +243,7 @@ public class FmoEventsPlugin extends Plugin {
         if (state == null) return;
         state.manualClose.set(true);
         state.cancelReconnect();
+        stopServerInfoPolling(state);
         if (state.ws != null) {
             try { state.ws.cancel(); } catch (Exception ignore) {}
         }
@@ -149,6 +259,8 @@ public class FmoEventsPlugin extends Plugin {
                 Log.i(TAG, "[" + state.addressId + "] onOpen");
                 state.reconnectAttempts.set(0);
                 emitStatus(state.addressId, "connected");
+                // 上线后启动服务器信息轮询（立即拉一次 + 定时 30s）
+                startServerInfoPolling(state);
             }
 
             @Override
@@ -188,6 +300,8 @@ public class FmoEventsPlugin extends Plugin {
     }
 
     private void scheduleReconnect(final ConnectionState state) {
+        // 连接断开期间停掉轮询，等 onOpen 再重启
+        stopServerInfoPolling(state);
         // 已被主动关闭或已被新连接替换，不再重连
         if (state.manualClose.get() || connections.get(state.addressId) != state) {
             emitStatus(state.addressId, "disconnected");
@@ -222,6 +336,146 @@ public class FmoEventsPlugin extends Plugin {
         obj.put("addressId", addressId);
         obj.put("status", status);
         notifyListeners("status", obj);
+    }
+
+    // ========== 服务器信息（station:getCurrent）轮询 ==========
+    /** 启动 / 重启 addressId 对应的服务器信息轮询。不重入，有么先停。 */
+    private void startServerInfoPolling(final ConnectionState state) {
+        if (state.apiUrl == null || state.apiUrl.isEmpty()) return;
+        stopServerInfoPolling(state);
+        Runnable task = new Runnable() {
+            @Override
+            public void run() {
+                if (state.manualClose.get() || connections.get(state.addressId) != state) return;
+                fetchServerInfoOnce(state);
+                handler.postDelayed(this, SERVER_INFO_POLL_MS);
+            }
+        };
+        state.serverInfoPollTask = task;
+        handler.post(task);
+    }
+
+    /** 停掉周期任务 + 取消尚在执行的短命 WS。 */
+    private void stopServerInfoPolling(ConnectionState state) {
+        Runnable t = state.serverInfoPollTask;
+        if (t != null) {
+            handler.removeCallbacks(t);
+            state.serverInfoPollTask = null;
+        }
+        WebSocket sws = state.serverInfoWs;
+        if (sws != null) {
+            try { sws.cancel(); } catch (Exception ignore) {}
+            state.serverInfoWs = null;
+        }
+    }
+
+    /** 建短命 WS 打开 {apiUrl}（ws://host/ws）发一条 station:getCurrent 拿服务器信息。 */
+    private void fetchServerInfoOnce(final ConnectionState state) {
+        if (state.apiUrl == null || state.apiUrl.isEmpty()) return;
+        // 先停掉上次未完成的
+        WebSocket prev = state.serverInfoWs;
+        if (prev != null) {
+            try { prev.cancel(); } catch (Exception ignore) {}
+            state.serverInfoWs = null;
+        }
+        final AtomicBoolean done = new AtomicBoolean(false);
+        Request req = new Request.Builder().url(state.apiUrl).build();
+        final WebSocket[] holder = new WebSocket[1];
+        WebSocket ws = httpClient.newWebSocket(req, new WebSocketListener() {
+            @Override
+            public void onOpen(@NonNull WebSocket s, @NonNull Response response) {
+                try {
+                    JSONObject body = new JSONObject();
+                    body.put("type", "station");
+                    body.put("subType", "getCurrent");
+                    body.put("data", new JSONObject());
+                    s.send(body.toString());
+                } catch (Exception e) {
+                    try { s.cancel(); } catch (Exception ignore) {}
+                }
+            }
+
+            @Override
+            public void onMessage(@NonNull WebSocket s, @NonNull String text) {
+                if (done.getAndSet(true)) return;
+                handleServerInfoResponse(state, text);
+                try { s.close(1000, null); } catch (Exception ignore) {}
+                if (state.serverInfoWs == holder[0]) state.serverInfoWs = null;
+            }
+
+            @Override
+            public void onMessage(@NonNull WebSocket s, @NonNull ByteString bytes) {
+                if (done.getAndSet(true)) return;
+                handleServerInfoResponse(state, bytes.utf8());
+                try { s.close(1000, null); } catch (Exception ignore) {}
+                if (state.serverInfoWs == holder[0]) state.serverInfoWs = null;
+            }
+
+            @Override
+            public void onFailure(@NonNull WebSocket s, @NonNull Throwable t, Response response) {
+                if (state.serverInfoWs == holder[0]) state.serverInfoWs = null;
+            }
+
+            @Override
+            public void onClosed(@NonNull WebSocket s, int code, @NonNull String reason) {
+                if (state.serverInfoWs == holder[0]) state.serverInfoWs = null;
+            }
+        });
+        holder[0] = ws;
+        state.serverInfoWs = ws;
+        // 超时处理
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (done.get()) return;
+                try { ws.cancel(); } catch (Exception ignore) {}
+                if (state.serverInfoWs == ws) state.serverInfoWs = null;
+            }
+        }, SERVER_INFO_TIMEOUT_MS);
+    }
+
+    /** 解析 station:getCurrentResponse 结果，写入 BusinessState.serverName + 推 JS + 刷通知。 */
+    private void handleServerInfoResponse(ConnectionState state, String text) {
+        try {
+            JSONObject msg = new JSONObject(text);
+            if (!"station".equals(msg.optString("type"))) return;
+            String sub = msg.optString("subType", "");
+            if (!sub.endsWith("Response")) return;
+            String requestSub = sub.substring(0, sub.length() - "Response".length());
+            if (!"getCurrent".equals(requestSub)) return;
+            if (msg.optInt("code", -1) != 0) return;
+            JSONObject data = msg.optJSONObject("data");
+            if (data == null) return;
+            String uid = data.optString("uid", "");
+            String name = data.optString("name", "");
+            if (uid.isEmpty()) return;
+
+            BusinessState bs = business.get(state.addressId);
+            boolean changed = false;
+            if (bs != null) {
+                synchronized (bs) {
+                    if (!name.equals(bs.serverName)) {
+                        bs.serverName = name;
+                        changed = true;
+                    }
+                }
+            }
+            Log.i(TAG, "[" + state.addressId + "] serverInfo uid=" + uid + " name=\"" + name + "\" changed=" + changed);
+
+            // 推给 JS 更新 serverInfoMap
+            JSObject evt = new JSObject();
+            evt.put("addressId", state.addressId);
+            evt.put("uid", uid);
+            evt.put("name", name);
+            notifyListeners("serverInfo", evt);
+
+            // 主服务器名变动时立刻刷通知栏
+            if (changed && state.addressId.equals(primaryAddressId)) {
+                pushPrimaryToNotification();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "[" + state.addressId + "] server info parse failed: " + e.getMessage());
+        }
     }
 
     /**
@@ -290,6 +544,15 @@ public class FmoEventsPlugin extends Plugin {
                     if (t < cutoff) it.remove();
                 }
             }
+            // 若为主服务器，立即刷新通知栏（纯原生链路，不经 WebView）
+            if (addressId.equals(primaryAddressId)) {
+                pushPrimaryToNotification();
+            }
+            // 若本次开始发言的 grid 还没缓存，启动原生侧异步解析；
+            // 成功后若该 grid 仍是当前发言人的 grid，会再次刷通知补上城市名
+            if (isSpeaking && callsign != null && !callsign.isEmpty()) {
+                scheduleGridResolveIfNeeded(addressId, callsign, grid);
+            }
         } catch (Exception e) {
             Log.w(TAG, "[" + addressId + "] parse business failed: " + e.getMessage());
         }
@@ -344,16 +607,20 @@ public class FmoEventsPlugin extends Plugin {
     private static class BusinessState {
         volatile String currentSpeaker = "";
         volatile String currentGrid = "";
+        volatile String serverName = "";
         final LinkedList<HistoryEntry> history = new LinkedList<>();
     }
 
     private class ConnectionState {
         final String addressId;
         final String url;
+        volatile String apiUrl = ""; // ws://host/ws，用于 getCurrent 短命请求
         volatile WebSocket ws;
         final AtomicInteger reconnectAttempts = new AtomicInteger(0);
         final AtomicBoolean manualClose = new AtomicBoolean(false);
         volatile Runnable reconnectTask;
+        volatile Runnable serverInfoPollTask;
+        volatile WebSocket serverInfoWs;
 
         ConnectionState(String addressId, String url) {
             this.addressId = addressId;

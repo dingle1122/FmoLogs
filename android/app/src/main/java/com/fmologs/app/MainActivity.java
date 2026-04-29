@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FmoAudioPlugin.class);
         registerPlugin(FmoEventsPlugin.class);
         registerPlugin(FmoAprsPlugin.class);
+        registerPlugin(FmoGridPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

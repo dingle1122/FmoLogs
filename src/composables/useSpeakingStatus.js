@@ -184,7 +184,12 @@ export function useSpeakingStatus() {
         }
       }
       eventConnections.set(addressId, fakeWs)
-      FmoEvents.connect({ addressId, url: wsUrl }).catch((err) => {
+      // 原生 connect 会在插件内新建 BusinessState（serverName=""）；
+      // 若本地已有缓存名（如断线重连场景），立刻推进去覆盖初始空值。
+      pushCachedServerNameIfAny(addressId)
+      // apiUrl 用于原生轮询 station:getCurrent（同 host、同协议，路径换成 /ws）
+      const apiUrl = `${protocol}://${normalizedHost}/ws`
+      FmoEvents.connect({ addressId, url: wsUrl, apiUrl }).catch((err) => {
         console.warn(`[${addressId}] FmoEvents.connect failed`, err)
       })
       return fakeWs
@@ -246,6 +251,7 @@ export function useSpeakingStatus() {
   // ========== Android 原生插件的全局事件监听 ==========
   let nativeMsgHandle = null
   let nativeStatusHandle = null
+  let nativeServerInfoHandle = null
 
   function onNativeMessage({ addressId, data }) {
     const cfg = connectionConfigs.get(addressId)
@@ -337,12 +343,23 @@ export function useSpeakingStatus() {
     }
   }
 
+  // 原生侧轮询到服务器信息后会把 {addressId,uid,name} 推过来
+  // JS 只需写 serverInfoMap；bs.serverName 已由原生自己写入并刷通知栏
+  function onNativeServerInfo({ addressId, uid, name }) {
+    if (!addressId || !uid) return
+    serverInfoMap.set(addressId, { uid, name: name || '' })
+    connectionChangeCounter.value++
+  }
+
   if (isAndroid) {
     FmoEvents.addListener('message', onNativeMessage).then((h) => {
       nativeMsgHandle = h
     })
     FmoEvents.addListener('status', onNativeStatus).then((h) => {
       nativeStatusHandle = h
+    })
+    FmoEvents.addListener('serverInfo', onNativeServerInfo).then((h) => {
+      nativeServerInfoHandle = h
     })
     document.addEventListener('visibilitychange', onVisibilityChange)
   }
@@ -359,6 +376,11 @@ export function useSpeakingStatus() {
 
     // 设置主服务器ID（必须在 disconnectAllEventWs 之后）
     primaryAddressId.value = primaryId
+    if (isAndroid) {
+      // 先把已缓存的主服务器名推给原生，再 setPrimary，避免短暂 fallback 文案
+      pushCachedServerNameIfAny(primaryId)
+      FmoEvents.setPrimary({ addressId: primaryId || '' }).catch(() => {})
+    }
 
     // 为每个地址创建连接
     for (const addr of addresses) {
@@ -421,6 +443,9 @@ export function useSpeakingStatus() {
 
     primaryConnected.value = false
     primaryAddressId.value = null
+    if (isAndroid) {
+      FmoEvents.setPrimary({ addressId: '' }).catch(() => {})
+    }
     connectionChangeCounter.value++
   }
 
@@ -474,6 +499,9 @@ export function useSpeakingStatus() {
     if (addressId === primaryAddressId.value) {
       primaryConnected.value = false
       primaryAddressId.value = null
+      if (isAndroid) {
+        FmoEvents.setPrimary({ addressId: '' }).catch(() => {})
+      }
     }
 
     connectionChangeCounter.value++
@@ -500,6 +528,11 @@ export function useSpeakingStatus() {
 
     // 使用 'single' 作为 addressId，标记为主服务器
     primaryAddressId.value = 'single'
+    if (isAndroid) {
+      // 先把已缓存的服务器名推给原生，再 setPrimary，避免短暂 fallback 文案
+      pushCachedServerNameIfAny('single')
+      FmoEvents.setPrimary({ addressId: 'single' }).catch(() => {})
+    }
     createEventWsConnection('single', fmoAddress, protocol, true)
   }
 
@@ -540,12 +573,12 @@ export function useSpeakingStatus() {
 
           if (isSpeaking && callsign) {
             const grid = msg.data.grid || ''
-            // 异步获取地址信息（实时请求，不走缓存）
+            // 异步获取地址信息（Android 原生侧同步会根据 grid 自行查缓存/解析，
+            // 不再需要这里回推）
             if (grid) {
               gridToAddress(grid)
                 .then((result) => {
-                  const formatted = formatAddress(result)
-                  speakerAddressMap.set(addressId, formatted)
+                  speakerAddressMap.set(addressId, formatAddress(result))
                 })
                 .catch((err) => {
                   console.warn(`[${addressId}] grid 转地址失败:`, err.message)
@@ -664,8 +697,22 @@ export function useSpeakingStatus() {
     }
   }
 
+  // 在调用 setPrimary / 建立原生连接前，若 serverInfoMap 已有该 addressId 的
+  // 服务器名，就先推给原生，避免通知栏出现 "FMO 音频播放中：{呼号}" 的空窗口。
+  // 冷启动首次 serverInfoMap 为空时会 no-op，后续由 fetchServerInfo 兜底。
+  function pushCachedServerNameIfAny(addressId) {
+    if (!isAndroid || !addressId) return
+    const info = serverInfoMap.get(addressId)
+    const name = info && info.name ? info.name : ''
+    if (!name) return
+    FmoEvents.updateServerName({ addressId, name }).catch(() => {})
+  }
+
   // ========== 服务器信息定时获取 ==========
+  // Android 下轮询交给原生 FmoEventsPlugin（不受 WebView 冻结影响），
+  // JS 这层只在 Web 路径跑 WebSocket 查询。
   async function fetchServerInfo(addressId) {
+    if (isAndroid) return
     const config = connectionConfigs.get(addressId)
     if (!config) return
 
@@ -685,6 +732,8 @@ export function useSpeakingStatus() {
   }
 
   function startServerInfoPolling(addressId) {
+    // Android 下原生接管（见 FmoEventsPlugin.startServerInfoPolling），JS 侧不再跑定时器
+    if (isAndroid) return
     if (serverInfoTimers.has(addressId)) return
     // 立即获取一次
     fetchServerInfo(addressId)
@@ -732,11 +781,17 @@ export function useSpeakingStatus() {
   }
 
   // 获取指定 addressId 的服务器信息
-  // forceRefresh = true 时，先立即同步获取一次并等待完成，再启动轮询做后续确认
+  // forceRefresh = true 时：
+  //   - Android：通知原生立即拉一次（后续通过 serverInfo 事件回填 serverInfoMap）
+  //   - Web：先立即同步获取一次并等待完成，再启动轮询做后续确认
   async function getServerInfo(addressId, forceRefresh = false) {
     if (forceRefresh) {
-      await fetchServerInfo(addressId)
-      pollServerInfo(addressId)
+      if (isAndroid) {
+        FmoEvents.refreshServerInfo({ addressId }).catch(() => {})
+      } else {
+        await fetchServerInfo(addressId)
+        pollServerInfo(addressId)
+      }
     }
     return serverInfoMap.get(addressId) || null
   }
@@ -769,6 +824,10 @@ export function useSpeakingStatus() {
     if (nativeStatusHandle) {
       nativeStatusHandle.remove && nativeStatusHandle.remove()
       nativeStatusHandle = null
+    }
+    if (nativeServerInfoHandle) {
+      nativeServerInfoHandle.remove && nativeServerInfoHandle.remove()
+      nativeServerInfoHandle = null
     }
     if (isAndroid) {
       document.removeEventListener('visibilitychange', onVisibilityChange)

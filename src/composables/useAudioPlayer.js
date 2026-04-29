@@ -143,19 +143,15 @@ export function useAudioPlayer() {
   }
 
   /**
-   * 更新原生通知栏的发言人信息（仅 Android 有效）
-   * @param {string} callsign - 当前发言的呼号（空表示无人发言）
-   * @param {string} address  - 发言人地址
+   * 更新原生通知栏的发言人信息（延用签名兼容旧调用）。
+   *
+   * 实际文案现已由 FmoEventsPlugin 在原生侧组装为
+   * "服务器名：呼号"/"呼号 · 城市"，息屏时也能实时刷新。
+   * 城市名由原生 GridAddressResolver 按 grid 直接查缓存得出，
+   * 不再需要前端回推。
    */
-  function updateSpeakerInfo(callsign, address) {
-    if (!isAndroid || !isPlaying.value) return
-    const title = callsign
-      ? `正在发言：${callsign}`
-      : 'FMO 音频播放中'
-    const text = callsign
-      ? (address ? `${callsign} · ${address}` : callsign)
-      : '当前无人发言'
-    FmoAudio.updateInfo({ title, text }).catch(() => {})
+  function updateSpeakerInfo(_callsign, _address) {
+    // no-op
   }
 
   /**
