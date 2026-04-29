@@ -28,7 +28,8 @@ function percentToGain(percent) {
 export function useAudioPlayer() {
   // 响应式状态
   const isPlaying = ref(false) // 是否正在播放（已连接）
-  const isMuted = ref(false) // 是否静音
+  const isMuted = ref(false) // 是否静音（用户手动）
+  const hostMuted = ref(false) // 当前用户发言时自动静音（与用户手动静音独立）
   const audioStatus = ref('') // 状态文本
 
   // 是否为 Android 原生平台
@@ -36,6 +37,8 @@ export function useAudioPlayer() {
 
   // 内部：AudioStreamPlayer 实例（非响应式，仅非 Android 使用）
   let player = null
+  // 内部：当前音量百分比，用于 hostMuted 恢复
+  let currentVolumePercent = 100
 
   // Android 原生插件状态监听器句柄
   let nativeStatusHandle = null
@@ -274,6 +277,26 @@ export function useAudioPlayer() {
   }
 
   /**
+   * 当前用户（host）发言时自动静音，避免听到自己的回声。
+   * 与用户手动静音（isMuted）独立：hostMuted=true 时无论 isMuted 如何都静音输出，
+   * hostMuted 恢复 false 后回到用户手动静音状态。不影响 UI 静音按钮。
+   * Android 由原生侧 FmoAudioPlugin.setHostMuted 处理，此方法仅对 Web 路径生效。
+   * @param {boolean} m - true 自动静音，false 取消自动静音
+   */
+  function setHostMuted(m) {
+    if (isAndroid) return // Android 由原生侧处理
+    hostMuted.value = m
+    if (!isPlaying.value) return
+    if (m) {
+      // 自动静音，不影响用户的 isMuted 状态
+      if (player) player.setVolume(0)
+    } else if (!isMuted.value) {
+      // 取消自动静音，恢复到用户设置的音量（仅当用户没有手动静音时）
+      if (player) player.setVolume(percentToGain(currentVolumePercent))
+    }
+  }
+
+  /**
    * 静音（不断开连接）
    */
   function muteAudio() {
@@ -295,6 +318,7 @@ export function useAudioPlayer() {
    */
   function unmuteAudio(volumePercent = 100) {
     if (!isPlaying.value) return
+    currentVolumePercent = volumePercent
     if (isAndroid) {
       FmoAudio.setMuted({ muted: false }).catch(() => {})
       FmoAudio.setVolume({ volumePercent }).catch(() => {})
@@ -302,7 +326,10 @@ export function useAudioPlayer() {
       return
     }
     if (player) {
-      player.setVolume(percentToGain(volumePercent))
+      // host 自动静音期间，仅更新记录的音量，不恢复输出
+      if (!hostMuted.value) {
+        player.setVolume(percentToGain(volumePercent))
+      }
       isMuted.value = false
     }
   }
@@ -313,6 +340,8 @@ export function useAudioPlayer() {
    */
   function setVolume(volumePercent) {
     if (!isPlaying.value || isMuted.value) return
+    currentVolumePercent = volumePercent
+    if (hostMuted.value) return // host 自动静音期间不更新实际音量
     if (isAndroid) {
       FmoAudio.setVolume({ volumePercent }).catch(() => {})
       return
@@ -341,6 +370,7 @@ export function useAudioPlayer() {
   return {
     isPlaying,
     isMuted,
+    hostMuted,
     audioStatus,
     toggleAudio,
     stopAudio,
@@ -348,6 +378,7 @@ export function useAudioPlayer() {
     unmuteAudio,
     setVolume,
     resumeAudio,
-    updateSpeakerInfo
+    updateSpeakerInfo,
+    setHostMuted
   }
 }

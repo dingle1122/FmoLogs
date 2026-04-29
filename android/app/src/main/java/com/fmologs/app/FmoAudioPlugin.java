@@ -62,6 +62,7 @@ public class FmoAudioPlugin extends Plugin {
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean manualStop = new AtomicBoolean(false);
     private final AtomicBoolean muted = new AtomicBoolean(false);
+    private final AtomicBoolean hostMuted = new AtomicBoolean(false); // 当前用户发言时自动静音，与用户手动静音独立
     private final AtomicReference<Float> gain = new AtomicReference<>(5.0f); // 与 Web 端对齐：100% => 5.0
 
     private String currentUrl;
@@ -223,6 +224,14 @@ public class FmoAudioPlugin extends Plugin {
         notifyListeners("muteChanged", data);
     }
 
+    /** 当前用户（host）发言时由 FmoEventsPlugin 调用，自动静音以避免回声。
+     *  与用户手动静音（muted）独立：hostMuted=true 时无论 muted 如何都静音输出，
+     *  hostMuted 恢复 false 后回到用户手动静音状态。不影响通知栏和 UI 按钮。 */
+    public void setHostMuted(boolean m) {
+        hostMuted.set(m);
+        Log.i(TAG, "setHostMuted -> " + m);
+    }
+
     /** 兼容旧调用：翻转静音状态。不再被 Service 使用。 */
     public void handleToggleFromNotification() {
         boolean newMuted = !muted.get();
@@ -343,7 +352,7 @@ public class FmoAudioPlugin extends Plugin {
         int len = src.length - (src.length & 1); // 16-bit 对齐
         if (len <= 0) return;
 
-        if (muted.get()) {
+        if (muted.get() || hostMuted.get()) {
             // 静音：写入等长零数据，保持时间线
             byte[] zero = new byte[len];
             safeWrite(zero, len);
@@ -375,7 +384,7 @@ public class FmoAudioPlugin extends Plugin {
         long last = lastBeatMs;
         if (now - last > 5000) {
             lastBeatMs = now;
-            Log.d(TAG, "heartbeat: writing pcm len=" + len + " gain=" + g + " muted=" + muted.get());
+            Log.d(TAG, "heartbeat: writing pcm len=" + len + " gain=" + g + " muted=" + muted.get() + " hostMuted=" + hostMuted.get());
         }
     }
 
@@ -429,6 +438,7 @@ public class FmoAudioPlugin extends Plugin {
     private void releaseInternal() {
         running.set(false);
         firstChunk.set(true);
+        hostMuted.set(false);
         // 作废所有在途 WS 回调，防止停止后仍触发重连链。
         connGen++;
         if (pendingReconnect != null) {

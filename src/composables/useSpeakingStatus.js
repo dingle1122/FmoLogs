@@ -16,6 +16,8 @@ export function useSpeakingStatus() {
   const speakingHistoryMap = reactive(new Map())
   // speakerAddressMap: key 为 addressId，value 为格式化后的地址字符串
   const speakerAddressMap = reactive(new Map())
+  // isHostSpeakingMap: key 为 addressId，value 为 boolean（当前发言人是否为 host）
+  const isHostSpeakingMap = reactive(new Map())
 
   // 多连接管理
   const eventConnections = new Map() // key: addressId, value: WebSocket
@@ -78,6 +80,12 @@ export function useSpeakingStatus() {
   const currentSpeakerAddress = computed(() => {
     if (!primaryAddressId.value) return ''
     return speakerAddressMap.get(primaryAddressId.value) || ''
+  })
+
+  // 返回主服务器当前发言者是否为 host（当前用户自己）
+  const isHostSpeaking = computed(() => {
+    if (!primaryAddressId.value) return false
+    return isHostSpeakingMap.get(primaryAddressId.value) || false
   })
 
   // 合并所有服务器的发言历史，按时间排序，每条记录带 addressId 字段
@@ -285,11 +293,13 @@ export function useSpeakingStatus() {
   // ========== 从原生插件拉取快照并覆盖到响应式状态 ==========
   function applyNativeSnapshot(entry) {
     if (!entry || !entry.addressId) return
-    const { addressId, currentSpeaker, currentGrid, history } = entry
+    const { addressId, currentSpeaker, currentGrid, currentIsHost, history } = entry
     if (!connectionConfigs.has(addressId)) return
 
     // 当前发言人
     currentSpeakerMap.set(addressId, currentSpeaker || '')
+    // 同步 host 发言状态
+    isHostSpeakingMap.set(addressId, !!currentIsHost)
 
     // 地址解析（仅当前发言人的 grid）
     if (currentGrid) {
@@ -440,6 +450,7 @@ export function useSpeakingStatus() {
     currentSpeakerMap.clear()
     speakingHistoryMap.clear()
     speakerAddressMap.clear()
+    isHostSpeakingMap.clear()
 
     primaryConnected.value = false
     primaryAddressId.value = null
@@ -493,6 +504,7 @@ export function useSpeakingStatus() {
     currentSpeakerMap.delete(addressId)
     speakingHistoryMap.delete(addressId)
     speakerAddressMap.delete(addressId)
+    isHostSpeakingMap.delete(addressId)
     serverInfoMap.delete(addressId)
 
     // 如果是主服务器，更新状态
@@ -569,6 +581,7 @@ export function useSpeakingStatus() {
         const msg = JSON.parse(msgStr)
         if (msg.type === 'qso' && msg.subType === 'callsign' && msg.data) {
           const { callsign, isSpeaking } = msg.data
+          const isHost = !!msg.data.isHost
           const now = Date.now()
 
           if (isSpeaking && callsign) {
@@ -596,9 +609,10 @@ export function useSpeakingStatus() {
             // 更新该服务器的当前发言者
             const prevSpeaker = currentSpeakerMap.get(addressId) || ''
             console.log(
-              `[speaker][${addressId}] recv START: "${callsign}" (prev="${prevSpeaker || '-'}"${grid ? ', grid=' + grid : ''})`
+              `[speaker][${addressId}] recv START: "${callsign}" (prev="${prevSpeaker || '-'}"${grid ? ', grid=' + grid : ''}${isHost ? ', HOST' : ''})`
             )
             currentSpeakerMap.set(addressId, callsign)
+            isHostSpeakingMap.set(addressId, isHost)
 
             const serverInfo = serverInfoMap.get(addressId)
             const existingIndex = history.findIndex((h) => h.callsign === callsign)
@@ -640,6 +654,7 @@ export function useSpeakingStatus() {
               `[speaker][${addressId}] recv END  : raw="${callsign || '-'}" (prev="${prevSpeaker || '-'}")`
             )
             currentSpeakerMap.set(addressId, '')
+            isHostSpeakingMap.set(addressId, false)
             hasChanges = true
             saveSpeakingHistoryToStorage(addressId)
           }
@@ -849,6 +864,7 @@ export function useSpeakingStatus() {
     currentSpeaker, // computed - 主服务器的当前发言者
     currentSpeakerGrid, // computed - 主服务器当前发言者的 grid
     currentSpeakerAddress, // computed - 主服务器当前发言者的地址
+    isHostSpeaking, // computed - 主服务器当前发言者是否为 host
     speakingHistory, // computed - 主服务器的发言历史
 
     // 新增的 computed

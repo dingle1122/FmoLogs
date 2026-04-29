@@ -281,7 +281,8 @@ const {
   unmuteAudio,
   setVolume: setAudioVolumePlayer,
   resumeAudio,
-  updateSpeakerInfo
+  updateSpeakerInfo,
+  setHostMuted: setAudioHostMuted
 } = useAudioPlayer()
 
 const fmoSync = useFmoSync({
@@ -1022,16 +1023,12 @@ watch(isAudioPlaying, (val) => {
   settings.setAudioPlaying(val)
 })
 
-// 自动静音：当自己在发言时自动静音
+// 自动静音：当自己在发言时自动静音（基于 isHost 判断）
 watch(
-  () => speakingStatus.currentSpeaker.value,
-  (speaker) => {
+  () => speakingStatus.isHostSpeaking.value,
+  (isHost) => {
     if (!isAudioPlaying.value) return
-    if (speaker && speaker === selectedFromCallsign.value) {
-      muteAudio()
-    } else {
-      unmuteAudio(settings.audioVolume.value)
-    }
+    setAudioHostMuted(isHost)
   }
 )
 

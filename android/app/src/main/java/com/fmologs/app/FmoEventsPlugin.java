@@ -149,8 +149,10 @@ public class FmoEventsPlugin extends Plugin {
         primaryAddressId = addressId == null ? "" : addressId;
         Log.i(TAG, "setPrimary -> \"" + primaryAddressId + "\"");
         if (primaryAddressId.isEmpty()) {
-            // 清空 primary：通知恢复默认文案
+            // 清空 primary：通知恢复默认文案，取消自动静音
             FmoAudioService.updateSpeakerFromEvents(getContext(), null, null, null);
+            FmoAudioPlugin audioPlugin = FmoAudioPlugin.getInstance();
+            if (audioPlugin != null) audioPlugin.setHostMuted(false);
         } else {
             pushPrimaryToNotification();
         }
@@ -174,22 +176,27 @@ public class FmoEventsPlugin extends Plugin {
     /** 将 primary 的最新业务状态推送给 FmoAudioService。
      *  城市名直接从 {@link GridAddressResolver} 的进程内共享缓存按 grid 取；
      *  无需走 JS 桥。未命中缓存时由 {@link #scheduleGridResolveIfNeeded} 启动异步
-     *  解析，成功后会再次触发本方法刷通知。 */
+     *  解析，成功后会再次触发本方法刷通知。
+     *  同时同步 host 发言状态到 FmoAudioPlugin 的自动静音。 */
     private void pushPrimaryToNotification() {
         String pid = primaryAddressId;
         if (pid == null || pid.isEmpty()) return;
         BusinessState bs = business.get(pid);
         if (bs == null) {
             FmoAudioService.updateSpeakerFromEvents(getContext(), null, null, null);
+            FmoAudioPlugin audioPlugin = FmoAudioPlugin.getInstance();
+            if (audioPlugin != null) audioPlugin.setHostMuted(false);
             return;
         }
         String sn;
         String cs;
         String grid;
+        boolean isHost;
         synchronized (bs) {
             sn = bs.serverName;
             cs = bs.currentSpeaker;
             grid = bs.currentGrid;
+            isHost = bs.currentIsHost;
         }
         String addr = "";
         if (grid != null && !grid.isEmpty()) {
@@ -199,6 +206,11 @@ public class FmoEventsPlugin extends Plugin {
             }
         }
         FmoAudioService.updateSpeakerFromEvents(getContext(), sn, cs, addr);
+        // 当前发言人为 host 时自动静音，否则取消自动静音
+        FmoAudioPlugin audioPlugin = FmoAudioPlugin.getInstance();
+        if (audioPlugin != null) {
+            audioPlugin.setHostMuted(cs != null && !cs.isEmpty() && isHost);
+        }
     }
 
     /** 当前发言的 grid 若没缓存，启动后台异步解析；成功后如果仍然是同一呼号+grid
@@ -498,6 +510,7 @@ public class FmoEventsPlugin extends Plugin {
 
             String callsign = data.optString("callsign", "");
             boolean isSpeaking = data.optBoolean("isSpeaking", false);
+            boolean isHost = data.optBoolean("isHost", false);
             String grid = data.optString("grid", "");
             long now = System.currentTimeMillis();
 
@@ -509,6 +522,7 @@ public class FmoEventsPlugin extends Plugin {
                     }
                     bs.currentSpeaker = callsign;
                     bs.currentGrid = grid;
+                    bs.currentIsHost = isHost;
                     // 查找已有同 callsign 记录
                     HistoryEntry existing = null;
                     Iterator<HistoryEntry> it = bs.history.iterator();
@@ -534,6 +548,7 @@ public class FmoEventsPlugin extends Plugin {
                     }
                     bs.currentSpeaker = "";
                     bs.currentGrid = "";
+                    bs.currentIsHost = false;
                 }
                 // 清理 > 1h
                 long cutoff = now - HISTORY_RETENTION_MS;
@@ -572,6 +587,7 @@ public class FmoEventsPlugin extends Plugin {
             }
             obj.put("currentSpeaker", bs.currentSpeaker == null ? "" : bs.currentSpeaker);
             obj.put("currentGrid", bs.currentGrid == null ? "" : bs.currentGrid);
+            obj.put("currentIsHost", bs.currentIsHost);
             JSArray arr = new JSArray();
             for (HistoryEntry h : bs.history) {
                 JSObject entry = new JSObject();
@@ -607,6 +623,7 @@ public class FmoEventsPlugin extends Plugin {
     private static class BusinessState {
         volatile String currentSpeaker = "";
         volatile String currentGrid = "";
+        volatile boolean currentIsHost = false; // 当前发言人是否为 host
         volatile String serverName = "";
         final LinkedList<HistoryEntry> history = new LinkedList<>();
     }
