@@ -333,6 +333,7 @@
         </div>
         <div class="fmo-preview-body">
           <iframe
+            :key="fmoPreviewKey"
             ref="fmoPreviewIframe"
             :src="fmoPreviewUrl"
             class="fmo-preview-iframe"
@@ -431,6 +432,8 @@ const syncDays = ref(1)
 const showFmoPreview = ref(false)
 const fmoPreviewUrl = ref('')
 const fmoPreviewIframe = ref(null)
+// 每次打开时递增，用作 iframe :key 强制重建，避免复用旧 DOM / 缓存
+const fmoPreviewKey = ref(0)
 // 可回退的 iframe 导航次数（首次 load 不计，每次额外 load / back 时修正）
 const fmoBackableCount = ref(0)
 let fmoIframeLoadCount = 0
@@ -446,7 +449,10 @@ function onFmoIframeLoad() {
 function openFmoPage(addr) {
   const httpProtocol = addr.protocol === 'wss' ? 'https' : 'http'
   const host = normalizeHost(addr.host)
-  fmoPreviewUrl.value = `${httpProtocol}://${host}`
+  // 追加时间戳强制重新请求，避免 WebView / 浏览器命中旧缓存
+  const sep = host.includes('?') ? '&' : '?'
+  fmoPreviewUrl.value = `${httpProtocol}://${host}${sep}_t=${Date.now()}`
+  fmoPreviewKey.value += 1
   fmoIframeLoadCount = 0
   fmoBackableCount.value = 0
   showFmoPreview.value = true
@@ -1540,9 +1546,9 @@ function handleVolumeChange(e) {
   background: var(--bg-card);
   border-radius: 12px;
   width: 420px;
-  max-width: 95vw;
-  height: 85vh;
-  max-height: 90vh;
+  max-width: 92vw;
+  height: 75vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 20px var(--shadow-modal);
@@ -1579,11 +1585,10 @@ function handleVolumeChange(e) {
 
 @media (max-width: 768px) {
   .fmo-preview-dialog {
-    width: 100vw;
-    height: 100vh;
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
+    width: 92vw;
+    max-width: 92vw;
+    height: 75vh;
+    max-height: 85vh;
   }
 }
 
