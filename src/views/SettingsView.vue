@@ -110,6 +110,18 @@
                     />
                   </svg>
                 </button>
+                <button
+                  v-if="addr.id === activeAddressId"
+                  class="btn-icon"
+                  title="打开FMO页面"
+                  @click="openFmoPage(addr)"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path
+                      d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                    />
+                  </svg>
+                </button>
                 <button class="btn-icon" title="编辑" @click="editAddress(addr)">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                     <path
@@ -300,6 +312,37 @@
         </div>
       </div>
     </div>
+    <!-- FMO 页面预览弹框 -->
+    <div v-if="showFmoPreview" class="dialog-overlay" @click.self="closeFmoPreview">
+      <div class="fmo-preview-dialog">
+        <div class="fmo-preview-toolbar">
+          <button class="btn-icon" title="上一页" @click="fmoPreviewGoBack">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
+            </svg>
+          </button>
+          <div class="fmo-preview-toolbar-spacer"></div>
+          <button class="btn-icon" title="在浏览器中打开" @click="openFmoExternal">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path
+                d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
+              />
+            </svg>
+          </button>
+          <button class="close-btn" @click="closeFmoPreview">&times;</button>
+        </div>
+        <div class="fmo-preview-body">
+          <iframe
+            ref="fmoPreviewIframe"
+            :src="fmoPreviewUrl"
+            class="fmo-preview-iframe"
+            referrerpolicy="no-referrer"
+            sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+            @load="onFmoIframeLoad"
+          ></iframe>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -383,6 +426,74 @@ const refreshingId = ref(null)
 
 // 同步天数选择
 const syncDays = ref(1)
+
+// FMO 页面预览弹框状态
+const showFmoPreview = ref(false)
+const fmoPreviewUrl = ref('')
+const fmoPreviewIframe = ref(null)
+// 可回退的 iframe 导航次数（首次 load 不计，每次额外 load / back 时修正）
+const fmoBackableCount = ref(0)
+let fmoIframeLoadCount = 0
+
+function onFmoIframeLoad() {
+  fmoIframeLoadCount += 1
+  // 首次加载不算导航
+  if (fmoIframeLoadCount > 1) {
+    fmoBackableCount.value += 1
+  }
+}
+
+function openFmoPage(addr) {
+  const httpProtocol = addr.protocol === 'wss' ? 'https' : 'http'
+  const host = normalizeHost(addr.host)
+  fmoPreviewUrl.value = `${httpProtocol}://${host}`
+  fmoIframeLoadCount = 0
+  fmoBackableCount.value = 0
+  showFmoPreview.value = true
+}
+
+function closeFmoPreview() {
+  showFmoPreview.value = false
+  fmoPreviewUrl.value = ''
+  fmoIframeLoadCount = 0
+  fmoBackableCount.value = 0
+}
+
+function fmoPreviewGoBack() {
+  const iframe = fmoPreviewIframe.value
+  const win = iframe?.contentWindow
+  // 优先尝试 iframe 自身的 history（同源 / 允许跨域后退时可用）
+  if (win) {
+    try {
+      // 同源时可读 length；跨域读取会抛错，进入兜底
+      if (typeof win.history.length === 'number' && win.history.length > 1) {
+        win.history.back()
+        if (fmoBackableCount.value > 0) fmoBackableCount.value -= 1
+        return
+      }
+    } catch {
+      // 跨域无法读 length，尝试直接 back
+    }
+    try {
+      win.history.back()
+      if (fmoBackableCount.value > 0) fmoBackableCount.value -= 1
+      return
+    } catch {
+      // 继续降级
+    }
+  }
+  // 兜底：iframe 的子页导航会在顶层 history 留下 entry，
+  // 顶层 back 可让 iframe 回退，而不改变 Vue 路由 URL
+  if (fmoBackableCount.value > 0) {
+    fmoBackableCount.value -= 1
+    window.history.back()
+  }
+}
+
+function openFmoExternal() {
+  if (!fmoPreviewUrl.value) return
+  window.open(fmoPreviewUrl.value, '_blank', 'noopener,noreferrer')
+}
 
 // 地址编辑弹框状态
 const showAddressDialog = ref(false)
@@ -1422,6 +1533,58 @@ function handleVolumeChange(e) {
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-light);
+}
+
+/* FMO 页面预览弹框 */
+.fmo-preview-dialog {
+  background: var(--bg-card);
+  border-radius: 12px;
+  width: 420px;
+  max-width: 95vw;
+  height: 85vh;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px var(--shadow-modal);
+  overflow: hidden;
+}
+
+.fmo-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-card);
+}
+
+.fmo-preview-toolbar-spacer {
+  flex: 1;
+}
+
+.fmo-preview-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-container);
+}
+
+.fmo-preview-iframe {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #fff;
+}
+
+@media (max-width: 768px) {
+  .fmo-preview-dialog {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
 }
 
 /* 移动端优化 */
