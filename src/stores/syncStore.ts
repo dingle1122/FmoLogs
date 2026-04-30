@@ -106,6 +106,21 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  // 构建静默同步上下文（用于后台自动同步，不更新UI状态）
+  function buildSilentSyncContext(overrides?: Partial<SyncContext>): SyncContext {
+    return {
+      currentFromCallsign: getCurrentFromCallsign(),
+      statusCallback: () => {
+        // 后台自动同步不更新UI状态
+      },
+      onFailed: (rec) => {
+        syncFailedRecords.value.push(rec)
+      },
+      isAborted: () => isAborted,
+      ...overrides
+    }
+  }
+
   // ========== 辅助 ==========
   function showAutoSyncMessage(msg: string) {
     autoSyncMessage.value = msg
@@ -171,7 +186,8 @@ export const useSyncStore = defineStore('sync', () => {
       const list = response.list || []
       const newCallsigns: string[] = []
 
-      const innerCtx = buildSyncContext()
+      // 使用静默上下文，不更新UI状态
+      const innerCtx = buildSilentSyncContext()
       for (const item of list) {
         if (isAborted) break
         const qso = await processSingleQsoItem(item, todayStart, client, innerCtx)
@@ -203,7 +219,8 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       if (isAborted) return
       const wasEmpty = !ctx.getDbLoaded?.() || (ctx.getTotalLogs?.() || 0) === 0
-      const totalSynced = await syncRecentData(client, 1, buildSyncContext())
+      // 使用静默上下文，不更新UI状态
+      const totalSynced = await syncRecentData(client, 1, buildSilentSyncContext())
 
       if (!isAborted) {
         await updateAfterSync(
@@ -305,6 +322,12 @@ export const useSyncStore = defineStore('sync', () => {
       }
     } finally {
       syncing.value = false
+      // 手动同步完成后，延迟清空状态文本
+      setTimeout(() => {
+        if (!syncing.value) {
+          syncStatus.value = ''
+        }
+      }, 3000)
       client.close()
       activeClients.delete(client)
     }
@@ -346,6 +369,12 @@ export const useSyncStore = defineStore('sync', () => {
       console.error('增量同步失败:', err)
     } finally {
       syncing.value = false
+      // 手动同步完成后，延迟清空状态文本
+      setTimeout(() => {
+        if (!syncing.value) {
+          syncStatus.value = ''
+        }
+      }, 3000)
       client.close()
       activeClients.delete(client)
     }
@@ -387,6 +416,12 @@ export const useSyncStore = defineStore('sync', () => {
       console.error('全量同步失败:', err)
     } finally {
       syncing.value = false
+      // 手动同步完成后，延迟清空状态文本
+      setTimeout(() => {
+        if (!syncing.value) {
+          syncStatus.value = ''
+        }
+      }, 3000)
       client.close()
       activeClients.delete(client)
     }
@@ -494,6 +529,12 @@ export const useSyncStore = defineStore('sync', () => {
       console.error('多地址同步失败:', err)
     } finally {
       syncing.value = false
+      // 3秒后自动清空状态文本，避免一直显示
+      setTimeout(() => {
+        if (!syncing.value) {
+          syncStatus.value = ''
+        }
+      }, 3000)
     }
   }
 
