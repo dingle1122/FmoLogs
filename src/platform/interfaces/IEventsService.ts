@@ -9,7 +9,7 @@ export interface EventsConnectConfig {
   addressId: string
   /** 完整 WebSocket URL，形如 ws(s)://host/ws */
   url: string
-  /** HTTP 根地址，用于 station:getCurrent 轮询，形如 http(s)://host */
+  /** 完整 WebSocket URL，形如 ws(s)://host/ws，用于 station:getCurrent 轮询（调用端不再自行拼接 /ws） */
   apiUrl: string
 }
 

@@ -403,8 +403,21 @@ public class FmoEventsPlugin extends Plugin {
             try { prev.cancel(); } catch (Exception ignore) {}
             state.serverInfoWs = null;
         }
+        // OkHttp 的 Request.Builder().url() 仅接受 http/https，这里把 ws/wss 映射一下
+        String reqUrl = state.apiUrl;
+        if (reqUrl.startsWith("wss://")) {
+            reqUrl = "https://" + reqUrl.substring("wss://".length());
+        } else if (reqUrl.startsWith("ws://")) {
+            reqUrl = "http://" + reqUrl.substring("ws://".length());
+        }
         final AtomicBoolean done = new AtomicBoolean(false);
-        Request req = new Request.Builder().url(state.apiUrl).build();
+        Request req;
+        try {
+            req = new Request.Builder().url(reqUrl).build();
+        } catch (Exception e) {
+            Log.w(TAG, "[" + state.addressId + "] invalid apiUrl=" + state.apiUrl + " err=" + e.getMessage());
+            return;
+        }
         final WebSocket[] holder = new WebSocket[1];
         WebSocket ws = httpClient.newWebSocket(req, new WebSocketListener() {
             @Override
