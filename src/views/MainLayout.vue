@@ -188,12 +188,13 @@ import QuickNavModal from '../components/home/modals/QuickNavModal.vue'
 import SvgIcon from '../components/common/SvgIcon.vue'
 
 // Composables
-import { useSpeakingStatus } from '../composables/useSpeakingStatus'
-import { useFmoSync } from '../composables/useFmoSync'
+import { storeToRefs } from 'pinia'
+import { useSpeakingStatusStore } from '../stores/speakingStore'
+import { useSyncStore } from '../stores/syncStore'
+import { useSettingsStore } from '../stores/settingsStore'
+import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
-import { useSettings } from '../composables/useSettings'
-import { useAudioPlayer } from '../composables/useAudioPlayer'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToAdif } from '../services/db'
@@ -264,28 +265,93 @@ const {
   selectFiles,
   clearAllData
 } = useDbManager()
-const settings = useSettings()
-const speakingStatus = useSpeakingStatus()
+
+// settings：内联 useSettings 薄层（store + storeToRefs）
+const _settingsStore = useSettingsStore()
+const _settingsRefs = storeToRefs(_settingsStore)
+const settings = {
+  fmoAddress: _settingsRefs.fmoAddress,
+  protocol: _settingsRefs.protocol,
+  todayContactedCallsigns: _settingsRefs.todayContactedCallsigns,
+  remoteControlUrl: _settingsRefs.remoteControlUrl,
+  addressList: _settingsRefs.addressList,
+  activeAddressId: _settingsRefs.activeAddressId,
+  activeAddress: _settingsRefs.activeAddress,
+  contactCounts: _settingsRefs.contactCounts,
+  selectedAddressIds: _settingsRefs.selectedAddressIds,
+  multiSelectMode: _settingsRefs.multiSelectMode,
+  audioVolume: _settingsRefs.audioVolume,
+  audioPlaying: _settingsRefs.audioPlaying,
+  isHttps: _settingsStore.isHttps,
+  isMobileDevice: _settingsStore.isMobileDevice,
+  initFmoAddress: _settingsStore.initFmoAddress,
+  validateAndSaveFmoAddress: _settingsStore.validateAndSaveFmoAddress,
+  backupLogs: _settingsStore.backupLogs,
+  loadTodayContactedCallsigns: _settingsStore.loadTodayContactedCallsigns,
+  loadContactCounts: _settingsStore.loadContactCounts,
+  addFmoAddress: _settingsStore.addFmoAddress,
+  updateFmoAddress: _settingsStore.updateFmoAddress,
+  deleteFmoAddress: _settingsStore.deleteFmoAddress,
+  selectFmoAddress: _settingsStore.selectFmoAddress,
+  clearAllAddresses: _settingsStore.clearAllAddresses,
+  refreshUserInfo: _settingsStore.refreshUserInfo,
+  validateConnection: _settingsStore.validateConnection,
+  toggleAddressSelection: _settingsStore.toggleAddressSelection,
+  setMultiSelectMode: _settingsStore.setMultiSelectMode,
+  setActiveAddressId: _settingsStore.setActiveAddressId,
+  setAudioVolume: _settingsStore.setAudioVolume,
+  setAudioPlaying: _settingsStore.setAudioPlaying
+}
+
+// speakingStatus：内联 useSpeakingStatus 薄层
+const _speakingStore = useSpeakingStatusStore()
+const _speakingRefs = storeToRefs(_speakingStore)
+const speakingStatus = {
+  currentSpeaker: _speakingRefs.currentSpeaker,
+  currentSpeakerGrid: _speakingRefs.currentSpeakerGrid,
+  currentSpeakerAddress: _speakingRefs.currentSpeakerAddress,
+  isHostSpeaking: _speakingRefs.isHostSpeaking,
+  speakingHistory: _speakingRefs.speakingHistory,
+  allSpeakingHistories: _speakingRefs.allSpeakingHistories,
+  allCurrentSpeakers: _speakingRefs.allCurrentSpeakers,
+  primaryAddressId: _speakingRefs.primaryAddressId,
+  primaryServerInfo: _speakingRefs.primaryServerInfo,
+  primaryConnected: _speakingRefs.primaryConnected,
+  eventsConnected: _speakingRefs.eventsConnected,
+  connectEventWs: _speakingStore.connectEventWs,
+  disconnectEventWs: _speakingStore.disconnectEventWs,
+  connectMultipleEventWs: _speakingStore.connectMultipleEventWs,
+  disconnectAllEventWs: _speakingStore.disconnectAllEventWs,
+  getSpeakingHistoryFor: _speakingStore.getSpeakingHistoryFor,
+  isAddressConnected: _speakingStore.isAddressConnected,
+  getServerInfo: _speakingStore.getServerInfo,
+  updateServerInfo: _speakingStore.updateServerInfo,
+  setOnMessageCallback: _speakingStore.setOnMessageCallback,
+  clearSpeakingHistory: _speakingStore.clearSpeakingHistory
+}
+
 const dataQuery = useDataQuery()
 const callsignRecords = useCallsignRecords()
 
 // 消息服务
 const messageService = getMessageService()
 
-const {
-  isPlaying: isAudioPlaying,
-  isMuted: isAudioMuted,
-  toggleAudio,
-  stopAudio,
-  muteAudio,
-  unmuteAudio,
-  setVolume: setAudioVolumePlayer,
-  resumeAudio,
-  updateSpeakerInfo,
-  setHostMuted: setAudioHostMuted
-} = useAudioPlayer()
+// 音频播放：直连 audioPlayerStore
+const _audioStore = useAudioPlayerStore()
+const _audioRefs = storeToRefs(_audioStore)
+const isAudioPlaying = _audioRefs.isPlaying
+const isAudioMuted = _audioRefs.isMuted
+const toggleAudio = _audioStore.toggleAudio
+const stopAudio = _audioStore.stopAudio
+const setAudioVolumePlayer = _audioStore.setVolume
+const resumeAudio = _audioStore.resumeAudio
+const updateSpeakerInfo = _audioStore.updateSpeakerInfo
+const setAudioHostMuted = _audioStore.setHostMuted
 
-const fmoSync = useFmoSync({
+// fmoSync：内联 useFmoSync 薄层（setContext + storeToRefs + onUnmounted teardown）
+const _syncStore = useSyncStore()
+_syncStore.reset()
+_syncStore.setContext({
   onSyncComplete: async ({ callsigns, syncedCount }) => {
     if (callsigns.length > 0) {
       availableFromCallsigns.value = callsigns
@@ -319,6 +385,21 @@ const fmoSync = useFmoSync({
   getTotalLogs: () => totalLogs.value,
   getEventsConnected: (addressId) => speakingStatus.isAddressConnected(addressId)
 })
+const _syncRefs = storeToRefs(_syncStore)
+const fmoSync = {
+  syncing: _syncRefs.syncing,
+  syncStatus: _syncRefs.syncStatus,
+  autoSyncMessage: _syncRefs.autoSyncMessage,
+  syncFailedRecords: _syncRefs.syncFailedRecords,
+  multiSyncProgress: _syncRefs.multiSyncProgress,
+  syncToday: _syncStore.syncToday,
+  syncIncremental: _syncStore.syncIncremental,
+  syncFull: _syncStore.syncFull,
+  syncMultiple: _syncStore.syncMultiple,
+  startAutoSyncTask: _syncStore.startAutoSyncTask,
+  stopAutoSyncTask: _syncStore.stopAutoSyncTask,
+  showAutoSyncMessage: _syncStore.showAutoSyncMessage
+}
 
 // 计算当前查询类型（根据路由名称映射）
 const routeToQueryType = {
@@ -1118,7 +1199,7 @@ onUnmounted(() => {
   contentAreaRef.value?.removeEventListener('scroll', handleScroll)
 
   fmoSync.stopAutoSyncTask()
-  speakingStatus.stopSpeakingHistoryCleanup()
+  _syncStore.teardown()
   speakingStatus.disconnectAllEventWs()
   messageService.disconnect()
 })
