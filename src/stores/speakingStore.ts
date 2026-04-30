@@ -393,7 +393,8 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     const normalizedHost = normalizeHost(host)
     return {
       wsUrl: `${protocol}://${normalizedHost}/events`,
-      apiUrl: `${protocol}://${normalizedHost}/ws`
+      // 注意：FmoApiClient.connect() 内部会自动拼接 /ws，这里只传基础 URL
+      apiUrl: `${protocol}://${normalizedHost}`
     }
   }
 

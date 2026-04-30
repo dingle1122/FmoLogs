@@ -7,29 +7,21 @@
  * `messageService.connect(...)` 等调用方式零修改。
  */
 
+import { storeToRefs } from 'pinia'
 import { useMessageStore } from '../stores/messageStore'
 
 let facade = null
 
 function buildFacade() {
   const store = useMessageStore()
+  const refs = storeToRefs(store)
   return {
-    // ========== 响应式字段（直接引用 store 的 ref，.value 访问保持不变） ==========
-    get connected() {
-      return store.connected
-    },
-    get busy() {
-      return store.busy
-    },
-    get messageList() {
-      return store.messageList
-    },
-    get hasMore() {
-      return store.hasMore
-    },
-    get nextAnchorId() {
-      return store.nextAnchorId
-    },
+    // ========== 响应式字段（通过 storeToRefs 保留 ref，.value 访问保持不变） ==========
+    connected: refs.connected,
+    busy: refs.busy,
+    messageList: refs.messageList,
+    hasMore: refs.hasMore,
+    nextAnchorId: refs.nextAnchorId,
     // ========== 方法 ==========
     connect: (...args) => store.connect(...args),
     disconnect: () => store.disconnect(),
