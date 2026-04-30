@@ -1,4 +1,5 @@
 <template>
+  
   <div class="container">
     <!-- 标题栏（含桌面端导航） -->
     <AppHeader
@@ -189,6 +190,8 @@ import SvgIcon from '../components/common/SvgIcon.vue'
 
 // Composables
 import { storeToRefs } from 'pinia'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { useSpeakingStatusStore } from '../stores/speakingStore'
 import { useSyncStore } from '../stores/syncStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -1157,10 +1160,61 @@ function connectEventsWebSocket() {
   }
 }
 
+// 安卓硬件返回键处理：优先关闭弹框 → 路由回退 → 询问退出
+let backButtonListener = null
+let exitConfirming = false
+
+async function handleHardwareBack({ canGoBack }) {
+  // 1) 优先关闭已打开的 modal（按可见性倒序关闭最顶层一个）
+  if (callsignRecords.showCallsignModal.value) {
+    callsignRecords.closeCallsignModal()
+    return
+  }
+  if (showStationList.value) {
+    showStationList.value = false
+    return
+  }
+  if (showQuickNav.value) {
+    showQuickNav.value = false
+    return
+  }
+  if (showSpeakingHistory.value) {
+    showSpeakingHistory.value = false
+    return
+  }
+
+  // 2) 可返回则交给 Vue Router（popstate 也会被各页面自有逻辑处理，例如 MessageView 详情）
+  if (canGoBack) {
+    router.back()
+    return
+  }
+
+  // 3) 根路由且无其他可回退状态 → 确认退出
+  if (exitConfirming) return
+  exitConfirming = true
+  try {
+    const confirmed = await confirmDialog.show('确定要退出应用吗？')
+    if (confirmed) {
+      await CapacitorApp.exitApp()
+    }
+  } finally {
+    exitConfirming = false
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   // 回到顶部滚动监听
   contentAreaRef.value?.addEventListener('scroll', handleScroll, { passive: true })
+
+  // 注册安卓硬件返回键监听（仅原生平台）
+  if (Capacitor.isNativePlatform()) {
+    try {
+      backButtonListener = await CapacitorApp.addListener('backButton', handleHardwareBack)
+    } catch (err) {
+      console.error('注册返回键监听失败:', err)
+    }
+  }
 
   const restored = await tryRestoreDirectory()
   if (restored) {
@@ -1197,6 +1251,16 @@ onMounted(async () => {
 onUnmounted(() => {
   if (scrollTimer) clearTimeout(scrollTimer)
   contentAreaRef.value?.removeEventListener('scroll', handleScroll)
+
+  // 移除返回键监听
+  if (backButtonListener) {
+    try {
+      backButtonListener.remove()
+    } catch (err) {
+      console.error('移除返回键监听失败:', err)
+    }
+    backButtonListener = null
+  }
 
   fmoSync.stopAutoSyncTask()
   _syncStore.teardown()

@@ -23,6 +23,7 @@
   "dependencies": {
     "@anuradev/capacitor-background-mode": "^7.2.1",
     "@capacitor/android": "^8.3.1",
+    "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1",
     "@capacitor/filesystem": "^8.1.2",
