@@ -277,8 +277,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Capacitor } from '@capacitor/core'
-import { useAprsControl } from '../../../composables/useAprsControl'
+import { useAprsStore } from '../../../stores/aprsStore'
 import confirmDialog from '../../../composables/useConfirm'
 import CallsignInput from '../../common/CallsignInput.vue'
 
@@ -296,9 +297,9 @@ const props = defineProps({
   }
 })
 
-const aprsControl = useAprsControl()
+const aprsStore = useAprsStore()
 
-// 解构 composable
+// 提取响应式 state/getters（保持响应性）
 const {
   wsConnected,
   wsConnecting,
@@ -310,7 +311,11 @@ const {
   secret,
   tocall,
   serverList,
-  activeServerId,
+  activeServerId
+} = storeToRefs(aprsStore)
+
+// actions 直接从 store 拿（不需要响应性）
+const {
   init,
   disconnectWebSocket,
   sendCommand,
@@ -320,7 +325,7 @@ const {
   updateServer,
   selectServer,
   saveCurrentParams
-} = aprsControl
+} = aprsStore
 
 // 呼号和尾缀
 const callsignBase = ref('')
