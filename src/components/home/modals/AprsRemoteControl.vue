@@ -278,13 +278,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Capacitor } from '@capacitor/core'
+import { getPlatform } from '../../../platform'
 import { useAprsStore } from '../../../stores/aprsStore'
 import confirmDialog from '../../../composables/useConfirm'
 import CallsignInput from '../../common/CallsignInput.vue'
 
-// Android 原生 APRS 直连模式：隐藏服务器列表/添加/编辑/删除等中转相关 UI
-const isNativeAprs = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+// 原生 APRS 直连模式：隐藏服务器列表/添加/编辑/删除等中转相关 UI
+const isNativeAprs = getPlatform().capabilities.hasNativeAprs
 
 const props = defineProps({
   activeAddressId: {

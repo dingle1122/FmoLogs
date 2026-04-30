@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
 // @ts-ignore - legacy JS
 import {
   saveFmoAddresses,
@@ -13,7 +12,7 @@ import { FmoApiClient } from '../services/fmoApi'
 // @ts-ignore - legacy JS
 import { normalizeHost } from '../utils/urlUtils'
 // @ts-ignore - legacy JS
-import { exportFile } from '../utils/exportFile'
+import { downloadRemoteFile } from '../utils/exportFile'
 import { getPlatform } from '../platform'
 
 const AUDIO_VOLUME_KEY = 'fmo_audio_volume'
@@ -456,60 +455,7 @@ export const useSettingsStore = defineStore('settings', () => {
     address = address.replace(/\/+$/, '')
 
     const url = `${address}/api/qso/backup`
-    const platform = Capacitor.getPlatform()
-
-    if (platform === 'web') {
-      const link = document.createElement('a')
-      link.href = url
-      link.download = ''
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      return
-    }
-
-    const httpResponse = await CapacitorHttp.request({
-      method: 'GET',
-      url,
-      responseType: 'blob'
-    })
-
-    if (httpResponse.status < 200 || httpResponse.status >= 300) {
-      throw new Error(`HTTP ${httpResponse.status}`)
-    }
-
-    const headers = httpResponse.headers || {}
-    const getHeader = (name: string) => {
-      const lower = name.toLowerCase()
-      for (const key of Object.keys(headers)) {
-        if (key.toLowerCase() === lower) return headers[key]
-      }
-      return ''
-    }
-
-    let filename = `fmo-backup-${Date.now()}.db`
-    const disposition = getHeader('Content-Disposition') || ''
-    const matchStar = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i)
-    const matchPlain = disposition.match(/filename="?([^";]+)"?/i)
-    if (matchStar && matchStar[1]) {
-      try {
-        filename = decodeURIComponent(matchStar[1].trim())
-      } catch {
-        filename = matchStar[1].trim()
-      }
-    } else if (matchPlain && matchPlain[1]) {
-      filename = matchPlain[1].trim()
-    }
-
-    const base64 = httpResponse.data || ''
-    const binary = atob(base64)
-    const data = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) {
-      data[i] = binary.charCodeAt(i)
-    }
-    const mimeType = getHeader('Content-Type') || 'application/octet-stream'
-
-    return await exportFile(filename, data, mimeType)
+    return await downloadRemoteFile(url, `fmo-backup-${Date.now()}.db`)
   }
 
   async function loadTodayContactedCallsigns(selectedFromCallsign: string) {

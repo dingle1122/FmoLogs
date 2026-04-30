@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive } from 'vue'
-import { Capacitor } from '@capacitor/core'
 // @ts-ignore - legacy JS
 import { normalizeHost } from '../utils/urlUtils'
 // @ts-ignore - legacy JS
@@ -8,7 +7,8 @@ import { gridToAddress } from '../services/gridService'
 import { getPlatform } from '../platform'
 import type { ServerInfo, EventsStatus } from '../platform/types/speaking'
 
-const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+// 是否由原生侧（Android）托管 events：连接池、快照、通知栏等
+const hasNativeEvents = getPlatform().capabilities.hasNativeEvents
 
 interface SpeakingRecord {
   callsign: string
@@ -24,7 +24,7 @@ function getStorageKey(addressId: string) {
 }
 
 function loadFromStorage(addressId: string): SpeakingRecord[] {
-  if (isAndroid) return []
+  if (hasNativeEvents) return []
   try {
     const raw = localStorage.getItem(getStorageKey(addressId))
     if (!raw) return []
@@ -40,7 +40,7 @@ function loadFromStorage(addressId: string): SpeakingRecord[] {
 }
 
 function saveToStorage(addressId: string, list: SpeakingRecord[]) {
-  if (isAndroid) return
+  if (hasNativeEvents) return
   try {
     localStorage.setItem(getStorageKey(addressId), JSON.stringify(list))
   } catch (err) {
@@ -302,7 +302,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
   }
 
   async function syncFromNativeSnapshot(addressId?: string) {
-    if (!isAndroid) return
+    if (!hasNativeEvents) return
     try {
       const snap = await getPlatform().events.getSnapshot(addressId)
       for (const entry of snap.connections || []) applyNativeSnapshot(entry)
@@ -328,7 +328,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
       if (status === 'connected') {
         if (cfg?.isPrimary) primaryConnected.value = true
         startHistoryCleanup(addressId)
-        if (isAndroid) syncFromNativeSnapshot(addressId)
+        if (hasNativeEvents) syncFromNativeSnapshot(addressId)
       } else if (status === 'reconnecting') {
         if (cfg?.isPrimary) primaryConnected.value = false
       } else if (status === 'disconnected') {
@@ -342,7 +342,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
       changeCounter.value++
     })
 
-    if (isAndroid && !visibilityBound) {
+    if (hasNativeEvents && !visibilityBound) {
       document.addEventListener('visibilitychange', onVisibilityChange)
       visibilityBound = true
     }
@@ -355,7 +355,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
   }
 
   function pushCachedServerNameIfAny(addressId: string) {
-    if (!isAndroid || !addressId) return
+    if (!hasNativeEvents || !addressId) return
     const info = serverInfoMap.get(addressId)
     const name = info?.name || ''
     if (!name) return
@@ -409,7 +409,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     connectionConfigs.set(addressId, { host, protocol, isPrimary: true })
     speakingHistoryMap.set(addressId, loadFromStorage(addressId))
 
-    if (isAndroid) {
+    if (hasNativeEvents) {
       pushCachedServerNameIfAny(addressId)
       getPlatform().events.setPrimary(addressId)
     }
@@ -434,7 +434,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     if (addressId === primaryAddressId.value) {
       primaryConnected.value = false
       primaryAddressId.value = null
-      if (isAndroid) getPlatform().events.setPrimary('')
+      if (hasNativeEvents) getPlatform().events.setPrimary('')
     }
     changeCounter.value++
   }
@@ -450,7 +450,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     disconnectAllEventWs()
     primaryAddressId.value = primaryId
 
-    if (isAndroid) {
+    if (hasNativeEvents) {
       pushCachedServerNameIfAny(primaryId)
       getPlatform().events.setPrimary(primaryId || '')
     }
@@ -482,7 +482,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
 
     primaryConnected.value = false
     primaryAddressId.value = null
-    if (isAndroid) getPlatform().events.setPrimary('')
+    if (hasNativeEvents) getPlatform().events.setPrimary('')
     changeCounter.value++
   }
 

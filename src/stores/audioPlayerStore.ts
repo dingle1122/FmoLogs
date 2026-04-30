@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { Capacitor } from '@capacitor/core'
 // @ts-ignore - legacy JS
 import { normalizeHost } from '../utils/urlUtils'
 import { getPlatform } from '../platform'
 import type { AudioStatus } from '../platform/types/audio'
 
-const isAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+// 原生侧（Android）托管音频时，由原生自行处理 host 静音
+const hasNativeAudio = getPlatform().capabilities.hasNativeAudio
 
 function statusToText(s: AudioStatus): string {
   switch (s) {
@@ -169,11 +169,11 @@ export const useAudioPlayerStore = defineStore('audioPlayer', () => {
 
   /**
    * 当前用户（host）发言时自动静音。
-   * - Android：由原生侧监听 events 自行处理，此处 no-op
+   * - 原生音频：由原生侧监听 events 自行处理，此处 no-op
    * - Web：通过 setVolume(0) 叠加实现，不影响用户的 isMuted
    */
   async function setHostMuted(m: boolean) {
-    if (isAndroid) return
+    if (hasNativeAudio) return
     hostMuted.value = m
     if (!isPlaying.value) return
     if (m) {

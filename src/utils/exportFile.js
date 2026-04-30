@@ -5,7 +5,7 @@
  *   如需分享，可调用单独导出的 shareFile() 发起系统分享
  */
 
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 
@@ -124,4 +124,78 @@ export async function shareFile(uri, filename) {
     files: [uri],
     dialogTitle: '选择分享方式'
   })
+}
+
+/**
+ * 从响应头解析 filename，解析失败回退到 fallback
+ * @param {Record<string,string>} headers
+ * @param {string} fallback
+ */
+function parseFilenameFromHeaders(headers, fallback) {
+  const getHeader = (name) => {
+    const lower = name.toLowerCase()
+    for (const key of Object.keys(headers || {})) {
+      if (key.toLowerCase() === lower) return headers[key]
+    }
+    return ''
+  }
+  const disposition = getHeader('Content-Disposition') || ''
+  const matchStar = disposition.match(/filename\*=(?:UTF-8'')?([^;]+)/i)
+  const matchPlain = disposition.match(/filename="?([^";]+)"?/i)
+  if (matchStar && matchStar[1]) {
+    try {
+      return decodeURIComponent(matchStar[1].trim())
+    } catch {
+      return matchStar[1].trim()
+    }
+  }
+  if (matchPlain && matchPlain[1]) return matchPlain[1].trim()
+  return fallback
+}
+
+/**
+ * 跨平台下载远程文件并落盘。
+ * - Web：交给浏览器原生下载（由服务器决定文件名）
+ * - Android/iOS：走 CapacitorHttp 绕过 WebView CORS，拿到 blob 后按 Content-Disposition 命名，复用 exportFile 写入
+ *
+ * @param {string} url 远程 URL
+ * @param {string} fallbackFilename Content-Disposition 解析失败时的兜底文件名
+ * @returns {Promise<{platform: string, savedPath?: string, uri?: string, displayPath?: string}|undefined>}
+ */
+export async function downloadRemoteFile(url, fallbackFilename) {
+  const platform = Capacitor.getPlatform()
+
+  if (platform === 'web') {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = ''
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    return { platform }
+  }
+
+  const httpResponse = await CapacitorHttp.request({
+    method: 'GET',
+    url,
+    responseType: 'blob'
+  })
+
+  if (httpResponse.status < 200 || httpResponse.status >= 300) {
+    throw new Error(`HTTP ${httpResponse.status}`)
+  }
+
+  const headers = httpResponse.headers || {}
+  const filename = parseFilenameFromHeaders(headers, fallbackFilename)
+
+  const base64 = httpResponse.data || ''
+  const binary = atob(base64)
+  const data = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    data[i] = binary.charCodeAt(i)
+  }
+  const mimeType =
+    (headers['Content-Type'] || headers['content-type']) || 'application/octet-stream'
+
+  return await exportFile(filename, data, mimeType)
 }
