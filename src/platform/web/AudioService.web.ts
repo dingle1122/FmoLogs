@@ -68,14 +68,13 @@ export class WebAudioService implements IAudioService {
   }
 
   async stop(): Promise<void> {
-    if (this.player) {
-      try {
-        this.player.disconnect()
-      } catch {
-        /* ignore */
-      }
-      this.player = null
+    if (!this.player) return
+    try {
+      this.player.disconnect()
+    } catch {
+      /* ignore */
     }
+    this.player = null
     this.emitStatus('disconnected')
   }
 
