@@ -29,7 +29,7 @@
             v-for="station in filteredStationList"
             :key="station.uid"
             class="station-item"
-            :class="{ active: currentStation?.uid === station.uid }"
+            :class="{ active: currentStation && String(currentStation.uid) === String(station.uid) }"
             :disabled="loading"
             :title="station.name"
             @click="handleSelect(station.uid)"
@@ -37,7 +37,7 @@
             <span v-if="station.isPinned" class="pin-badge">收藏</span>
             {{ station.name }}
             <span
-              v-if="showPrimaryBadge && currentStation?.uid === station.uid"
+              v-if="showPrimaryBadge && currentStation && String(currentStation.uid) === String(station.uid)"
               class="primary-badge"
               >主</span
             >
