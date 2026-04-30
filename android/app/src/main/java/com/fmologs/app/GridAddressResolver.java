@@ -44,11 +44,11 @@ public class GridAddressResolver {
 
     private static final String TAG = "GridAddressResolver";
     private static final String API_BASE = "https://grid.lzyike.cn";
-    private static final int MEMORY_CACHE_MAX = 256;
+    private static final int MEMORY_CACHE_MAX = 2048;
     // 基础频率限制：每 600ms 最多一次远程请求（与 Web 端 gridService.js 一致）
     private static final long RATE_LIMIT_MIN_INTERVAL_MS = 600L;
     // 被后端 429 拒绝后，下一次窗口至少延后这么久，避免持续轰炸
-    private static final long RATE_LIMIT_BACKOFF_MS = 10_000L;
+    private static final long RATE_LIMIT_BACKOFF_MS = 3_000L;
 
     public interface Callback {
         void onSuccess(JSONObject data);
@@ -73,7 +73,7 @@ public class GridAddressResolver {
     private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
     private final LinkedHashMap<String, JSONObject> memoryCache =
-            new LinkedHashMap<String, JSONObject>(32, 0.75f, true) {
+            new LinkedHashMap<String, JSONObject>(256, 0.75f, true) {
                 @Override
                 protected boolean removeEldestEntry(Map.Entry<String, JSONObject> eldest) {
                     return size() > MEMORY_CACHE_MAX;
