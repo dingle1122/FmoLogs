@@ -1,5 +1,35 @@
 apply plugin: 'com.android.application'
 
+// ========== 从 package.json 同步版本号 ==========
+// versionName 直接用 package.json.version（如 "1.2.3"）
+// versionCode 按 major*10000 + minor*100 + patch 规则生成（如 1.2.3 → 10203），
+// 这样只要 npm 版本升了 gradle 构建版本号自动递增，不用再手动改两个地方。
+def packageJsonFile = file("../../package.json")
+def packageVersion = new groovy.json.JsonSlurper()
+    .parseText(packageJsonFile.text).version
+def cleanVersion = packageVersion.replaceAll(/[^0-9.].*\$/, '')
+def verParts = cleanVersion.tokenize('.')
+def appVersionMajor = verParts.size() > 0 ? verParts[0].toInteger() : 0
+def appVersionMinor = verParts.size() > 1 ? verParts[1].toInteger() : 0
+def appVersionPatch = verParts.size() > 2 ? verParts[2].toInteger() : 0
+def appVersionCode = appVersionMajor * 10000 + appVersionMinor * 100 + appVersionPatch
+def appVersionName = packageVersion
+
+// ========== 读取正式签名参数（env 或 ~/.gradle/gradle.properties 均可） ==========
+// Gradle 的 file() 不会自动展开 ~，这里手动处理成绝对路径
+def expandHome = { String p ->
+    if (p == null || p.isEmpty()) return p
+    if (p.startsWith('~/') || p == '~') {
+        return System.getProperty('user.home') + p.substring(1)
+    }
+    return p
+}
+def releaseKsPath     = expandHome(System.getenv("ANDROID_KEYSTORE_PATH")     ?: project.findProperty("ANDROID_KEYSTORE_PATH"))
+def releaseKsPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: project.findProperty("ANDROID_KEYSTORE_PASSWORD")
+def releaseKsAlias    = System.getenv("ANDROID_KEY_ALIAS")         ?: project.findProperty("ANDROID_KEY_ALIAS")
+def releaseKsKeyPass  = System.getenv("ANDROID_KEY_PASSWORD")      ?: project.findProperty("ANDROID_KEY_PASSWORD")
+def hasReleaseKeystore = releaseKsPath && releaseKsPassword && releaseKsAlias && releaseKsKeyPass && file(releaseKsPath).exists()
+
 android {
     namespace = "com.fmologs.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +37,8 @@ android {
         applicationId "com.fmologs.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,29 +48,27 @@ android {
     }
     signingConfigs {
         release {
-            def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
-            def ksPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-            def ksAlias = System.getenv("ANDROID_KEY_ALIAS")
-            def ksKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-
-            if (ksPath && ksPassword && ksAlias && ksKeyPassword) {
-                storeFile file(ksPath)
-                storePassword ksPassword
-                keyAlias ksAlias
-                keyPassword ksKeyPassword
+            if (hasReleaseKeystore) {
+                storeFile file(releaseKsPath)
+                storePassword releaseKsPassword
+                keyAlias releaseKsAlias
+                keyPassword releaseKsKeyPass
             }
         }
     }
 
     buildTypes {
+        debug {
+            // 只要本地/CI 配了正式 keystore，debug 也用同一把签，
+            // 避免 `installDebug` 与 release APK 之间 INSTALL_FAILED_UPDATE_INCOMPATIBLE。
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            def ksPath = System.getenv("ANDROID_KEYSTORE_PATH")
-            def ksPass = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-            def ksAlias = System.getenv("ANDROID_KEY_ALIAS")
-            def ksKeyPass = System.getenv("ANDROID_KEY_PASSWORD")
-            if (ksPath && ksPass && ksAlias && ksKeyPass) {
+            if (hasReleaseKeystore) {
                 signingConfig signingConfigs.release
             } else {
                 signingConfig signingConfigs.debug
