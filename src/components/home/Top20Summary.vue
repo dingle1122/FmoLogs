@@ -191,6 +191,9 @@ function handleTooltipMouseLeave() {
   flex: 1;
   overflow: auto;
   margin-top: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .empty-hint {
@@ -365,10 +368,23 @@ function handleTooltipMouseLeave() {
     grid-template-columns: 1fr;
     margin-top: 0.5rem;
     overflow: visible;
+    padding: 0;
+    gap: 0.75rem;
   }
 
   .top20-card {
     max-height: none;
+    width: 100%;
+    overflow: hidden; /* 防止卡片内容溢出 */
+  }
+
+  .top20-item {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .top20-card h3 {
+    padding: 0.75rem;
+    font-size: 0.9rem;
   }
 }
 </style>
