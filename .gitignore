@@ -62,6 +62,7 @@ out/
 # Tauri generated icons (source: src-tauri/icons/icon.png, regenerate with `npm run icons`)
 src-tauri/icons/*.icns
 src-tauri/icons/*.ico
+src-tauri/icons/android/
 src-tauri/icons/ios/
 src-tauri/icons/32x32.png
 src-tauri/icons/64x64.png
@@ -72,7 +73,6 @@ src-tauri/icons/StoreLogo.png
 src-tauri/icons/icon.png
 
 # Android generated icons (source: public/vite.png, regenerate with `npm run icons:android`)
-src-tauri/icon-android.png
 android/app/src/main/res/mipmap-mdpi/ic_launcher*.png
 android/app/src/main/res/mipmap-hdpi/ic_launcher*.png
 android/app/src/main/res/mipmap-xhdpi/ic_launcher*.png

@@ -5,7 +5,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_PNG="$ROOT/public/vite.png"
-ANDROID_SRC="$ROOT/src-tauri/icon-android.png"
+TMP_DIR="$ROOT/.icon-tmp"
+ANDROID_SRC="$TMP_DIR/icon-android.png"
 RES_DIR="$ROOT/android/app/src/main/res"
 
 if command -v magick >/dev/null 2>&1; then
@@ -23,7 +24,8 @@ if [ ! -f "$SRC_PNG" ]; then
   exit 1
 fi
 
-mkdir -p "$(dirname "$ANDROID_SRC")"
+mkdir -p "$TMP_DIR"
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 # 1) 1024x1024 白底母图（内容缩到约 50% 居中）
 "$MAGICK" "$SRC_PNG" \
@@ -33,10 +35,7 @@ mkdir -p "$(dirname "$ANDROID_SRC")"
   "$ANDROID_SRC"
 
 # 2) 1024x1024 透明底 foreground 母图（内容缩到约 50% 居中，符合 Android adaptive icon 安全区）
-TMP_DIR="$ROOT/.icon-tmp"
-mkdir -p "$TMP_DIR"
 TMP_FG="$TMP_DIR/fmo-fg.png"
-trap 'rm -rf "$TMP_DIR"' EXIT
 "$MAGICK" "$SRC_PNG" \
   -resize 512x512 \
   -background none -gravity center -extent 1024x1024 \
