@@ -17,6 +17,7 @@ import { getPlatform } from '../platform'
 
 const AUDIO_VOLUME_KEY = 'fmo_audio_volume'
 const AUDIO_PLAYING_KEY = 'fmo_audio_playing'
+const PRIORITIZE_TODAY_KEY = 'fmo_prioritize_today'
 
 interface UserInfo {
   callsign: string
@@ -71,6 +72,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const audioVolume = ref(100)
   const audioPlaying = ref(false)
+  const prioritizeToday = ref(false)
 
   const isHttps = window.location.protocol === 'https:'
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -126,10 +128,21 @@ export const useSettingsStore = defineStore('settings', () => {
     await getPlatform().storage.set(AUDIO_PLAYING_KEY, String(!!value))
   }
 
+  async function initPrioritizeToday() {
+    const saved = await getPlatform().storage.get(PRIORITIZE_TODAY_KEY)
+    prioritizeToday.value = saved === 'true'
+  }
+
+  async function setPrioritizeToday(value: boolean) {
+    prioritizeToday.value = !!value
+    await getPlatform().storage.set(PRIORITIZE_TODAY_KEY, String(!!value))
+  }
+
   // ========== 地址初始化与管理 ==========
   async function initFmoAddress(): Promise<boolean> {
     await initAudioVolume()
     await initAudioPlaying()
+    await initPrioritizeToday()
 
     const storage: AddressStorage = await getFmoAddresses()
     fmoAddressStorage.value = storage
@@ -529,6 +542,7 @@ export const useSettingsStore = defineStore('settings', () => {
     multiSelectMode,
     audioVolume,
     audioPlaying,
+    prioritizeToday,
     // actions
     initFmoAddress,
     validateAndSaveFmoAddress,
@@ -546,6 +560,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setMultiSelectMode,
     setActiveAddressId,
     setAudioVolume,
-    setAudioPlaying
+    setAudioPlaying,
+    setPrioritizeToday
   }
 })

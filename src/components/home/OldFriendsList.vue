@@ -15,7 +15,7 @@
     <template v-else-if="oldFriendsResult && oldFriendsResult.data.length > 0">
       <div class="old-friends-grid">
         <div
-          v-for="(item, index) in oldFriendsResult.data"
+          v-for="(item, index) in sortedData"
           :key="'friend-' + index"
           class="friend-card"
           :class="{ 'today-contact': isTodayContact(item.latestTime) }"
@@ -66,7 +66,7 @@
 
 <script setup>
 /* global IntersectionObserver */
-import { ref, onMounted, onUnmounted, watch, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, watch, reactive, computed } from 'vue'
 import { formatTimestampMinute, isTodayContact } from './constants'
 import { gridToAddress } from '../../services/gridService.js'
 
@@ -86,12 +86,31 @@ const props = defineProps({
   hasMore: {
     type: Boolean,
     default: true
+  },
+  prioritizeToday: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['show-records', 'load-more'])
 
 const gridAddressMap = reactive({})
+
+const sortedData = computed(() => {
+  if (!props.oldFriendsResult?.data) return []
+  if (!props.prioritizeToday) return props.oldFriendsResult.data
+  const today = []
+  const others = []
+  for (const item of props.oldFriendsResult.data) {
+    if (isTodayContact(item.latestTime)) {
+      today.push(item)
+    } else {
+      others.push(item)
+    }
+  }
+  return [...today, ...others]
+})
 
 function formatGridAddress(data) {
   if (!data) return ''

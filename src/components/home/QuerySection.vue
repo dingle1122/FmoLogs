@@ -70,12 +70,29 @@
           @update:model-value="$emit('update:oldFriendsSearchKeyword', $event)"
         />
       </div>
+      <div v-if="currentQueryType === 'oldFriends' && totalCount > 0" class="prioritize-chip-wrapper">
+        <button
+          class="prioritize-chip"
+          :class="{ active: prioritizeToday }"
+          :disabled="!dbLoaded"
+          @click="togglePrioritizeToday"
+        >
+          <svg class="sort-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="6" x2="20" y2="6"/>
+            <line x1="4" y1="12" x2="14" y2="12"/>
+            <line x1="4" y1="18" x2="8" y2="18"/>
+          </svg>
+          今日已通联
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from '../../stores/settingsStore'
 import DatePicker from '../common/DatePicker.vue'
 import CallsignInput from '../common/CallsignInput.vue'
 
@@ -115,6 +132,13 @@ const props = defineProps({
 })
 
 defineEmits(['update:searchKeyword', 'update:oldFriendsSearchKeyword', 'update:filterDate', 'quickFilter'])
+
+const settingsStore = useSettingsStore()
+const { prioritizeToday } = storeToRefs(settingsStore)
+
+function togglePrioritizeToday() {
+  settingsStore.setPrioritizeToday(!prioritizeToday.value)
+}
 
 const hasFilters = computed(() => {
   return props.currentQueryType === 'all' || props.currentQueryType === 'oldFriends'
@@ -232,6 +256,51 @@ const hasFilters = computed(() => {
 }
 
 .quick-filter-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.prioritize-chip-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.prioritize-chip {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 14px;
+  background: var(--bg-container);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  font-family: inherit;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.prioritize-chip .sort-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.prioritize-chip:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--bg-primary-light);
+}
+
+.prioritize-chip.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.prioritize-chip:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

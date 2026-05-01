@@ -19,6 +19,7 @@
       :db-loaded="dbLoaded"
       :loading-more="loadingMore"
       :has-more="hasMore"
+      :prioritize-today="prioritizeToday"
       @show-records="$emit('show-callsign-records', $event)"
       @load-more="handleLoadMore"
     />
@@ -27,6 +28,8 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from '../stores/settingsStore'
 
 // 组件
 import StatusHints from '../components/common/StatusHints.vue'
@@ -43,6 +46,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['execute-query', 'show-callsign-records'])
+
+const settingsStore = useSettingsStore()
+const { prioritizeToday } = storeToRefs(settingsStore)
 
 // 滚动加载状态
 const loadingMore = ref(false)
