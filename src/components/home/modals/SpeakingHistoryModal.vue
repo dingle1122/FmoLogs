@@ -38,11 +38,15 @@
                     <span v-if="multiSelectMode && record.addressId" class="server-tag">{{
                       getServerName(record.addressId)
                     }}</span>
-                    {{ record.callsign }}
-                    <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
-                    <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
-                      >&#11088;</span
-                    >
+                    <span class="callsign-text">{{ record.callsign }}</span>
+                    <span class="callsign-badge">
+                      <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
+                      <span
+                        v-if="todayContactedCallsigns.has(record.callsign)"
+                        class="today-star"
+                        >&#11088;</span
+                      >
+                    </span>
                     <span v-if="contactCounts.get(record.callsign)" class="contact-count"
                       >x{{ contactCounts.get(record.callsign) }}</span
                     >
@@ -373,7 +377,26 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+/* 呼号文字：固定 7 字符宽度，保证后续徽章/通联次数位置一致 */
+.callsign-text {
+  display: inline-block;
+  width: 6.2ch;
+  text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 徽章占位区：固定 1.5em 宽度，星星/您标签居左展示，紧靠呼号 */
+.callsign-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.8em;
+  min-width: 0.8em;
   flex-shrink: 0;
 }
 
@@ -399,6 +422,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   line-height: 1.6rem;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .contact-count {
@@ -408,7 +432,6 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   line-height: 1;
   display: inline-flex;
   align-items: center;
-  margin-left: 0.2rem;
 }
 
 .history-server-tag {
@@ -447,7 +470,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.3em;
+  padding: 0.25em;
   border-radius: 2px;
   font-size: 0.5em;
   font-weight: 400;
@@ -455,6 +478,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   color: var(--color-warning);
   line-height: 1;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .speaking-history-item.is-speaking .history-callsign {
@@ -536,8 +560,21 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
     font-size: 0.65rem;
   }
 
+  .callsign-text {
+    width: 6.2ch;
+  }
+
+  .callsign-badge {
+    width: 0.8em;
+    min-width: 0.8em;
+  }
+
   .today-star {
     font-size: 1rem;
+  }
+
+  .contact-count {
+    font-size: 0.85rem;
   }
 
   .speaking-time {
