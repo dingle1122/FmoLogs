@@ -912,7 +912,7 @@ export async function getAllRecordsFromIndexedDB(
         const tx = db.transaction(storeName, 'readonly')
         const store = tx.objectStore(storeName)
         const index = store.index('utcDate')
-        const request = index.getAll(IDBKeyRange.only(filterDate))
+        const request = index.getAll(IDBKeyRange.lowerBound(filterDate))
 
         request.onerror = () => reject(request.error)
         request.onsuccess = () => {

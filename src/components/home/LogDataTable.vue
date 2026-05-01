@@ -11,11 +11,30 @@
       <tbody>
         <tr v-if="!dbLoaded" class="empty-row">
           <td :colspan="displayColumns.length" class="empty-cell">
-            请点击右上角设置图标选择日志目录
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+                <polyline points="13 2 13 9 20 9"/>
+                <line x1="9" y1="13" x2="15" y2="13"/>
+                <line x1="9" y1="17" x2="13" y2="17"/>
+              </svg>
+              <p class="empty-title">未加载日志数据</p>
+              <p class="empty-desc">点击右上角设置图标，选择日志目录开始使用</p>
+            </div>
           </td>
         </tr>
         <tr v-else-if="queryResult && queryResult.data.length === 0" class="empty-row">
-          <td :colspan="displayColumns.length" class="empty-cell">暂无数据</td>
+          <td :colspan="displayColumns.length" class="empty-cell">
+            <div class="empty-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                <line x1="8" y1="11" x2="14" y2="11"/>
+              </svg>
+              <p class="empty-title">暂无数据</p>
+              <p class="empty-desc">尝试调整筛选条件或同步最新日志</p>
+            </div>
+          </td>
         </tr>
         <template v-else-if="queryResult">
           <tr
@@ -40,7 +59,9 @@
               <template v-if="col === 'timestamp'">
                 <div class="timestamp-div">
                   <div>{{ formatDatePart(formatTimestamp(row[col])) }}</div>
-                  <div>{{ formatTimePart(formatTimestamp(row[col])) }}</div>
+                  <div class="time-row">
+                    {{ formatTimePart(formatTimestamp(row[col])) }}
+                  </div>
                 </div>
               </template>
               <template v-else-if="col === 'dailyIndex'">
@@ -52,7 +73,7 @@
                       'rank-2': row.dailyIndex === 2,
                       'rank-3': row.dailyIndex === 3
                     }"
-                    >#{{ row.dailyIndex }}</span
+                    >{{ row.dailyIndex }}</span
                   >
                 </div>
               </template>
@@ -262,9 +283,9 @@ function formatTimePart(dateTimeStr) {
 
 .data-table th,
 .data-table td {
-  border-bottom: 1px solid #b0b0b0;
-  border-right: 1px solid #b0b0b0;
-  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-primary);
+  border-right: 1px solid var(--border-primary);
+  padding: 0.6rem 0.65rem;
   text-align: left;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -272,17 +293,20 @@ function formatTimePart(dateTimeStr) {
 
 .data-table th:first-child,
 .data-table td:first-child {
-  border-left: 1px solid #b0b0b0;
+  border-left: 1px solid var(--border-primary);
 }
 
 .data-table th {
   background: var(--bg-table-header);
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 0.85rem;
   position: sticky;
   top: 0;
   z-index: 1;
   text-align: center;
-  border-top: 1px solid #b0b0b0;
+  border-top: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 
 /* 列宽设置 */
@@ -322,6 +346,27 @@ function formatTimePart(dateTimeStr) {
   display: block;
   white-space: nowrap;
   text-align: center;
+}
+
+.time-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.today-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 3px;
+  padding: 0.05rem 0.25rem;
+  line-height: 1.3;
+  flex-shrink: 0;
 }
 
 .relay-cell {
@@ -375,59 +420,79 @@ function formatTimePart(dateTimeStr) {
 
 .daily-index.rank-1 {
   color: #c69500;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.1rem;
 }
 
 .daily-index.rank-2 {
   color: #5c6b7f;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.05rem;
 }
 
 .daily-index.rank-3 {
   color: #a0522d;
-  font-weight: 700;
+  font-weight: 800;
+  font-size: 1.05rem;
 }
 
 /* ========== 序号列背景色（按优先级分层） ========== */
 
 /* 基础层：默认序号列 */
 .data-table tbody td.col-dailyIndex {
-  background-color: #e8eaf0;
+  background-color: var(--bg-table-stripe);
 }
 
-/* 状态层：今日通联行 */
+/* 状态层：今日通联行 - 左侧强调线 + 极淡底色 */
+.data-table tbody tr.row-today {
+  border-left: 3px solid var(--color-today-accent);
+  box-shadow: inset 3px 0 0 0 var(--color-today-accent);
+}
+
 .data-table tbody tr.row-today td {
-  background-color: #d9f2c8;
-  border-color: #6aaa50;
+  background-color: var(--bg-today-row);
+  border-color: var(--border-today-row);
+}
+
+.data-table tbody tr.row-today td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--color-today-accent);
 }
 
 .data-table tbody tr.row-today td.col-dailyIndex,
 .data-table tbody tr.row-today td.col-dailyIndex.today-index {
-  background-color: #a3d184;
+  background-color: var(--bg-today-index);
 }
 
-/* 特殊层：排名 & today-index（覆盖所有状态） */
+/* 特殊层：排名（覆盖所有状态） */
 .data-table tbody tr td.col-dailyIndex.rank-bg-1 {
-  background-color: #f5e6a3;
+  background-color: var(--bg-rank-1);
 }
 .data-table tbody tr td.col-dailyIndex.rank-bg-2 {
-  background-color: #d0d4db;
+  background-color: var(--bg-rank-2);
 }
 .data-table tbody tr td.col-dailyIndex.rank-bg-3 {
-  background-color: #f0c898;
+  background-color: var(--bg-rank-3);
 }
 .data-table tbody tr td.col-dailyIndex.today-index {
-  background-color: #f0fdf4;
+  background-color: var(--bg-today-index-neutral);
 }
 
 /* 交互层：hover */
 .data-table tbody tr:hover:not(.empty-row) td {
   background-color: var(--bg-table-hover);
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex[class*='rank-bg'],
 .data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex.today-index {
+  background-color: var(--bg-table-hover);
+}
+
+.data-table tbody tr.row-today:hover td {
+  background-color: var(--bg-table-hover);
+}
+.data-table tbody tr.row-today:hover td.col-dailyIndex {
   background-color: var(--bg-table-hover);
 }
 
@@ -444,7 +509,34 @@ function formatTimePart(dateTimeStr) {
 .empty-row .empty-cell {
   text-align: center;
   color: var(--text-tertiary);
-  padding: 3rem;
+  padding: 3rem 1rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-disabled);
+  margin-bottom: 0.25rem;
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
 /* 滚动加载提示 */
@@ -475,42 +567,40 @@ function formatTimePart(dateTimeStr) {
 }
 
 @media (prefers-color-scheme: dark) {
-  /* 恢复深色模式边框 */
-  .data-table th,
-  .data-table td,
-  .data-table th:first-child,
-  .data-table td:first-child {
-    border-color: #404040;
+  .today-badge {
+    color: #fbbf24;
+    background: #422006;
+    border-color: #78350f;
   }
 
   /* 基础层：默认序号列 */
   .data-table tbody td.col-dailyIndex {
-    background-color: #363636;
+    background-color: var(--bg-table-stripe);
   }
 
-  /* 状态层：今日通联行 */
+  /* 状态层：今日通联行 - 左侧强调线 */
   .data-table tbody tr.row-today td {
-    background-color: #2d5a2d;
-    border-color: #1a3a1a;
+    background-color: var(--bg-today-row);
+    border-color: var(--border-today-row);
   }
 
   .data-table tbody tr.row-today td.col-dailyIndex,
   .data-table tbody tr.row-today td.col-dailyIndex.today-index {
-    background-color: #254a25;
+    background-color: var(--bg-today-index);
   }
 
   /* 特殊层：排名 & today-index */
   .data-table tbody tr td.col-dailyIndex.rank-bg-1 {
-    background-color: #5c4a1a;
+    background-color: var(--bg-rank-1);
   }
   .data-table tbody tr td.col-dailyIndex.rank-bg-2 {
-    background-color: #4a4a4a;
+    background-color: var(--bg-rank-2);
   }
   .data-table tbody tr td.col-dailyIndex.rank-bg-3 {
-    background-color: #5c3a1a;
+    background-color: var(--bg-rank-3);
   }
   .data-table tbody tr td.col-dailyIndex.today-index {
-    background-color: #1a3a1a;
+    background-color: var(--bg-today-index-neutral);
   }
 }
 

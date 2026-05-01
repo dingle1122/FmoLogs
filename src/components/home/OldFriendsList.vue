@@ -1,6 +1,17 @@
 <template>
   <div ref="containerRef" class="old-friends-container">
-    <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
+    <div v-if="!dbLoaded" class="empty-hint">
+      <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+          <line x1="9" y1="13" x2="15" y2="13"/>
+          <line x1="9" y1="17" x2="13" y2="17"/>
+        </svg>
+        <p class="empty-title">未加载日志数据</p>
+        <p class="empty-desc">点击右上角设置图标，选择日志目录开始使用</p>
+      </div>
+    </div>
     <template v-else-if="oldFriendsResult && oldFriendsResult.data.length > 0">
       <div class="old-friends-grid">
         <div
@@ -39,7 +50,17 @@
         <template v-else-if="!hasMore"> 没有更多数据 </template>
       </div>
     </template>
-    <div v-else-if="oldFriendsResult" class="empty-hint">暂无数据</div>
+    <div v-else-if="oldFriendsResult" class="empty-hint">
+      <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+        <p class="empty-title">暂无数据</p>
+        <p class="empty-desc">还没有通联记录，同步日志后即可查看</p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -168,6 +189,35 @@ watch(
   text-align: center;
   color: var(--text-tertiary);
   padding: 3rem;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-disabled);
+  margin-bottom: 0.25rem;
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
 .old-friends-grid {
