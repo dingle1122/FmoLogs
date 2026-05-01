@@ -89,7 +89,7 @@
               <template v-else-if="col === 'toCallsign'">
                 <div class="callsign-with-grid">
                   <div class="callsign-main">
-                    {{ row.toCallsign }}
+                    <span class="callsign-text">{{ row.toCallsign }}</span>
                     <span v-if="contactCounts.get(row.toCallsign)" class="contact-count">
                       x{{ contactCounts.get(row.toCallsign) }}
                     </span>
@@ -385,6 +385,17 @@ function formatTimePart(dateTimeStr) {
 }
 
 .callsign-main {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.callsign-text {
+  display: inline-block;
+  width: 6.2ch;
+  text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
   font-weight: bold;
   font-size: 1.1rem;
 }
@@ -409,7 +420,10 @@ function formatTimePart(dateTimeStr) {
   font-size: 1rem;
   font-weight: 400;
   color: var(--text-tertiary);
-  margin-left: 0.3rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.2rem;
 }
 
 .daily-index {
