@@ -377,7 +377,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   flex-shrink: 0;
 }
 
-/* 服务器标签样式 - 与 user-uid 同款绿色 */
+/* 服务器标签样式 - 与呼号颜色一致 */
 .history-callsign .server-tag {
   display: inline-flex;
   align-items: center;
@@ -386,8 +386,8 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   border-radius: 2px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(103, 194, 58, 0.15);
-  color: var(--color-success);
+  background: rgba(128, 128, 128, 0.12);
+  color: var(--text-primary);
   line-height: 1;
   flex-shrink: 0;
   min-width: 1.2rem;
@@ -414,7 +414,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 .history-server-tag {
   font-size: 0.75rem;
   font-weight: 400;
-  color: var(--color-primary);
+  color: var(--text-primary);
   line-height: 1;
   flex-shrink: 0;
 }
@@ -460,6 +460,11 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 .speaking-history-item.is-speaking .history-callsign {
   font-weight: 700;
   color: var(--color-speaking);
+}
+
+.speaking-history-item.is-speaking .history-callsign .server-tag {
+  color: var(--color-speaking);
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .history-time {
