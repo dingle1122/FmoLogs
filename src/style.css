@@ -303,7 +303,8 @@ button:focus-visible {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0;
-  padding-top: env(safe-area-inset-top);
+  /* Android：由 main.js 设置 --safe-inset-top；iOS/Web：使用 env(safe-area-inset-top) */
+  padding-top: var(--safe-inset-top, env(safe-area-inset-top, 0px));
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
