@@ -381,11 +381,11 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   flex-shrink: 0;
 }
 
-/* 呼号文字：固定 6.2ch 宽度，保证后续徽章/通联次数位置一致 */
-/* overflow:hidden 防止不同浏览器 ch 渲染差异导致文本溢出压到徽章 */
+/* 呼号文字：固定 4.5em 宽度（em 单位跨浏览器一致性好），保证后续徽章/通联次数位置一致 */
+/* overflow:hidden 防止文本溢出压到徽章 */
 .callsign-text {
   display: inline-block;
-  width: 6.2ch;
+  width: 4.5em;
   text-align: left;
   white-space: nowrap;
   flex-shrink: 0;
@@ -563,7 +563,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   }
 
   .callsign-text {
-    width: 6.2ch;
+    width: 4.5em;
   }
 
   .today-star {
