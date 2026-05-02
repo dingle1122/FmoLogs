@@ -381,23 +381,25 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   flex-shrink: 0;
 }
 
-/* 呼号文字：固定 7 字符宽度，保证后续徽章/通联次数位置一致 */
+/* 呼号文字：固定 6.2ch 宽度，保证后续徽章/通联次数位置一致 */
+/* overflow:hidden 防止不同浏览器 ch 渲染差异导致文本溢出压到徽章 */
 .callsign-text {
   display: inline-block;
   width: 6.2ch;
   text-align: left;
   white-space: nowrap;
   flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* 徽章占位区：固定 1.5em 宽度，星星/您标签居左展示，紧靠呼号 */
+/* 徽章区域：自适应宽度，防止不同浏览器 emoji/文字渲染差异导致向左溢出压到呼号 */
 .callsign-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 0.8em;
-  min-width: 0.8em;
+  justify-content: flex-start;
   flex-shrink: 0;
+  gap: 0.15em;
 }
 
 /* 服务器标签样式 - 与呼号颜色一致 */
@@ -562,11 +564,6 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 
   .callsign-text {
     width: 6.2ch;
-  }
-
-  .callsign-badge {
-    width: 0.8em;
-    min-width: 0.8em;
   }
 
   .today-star {
