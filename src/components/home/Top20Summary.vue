@@ -8,8 +8,8 @@
           <line x1="9" y1="13" x2="15" y2="13"/>
           <line x1="9" y1="17" x2="13" y2="17"/>
         </svg>
-        <p class="empty-title">未加载日志数据</p>
-        <p class="empty-desc">点击右上角设置图标，选择日志目录开始使用</p>
+        <p class="empty-title">暂无通联数据</p>
+        <p class="empty-desc">导入数据库文件或同步FMO服务器即可查看</p>
       </div>
     </div>
     <template v-else-if="top20Result">

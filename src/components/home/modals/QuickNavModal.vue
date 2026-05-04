@@ -10,21 +10,13 @@
           <router-link
             v-for="route in ALL_PAGE_ROUTES"
             :key="route.path"
-            :to="dbLoaded || ['messages', 'more'].includes(route.type) ? route.path : $route.path"
+            :to="route.path"
             class="nav-item"
-            :class="{
-              active: currentRoute === route.path,
-              disabled: !dbLoaded && !['messages', 'more'].includes(route.type)
-            }"
+            :class="{ active: currentRoute === route.path }"
             @click="handleNavClick(route)"
           >
             <SvgIcon :name="route.icon" :size="20" class="nav-icon" />
             <span class="nav-label">{{ route.label }}</span>
-            <span
-              v-if="!dbLoaded && !['messages', 'more'].includes(route.type)"
-              class="need-db-badge"
-              >需数据</span
-            >
           </router-link>
         </nav>
       </div>

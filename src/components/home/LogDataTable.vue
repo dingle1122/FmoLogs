@@ -1,5 +1,30 @@
 <template>
   <div ref="resultSectionRef" class="result-section">
+    <!-- 未加载数据：不显示表格，只显示空状态 -->
+    <div v-if="!dbLoaded" class="empty-state standalone">
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+        <polyline points="13 2 13 9 20 9"/>
+        <line x1="9" y1="13" x2="15" y2="13"/>
+        <line x1="9" y1="17" x2="13" y2="17"/>
+      </svg>
+      <p class="empty-title">暂无通联数据</p>
+      <p class="empty-desc">导入数据库文件或同步FMO服务器即可查看</p>
+    </div>
+
+    <!-- 已加载但无匹配数据 -->
+    <div v-else-if="queryResult && queryResult.data.length === 0" class="empty-state standalone">
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        <line x1="8" y1="11" x2="14" y2="11"/>
+      </svg>
+      <p class="empty-title">暂无匹配结果</p>
+      <p class="empty-desc">尝试调整筛选条件或导入更多数据</p>
+    </div>
+
+    <!-- 有数据时显示表格 -->
+    <template v-else-if="queryResult">
     <table class="data-table">
       <thead>
         <tr>
@@ -9,106 +34,77 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-if="!dbLoaded" class="empty-row">
-          <td :colspan="displayColumns.length" class="empty-cell">
-            <div class="empty-state">
-              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-                <polyline points="13 2 13 9 20 9"/>
-                <line x1="9" y1="13" x2="15" y2="13"/>
-                <line x1="9" y1="17" x2="13" y2="17"/>
-              </svg>
-              <p class="empty-title">未加载日志数据</p>
-              <p class="empty-desc">点击右上角设置图标，选择日志目录开始使用</p>
-            </div>
-          </td>
-        </tr>
-        <tr v-else-if="queryResult && queryResult.data.length === 0" class="empty-row">
-          <td :colspan="displayColumns.length" class="empty-cell">
-            <div class="empty-state">
-              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <circle cx="11" cy="11" r="8"/>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                <line x1="8" y1="11" x2="14" y2="11"/>
-              </svg>
-              <p class="empty-title">暂无数据</p>
-              <p class="empty-desc">尝试调整筛选条件或同步最新日志</p>
-            </div>
-          </td>
-        </tr>
-        <template v-else-if="queryResult">
-          <tr
-            v-for="(row, index) in queryResult.data"
-            :key="index"
-            :class="{ 'row-today': isTodayContact(row.timestamp) }"
-            @click="handleRowClick(row)"
+        <tr
+          v-for="(row, index) in queryResult.data"
+          :key="index"
+          :class="{ 'row-today': isTodayContact(row.timestamp) }"
+          @click="handleRowClick(row)"
+        >
+          <td
+            v-for="col in queryResult.columns"
+            :key="col"
+            :class="[
+              'col-' + col,
+              col === 'dailyIndex' && row.dailyIndex === 1 ? 'rank-bg-1' : '',
+              col === 'dailyIndex' && row.dailyIndex === 2 ? 'rank-bg-2' : '',
+              col === 'dailyIndex' && row.dailyIndex === 3 ? 'rank-bg-3' : '',
+              col === 'dailyIndex' && isTodayContact(row.timestamp) && row.dailyIndex > 3
+                ? 'today-index'
+                : ''
+            ]"
           >
-            <td
-              v-for="col in queryResult.columns"
-              :key="col"
-              :class="[
-                'col-' + col,
-                col === 'dailyIndex' && row.dailyIndex === 1 ? 'rank-bg-1' : '',
-                col === 'dailyIndex' && row.dailyIndex === 2 ? 'rank-bg-2' : '',
-                col === 'dailyIndex' && row.dailyIndex === 3 ? 'rank-bg-3' : '',
-                col === 'dailyIndex' && isTodayContact(row.timestamp) && row.dailyIndex > 3
-                  ? 'today-index'
-                  : ''
-              ]"
-            >
-              <template v-if="col === 'timestamp'">
-                <div class="timestamp-div">
-                  <div>{{ formatDatePart(formatTimestamp(row[col])) }}</div>
-                  <div class="time-row">
-                    {{ formatTimePart(formatTimestamp(row[col])) }}
-                  </div>
+            <template v-if="col === 'timestamp'">
+              <div class="timestamp-div">
+                <div>{{ formatDatePart(formatTimestamp(row[col])) }}</div>
+                <div class="time-row">
+                  {{ formatTimePart(formatTimestamp(row[col])) }}
                 </div>
-              </template>
-              <template v-else-if="col === 'dailyIndex'">
-                <div class="daily-index-cell">
-                  <span
-                    class="daily-index"
-                    :class="{
-                      'rank-1': row.dailyIndex === 1,
-                      'rank-2': row.dailyIndex === 2,
-                      'rank-3': row.dailyIndex === 3
-                    }"
-                    >{{ row.dailyIndex }}</span
-                  >
+              </div>
+            </template>
+            <template v-else-if="col === 'dailyIndex'">
+              <div class="daily-index-cell">
+                <span
+                  class="daily-index"
+                  :class="{
+                    'rank-1': row.dailyIndex === 1,
+                    'rank-2': row.dailyIndex === 2,
+                    'rank-3': row.dailyIndex === 3
+                  }"
+                  >{{ row.dailyIndex }}</span
+                >
+              </div>
+            </template>
+            <template v-else-if="col === 'freqHz'">
+              {{ formatFreqHz(row[col]) }}
+            </template>
+            <template v-else-if="col === 'relayName'">
+              <div class="relay-cell">
+                <div>{{ row.relayName }}</div>
+                <div class="relay-admin">（{{ row.relayAdmin }}）</div>
+              </div>
+            </template>
+            <template v-else-if="col === 'toCallsign'">
+              <div class="callsign-with-grid">
+                <div class="callsign-main">
+                  <span class="callsign-text">{{ row.toCallsign }}</span>
+                  <span v-if="contactCounts.get(row.toCallsign)" class="contact-count">
+                    x{{ contactCounts.get(row.toCallsign) }}
+                  </span>
                 </div>
-              </template>
-              <template v-else-if="col === 'freqHz'">
-                {{ formatFreqHz(row[col]) }}
-              </template>
-              <template v-else-if="col === 'relayName'">
-                <div class="relay-cell">
-                  <div>{{ row.relayName }}</div>
-                  <div class="relay-admin">（{{ row.relayAdmin }}）</div>
+                <div v-if="row.toGrid || gridAddressMap[row.toGrid]" class="callsign-grid">
+                  <span v-if="row.toGrid">{{ row.toGrid }}</span>
+                  <span v-if="row.toGrid && gridAddressMap[row.toGrid]">&nbsp;</span>
+                  <span v-if="gridAddressMap[row.toGrid]" class="callsign-address">
+                    {{ gridAddressMap[row.toGrid] }}
+                  </span>
                 </div>
-              </template>
-              <template v-else-if="col === 'toCallsign'">
-                <div class="callsign-with-grid">
-                  <div class="callsign-main">
-                    <span class="callsign-text">{{ row.toCallsign }}</span>
-                    <span v-if="contactCounts.get(row.toCallsign)" class="contact-count">
-                      x{{ contactCounts.get(row.toCallsign) }}
-                    </span>
-                  </div>
-                  <div v-if="row.toGrid || gridAddressMap[row.toGrid]" class="callsign-grid">
-                    <span v-if="row.toGrid">{{ row.toGrid }}</span>
-                    <span v-if="row.toGrid && gridAddressMap[row.toGrid]">&nbsp;</span>
-                    <span v-if="gridAddressMap[row.toGrid]" class="callsign-address">
-                      {{ gridAddressMap[row.toGrid] }}
-                    </span>
-                  </div>
-                </div>
-              </template>
-              <template v-else>
-                {{ row[col] }}
-              </template>
-            </td>
-          </tr>
-        </template>
+              </div>
+            </template>
+            <template v-else>
+              {{ row[col] }}
+            </template>
+          </td>
+        </tr>
       </tbody>
     </table>
     <!-- 滚动加载观察器（仅移动端显示） -->
@@ -123,6 +119,7 @@
       </template>
       <template v-else-if="!hasMore"> 没有更多数据 </template>
     </div>
+    </template>
   </div>
 </template>
 
@@ -531,6 +528,10 @@ function formatTimePart(dateTimeStr) {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+}
+
+.empty-state.standalone {
+  padding: 3rem 1rem;
 }
 
 .empty-icon {

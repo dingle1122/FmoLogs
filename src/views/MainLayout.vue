@@ -159,9 +159,8 @@
       <router-link
         v-for="route in NAV_ROUTES"
         :key="route.path"
-        :to="dbLoaded || ['messages', 'more'].includes(route.type) ? route.path : $route.path"
+        :to="route.path"
         class="nav-tab"
-        :class="{ disabled: !dbLoaded && !['messages', 'more'].includes(route.type) }"
       >
         <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
@@ -1283,7 +1282,7 @@ provide('protocol', settings.protocol)
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -1294,7 +1293,7 @@ provide('protocol', settings.protocol)
   background: var(--bg-header);
   border-top: 1px solid var(--border-light);
   padding: 0.25rem 0;
-  padding-bottom: 0.25rem;
+  padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
   justify-content: space-around;
   z-index: 200;
 }
