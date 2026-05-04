@@ -42,7 +42,16 @@
             class="top20-item"
           >
             <span class="rank">{{ index + 1 }}</span>
-            <span class="name">{{ item.toGrid || '-' }}</span>
+            <span class="name name-stacked">
+              <span class="name-grid">{{ item.toGrid || '-' }}</span>
+              <span
+                v-if="gridAddressMap[item.toGrid]"
+                class="name-addr"
+                :title="gridAddressMap[item.toGrid]"
+              >
+                {{ gridAddressMap[item.toGrid] }}
+              </span>
+            </span>
             <span class="count"
               ><strong>{{ item.count }}</strong></span
             >
@@ -79,7 +88,10 @@
 </template>
 
 <script setup>
-defineProps({
+import { watch, reactive } from 'vue'
+import { gridToAddress } from '../../services/gridService'
+
+const props = defineProps({
   top20Result: {
     type: Object,
     default: null
@@ -89,6 +101,39 @@ defineProps({
     default: false
   }
 })
+
+const gridAddressMap = reactive({})
+
+function formatAddress(data) {
+  if (!data) return ''
+  const province = data.province || ''
+  const city = data.city || ''
+  const district = data.district || ''
+  const parts = []
+  if (province) parts.push(province)
+  if (city && city !== province) parts.push(city)
+  if (district) parts.push(district)
+  return parts.join('-')
+}
+
+async function loadGridAddresses(result) {
+  if (!result?.toGrid?.length) return
+  const grids = new Set()
+  for (const item of result.toGrid) {
+    if (item.toGrid) grids.add(item.toGrid)
+  }
+  for (const grid of grids) {
+    if (gridAddressMap[grid] !== undefined) continue
+    try {
+      const data = await gridToAddress(grid)
+      gridAddressMap[grid] = formatAddress(data)
+    } catch {
+      gridAddressMap[grid] = ''
+    }
+  }
+}
+
+watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true })
 </script>
 
 <style scoped>
@@ -274,6 +319,29 @@ defineProps({
   white-space: nowrap;
   font-weight: 500;
   color: var(--text-primary);
+  min-width: 0;
+}
+
+.name-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  line-height: 1.3;
+}
+
+.name-grid {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.name-addr {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .top20-item .relay-admin {
