@@ -47,10 +47,7 @@ const route = useRoute()
 
 const currentRoute = computed(() => route.path)
 
-function handleNavClick(routeItem) {
-  if (!props.dbLoaded && !['messages', 'more'].includes(routeItem.type)) {
-    return
-  }
+function handleNavClick(_routeItem) {
   emit('close')
 }
 </script>
