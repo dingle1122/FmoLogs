@@ -55,37 +55,6 @@
       <div class="top20-card">
         <h3>
           中继名称 TOP20
-          <span
-            class="info-icon"
-            @mouseenter="handleMouseEnter"
-            @mouseleave="handleMouseLeave"
-            @click="toggleTooltip"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="16" x2="12" y2="12"></line>
-              <line x1="12" y1="8" x2="12.01" y2="8"></line>
-            </svg>
-            <div
-              v-if="showTooltip"
-              :class="tooltipClass"
-              :style="tooltipStyle"
-              @mouseenter="handleTooltipMouseEnter"
-              @mouseleave="handleTooltipMouseLeave"
-            >
-              中继排名是根据导出的数据库信息进行排序的，存在被后续通联覆盖的情况。仅作娱乐性排名展示使用。
-            </div>
-          </span>
         </h3>
         <div class="top20-list">
           <div
@@ -110,8 +79,6 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-
 defineProps({
   top20Result: {
     type: Object,
@@ -122,89 +89,20 @@ defineProps({
     default: false
   }
 })
-
-const showTooltip = ref(false)
-const tooltipStyle = ref({})
-let isMouseOverTooltip = false
-
-const tooltipClass = computed(() => {
-  if (tooltipStyle.value.top && tooltipStyle.value.top !== 'auto') {
-    return 'tooltip tooltip-bottom'
-  } else {
-    return 'tooltip'
-  }
-})
-
-function toggleTooltip(event) {
-  showTooltip.value = !showTooltip.value
-  if (showTooltip.value) {
-    setTimeout(() => {
-      adjustTooltipPosition(event)
-    }, 0)
-  }
-}
-
-function adjustTooltipPosition(event) {
-  if (!showTooltip.value) return
-
-  setTimeout(() => {
-    const iconEl = event?.target?.closest('.info-icon') || event?.target
-
-    if (iconEl) {
-      const iconRect = iconEl.getBoundingClientRect()
-      const iconCenterX = iconRect.left + iconRect.width / 2
-
-      if (iconRect.top < 40) {
-        tooltipStyle.value = {
-          left: `${iconCenterX}px`,
-          top: `${iconRect.bottom + 8}px`,
-          bottom: 'auto'
-        }
-      } else {
-        tooltipStyle.value = {
-          left: `${iconCenterX}px`,
-          bottom: `${window.innerHeight - iconRect.top + 8}px`,
-          top: 'auto'
-        }
-      }
-    }
-  }, 10)
-}
-
-function handleMouseEnter(event) {
-  showTooltip.value = true
-  adjustTooltipPosition(event)
-}
-
-function handleMouseLeave() {
-  setTimeout(() => {
-    if (!isMouseOverTooltip) {
-      showTooltip.value = false
-    }
-  }, 300)
-}
-
-function handleTooltipMouseEnter() {
-  isMouseOverTooltip = true
-}
-
-function handleTooltipMouseLeave() {
-  isMouseOverTooltip = false
-  showTooltip.value = false
-}
 </script>
 
 <style scoped>
 .top20-container {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 1.25rem;
   flex: 1;
   overflow: auto;
   margin-top: 1rem;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  align-content: start;
 }
 
 .empty-hint {
@@ -243,92 +141,61 @@ function handleTooltipMouseLeave() {
   color: var(--text-tertiary);
 }
 
+/* ===== 卡片样式 ===== */
 .top20-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-secondary);
-  border-radius: 8px;
-  overflow: visible;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 100%;
+  box-shadow: 0 1px 3px var(--shadow-card);
+  transition: box-shadow 0.2s;
+}
+
+.top20-card:hover {
+  box-shadow: 0 4px 16px var(--shadow-card);
 }
 
 .top20-card h3 {
   margin: 0;
-  padding: 0.75rem 1rem;
-  background: var(--bg-table-header);
+  padding: 0.875rem 1.25rem;
   font-size: 0.95rem;
-  border-bottom: 1px solid var(--border-secondary);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  gap: 0.4rem;
   overflow: visible;
 }
 
-.info-icon {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
-  margin-left: 0.5rem;
-}
-
-.info-icon svg {
-  color: var(--text-tertiary);
-  transition: color 0.2s ease;
-}
-
-.info-icon:hover svg {
-  color: var(--color-primary);
-}
-
-.tooltip {
-  position: fixed;
-  top: auto;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--tooltip-bg);
-  color: var(--text-white);
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  white-space: normal;
-  z-index: 9999;
-  width: max-content;
-  max-width: 350px;
-  min-width: 200px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  word-wrap: break-word;
-  word-break: break-word;
-}
-
-.tooltip-bottom {
-  top: calc(100% + 8px);
-  bottom: auto;
-  white-space: normal;
-  word-wrap: break-word;
-  word-break: break-word;
-}
-
-.tooltip-bottom::before {
-  top: -12px;
-  border-color: transparent transparent var(--tooltip-bg) transparent;
-}
-
-.tooltip::before {
+/* 每个卡片标题前的彩色圆点 */
+.top20-card h3::before {
   content: '';
-  position: fixed;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 6px;
-  border-style: solid;
-  border-color: var(--tooltip-bg) transparent transparent transparent;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
+.top20-card:nth-child(1) h3::before {
+  background: #6366f1;
+}
+
+.top20-card:nth-child(2) h3::before {
+  background: #10b981;
+}
+
+.top20-card:nth-child(3) h3::before {
+  background: #f59e0b;
+}
+
+/* ===== 列表样式 ===== */
 .top20-list {
-  padding: 0.5rem 0;
+  padding: 0.375rem 0;
   overflow-y: auto;
   flex: 1;
 }
@@ -336,67 +203,113 @@ function handleTooltipMouseLeave() {
 .top20-item {
   display: flex;
   align-items: center;
-  padding: 0.5rem 1rem;
-  line-height: 1.6;
+  padding: 0.55rem 1.25rem;
+  line-height: 1.5;
+  gap: 0.75rem;
+  transition: background 0.15s;
+  border-left: 3px solid transparent;
 }
 
 .top20-item:hover {
   background: var(--bg-table-hover);
 }
 
+/* 前三名左侧色条 */
+.top20-item:nth-child(1) {
+  border-left-color: #f59e0b;
+}
+
+.top20-item:nth-child(2) {
+  border-left-color: #94a3b8;
+}
+
+.top20-item:nth-child(3) {
+  border-left-color: #d97706;
+}
+
+/* 斑马纹 */
+.top20-item:nth-child(even) {
+  background: var(--bg-table-stripe);
+}
+
+.top20-item:nth-child(even):hover {
+  background: var(--bg-table-hover);
+}
+
+/* ===== 排名序号 ===== */
 .top20-item .rank {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-disabled);
-  border-radius: 50%;
+  width: 26px;
+  min-width: 26px;
+  text-align: center;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  font-weight: 600;
+  color: var(--text-tertiary);
   flex-shrink: 0;
-  margin-right: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .top20-item:nth-child(1) .rank {
-  background: #ffd700;
-  color: var(--text-white);
+  color: #f59e0b;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .top20-item:nth-child(2) .rank {
-  background: #c0c0c0;
-  color: var(--text-white);
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .top20-item:nth-child(3) .rank {
-  background: #cd7f32;
-  color: var(--text-white);
+  color: #d97706;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
+/* ===== 名称 ===== */
 .top20-item .name {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .top20-item .relay-admin {
   color: var(--text-tertiary);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 400;
 }
 
+/* ===== 计数 ===== */
 .top20-item .count {
   flex-shrink: 0;
-  margin-left: 0.5rem;
+  margin-left: auto;
+}
+
+.top20-item .count strong {
+  display: inline-block;
+  min-width: 1.8ch;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--color-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--color-primary);
+  padding: 0.1rem 0.45rem;
+  border-radius: 10px;
+  line-height: 1.4;
 }
 
 .empty-item {
   text-align: center;
   color: var(--text-tertiary);
   padding: 2rem;
+  font-size: 0.9rem;
 }
 
+/* ===== 响应式 ===== */
 @media (max-width: 1024px) {
   .top20-container {
     grid-template-columns: repeat(2, 1fr);
@@ -415,15 +328,14 @@ function handleTooltipMouseLeave() {
   .top20-card {
     max-height: none;
     width: 100%;
-    overflow: hidden; /* 防止卡片内容溢出 */
   }
 
   .top20-item {
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 1rem;
   }
 
   .top20-card h3 {
-    padding: 0.75rem;
+    padding: 0.75rem 1rem;
     font-size: 0.9rem;
   }
 }
