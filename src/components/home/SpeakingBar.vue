@@ -19,6 +19,10 @@
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong>
               <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span>
+              <span v-if="todayContactedCallsigns.has(speaker.callsign)" class="today-star">★</span>
+              <span v-if="contactCounts.get(speaker.callsign)" class="contact-count">
+                x{{ contactCounts.get(speaker.callsign) }}
+              </span>
               <span v-if="speaker.address" class="speaker-address">{{ speaker.address }}</span>
               <strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
             </span>
@@ -27,7 +31,13 @@
             <!-- 单选模式：只显示当前发言者，不加标记 -->
             正在发言: <strong>{{ currentSpeaker }}</strong>
             <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
-            <span v-if="currentSpeakerAddress" class="speaker-address">{{ currentSpeakerAddress }}</span>
+            <span v-if="todayContactedCallsigns.has(currentSpeaker)" class="today-star">★</span>
+            <span v-if="contactCounts.get(currentSpeaker)" class="contact-count">
+              x{{ contactCounts.get(currentSpeaker) }}
+            </span>
+            <span v-if="currentSpeakerAddress" class="speaker-address">{{
+              currentSpeakerAddress
+            }}</span>
           </template>
         </template>
         <template v-else> 当前无人发言 </template>
@@ -95,6 +105,14 @@ const props = defineProps({
   isAudioMuted: {
     type: Boolean,
     default: false
+  },
+  todayContactedCallsigns: {
+    type: Set,
+    default: () => new Set()
+  },
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -234,13 +252,35 @@ defineEmits(['click', 'toggle-audio'])
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.1em 0.4em;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: 600;
-  background: rgba(34, 197, 94, 0.12);
-  color: var(--color-speaking);
+  padding: 0.3em;
+  border-radius: 2px;
+  font-size: 0.6em;
+  font-weight: 400;
+  background: rgba(212, 107, 8, 0.12);
+  color: var(--color-warning);
   line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  position: relative;
+  top: -0.08em;
+  margin-left: 0.2em;
+}
+
+.today-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3em;
+  border-radius: 2px;
+  font-size: 0.65em;
+  font-weight: 400;
+  background: rgba(255, 193, 7, 0.15);
+  color: #d97706;
+  line-height: 1;
+  text-align: center;
+  vertical-align: middle;
+  position: relative;
+  top: -0.08em;
   margin-left: 0.2em;
 }
 
@@ -251,6 +291,19 @@ defineEmits(['click', 'toggle-audio'])
   color: var(--text-tertiary);
   font-weight: 400;
   margin-left: 0.3em;
+}
+
+.contact-count {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 0.2em;
+  vertical-align: middle;
+  position: relative;
+  top: -0.08em;
+  line-height: 1;
 }
 
 @media (max-width: 768px) {

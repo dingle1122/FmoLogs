@@ -34,18 +34,23 @@
                 <div class="history-callsign-area">
                   <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
                   <span class="history-callsign">
-                  <!-- 多选模式下显示服务器标签 -->
-                  <span
-                    v-if="multiSelectMode && record.addressId"
-                    class="server-tag"
-                    >{{ getServerName(record.addressId) }}</span
-                  >
-                  {{ record.callsign }}
-                  <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
-                  <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
-                    >&#11088;</span
-                  >
-                </span>
+                    <!-- 多选模式下显示服务器标签 -->
+                    <span v-if="multiSelectMode && record.addressId" class="server-tag">{{
+                      getServerName(record.addressId)
+                    }}</span>
+                    <span class="callsign-text">{{ record.callsign }}</span>
+                    <span class="callsign-badge">
+                      <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
+                      <span
+                        v-if="todayContactedCallsigns.has(record.callsign)"
+                        class="today-star"
+                        >&#11088;</span
+                      >
+                    </span>
+                    <span v-if="contactCounts.get(record.callsign)" class="contact-count"
+                      >x{{ contactCounts.get(record.callsign) }}</span
+                    >
+                  </span>
                 </div>
                 <div class="history-time">
                   <div class="speaking-time">
@@ -57,9 +62,14 @@
                   </div>
                 </div>
               </div>
-              <div v-if="record.grid" class="history-address-row">
-                <span class="history-grid-tag">{{ record.grid }}</span>
-                <span v-if="gridAddressMap[record.grid]" class="history-address-text">{{ gridAddressMap[record.grid] }}</span>
+              <div v-if="record.grid || record.serverUid" class="history-address-row">
+                <span v-if="record.serverUid" class="history-server-tag">{{
+                  formatServerInfo(record.serverUid, record.serverName)
+                }}</span>
+                <span v-if="record.grid" class="history-grid-tag">{{ record.grid }}</span>
+                <span v-if="gridAddressMap[record.grid]" class="history-address-text">{{
+                  gridAddressMap[record.grid]
+                }}</span>
               </div>
             </div>
           </div>
@@ -182,6 +192,10 @@ const props = defineProps({
   activeAddressId: {
     type: String,
     default: ''
+  },
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
   }
 })
 
@@ -214,6 +228,12 @@ function getServerName(addressId) {
   if (address.numId) return address.numId.toString()
   const index = props.addressList.findIndex((a) => a.id === addressId)
   return index !== -1 ? (index + 1).toString() : '?'
+}
+
+// 格式化服务器信息：仅显示服务器名称（最多10个字符）
+function formatServerInfo(uid, name) {
+  const serverName = name || ''
+  return serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
 }
 
 defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-open-list'])
@@ -251,26 +271,13 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
 .modal-header h3 {
   margin: 0;
   font-size: 1.2rem;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
 }
 
 .modal-body {
@@ -370,11 +377,32 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   color: var(--text-primary);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.2rem;
   flex-shrink: 0;
 }
 
-/* 服务器标签样式 - 与 user-uid 同款绿色 */
+/* 呼号文字：固定 4.5em 宽度（em 单位跨浏览器一致性好），保证后续徽章/通联次数位置一致 */
+/* overflow:hidden 防止文本溢出压到徽章 */
+.callsign-text {
+  display: inline-block;
+  width: 4.5em;
+  text-align: left;
+  white-space: nowrap;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 徽章区域：自适应宽度，防止不同浏览器 emoji/文字渲染差异导致向左溢出压到呼号 */
+.callsign-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  gap: 0.15em;
+}
+
+/* 服务器标签样式 - 与呼号颜色一致 */
 .history-callsign .server-tag {
   display: inline-flex;
   align-items: center;
@@ -383,8 +411,8 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   border-radius: 2px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(103, 194, 58, 0.15);
-  color: var(--color-success);
+  background: rgba(128, 128, 128, 0.12);
+  color: var(--text-primary);
   line-height: 1;
   flex-shrink: 0;
   min-width: 1.2rem;
@@ -396,11 +424,29 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   line-height: 1.6rem;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+}
+
+.contact-count {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.history-server-tag {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-primary);
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .history-grid-tag {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-tertiary);
   line-height: 1;
   flex-shrink: 0;
@@ -415,7 +461,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
 
 .history-address-text {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -426,18 +472,25 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.1em 0.4em;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: 600;
-  background: rgba(34, 197, 94, 0.12);
-  color: var(--color-speaking);
+  padding: 0.25em;
+  border-radius: 2px;
+  font-size: 0.5em;
+  font-weight: 400;
+  background: rgba(212, 107, 8, 0.12);
+  color: var(--color-warning);
   line-height: 1;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .speaking-history-item.is-speaking .history-callsign {
   font-weight: 700;
   color: var(--color-speaking);
+}
+
+.speaking-history-item.is-speaking .history-callsign .server-tag {
+  color: var(--color-speaking);
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .history-time {
@@ -509,8 +562,16 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
     font-size: 0.65rem;
   }
 
+  .callsign-text {
+    width: 4.5em;
+  }
+
   .today-star {
     font-size: 1rem;
+  }
+
+  .contact-count {
+    font-size: 0.85rem;
   }
 
   .speaking-time {

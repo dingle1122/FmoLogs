@@ -181,12 +181,7 @@
       <div class="modal-content send-modal">
         <div class="modal-header">
           <h3>发送消息</h3>
-          <button class="close-btn" @click="closeSendModal">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <button class="close-btn" @click="closeSendModal">&times;</button>
         </div>
 
         <div class="modal-body">
@@ -295,10 +290,17 @@ function formatTime(timestamp) {
   const isToday = date.toDateString() === now.toDateString()
 
   if (isToday) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return date.toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
   }
-  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) + ' ' +
+  return (
+    date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }) +
+    ' ' +
     date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  )
 }
 
 function formatDateTime(timestamp) {
@@ -1158,7 +1160,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -1166,30 +1168,6 @@ onUnmounted(() => {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  border-radius: 6px;
-  padding: 0;
-}
-
-.close-btn:hover {
-  background: var(--bg-table-hover);
-  color: var(--text-primary);
-}
-
-.close-btn svg {
-  width: 18px;
-  height: 18px;
 }
 
 .modal-body {

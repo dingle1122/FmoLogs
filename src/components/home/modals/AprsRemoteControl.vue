@@ -1,7 +1,7 @@
 <template>
   <div class="aprs-control">
-    <!-- 服务器配置 -->
-    <div class="server-config-section">
+    <!-- 服务器配置（Android 原生分支下隐藏，使用内置 APRS-IS 直连） -->
+    <div v-if="!isNativeAprs" class="server-config-section">
       <div class="section-header">
         <div class="section-label-with-status">
           <span class="section-label">远程控制服务器</span>
@@ -277,9 +277,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useAprsControl } from '../../../composables/useAprsControl'
+import { storeToRefs } from 'pinia'
+import { getPlatform } from '../../../platform'
+import { useAprsStore } from '../../../stores/aprsStore'
 import confirmDialog from '../../../composables/useConfirm'
 import CallsignInput from '../../common/CallsignInput.vue'
+
+// 原生 APRS 直连模式：隐藏服务器列表/添加/编辑/删除等中转相关 UI
+const isNativeAprs = getPlatform().capabilities.hasNativeAprs
 
 const props = defineProps({
   activeAddressId: {
@@ -292,9 +297,9 @@ const props = defineProps({
   }
 })
 
-const aprsControl = useAprsControl()
+const aprsStore = useAprsStore()
 
-// 解构 composable
+// 提取响应式 state/getters（保持响应性）
 const {
   wsConnected,
   wsConnecting,
@@ -306,7 +311,11 @@ const {
   secret,
   tocall,
   serverList,
-  activeServerId,
+  activeServerId
+} = storeToRefs(aprsStore)
+
+// actions 直接从 store 拿（不需要响应性）
+const {
   init,
   disconnectWebSocket,
   sendCommand,
@@ -316,7 +325,7 @@ const {
   updateServer,
   selectServer,
   saveCurrentParams
-} = aprsControl
+} = aprsStore
 
 // 呼号和尾缀
 const callsignBase = ref('')
@@ -1139,7 +1148,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -1147,20 +1156,6 @@ onUnmounted(() => {
   font-weight: 600;
   font-size: 1.1rem;
   color: var(--text-primary);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-  transition: color 0.2s;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
 }
 
 .dialog-body {

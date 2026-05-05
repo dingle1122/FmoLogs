@@ -2,7 +2,15 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-station-list">
       <div class="modal-header">
-        <h3>选择信道 <span v-if="showPrimaryBadge" class="title-primary-badge">主</span></h3>
+        <div class="search-area">
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="search-input"
+            placeholder="查询信道"
+            @keydown.enter.prevent
+          />
+        </div>
         <div class="header-actions">
           <button
             class="refresh-btn"
@@ -15,20 +23,21 @@
           <button class="close-btn" @click="$emit('close')">&times;</button>
         </div>
       </div>
-      <div class="modal-body">
-        <div v-if="stationList.length > 0" class="station-grid">
+      <div ref="modalBodyRef" class="modal-body">
+        <div v-if="filteredStationList.length > 0" class="station-grid">
           <button
-            v-for="station in stationList"
+            v-for="station in filteredStationList"
             :key="station.uid"
             class="station-item"
-            :class="{ active: currentStation?.uid === station.uid }"
+            :class="{ active: currentStation && String(currentStation.uid) === String(station.uid) }"
             :disabled="loading"
             :title="station.name"
             @click="handleSelect(station.uid)"
           >
+            <span v-if="station.isPinned" class="pin-badge">收藏</span>
             {{ station.name }}
             <span
-              v-if="showPrimaryBadge && currentStation?.uid === station.uid"
+              v-if="showPrimaryBadge && currentStation && String(currentStation.uid) === String(station.uid)"
               class="primary-badge"
               >主</span
             >
@@ -42,6 +51,8 @@
 </template>
 
 <script setup>
+import { ref, computed, watch, nextTick } from 'vue'
+
 const props = defineProps({
   visible: {
     type: Boolean,
@@ -66,6 +77,67 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close', 'select', 'refresh'])
+
+const searchQuery = ref('')
+const modalBodyRef = ref(null)
+
+// 弹框关闭后重置开关状态，打开时滚动到当前选中项
+watch(
+  () => props.visible,
+  async (val) => {
+    if (!val) {
+      searchQuery.value = ''
+      return
+    }
+    await nextTick()
+    scrollToActiveStation()
+  }
+)
+
+function scrollToActiveStation() {
+  const container = modalBodyRef.value
+  if (!container) return
+  const activeItem = container.querySelector('.station-item.active')
+  if (activeItem) {
+    const containerRect = container.getBoundingClientRect()
+    const itemRect = activeItem.getBoundingClientRect()
+    container.scrollTop =
+      container.scrollTop +
+      itemRect.top -
+      containerRect.top -
+      containerRect.height / 2 +
+      itemRect.height / 2
+  } else {
+    container.scrollTop = 0
+  }
+}
+
+const filteredStationList = computed(() => {
+  let list = props.stationList
+
+  // 收藏的服务器前置，其他保持原有顺序
+  list = [...list].sort((a, b) => {
+    if (a.isPinned === b.isPinned) return 0
+    return a.isPinned ? -1 : 1
+  })
+
+  const query = searchQuery.value.trim()
+  if (!query) {
+    return list
+  }
+
+  // #开头的按uid精确查询
+  if (query.startsWith('#')) {
+    const uid = query.slice(1).trim()
+    if (!uid) {
+      return list
+    }
+    return list.filter((station) => String(station.uid) === uid)
+  }
+
+  // 按名称模糊查询
+  return list.filter((station) => station.name?.toLowerCase().includes(query.toLowerCase()))
+})
 
 function handleSelect(uid) {
   emit('select', uid)
@@ -96,7 +168,8 @@ function handleSelect(uid) {
 .modal-station-list {
   width: 550px;
   max-width: 90%;
-  max-height: 70vh;
+  height: 70vh;
+  min-height: 320px;
   display: flex;
   flex-direction: column;
 }
@@ -105,16 +178,34 @@ function handleSelect(uid) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.1rem;
+.search-input {
+  width: 180px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-input, var(--bg-page));
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.search-input:focus {
+  border-color: var(--color-success);
+}
+
+.search-area {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.75rem;
 }
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
@@ -161,19 +252,6 @@ function handleSelect(uid) {
   cursor: not-allowed;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
-}
-
 .modal-body {
   flex: 1;
   overflow-y: auto;
@@ -187,6 +265,7 @@ function handleSelect(uid) {
 }
 
 .station-item {
+  position: relative;
   padding: 0.8rem 1.2rem;
   border: 2px solid rgba(150, 150, 150, 0.3);
   background: var(--bg-card);
@@ -202,6 +281,20 @@ function handleSelect(uid) {
   text-overflow: ellipsis;
 }
 
+.pin-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--color-warning, #e6a23c);
+  line-height: 1;
+  pointer-events: none;
+  background: rgba(230, 162, 60, 0.22);
+  border-radius: 3px;
+  padding: 3px;
+}
+
 .station-item:hover:not(:disabled) {
   background: var(--bg-table-hover);
   color: var(--text-primary);
@@ -212,6 +305,12 @@ function handleSelect(uid) {
   background: var(--color-success);
   border-color: var(--color-success);
   color: white;
+}
+
+.station-item.active .pin-badge {
+  color: white;
+  background: rgba(255, 255, 255, 0.35);
+  font-weight: 300;
 }
 
 /* 信道按钮内的主标签样式 - 与 user-uid 同款绿色 */

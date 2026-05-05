@@ -1,10 +1,21 @@
 <template>
   <div ref="containerRef" class="old-friends-container">
-    <div v-if="!dbLoaded" class="empty-hint">请点击右上角设置图标选择日志目录</div>
+    <div v-if="!dbLoaded" class="empty-hint">
+      <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+          <line x1="9" y1="13" x2="15" y2="13"/>
+          <line x1="9" y1="17" x2="13" y2="17"/>
+        </svg>
+        <p class="empty-title">暂无通联数据</p>
+        <p class="empty-desc">导入数据库文件或同步FMO服务器即可查看</p>
+      </div>
+    </div>
     <template v-else-if="oldFriendsResult && oldFriendsResult.data.length > 0">
       <div class="old-friends-grid">
         <div
-          v-for="(item, index) in oldFriendsResult.data"
+          v-for="(item, index) in sortedData"
           :key="'friend-' + index"
           class="friend-card"
           :class="{ 'today-contact': isTodayContact(item.latestTime) }"
@@ -16,7 +27,14 @@
               <span class="contact-count">&nbsp;x{{ item.count }}</span>
             </div>
           </div>
-          <div class="friend-grid">{{ item.toGrid || '-' }}</div>
+          <div class="friend-grid">
+            <span v-if="item.toGrid">{{ item.toGrid }}</span>
+            <span v-if="item.toGrid && gridAddressMap[item.toGrid]">&nbsp;</span>
+            <span v-if="gridAddressMap[item.toGrid]" class="friend-address">{{
+              gridAddressMap[item.toGrid]
+            }}</span>
+            <span v-if="!item.toGrid">-</span>
+          </div>
           <div class="friend-time">
             <div class="time-label">首次：{{ formatTimestampMinute(item.firstTime) }}</div>
             <div class="time-label">最新：{{ formatTimestampMinute(item.latestTime) }}</div>
@@ -32,14 +50,25 @@
         <template v-else-if="!hasMore"> 没有更多数据 </template>
       </div>
     </template>
-    <div v-else-if="oldFriendsResult" class="empty-hint">暂无数据</div>
+    <div v-else-if="oldFriendsResult" class="empty-hint">
+      <div class="empty-state">
+        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          <line x1="8" y1="11" x2="14" y2="11"/>
+        </svg>
+        <p class="empty-title">暂无老朋友</p>
+        <p class="empty-desc">导入数据后即可查看老朋友统计</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 /* global IntersectionObserver */
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, reactive, computed } from 'vue'
 import { formatTimestampMinute, isTodayContact } from './constants'
+import { gridToAddress } from '../../services/gridService.js'
 
 const props = defineProps({
   oldFriendsResult: {
@@ -57,10 +86,55 @@ const props = defineProps({
   hasMore: {
     type: Boolean,
     default: true
+  },
+  prioritizeToday: {
+    type: Boolean,
+    default: false
   }
 })
 
 const emit = defineEmits(['show-records', 'load-more'])
+
+const gridAddressMap = reactive({})
+
+const sortedData = computed(() => {
+  if (!props.oldFriendsResult?.data) return []
+  if (!props.prioritizeToday) return props.oldFriendsResult.data
+  const today = []
+  const others = []
+  for (const item of props.oldFriendsResult.data) {
+    if (isTodayContact(item.latestTime)) {
+      today.push(item)
+    } else {
+      others.push(item)
+    }
+  }
+  return [...today, ...others]
+})
+
+function formatGridAddress(data) {
+  if (!data) return ''
+  return data.city || data.province || ''
+}
+
+async function loadGridAddresses() {
+  if (!props.oldFriendsResult?.data) return
+  const grids = new Set()
+  for (const item of props.oldFriendsResult.data) {
+    if (item.toGrid) grids.add(item.toGrid)
+  }
+  for (const grid of grids) {
+    if (gridAddressMap[grid]) continue
+    try {
+      const result = await gridToAddress(grid)
+      gridAddressMap[grid] = formatGridAddress(result)
+    } catch {
+      gridAddressMap[grid] = ''
+    }
+  }
+}
+
+watch(() => props.oldFriendsResult, loadGridAddresses, { immediate: true, deep: true })
 
 const containerRef = ref(null)
 const loadMoreRef = ref(null)
@@ -134,6 +208,35 @@ watch(
   text-align: center;
   color: var(--text-tertiary);
   padding: 3rem;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-disabled);
+  margin-bottom: 0.25rem;
+}
+
+.empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
 }
 
 .old-friends-grid {
@@ -154,6 +257,7 @@ watch(
     transform 0.2s,
     box-shadow 0.2s;
   cursor: pointer;
+  min-width: 0;
 }
 
 .friend-card:hover {
@@ -187,12 +291,22 @@ watch(
 .friend-grid {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.friend-address {
+  font-weight: 400;
 }
 
 .friend-time {
   font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.5;
+  min-width: 0;
 }
 
 .friend-time .time-label {
@@ -242,7 +356,6 @@ watch(
   .old-friends-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-
 }
 
 @media (max-width: 600px) {

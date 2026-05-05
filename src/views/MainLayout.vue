@@ -1,4 +1,5 @@
 <template>
+  
   <div class="container">
     <!-- 标题栏（含桌面端导航） -->
     <AppHeader
@@ -25,6 +26,8 @@
       :active-address-id="settings.activeAddressId.value"
       :is-audio-playing="isAudioPlaying"
       :is-audio-muted="isAudioMuted"
+      :today-contacted-callsigns="settings.todayContactedCallsigns.value"
+      :contact-counts="settings.contactCounts.value"
       @click="showSpeakingHistory = true"
       @toggle-audio="handleToggleAudio"
     />
@@ -52,8 +55,8 @@
           :selected-address-ids="settings.selectedAddressIds.value"
           :multi-sync-progress="fmoSync.multiSyncProgress.value"
           :audio-volume="settings.audioVolume.value"
+          :contact-counts="settings.contactCounts.value"
           @execute-query="executeQuery"
-          @show-detail="showDetailModal"
           @show-callsign-records="handleShowCallsignRecords"
           @select-files="triggerFileInput"
           @export-data="handleExportData"
@@ -61,7 +64,7 @@
           @sync-days="handleSyncDays"
           @sync-incremental="handleSyncIncremental"
           @sync-full="handleSyncFull"
-          @backup-logs="settings.backupLogs()"
+          @backup-logs="handleBackupLogs"
           @clear-all-data="handleClearAllData"
           @update:multi-select-mode="handleSetMultiSelectMode"
           @toggle-address-selection="handleToggleAddressSelection"
@@ -94,24 +97,14 @@
       </transition>
     </div>
 
-    <!-- 详情弹框 -->
-    <DetailModal
-      :visible="showDetailModalFlag"
-      :row-data="selectedRowData"
-      @close="showDetailModalFlag = false"
-    />
-
     <!-- 通联记录弹框 -->
     <CallsignRecordsModal
       :visible="callsignRecords.showCallsignModal.value"
       :callsign="callsignRecords.currentCallsign.value"
       :records="callsignRecords.callsignRecords.value"
-      :current-page="callsignRecords.callsignRecordsPage.value"
+      :highlight-timestamp="callsignRecords.highlightTimestamp.value"
       @close="callsignRecords.closeCallsignModal()"
-      @page-change="handleCallsignRecordsPageChange"
     />
-
-
 
     <!-- 隐藏的文件输入 -->
     <input
@@ -129,8 +122,8 @@
       :visible="showSpeakingHistory"
       :history="speakingStatus.speakingHistory.value"
       :today-contacted-callsigns="settings.todayContactedCallsigns.value"
-      :station-connected="stationLoading || currentStation !== null"
-      :current-station="currentStation"
+      :station-connected="speakingStatus.primaryConnected.value"
+      :current-station="speakingStatus.primaryServerInfo.value"
       :station-busy="stationBusy"
       :selected-from-callsign="selectedFromCallsign"
       :all-speaking-histories="speakingStatus.allSpeakingHistories.value"
@@ -138,6 +131,7 @@
       :address-list="settings.addressList.value"
       :multi-select-mode="settings.multiSelectMode.value"
       :active-address-id="settings.activeAddressId.value"
+      :contact-counts="settings.contactCounts.value"
       @close="showSpeakingHistory = false"
       @show-callsign-records="handleShowCallsignRecords"
       @station-prev="handleStationPrev"
@@ -149,7 +143,7 @@
     <StationListModal
       :visible="showStationList"
       :station-list="stationList"
-      :current-station="currentStation"
+      :current-station="speakingStatus.primaryServerInfo.value"
       :loading="stationListLoading"
       :show-primary-badge="settings.multiSelectMode.value"
       @close="handleCloseStationList"
@@ -165,9 +159,8 @@
       <router-link
         v-for="route in NAV_ROUTES"
         :key="route.path"
-        :to="dbLoaded || ['messages', 'more'].includes(route.type) ? route.path : $route.path"
+        :to="route.path"
         class="nav-tab"
-        :class="{ disabled: !dbLoaded && !['messages', 'more'].includes(route.type) }"
       >
         <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
@@ -187,7 +180,6 @@ import { useRoute, useRouter } from 'vue-router'
 // 组件
 import AppHeader from '../components/home/AppHeader.vue'
 import SpeakingBar from '../components/home/SpeakingBar.vue'
-import DetailModal from '../components/home/modals/DetailModal.vue'
 import CallsignRecordsModal from '../components/home/modals/CallsignRecordsModal.vue'
 
 import SpeakingHistoryModal from '../components/home/modals/SpeakingHistoryModal.vue'
@@ -196,12 +188,15 @@ import QuickNavModal from '../components/home/modals/QuickNavModal.vue'
 import SvgIcon from '../components/common/SvgIcon.vue'
 
 // Composables
-import { useSpeakingStatus } from '../composables/useSpeakingStatus'
-import { useFmoSync } from '../composables/useFmoSync'
+import { storeToRefs } from 'pinia'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
+import { useSpeakingStatusStore } from '../stores/speakingStore'
+import { useSyncStore } from '../stores/syncStore'
+import { useSettingsStore } from '../stores/settingsStore'
+import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
-import { useSettings } from '../composables/useSettings'
-import { useAudioPlayer } from '../composables/useAudioPlayer'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToAdif } from '../services/db'
@@ -217,8 +212,6 @@ const router = useRouter()
 
 // UI 状态
 const showSpeakingHistory = ref(false)
-const showDetailModalFlag = ref(false)
-const selectedRowData = ref(null)
 const fileInputRef = ref(null)
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
@@ -250,11 +243,7 @@ const stationListLoading = ref(false)
 const stationListFetchedAt = ref(cachedStations.fetchedAt)
 
 // Station 状态
-const currentStation = ref(null)
 const stationBusy = ref(false)
-const stationLoading = ref(false)
-let stationPollTimer = null
-let stationPollCount = 0
 
 // 消息未读状态
 const hasUnreadMessages = computed(() => {
@@ -278,26 +267,93 @@ const {
   selectFiles,
   clearAllData
 } = useDbManager()
-const settings = useSettings()
-const speakingStatus = useSpeakingStatus()
+
+// settings：内联 useSettings 薄层（store + storeToRefs）
+const _settingsStore = useSettingsStore()
+const _settingsRefs = storeToRefs(_settingsStore)
+const settings = {
+  fmoAddress: _settingsRefs.fmoAddress,
+  protocol: _settingsRefs.protocol,
+  todayContactedCallsigns: _settingsRefs.todayContactedCallsigns,
+  remoteControlUrl: _settingsRefs.remoteControlUrl,
+  addressList: _settingsRefs.addressList,
+  activeAddressId: _settingsRefs.activeAddressId,
+  activeAddress: _settingsRefs.activeAddress,
+  contactCounts: _settingsRefs.contactCounts,
+  selectedAddressIds: _settingsRefs.selectedAddressIds,
+  multiSelectMode: _settingsRefs.multiSelectMode,
+  audioVolume: _settingsRefs.audioVolume,
+  audioPlaying: _settingsRefs.audioPlaying,
+  isHttps: _settingsStore.isHttps,
+  isMobileDevice: _settingsStore.isMobileDevice,
+  initFmoAddress: _settingsStore.initFmoAddress,
+  validateAndSaveFmoAddress: _settingsStore.validateAndSaveFmoAddress,
+  backupLogs: _settingsStore.backupLogs,
+  loadTodayContactedCallsigns: _settingsStore.loadTodayContactedCallsigns,
+  loadContactCounts: _settingsStore.loadContactCounts,
+  addFmoAddress: _settingsStore.addFmoAddress,
+  updateFmoAddress: _settingsStore.updateFmoAddress,
+  deleteFmoAddress: _settingsStore.deleteFmoAddress,
+  selectFmoAddress: _settingsStore.selectFmoAddress,
+  clearAllAddresses: _settingsStore.clearAllAddresses,
+  refreshUserInfo: _settingsStore.refreshUserInfo,
+  validateConnection: _settingsStore.validateConnection,
+  toggleAddressSelection: _settingsStore.toggleAddressSelection,
+  setMultiSelectMode: _settingsStore.setMultiSelectMode,
+  setActiveAddressId: _settingsStore.setActiveAddressId,
+  setAudioVolume: _settingsStore.setAudioVolume,
+  setAudioPlaying: _settingsStore.setAudioPlaying
+}
+
+// speakingStatus：内联 useSpeakingStatus 薄层
+const _speakingStore = useSpeakingStatusStore()
+const _speakingRefs = storeToRefs(_speakingStore)
+const speakingStatus = {
+  currentSpeaker: _speakingRefs.currentSpeaker,
+  currentSpeakerGrid: _speakingRefs.currentSpeakerGrid,
+  currentSpeakerAddress: _speakingRefs.currentSpeakerAddress,
+  isHostSpeaking: _speakingRefs.isHostSpeaking,
+  speakingHistory: _speakingRefs.speakingHistory,
+  allSpeakingHistories: _speakingRefs.allSpeakingHistories,
+  allCurrentSpeakers: _speakingRefs.allCurrentSpeakers,
+  primaryAddressId: _speakingRefs.primaryAddressId,
+  primaryServerInfo: _speakingRefs.primaryServerInfo,
+  primaryConnected: _speakingRefs.primaryConnected,
+  eventsConnected: _speakingRefs.eventsConnected,
+  connectEventWs: _speakingStore.connectEventWs,
+  disconnectEventWs: _speakingStore.disconnectEventWs,
+  connectMultipleEventWs: _speakingStore.connectMultipleEventWs,
+  disconnectAllEventWs: _speakingStore.disconnectAllEventWs,
+  getSpeakingHistoryFor: _speakingStore.getSpeakingHistoryFor,
+  isAddressConnected: _speakingStore.isAddressConnected,
+  getServerInfo: _speakingStore.getServerInfo,
+  updateServerInfo: _speakingStore.updateServerInfo,
+  setOnMessageCallback: _speakingStore.setOnMessageCallback,
+  clearSpeakingHistory: _speakingStore.clearSpeakingHistory
+}
+
 const dataQuery = useDataQuery()
 const callsignRecords = useCallsignRecords()
 
 // 消息服务
 const messageService = getMessageService()
 
-const {
-  isPlaying: isAudioPlaying,
-  isMuted: isAudioMuted,
-  toggleAudio,
-  stopAudio,
-  muteAudio,
-  unmuteAudio,
-  setVolume: setAudioVolumePlayer,
-  resumeAudio
-} = useAudioPlayer()
+// 音频播放：直连 audioPlayerStore
+const _audioStore = useAudioPlayerStore()
+const _audioRefs = storeToRefs(_audioStore)
+const isAudioPlaying = _audioRefs.isPlaying
+const isAudioMuted = _audioRefs.isMuted
+const toggleAudio = _audioStore.toggleAudio
+const stopAudio = _audioStore.stopAudio
+const setAudioVolumePlayer = _audioStore.setVolume
+const resumeAudio = _audioStore.resumeAudio
+const updateSpeakerInfo = _audioStore.updateSpeakerInfo
+const setAudioHostMuted = _audioStore.setHostMuted
 
-const fmoSync = useFmoSync({
+// fmoSync：内联 useFmoSync 薄层（setContext + storeToRefs + onUnmounted teardown）
+const _syncStore = useSyncStore()
+_syncStore.reset()
+_syncStore.setContext({
   onSyncComplete: async ({ callsigns, syncedCount }) => {
     if (callsigns.length > 0) {
       availableFromCallsigns.value = callsigns
@@ -316,6 +372,9 @@ const fmoSync = useFmoSync({
       if (showSpeakingHistory.value) {
         await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
       }
+      if (selectedFromCallsign.value) {
+        await settings.loadContactCounts(selectedFromCallsign.value)
+      }
       // 如果通联记录弹框正在打开，自动刷新数据
       if (callsignRecords.showCallsignModal.value) {
         await callsignRecords.loadCallsignRecords(selectedFromCallsign.value)
@@ -328,6 +387,21 @@ const fmoSync = useFmoSync({
   getTotalLogs: () => totalLogs.value,
   getEventsConnected: (addressId) => speakingStatus.isAddressConnected(addressId)
 })
+const _syncRefs = storeToRefs(_syncStore)
+const fmoSync = {
+  syncing: _syncRefs.syncing,
+  syncStatus: _syncRefs.syncStatus,
+  autoSyncMessage: _syncRefs.autoSyncMessage,
+  syncFailedRecords: _syncRefs.syncFailedRecords,
+  multiSyncProgress: _syncRefs.multiSyncProgress,
+  syncToday: _syncStore.syncToday,
+  syncIncremental: _syncStore.syncIncremental,
+  syncFull: _syncStore.syncFull,
+  syncMultiple: _syncStore.syncMultiple,
+  startAutoSyncTask: _syncStore.startAutoSyncTask,
+  stopAutoSyncTask: _syncStore.stopAutoSyncTask,
+  showAutoSyncMessage: _syncStore.showAutoSyncMessage
+}
 
 // 计算当前查询类型（根据路由名称映射）
 const routeToQueryType = {
@@ -366,57 +440,12 @@ function inferFromCallsign() {
   }
 }
 
-function showDetailModal(row) {
-  selectedRowData.value = row
-  showDetailModalFlag.value = true
-}
-
 // 创建临时 station client（按需连接，用完即关）
 function createStationClient() {
   if (!settings.fmoAddress.value) return null
   const host = normalizeHost(settings.fmoAddress.value)
   const fullAddress = `${settings.protocol.value}://${host}`
   return new FmoApiClient(fullAddress)
-}
-
-// 获取当前服务器（按需连接）
-async function fetchCurrentStation() {
-  const client = createStationClient()
-  if (!client) return
-
-  stationLoading.value = true
-  try {
-    await client.connect()
-    const data = await client.getCurrentStation()
-    if (data) {
-      currentStation.value = { uid: data.uid, name: data.name }
-    }
-  } catch (err) {
-    console.error('获取当前服务器失败:', err)
-  } finally {
-    try {
-      client.close()
-    } catch (closeErr) {
-      console.error('关闭客户端连接失败:', closeErr)
-    }
-    stationLoading.value = false
-  }
-}
-
-// 轮询当前服务器状态（切换后服务器状态不是立即变化的）
-function pollCurrentStation() {
-  if (stationPollTimer) {
-    clearTimeout(stationPollTimer)
-  }
-  stationPollCount = 0
-  doPollStation()
-}
-
-function doPollStation() {
-  if (stationPollCount >= 3) return // 最多 3 次
-  stationPollCount++
-  fetchCurrentStation()
-  stationPollTimer = setTimeout(doPollStation, 1000) // 间隔 1 秒，总计约 3 秒
 }
 
 async function handleStationPrev() {
@@ -429,8 +458,10 @@ async function handleStationPrev() {
     await client.connect()
     const result = await client.prevStation()
     if (result?.result === 0) {
-      pollCurrentStation()
-      speakingStatus.clearSpeakingHistory()
+      const primaryId = speakingStatus.primaryAddressId.value
+      if (primaryId) {
+        await speakingStatus.getServerInfo(primaryId, true)
+      }
     }
   } catch (err) {
     console.error('切换上一个服务器失败:', err)
@@ -454,8 +485,10 @@ async function handleStationNext() {
     await client.connect()
     const result = await client.nextStation()
     if (result?.result === 0) {
-      pollCurrentStation()
-      speakingStatus.clearSpeakingHistory()
+      const primaryId = speakingStatus.primaryAddressId.value
+      if (primaryId) {
+        await speakingStatus.getServerInfo(primaryId, true)
+      }
     }
   } catch (err) {
     console.error('切换下一个服务器失败:', err)
@@ -471,7 +504,8 @@ async function handleStationNext() {
 
 function handleOpenStationList() {
   showStationList.value = true
-  const expired = !stationListFetchedAt.value || (Date.now() - stationListFetchedAt.value > 60 * 60 * 1000)
+  const expired =
+    !stationListFetchedAt.value || Date.now() - stationListFetchedAt.value > 60 * 60 * 1000
   if (expired) {
     fetchAllStations()
   }
@@ -487,8 +521,19 @@ async function fetchAllStations() {
   if (!client) return
   stationListLoading.value = true
   try {
-    const list = await client.getAllStations()
-    stationList.value = list
+    const [list, pinnedList] = await Promise.all([
+      client.getAllStations(),
+      client.getAllPinnedStations()
+    ])
+
+    // 将收藏信息合并到服务器列表
+    const pinnedUids = new Set(pinnedList.map((s) => s.uid))
+    const mergedList = list.map((station) => ({
+      ...station,
+      isPinned: pinnedUids.has(station.uid)
+    }))
+
+    stationList.value = mergedList
     stationListFetchedAt.value = Date.now()
     // 写入 localStorage 缓存
     try {
@@ -521,7 +566,10 @@ async function handleStationSelect(uid) {
     await client.connect()
     const result = await client.setCurrentStation(uid)
     if (result?.result === 0) {
-      pollCurrentStation()
+      const primaryId = speakingStatus.primaryAddressId.value
+      if (primaryId) {
+        await speakingStatus.getServerInfo(primaryId, true)
+      }
     }
   } catch (err) {
     console.error('设置当前服务器失败:', err)
@@ -533,7 +581,6 @@ async function handleStationSelect(uid) {
     }
     stationBusy.value = false
   }
-  speakingStatus.clearSpeakingHistory()
 }
 
 // 回到顶部 - 带防抖的滚动处理
@@ -550,12 +597,14 @@ function scrollToTop() {
   contentAreaRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-async function handleShowCallsignRecords(callsign) {
-  await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value)
-}
-
-async function handleCallsignRecordsPageChange(page) {
-  await callsignRecords.goToCallsignRecordsPage(page, selectedFromCallsign.value)
+async function handleShowCallsignRecords(payload) {
+  let callsign = payload
+  let timestamp = null
+  if (typeof payload === 'object' && payload !== null) {
+    callsign = payload.callsign
+    timestamp = payload.timestamp
+  }
+  await callsignRecords.showCallsignRecordsModal(callsign, selectedFromCallsign.value, timestamp)
 }
 
 // 数据库操作
@@ -593,19 +642,10 @@ async function handleExportData() {
   try {
     loading.value = true
     const result = await exportDataToDbFile(selectedFromCallsign.value)
-
-    // 创建 Blob 并下载
-    const blob = new Blob([result.data], { type: 'application/x-sqlite3' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = result.filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
     loading.value = false
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
   } catch (err) {
     loading.value = false
     toast.error(`导出失败: ${err.message}`)
@@ -618,22 +658,25 @@ async function handleExportAdif() {
     loading.value = true
     const appVersion = packageInfo.version
     const result = await exportDataToAdif(selectedFromCallsign.value, appVersion)
-
-    // 创建 Blob 并下载
-    const blob = new Blob([result.content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = result.filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
     loading.value = false
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
   } catch (err) {
     loading.value = false
     toast.error(`导出ADIF失败: ${err.message}`)
+  }
+}
+
+// 备份 FMO 日志（原生端在 App 内完成下载/分享，Web 端走浏览器下载）
+async function handleBackupLogs() {
+  try {
+    const result = await settings.backupLogs()
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
+  } catch (err) {
+    toast.error(`备份失败: ${err.message}`)
   }
 }
 
@@ -773,7 +816,6 @@ async function handleClearAllAddresses() {
     speakingStatus.disconnectAllEventWs()
     messageService.disconnect()
     fmoSync.stopAutoSyncTask()
-    currentStation.value = null
   }
 }
 
@@ -964,23 +1006,18 @@ async function handleToggleAddressSelection(id) {
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
     await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
-    // 打开时获取当前服务器
-    fetchCurrentStation()
-  } else {
-    // 关闭时清理状态和轮询
-    if (stationPollTimer) {
-      clearTimeout(stationPollTimer)
-      stationPollTimer = null
-    }
-    currentStation.value = null
+    await settings.loadContactCounts(selectedFromCallsign.value)
   }
 })
 
 watch(
   () => selectedFromCallsign.value,
-  async () => {
-    if (showSpeakingHistory.value) {
-      await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
+  async (newVal) => {
+    if (newVal) {
+      await settings.loadContactCounts(newVal)
+    }
+    if (showSpeakingHistory.value && newVal) {
+      await settings.loadTodayContactedCallsigns(newVal)
     }
   }
 )
@@ -1069,16 +1106,25 @@ watch(isAudioPlaying, (val) => {
   settings.setAudioPlaying(val)
 })
 
-// 自动静音：当自己在发言时自动静音
+// 自动静音：当自己在发言时自动静音（基于 isHost 判断）
 watch(
-  () => speakingStatus.currentSpeaker.value,
-  (speaker) => {
+  () => speakingStatus.isHostSpeaking.value,
+  (isHost) => {
     if (!isAudioPlaying.value) return
-    if (speaker && speaker === selectedFromCallsign.value) {
-      muteAudio()
-    } else {
-      unmuteAudio(settings.audioVolume.value)
-    }
+    setAudioHostMuted(isHost)
+  }
+)
+
+// 同步当前发言人到原生通知栏（仅 Android）
+watch(
+  [
+    () => speakingStatus.currentSpeaker.value,
+    () => speakingStatus.currentSpeakerAddress.value,
+    isAudioPlaying
+  ],
+  ([speaker, address, playing]) => {
+    if (!playing) return
+    updateSpeakerInfo(speaker || '', address || '')
   }
 )
 
@@ -1113,10 +1159,61 @@ function connectEventsWebSocket() {
   }
 }
 
+// 安卓硬件返回键处理：优先关闭弹框 → 路由回退 → 询问退出
+let backButtonListener = null
+let exitConfirming = false
+
+async function handleHardwareBack({ canGoBack }) {
+  // 1) 优先关闭已打开的 modal（按可见性倒序关闭最顶层一个）
+  if (callsignRecords.showCallsignModal.value) {
+    callsignRecords.closeCallsignModal()
+    return
+  }
+  if (showStationList.value) {
+    showStationList.value = false
+    return
+  }
+  if (showQuickNav.value) {
+    showQuickNav.value = false
+    return
+  }
+  if (showSpeakingHistory.value) {
+    showSpeakingHistory.value = false
+    return
+  }
+
+  // 2) 可返回则交给 Vue Router（popstate 也会被各页面自有逻辑处理，例如 MessageView 详情）
+  if (canGoBack) {
+    router.back()
+    return
+  }
+
+  // 3) 根路由且无其他可回退状态 → 确认退出
+  if (exitConfirming) return
+  exitConfirming = true
+  try {
+    const confirmed = await confirmDialog.show('确定要退出应用吗？')
+    if (confirmed) {
+      await CapacitorApp.exitApp()
+    }
+  } finally {
+    exitConfirming = false
+  }
+}
+
 // 生命周期
 onMounted(async () => {
   // 回到顶部滚动监听
   contentAreaRef.value?.addEventListener('scroll', handleScroll, { passive: true })
+
+  // 注册安卓硬件返回键监听（仅原生平台）
+  if (Capacitor.isNativePlatform()) {
+    try {
+      backButtonListener = await CapacitorApp.addListener('backButton', handleHardwareBack)
+    } catch (err) {
+      console.error('注册返回键监听失败:', err)
+    }
+  }
 
   const restored = await tryRestoreDirectory()
   if (restored) {
@@ -1151,12 +1248,21 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (stationPollTimer) clearTimeout(stationPollTimer)
   if (scrollTimer) clearTimeout(scrollTimer)
   contentAreaRef.value?.removeEventListener('scroll', handleScroll)
 
+  // 移除返回键监听
+  if (backButtonListener) {
+    try {
+      backButtonListener.remove()
+    } catch (err) {
+      console.error('移除返回键监听失败:', err)
+    }
+    backButtonListener = null
+  }
+
   fmoSync.stopAutoSyncTask()
-  speakingStatus.stopSpeakingHistoryCleanup()
+  _syncStore.teardown()
   speakingStatus.disconnectAllEventWs()
   messageService.disconnect()
 })
@@ -1176,7 +1282,6 @@ provide('protocol', settings.protocol)
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
   height: 100dvh;
   overflow: hidden;
 }

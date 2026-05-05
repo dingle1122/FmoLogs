@@ -11,12 +11,14 @@
     <!-- 过滤区域 -->
     <QuerySection
       v-model:search-keyword="dataQuery.searchKeyword.value"
-      v-model:filter-date="dataQuery.filterDate.value"
+      :filter-date="displayFilterDate"
       :current-query-type="'all'"
       :from-callsign="selectedFromCallsign"
       :db-loaded="dbLoaded"
+      :active-quick-filter="activeQuickFilter"
       @update:search-keyword="onSearchInput"
-      @update:filter-date="onFilterDateChange"
+      @update:filter-date="onPickerDateChange"
+      @quick-filter="onQuickFilter"
     />
 
     <!-- 数据表格 -->
@@ -26,7 +28,8 @@
       :db-loaded="dbLoaded"
       :loading-more="loadingMore"
       :has-more="hasMore"
-      @show-detail="$emit('show-detail', $event)"
+      :contact-counts="contactCounts"
+      @show-callsign-records="handleShowCallsignRecords"
       @load-more="handleLoadMore"
     />
 
@@ -60,10 +63,18 @@ const props = defineProps({
   error: String,
   importProgress: Object,
   fmoSyncMessage: String,
-  dataQuery: Object
+  dataQuery: Object,
+  contactCounts: {
+    type: Map,
+    default: () => new Map()
+  }
 })
 
-const emit = defineEmits(['execute-query', 'show-detail'])
+const emit = defineEmits(['execute-query', 'show-callsign-records'])
+
+function handleShowCallsignRecords(payload) {
+  emit('show-callsign-records', payload)
+}
 
 // 滚动加载状态
 const loadingMore = ref(false)
@@ -83,6 +94,40 @@ const hasMore = computed(() => {
 // 防抖定时器
 let searchTimer = null
 
+// 快捷筛选状态
+const activeQuickFilter = ref('')
+// DatePicker 专属显示值（快捷筛选时为空，避免回显仅开始日期）
+const pickerDate = ref(null)
+
+const displayFilterDate = computed(() => {
+  return activeQuickFilter.value ? null : pickerDate.value
+})
+
+function getTodayDateStr() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function getWeekStartDateStr() {
+  const d = new Date()
+  const dayOfWeek = d.getDay() || 7
+  d.setDate(d.getDate() - dayOfWeek + 1)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function getMonthStartDateStr() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  return `${y}-${m}-01`
+}
+
 function onSearchInput() {
   if (searchTimer) clearTimeout(searchTimer)
   searchTimer = setTimeout(() => {
@@ -92,6 +137,34 @@ function onSearchInput() {
 }
 
 function onFilterDateChange() {
+  props.dataQuery.currentPage.value = 1
+  emit('execute-query')
+  // 手动改日期时清除快捷筛选状态
+  activeQuickFilter.value = ''
+}
+
+// DatePicker 手动选日期：同步到 pickerDate 和查询用的 filterDate
+function onPickerDateChange(val) {
+  pickerDate.value = val
+  props.dataQuery.filterDate.value = val
+  activeQuickFilter.value = ''
+  props.dataQuery.currentPage.value = 1
+  emit('execute-query')
+}
+
+function onQuickFilter(type) {
+  activeQuickFilter.value = activeQuickFilter.value === type ? '' : type
+  // 快捷筛选：设置查询日期但清空 DatePicker 显示，避免只展示开始日期的困惑
+  pickerDate.value = null
+  if (activeQuickFilter.value === 'today') {
+    props.dataQuery.filterDate.value = getTodayDateStr()
+  } else if (activeQuickFilter.value === 'week') {
+    props.dataQuery.filterDate.value = getWeekStartDateStr()
+  } else if (activeQuickFilter.value === 'month') {
+    props.dataQuery.filterDate.value = getMonthStartDateStr()
+  } else {
+    props.dataQuery.filterDate.value = null
+  }
   props.dataQuery.currentPage.value = 1
   emit('execute-query')
 }

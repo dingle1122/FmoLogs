@@ -5,13 +5,17 @@
         <h3>{{ callsign }} &#11088; {{ records ? records.total : 0 }}</h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
-      <div class="modal-body">
+      <div ref="modalBodyRef" class="modal-body">
         <div v-if="records && records.data.length > 0" class="record-cards-grid">
           <div
             v-for="(record, index) in records.data"
-            :key="'record-' + index"
+            :key="record.timestamp + '-' + index"
+            ref="cardRefs"
             class="record-card"
-            :class="{ 'today-record': isTodayContact(record.timestamp) }"
+            :class="{
+              'today-record': isTodayContact(record.timestamp),
+              'highlighted-record': highlightTimestamp === record.timestamp
+            }"
           >
             <div class="record-row">
               <span class="record-label">日期：</span>
@@ -21,11 +25,19 @@
               <span class="record-label">接收方：</span>
               <span class="record-value">{{ record.toCallsign }} / {{ record.toGrid || '-' }}</span>
             </div>
+            <div v-if="gridAddressMap[record.toGrid]" class="record-row">
+              <span class="record-label"></span>
+              <span class="record-value address-line">{{ gridAddressMap[record.toGrid] }}</span>
+            </div>
             <div class="record-row">
               <span class="record-label">发送方：</span>
               <span class="record-value"
                 >{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span
               >
+            </div>
+            <div v-if="gridAddressMap[record.fromGrid]" class="record-row">
+              <span class="record-label"></span>
+              <span class="record-value address-line">{{ gridAddressMap[record.fromGrid] }}</span>
             </div>
             <div class="record-row">
               <span class="record-label">频率：</span>
@@ -46,42 +58,16 @@
         </div>
         <div v-else class="empty-hint">暂无记录</div>
       </div>
-      <div v-if="records && records.totalPages > 1" class="modal-footer">
-        <div class="pagination">
-          <button
-            :disabled="currentPage === 1"
-            class="hidden-on-small"
-            @click="$emit('page-change', 1)"
-          >
-            首页
-          </button>
-          <button :disabled="currentPage === 1" @click="$emit('page-change', currentPage - 1)">
-            上一页
-          </button>
-          <span class="page-info">第 {{ currentPage }} / {{ records.totalPages }} 页</span>
-          <button
-            :disabled="currentPage === records.totalPages"
-            @click="$emit('page-change', currentPage + 1)"
-          >
-            下一页
-          </button>
-          <button
-            :disabled="currentPage === records.totalPages"
-            class="hidden-on-small"
-            @click="$emit('page-change', records.totalPages)"
-          >
-            末页
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, watch, nextTick, reactive } from 'vue'
 import { formatTimestamp, formatFreqHz, isTodayContact } from '../constants'
+import { gridToAddress } from '../../../services/gridService'
 
-defineProps({
+const props = defineProps({
   visible: {
     type: Boolean,
     default: false
@@ -94,13 +80,74 @@ defineProps({
     type: Object,
     default: null
   },
-  currentPage: {
+  highlightTimestamp: {
     type: Number,
-    default: 1
+    default: null
   }
 })
 
-defineEmits(['close', 'page-change'])
+const emit = defineEmits(['close'])
+
+const cardRefs = ref([])
+const modalBodyRef = ref(null)
+
+const gridAddressMap = reactive({})
+
+function formatAddress(data) {
+  if (!data) return ''
+  const province = data.province || ''
+  const city = data.city || ''
+  const district = data.district || ''
+
+  const parts = []
+  if (province) parts.push(province)
+  if (city && city !== province) parts.push(city)
+  if (district) parts.push(district)
+
+  return parts.join('-')
+}
+
+async function loadGridAddresses(records) {
+  if (!records?.data?.length) return
+  const grids = new Set()
+  for (const record of records.data) {
+    if (record.toGrid) grids.add(record.toGrid)
+    if (record.fromGrid) grids.add(record.fromGrid)
+  }
+  for (const grid of grids) {
+    if (gridAddressMap[grid] !== undefined) continue
+    try {
+      const result = await gridToAddress(grid)
+      gridAddressMap[grid] = formatAddress(result)
+    } catch {
+      gridAddressMap[grid] = ''
+    }
+  }
+}
+
+function scrollToHighlight() {
+  if (!props.highlightTimestamp || !props.records?.data?.length) return
+  const index = props.records.data.findIndex((r) => r.timestamp === props.highlightTimestamp)
+  if (index === -1) return
+  const el = cardRefs.value[index]
+  if (!el || !modalBodyRef.value) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+watch(
+  () => [props.visible, props.records],
+  ([newVisible, newRecords]) => {
+    if (newVisible && newRecords) {
+      loadGridAddresses(newRecords)
+    }
+    if (newVisible && props.highlightTimestamp) {
+      nextTick(() => {
+        setTimeout(scrollToHighlight, 100)
+      })
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>
@@ -126,7 +173,7 @@ defineEmits(['close', 'page-change'])
 .modal-callsign-records {
   width: 90%;
   max-width: 900px;
-  max-height: 85vh;
+  height: 80vh;
   display: flex;
   flex-direction: column;
 }
@@ -135,25 +182,12 @@ defineEmits(['close', 'page-change'])
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
 
 .modal-header h3 {
   margin: 0;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  line-height: 1;
-}
-
-.close-btn:hover {
-  color: var(--text-secondary);
 }
 
 .modal-body {
@@ -171,7 +205,7 @@ defineEmits(['close', 'page-change'])
 
 .record-cards-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -202,12 +236,26 @@ defineEmits(['close', 'page-change'])
 .record-value {
   color: var(--text-primary);
   flex: 1;
+  min-width: 0;
   word-break: break-all;
+}
+
+.address-line {
+  color: var(--text-tertiary);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .record-card.today-record {
   background: var(--bg-today-card);
   border-color: var(--border-today-card);
+}
+
+.record-card.highlighted-record {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .empty-hint {
@@ -216,71 +264,19 @@ defineEmits(['close', 'page-change'])
   padding: 3rem;
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.pagination button {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-primary);
-  background: var(--bg-container);
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-primary);
-}
-
-.pagination button:hover:not(:disabled) {
-  background: var(--bg-table-hover);
-}
-
-.pagination button:disabled {
-  color: var(--text-disabled);
-  cursor: not-allowed;
-}
-
-.page-info {
-  margin: 0 1rem;
-  color: var(--text-secondary);
-}
-
 @media (max-width: 768px) {
   .record-cards-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .modal-callsign-records {
     width: 95%;
-    max-height: 80vh;
+    height: 75vh;
   }
 
   .modal-body {
     padding: 0.75rem;
     max-height: calc(80vh - 120px);
-  }
-
-  .modal-footer {
-    padding: 0.5rem;
-  }
-
-  .modal-footer .pagination {
-    gap: 0.25rem;
-  }
-
-  .modal-footer .pagination button {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .modal-footer .page-info {
-    font-size: 0.75rem;
-    margin: 0 0.25rem;
-  }
-
-  .pagination .hidden-on-small {
-    display: none;
   }
 }
 </style>

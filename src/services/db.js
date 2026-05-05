@@ -1,13 +1,14 @@
 import initSqlJs from 'sql.js'
 import { AdifFormatter, AdifParser } from '../adif/index.js'
+import { exportFile } from '../utils/exportFile.js'
 
 let SQL = null
 
-// 初始化sql.js（使用CDN加载wasm文件）
+// 初始化sql.js（使用本地wasm文件）
 async function initSQL() {
   if (!SQL) {
     SQL = await initSqlJs({
-      locateFile: () => 'https://cdn.lzyike.cn/npm/sql.js@1.13.0/dist/sql-wasm.wasm'
+      locateFile: (file) => `/${file}`
     })
   }
   return SQL
@@ -253,9 +254,7 @@ export const ColumnNames = {
   dailyIndex: '序号',
   timestamp: '日期',
   freqHz: '频率(MHz)',
-  fromCallsign: '您的呼号',
-  fromGrid: '发送网格',
-  toCallsign: '接收方呼号',
+  toCallsign: '对方呼号',
   toGrid: '接收网格',
   toComment: '留言',
   mode: '模式',
@@ -718,7 +717,7 @@ export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
 
   const allRecords = await getDataFromIndexedDB(fromCallsign)
 
-  // 接收方呼号统计
+  // 对方呼号统计
   const toCallsignMap = new Map()
   for (const record of allRecords) {
     const key = record.toCallsign || ''
@@ -816,31 +815,29 @@ export async function getOldFriendsFromIndexedDB(
   return { data, total, page, pageSize, totalPages }
 }
 
-// 获取特定呼号的通联记录
-export async function getCallsignRecordsFromIndexedDB(
-  callsign,
-  page = 1,
-  pageSize = 10,
-  fromCallsign = null
-) {
+// 获取所有呼号的累计通联次数（返回 Map<toCallsign, count>）
+export async function getContactCountsFromIndexedDB(fromCallsign = null) {
+  if (!fromCallsign) return new Map()
+
+  const allRecords = await getDataFromIndexedDB(fromCallsign)
+  const countsMap = new Map()
+
+  for (const record of allRecords) {
+    const key = record.toCallsign || ''
+    if (!key) continue
+    countsMap.set(key, (countsMap.get(key) || 0) + 1)
+  }
+
+  return countsMap
+}
+
+// 获取特定呼号的通联记录（全部加载，不分页）
+export async function getCallsignRecordsFromIndexedDB(callsign, fromCallsign = null) {
   if (!fromCallsign) {
     return {
       data: [],
       total: 0,
-      page,
-      pageSize,
-      totalPages: 0,
-      columns: [
-        'timestamp',
-        'toCallsign',
-        'toGrid',
-        'freqHz',
-        'fromCallsign',
-        'fromGrid',
-        'toComment',
-        'mode',
-        'relayName'
-      ]
+      columns: ['timestamp', 'toCallsign', 'toGrid', 'freqHz', 'toComment', 'mode', 'relayName']
     }
   }
 
@@ -852,29 +849,10 @@ export async function getCallsignRecordsFromIndexedDB(
   // 按时间倒序排序
   filtered.sort((a, b) => b.timestamp - a.timestamp)
 
-  // 分页
-  const total = filtered.length
-  const totalPages = Math.ceil(total / pageSize)
-  const start = (page - 1) * pageSize
-  const data = filtered.slice(start, start + pageSize)
-
   return {
-    data,
-    total,
-    page,
-    pageSize,
-    totalPages,
-    columns: [
-      'timestamp',
-      'toCallsign',
-      'toGrid',
-      'freqHz',
-      'fromCallsign',
-      'fromGrid',
-      'toComment',
-      'mode',
-      'relayName'
-    ]
+    data: filtered,
+    total: filtered.length,
+    columns: ['timestamp', 'toCallsign', 'toGrid', 'freqHz', 'toComment', 'mode', 'relayName']
   }
 }
 
@@ -916,16 +894,7 @@ export async function getAllRecordsFromIndexedDB(
       page,
       pageSize,
       totalPages: 0,
-      columns: [
-        'timestamp',
-        'dailyIndex',
-        'toCallsign',
-        'fromCallsign',
-        'freqHz',
-        'toComment',
-        'mode',
-        'relayName'
-      ]
+      columns: ['dailyIndex', 'timestamp', 'toCallsign', 'freqHz', 'toComment', 'mode', 'relayName']
     }
   }
 
@@ -943,7 +912,7 @@ export async function getAllRecordsFromIndexedDB(
         const tx = db.transaction(storeName, 'readonly')
         const store = tx.objectStore(storeName)
         const index = store.index('utcDate')
-        const request = index.getAll(IDBKeyRange.only(filterDate))
+        const request = index.getAll(IDBKeyRange.lowerBound(filterDate))
 
         request.onerror = () => reject(request.error)
         request.onsuccess = () => {
@@ -982,16 +951,7 @@ export async function getAllRecordsFromIndexedDB(
     page,
     pageSize,
     totalPages,
-    columns: [
-      'timestamp',
-      'dailyIndex',
-      'toCallsign',
-      'fromCallsign',
-      'freqHz',
-      'toComment',
-      'mode',
-      'relayName'
-    ]
+    columns: ['dailyIndex', 'timestamp', 'toCallsign', 'freqHz', 'toComment', 'mode', 'relayName']
   }
 }
 
@@ -1246,10 +1206,7 @@ export async function exportDataToDbFile(fromCallsign) {
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.db`
 
-  return {
-    data,
-    filename
-  }
+  return await exportFile(filename, data, 'application/x-sqlite3')
 }
 
 // 导出IndexedDB数据到ADIF文件
@@ -1335,10 +1292,7 @@ export async function exportDataToAdif(fromCallsign, appVersion = '1.0.0') {
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.adi`
 
-  return {
-    content,
-    filename
-  }
+  return await exportFile(filename, content, 'text/plain')
 }
 
 // 根据频率(Hz)获取波段

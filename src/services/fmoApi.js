@@ -47,7 +47,13 @@ export class FmoApiClient {
     }
 
     let host = normalizeHost(this.baseUrl)
-    const wsUrl = `${this.baseUrl.startsWith('wss') ? 'wss' : 'ws'}://${host}/ws`
+    const protocol = this.baseUrl.startsWith('wss') ? 'wss' : 'ws'
+    // 兼容两种 baseUrl：
+    //  1) 基础地址，如 'wss://host'           → 自动拼 /ws
+    //  2) 完整地址，如 'wss://host/ws'        → 直接使用，避免拼成 /ws/ws
+    const wsUrl = host.endsWith('/ws')
+      ? `${protocol}://${host}`
+      : `${protocol}://${host}/ws`
 
     this.connectPromise = new Promise((resolve, reject) => {
       console.log(`Connecting to FMO: ${wsUrl}`)
@@ -178,6 +184,24 @@ export class FmoApiClient {
     const count = 20
     while (true) {
       const result = await this.getStationList(start, count)
+      all.push(...result.list)
+      if (result.list.length < count) break
+      start += count
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+    return all
+  }
+
+  async getPinnedList(start = 0, count = 10) {
+    return this.sendRequest('station', 'getPinnedList', { start, count })
+  }
+
+  async getAllPinnedStations() {
+    const all = []
+    let start = 0
+    const count = 10
+    while (true) {
+      const result = await this.getPinnedList(start, count)
       all.push(...result.list)
       if (result.list.length < count) break
       start += count

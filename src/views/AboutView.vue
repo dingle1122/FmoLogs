@@ -9,7 +9,8 @@
       </div>
       <div class="about-description">
         <p>
-          FmoLogs 是一款 FMO 通联日志管理工具，支持导入本地日志文件、实时同步远程通联记录，还能查询和统计通联数据。
+          FmoLogs 是一款 FMO
+          通联日志管理工具，支持导入本地日志文件、实时同步远程通联记录，还能查询和统计通联数据。
         </p>
         <p>所有数据都保存在你的设备中，不上传云端，充分保护隐私安全。</p>
         <p class="about-links-text">
@@ -89,8 +90,6 @@ import thanksList from '../data/thanks.json'
 const appVersion = computed(() => `v${packageInfo.version}`)
 
 const showCoffee = ref(false)
-
-
 </script>
 
 <style scoped>

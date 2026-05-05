@@ -41,7 +41,8 @@ export class AdifParser {
     }
 
     // 检查是否有头部（不以 < 开头表示有头部文本）
-    if (this.bytes[0] !== 60) { // 60 是 '<' 的 ASCII 码
+    if (this.bytes[0] !== 60) {
+      // 60 是 '<' 的 ASCII 码
       const header = {}
       header.text = this.parseHeaderText()
 
@@ -142,9 +143,7 @@ export class AdifParser {
     // 解析长度（字节长度）
     const width = parseInt(tagParts[1], 10)
     if (isNaN(width)) {
-      throw new Error(
-        `Invalid field width near byte ${startTag}: ${tagContent}`
-      )
+      throw new Error(`Invalid field width near byte ${startTag}: ${tagContent}`)
     }
 
     // 按字节长度提取值

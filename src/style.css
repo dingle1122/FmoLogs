@@ -85,7 +85,8 @@
   --bg-card: #ffffff;
   --bg-input: #ffffff;
   --bg-table-header: #f5f7fa;
-  --bg-table-hover: #f5f7fa;
+  --bg-table-hover: #f0f4ff;
+  --bg-table-stripe: #f8f9fb;
   --bg-disabled: #f0f2f5;
   --bg-success-light: #f0f9eb;
   --bg-warning-light: #fff7ed;
@@ -120,9 +121,15 @@
   --bg-friend-card: #fff7ed;
   --border-friend-card: #fed7aa;
   --bg-today-card: #f0fdf4;
-  --bg-today-row: #c2e7b0;
-  --border-today-row: #95d475;
-  --border-today-card: #86efac;
+  --bg-today-row: #f6fef6;
+  --bg-today-index: #e8f8e8;
+  --bg-today-index-neutral: #f0fdf4;
+  --border-today-row: #c8e6c9;
+  --border-today-card: #a5d6a7;
+  --color-today-accent: #4caf50;
+  --bg-rank-1: #fef9e7;
+  --bg-rank-2: #e8ecf2;
+  --bg-rank-3: #fdf2e9;
   --bg-record-card: #f9fafb;
   --border-record-card: #e5e7eb;
 
@@ -153,7 +160,8 @@
     --bg-card: #2c2c2c;
     --bg-input: #3a3a3a;
     --bg-table-header: #363636;
-    --bg-table-hover: #333333;
+    --bg-table-hover: #2a2a2a;
+    --bg-table-stripe: #2a2a2a;
     --bg-disabled: #404040;
     --bg-success-light: #1f3a1f;
     --bg-warning-light: #3a2e1f;
@@ -183,9 +191,15 @@
     --bg-friend-card: #3a2e1f;
     --border-friend-card: #5a4a2d;
     --bg-today-card: #1f3a1f;
-    --bg-today-row: #1e4d1e;
-    --border-today-row: #2d5a2d;
+    --bg-today-row: #1a241a;
+    --bg-today-index: #1e2e1e;
+    --bg-today-index-neutral: #1a281a;
+    --border-today-row: #263626;
     --border-today-card: #2d5a2d;
+    --color-today-accent: #4caf50;
+    --bg-rank-1: #3d3520;
+    --bg-rank-2: #3a3d42;
+    --bg-rank-3: #3d2e20;
     --bg-record-card: #333333;
     --border-record-card: #404040;
 
@@ -217,8 +231,31 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background-color: var(--bg-page);
+  /* 宽屏留白区域：粗空白 + 细斜线 + 大色差，内容区由 #app 背景色覆盖 */
+  background-image:
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 8px,
+      rgba(0, 0, 0, 0.06) 8px,
+      rgba(0, 0, 0, 0.06) 12px
+    );
   color: var(--text-primary);
   text-shadow: 0 0 0.3px rgba(0, 0, 0, 0.3);
+}
+
+/* 暗色模式底纹（必须在基础 body 之后，确保覆盖） */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-image:
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 8px,
+        rgba(255, 255, 255, 0.06) 8px,
+        rgba(255, 255, 255, 0.06) 12px
+      );
+  }
 }
 
 * {
@@ -254,6 +291,32 @@ button:focus-visible {
   outline: none;
 }
 
+/* 弹框关闭按钮 - 浅红色方形边框透明背景 */
+.close-btn {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(255, 95, 87, 0.55);
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 95, 87, 0.7);
+  cursor: pointer;
+  line-height: 0;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 95, 87, 0.12);
+  border-color: rgba(255, 95, 87, 0.8);
+  color: rgba(255, 95, 87, 0.9);
+}
+
 .card {
   padding: 2em;
 }
@@ -263,5 +326,39 @@ button:focus-visible {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0;
+  /* Android：由 main.js 设置 --safe-inset-top；iOS/Web：使用 env(safe-area-inset-top) */
+  padding-top: var(--safe-inset-top, env(safe-area-inset-top, 0px));
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
   text-align: left;
+  background-color: var(--bg-page);
+  /* 宽屏下左右边缘阴影，勾勒内容区边界，与两侧留白形成层次 */
+  box-shadow:
+    -24px 0 36px 0 rgba(0, 0, 0, 0.25),
+    24px 0 36px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* 暗色模式 #app 阴影覆盖（必须在基础 #app 之后） */
+@media (prefers-color-scheme: dark) {
+  #app {
+    box-shadow:
+      -24px 0 36px 0 rgba(0, 0, 0, 0.40),
+      24px 0 36px 0 rgba(0, 0, 0, 0.40);
+  }
+}
+
+/* Capacitor 移动端优化：禁止文本选择和长按菜单，提升 App 体验 */
+@media screen and (max-width: 768px) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input,
+  textarea {
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
 }
