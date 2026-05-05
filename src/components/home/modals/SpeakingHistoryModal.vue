@@ -393,12 +393,13 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   text-overflow: ellipsis;
 }
 
-/* 徽章区域：自适应宽度，防止不同浏览器 emoji/文字渲染差异导致向左溢出压到呼号 */
+/* 徽章区域：固定宽度 0.8em（≈1.28rem），保证"您"/⭐徽章位置一致，防止后续元素偏移 */
 .callsign-badge {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   flex-shrink: 0;
+  width: 0.8em;
   gap: 0.15em;
 }
 
