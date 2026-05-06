@@ -11,7 +11,7 @@ import './style.css'
 // 36px 是 Android 标准状态栏高度，48px 是虚拟导航栏高度（在 WebView CSS 坐标中 1dp ≈ 1px）。
 if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
   document.documentElement.style.setProperty('--safe-inset-top', '36px')
-  document.documentElement.style.setProperty('--safe-inset-bottom', '48px')
+  document.documentElement.style.setProperty('--safe-inset-bottom', '36px')
 }
 
 // 提前实例化平台单例，保证后续模块以统一入口访问能力
