@@ -1293,7 +1293,7 @@ provide('protocol', settings.protocol)
   background: var(--bg-header);
   border-top: 1px solid var(--border-light);
   padding: 0.25rem 0;
-  padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(0.25rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
   justify-content: space-around;
   z-index: 200;
 }
