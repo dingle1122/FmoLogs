@@ -180,25 +180,6 @@ export async function saveFmoAddress(address) {
   await saveFmoAddresses(current)
 }
 
-// 获取FMO地址（兼容旧接口，返回当前选中地址的完整URL）
-export async function getFmoAddress() {
-  try {
-    const storage = await getFmoAddresses()
-    if (!storage.activeId || storage.addresses.length === 0) {
-      return ''
-    }
-
-    const active = storage.addresses.find((a) => a.id === storage.activeId)
-    if (!active) {
-      return ''
-    }
-
-    return `${active.protocol}://${active.host}`
-  } catch {
-    return ''
-  }
-}
-
 // 从File对象列表加载数据库
 export async function loadDbFilesFromFileList(files) {
   const dbFiles = []
@@ -757,66 +738,6 @@ export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
     .slice(0, 20)
 
   return { toCallsign, toGrid, relayName }
-}
-
-// 获取老朋友统计数据
-export async function getOldFriendsFromIndexedDB(
-  page = 1,
-  pageSize = 20,
-  searchKeyword = '',
-  fromCallsign = null
-) {
-  if (!fromCallsign) {
-    return { data: [], total: 0, page, pageSize, totalPages: 0 }
-  }
-
-  const allRecords = await getDataFromIndexedDB(fromCallsign)
-
-  // 按toCallsign分组统计
-  const friendsMap = new Map()
-  for (const record of allRecords) {
-    const key = record.toCallsign || ''
-
-    // 搜索过滤
-    if (searchKeyword && !key.toLowerCase().includes(searchKeyword.toLowerCase())) {
-      continue
-    }
-
-    if (!friendsMap.has(key)) {
-      friendsMap.set(key, {
-        toCallsign: key,
-        toGrid: record.toGrid,
-        count: 0,
-        firstTime: record.timestamp,
-        latestTime: record.timestamp
-      })
-    }
-
-    const friend = friendsMap.get(key)
-    friend.count++
-    if (record.timestamp < friend.firstTime) {
-      friend.firstTime = record.timestamp
-    }
-    if (record.timestamp > friend.latestTime) {
-      friend.latestTime = record.timestamp
-      friend.toGrid = record.toGrid
-    }
-  }
-
-  // 排序：按通联次数降序，次数相同按最新通联时间降序
-  const sortedFriends = Array.from(friendsMap.values()).sort((a, b) => {
-    const countDiff = b.count - a.count
-    if (countDiff !== 0) return countDiff
-    return b.latestTime - a.latestTime
-  })
-
-  // 分页
-  const total = sortedFriends.length
-  const totalPages = Math.ceil(total / pageSize)
-  const start = (page - 1) * pageSize
-  const data = sortedFriends.slice(start, start + pageSize)
-
-  return { data, total, page, pageSize, totalPages }
 }
 
 // 获取全部老朋友数据（不分页），用于前端全量排序+懒加载展示
