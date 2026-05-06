@@ -803,8 +803,12 @@ export async function getOldFriendsFromIndexedDB(
     }
   }
 
-  // 排序
-  const sortedFriends = Array.from(friendsMap.values()).sort((a, b) => b.count - a.count)
+  // 排序：按通联次数降序，次数相同按最新通联时间降序
+  const sortedFriends = Array.from(friendsMap.values()).sort((a, b) => {
+    const countDiff = b.count - a.count
+    if (countDiff !== 0) return countDiff
+    return b.latestTime - a.latestTime
+  })
 
   // 分页
   const total = sortedFriends.length
@@ -813,6 +817,56 @@ export async function getOldFriendsFromIndexedDB(
   const data = sortedFriends.slice(start, start + pageSize)
 
   return { data, total, page, pageSize, totalPages }
+}
+
+// 获取全部老朋友数据（不分页），用于前端全量排序+懒加载展示
+export async function getAllOldFriendsFromIndexedDB(
+  searchKeyword = '',
+  fromCallsign = null
+) {
+  if (!fromCallsign) {
+    return []
+  }
+
+  const allRecords = await getDataFromIndexedDB(fromCallsign)
+
+  // 按toCallsign分组统计
+  const friendsMap = new Map()
+  for (const record of allRecords) {
+    const key = record.toCallsign || ''
+
+    // 搜索过滤
+    if (searchKeyword && !key.toLowerCase().includes(searchKeyword.toLowerCase())) {
+      continue
+    }
+
+    if (!friendsMap.has(key)) {
+      friendsMap.set(key, {
+        toCallsign: key,
+        toGrid: record.toGrid,
+        count: 0,
+        firstTime: record.timestamp,
+        latestTime: record.timestamp
+      })
+    }
+
+    const friend = friendsMap.get(key)
+    friend.count++
+    if (record.timestamp < friend.firstTime) {
+      friend.firstTime = record.timestamp
+    }
+    if (record.timestamp > friend.latestTime) {
+      friend.latestTime = record.timestamp
+      friend.toGrid = record.toGrid
+    }
+  }
+
+  // 排序：按通联次数降序，次数相同按最新通联时间降序
+  return Array.from(friendsMap.values()).sort((a, b) => {
+    const countDiff = b.count - a.count
+    if (countDiff !== 0) return countDiff
+    return b.latestTime - a.latestTime
+  })
 }
 
 // 获取所有呼号的累计通联次数（返回 Map<toCallsign, count>）

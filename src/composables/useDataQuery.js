@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import {
   getTop20StatsFromIndexedDB,
-  getOldFriendsFromIndexedDB,
+  getAllOldFriendsFromIndexedDB,
   getCallsignRecordsFromIndexedDB,
   getAllRecordsFromIndexedDB,
   getTotalRecordsCountFromIndexedDB,
@@ -16,6 +16,8 @@ export function useDataQuery() {
   const queryResult = ref(null)
   const top20Result = ref(null)
   const oldFriendsResult = ref(null)
+  const oldFriendsAllData = ref([])
+  const oldFriendsDisplayCount = ref(OLD_FRIENDS_PAGE_SIZE)
   const currentPage = ref(1)
   const oldFriendsPage = ref(1)
   const currentQueryType = ref(QueryTypes.ALL)
@@ -44,12 +46,14 @@ export function useDataQuery() {
     return 0
   })
 
-  // 老朋友总页数
-  const oldFriendsTotalPages = computed(() => {
-    if (oldFriendsResult.value && oldFriendsResult.value.totalPages) {
-      return oldFriendsResult.value.totalPages
-    }
-    return 0
+  // 老朋友总数（全量数据）
+  const oldFriendsTotal = computed(() => {
+    return oldFriendsAllData.value.length
+  })
+
+  // 老朋友是否还有更多可展示
+  const oldFriendsHasMore = computed(() => {
+    return oldFriendsDisplayCount.value < oldFriendsAllData.value.length
   })
 
   // 执行查询
@@ -67,12 +71,21 @@ export function useDataQuery() {
         queryResult.value = null
         oldFriendsResult.value = null
       } else if (currentQueryType.value === QueryTypes.OLD_FRIENDS) {
-        oldFriendsResult.value = await getOldFriendsFromIndexedDB(
-          oldFriendsPage.value,
-          OLD_FRIENDS_PAGE_SIZE,
+        // 全量加载老朋友数据，前端排序后再懒加载展示
+        const allData = await getAllOldFriendsFromIndexedDB(
           oldFriendsSearchKeyword.value.trim(),
           fromCallsign
         )
+        oldFriendsAllData.value = allData
+        oldFriendsDisplayCount.value = OLD_FRIENDS_PAGE_SIZE
+        // 构建兼容旧格式的 result 对象（首次展示 displayCount 条）
+        oldFriendsResult.value = {
+          data: allData.slice(0, OLD_FRIENDS_PAGE_SIZE),
+          total: allData.length,
+          page: 1,
+          pageSize: OLD_FRIENDS_PAGE_SIZE,
+          totalPages: Math.ceil(allData.length / OLD_FRIENDS_PAGE_SIZE)
+        }
         queryResult.value = null
         top20Result.value = null
       } else if (currentQueryType.value === QueryTypes.ALL) {
@@ -163,31 +176,20 @@ export function useDataQuery() {
     }
   }
 
-  // 加载更多老朋友数据（用于移动端滚动加载）
-  async function loadMoreOldFriends(selectedFromCallsign, dbLoaded) {
-    if (!dbLoaded || !selectedFromCallsign) return
-    if (!oldFriendsResult.value) return
-    if (oldFriendsPage.value >= oldFriendsResult.value.totalPages) return
+  // 加载更多老朋友数据（全量数据已加载，仅增加展示数量）
+  function loadMoreOldFriends() {
+    if (oldFriendsDisplayCount.value >= oldFriendsAllData.value.length) return
 
-    const nextPage = oldFriendsPage.value + 1
-    try {
-      const moreData = await getOldFriendsFromIndexedDB(
-        nextPage,
-        OLD_FRIENDS_PAGE_SIZE,
-        oldFriendsSearchKeyword.value.trim(),
-        selectedFromCallsign
-      )
+    const nextCount = oldFriendsDisplayCount.value + OLD_FRIENDS_PAGE_SIZE
+    oldFriendsDisplayCount.value = Math.min(nextCount, oldFriendsAllData.value.length)
 
-      if (moreData && moreData.data && moreData.data.length > 0) {
-        // 追加数据到现有结果
-        oldFriendsResult.value = {
-          ...oldFriendsResult.value,
-          data: [...oldFriendsResult.value.data, ...moreData.data]
-        }
-        oldFriendsPage.value = nextPage
-      }
-    } catch (err) {
-      console.error('加载更多老朋友数据失败:', err)
+    // 更新 result 以触发视图刷新
+    oldFriendsResult.value = {
+      data: oldFriendsAllData.value.slice(0, oldFriendsDisplayCount.value),
+      total: oldFriendsAllData.value.length,
+      page: 1,
+      pageSize: OLD_FRIENDS_PAGE_SIZE,
+      totalPages: Math.ceil(oldFriendsAllData.value.length / OLD_FRIENDS_PAGE_SIZE)
     }
   }
 
@@ -197,6 +199,10 @@ export function useDataQuery() {
     queryResult,
     top20Result,
     oldFriendsResult,
+    oldFriendsAllData,
+    oldFriendsDisplayCount,
+    oldFriendsTotal,
+    oldFriendsHasMore,
     currentPage,
     oldFriendsPage,
     currentQueryType,
@@ -205,7 +211,6 @@ export function useDataQuery() {
     filterDate,
     totalPages,
     totalRecords,
-    oldFriendsTotalPages,
     totalLogs,
     todayLogs,
     uniqueCallsigns,

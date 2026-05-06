@@ -75,6 +75,14 @@ const props = defineProps({
     type: Object,
     default: null
   },
+  oldFriendsAllData: {
+    type: Array,
+    default: () => []
+  },
+  oldFriendsDisplayCount: {
+    type: Number,
+    default: 25
+  },
   dbLoaded: {
     type: Boolean,
     default: false
@@ -98,18 +106,28 @@ const emit = defineEmits(['show-records', 'load-more'])
 const gridAddressMap = reactive({})
 
 const sortedData = computed(() => {
-  if (!props.oldFriendsResult?.data) return []
-  if (!props.prioritizeToday) return props.oldFriendsResult.data
+  const allData = props.oldFriendsAllData.length > 0
+    ? props.oldFriendsAllData
+    : (props.oldFriendsResult?.data || [])
+  if (allData.length === 0) return []
+
+  if (!props.prioritizeToday) {
+    // 全量数据已排序，直接切片展示
+    return allData.slice(0, props.oldFriendsDisplayCount)
+  }
+
+  // 今日通联前置：将今日通联者排在前面
   const today = []
   const others = []
-  for (const item of props.oldFriendsResult.data) {
+  for (const item of allData) {
     if (isTodayContact(item.latestTime)) {
       today.push(item)
     } else {
       others.push(item)
     }
   }
-  return [...today, ...others]
+  // 合并后按展示数量切片
+  return [...today, ...others].slice(0, props.oldFriendsDisplayCount)
 })
 
 function formatGridAddress(data) {
@@ -118,9 +136,12 @@ function formatGridAddress(data) {
 }
 
 async function loadGridAddresses() {
-  if (!props.oldFriendsResult?.data) return
+  const allData = props.oldFriendsAllData.length > 0
+    ? props.oldFriendsAllData
+    : (props.oldFriendsResult?.data || [])
+  if (allData.length === 0) return
   const grids = new Set()
-  for (const item of props.oldFriendsResult.data) {
+  for (const item of allData) {
     if (item.toGrid) grids.add(item.toGrid)
   }
   for (const grid of grids) {
@@ -134,7 +155,7 @@ async function loadGridAddresses() {
   }
 }
 
-watch(() => props.oldFriendsResult, loadGridAddresses, { immediate: true, deep: true })
+watch(() => props.oldFriendsAllData, loadGridAddresses, { immediate: true, deep: true })
 
 const containerRef = ref(null)
 const loadMoreRef = ref(null)

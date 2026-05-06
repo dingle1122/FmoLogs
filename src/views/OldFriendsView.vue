@@ -16,6 +16,8 @@
     <!-- 老朋友卡片视图 -->
     <OldFriendsList
       :old-friends-result="dataQuery.oldFriendsResult.value"
+      :old-friends-all-data="dataQuery.oldFriendsAllData.value"
+      :old-friends-display-count="dataQuery.oldFriendsDisplayCount.value"
       :db-loaded="dbLoaded"
       :loading-more="loadingMore"
       :has-more="hasMore"
@@ -53,9 +55,9 @@ const { prioritizeToday } = storeToRefs(settingsStore)
 // 滚动加载状态
 const loadingMore = ref(false)
 
-// 计算属性
+// 计算属性：是否还有更多数据可展示（基于全量数据+displayCount）
 const hasMore = computed(() => {
-  return props.dataQuery.oldFriendsPage.value < props.dataQuery.oldFriendsTotalPages.value
+  return props.dataQuery.oldFriendsHasMore.value
 })
 
 // 防抖定时器
@@ -74,7 +76,8 @@ async function handleLoadMore() {
 
   loadingMore.value = true
   try {
-    await props.dataQuery.loadMoreOldFriends(props.selectedFromCallsign, props.dbLoaded)
+    // 全量数据已在查询时加载，这里仅增加展示数量
+    props.dataQuery.loadMoreOldFriends()
   } finally {
     loadingMore.value = false
   }
