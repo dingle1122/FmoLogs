@@ -18,6 +18,8 @@
     "cap:sync": "cap sync",
     "cap:android": "cap open android",
     "cap:build": "npm run build && cap sync",
+    "android:deploy": "bash scripts/android-deploy.sh",
+    "android:deploy:log": "bash scripts/android-deploy.sh --logcat",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
