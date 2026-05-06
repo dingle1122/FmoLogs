@@ -17,7 +17,7 @@ APP_ID="com.fmologs.app"
 APP_ACTIVITY="${APP_ID}/.MainActivity"
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ANDROID_DIR="$PROJECT_DIR/android"
-LOG_TAGS="Capicitor/Console FmoEventsPlugin AndroidRuntime"
+LOG_TAGS="Capacitor/Console FmoEventsPlugin FmoAudioPlugin WebViewAuth AndroidRuntime"
 
 # ---- 颜色 ----
 RED='\033[0;31m'

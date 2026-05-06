@@ -302,7 +302,9 @@ public class FmoAudioPlugin extends Plugin {
         if (old != null) {
             try { old.cancel(); } catch (Exception ignore) {}
         }
-        Request request = new Request.Builder().url(url).build();
+        Request.Builder builder = new Request.Builder().url(url);
+        WebViewAuthHelper.addAuthHeaders(getContext(), builder, url);
+        Request request = builder.build();
         webSocket = httpClient.newWebSocket(request, new WebSocketListener() {
             @Override
             public void onOpen(@NonNull WebSocket ws, @NonNull Response response) {

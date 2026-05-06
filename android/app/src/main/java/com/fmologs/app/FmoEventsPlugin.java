@@ -276,7 +276,9 @@ public class FmoEventsPlugin extends Plugin {
 
     private void openWebSocket(final ConnectionState state) {
         if (state.manualClose.get()) return;
-        Request request = new Request.Builder().url(state.url).build();
+        Request.Builder builder = new Request.Builder().url(state.url);
+        WebViewAuthHelper.addAuthHeaders(getContext(), builder, state.url);
+        Request request = builder.build();
         Log.i(TAG, "[" + state.addressId + "] opening WS: " + state.url);
         state.ws = httpClient.newWebSocket(request, new WebSocketListener() {
             @Override
@@ -413,7 +415,9 @@ public class FmoEventsPlugin extends Plugin {
         final AtomicBoolean done = new AtomicBoolean(false);
         Request req;
         try {
-            req = new Request.Builder().url(reqUrl).build();
+            Request.Builder rbuilder = new Request.Builder().url(reqUrl);
+            WebViewAuthHelper.addAuthHeaders(getContext(), rbuilder, state.apiUrl);
+            req = rbuilder.build();
         } catch (Exception e) {
             Log.w(TAG, "[" + state.addressId + "] invalid apiUrl=" + state.apiUrl + " err=" + e.getMessage());
             return;
