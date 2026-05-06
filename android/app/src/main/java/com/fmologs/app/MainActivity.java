@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FmoEventsPlugin.class);
         registerPlugin(FmoAprsPlugin.class);
         registerPlugin(FmoGridPlugin.class);
+        registerPlugin(FmoSystemUiPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
