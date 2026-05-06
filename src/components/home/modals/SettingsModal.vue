@@ -31,9 +31,13 @@
                   class="btn-text-danger"
                   @click="handleClearAllAddresses"
                 >
-                  清空FMO地址
+                  <span class="text-desktop">清空FMO地址</span>
+                  <span class="text-mobile">清空</span>
                 </button>
-                <button class="btn-add" @click="showAddForm">+ 添加地址</button>
+                <button class="btn-add" @click="showAddForm">
+                  <span class="text-desktop">+ 添加地址</span>
+                  <span class="text-mobile">添加</span>
+                </button>
               </div>
             </div>
 
@@ -117,6 +121,17 @@
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                       <path
                         d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    class="btn-icon"
+                    title="打开FMO页面"
+                    @click="openFmoPage(addr)"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                      <path
+                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
                       />
                     </svg>
                   </button>
@@ -535,6 +550,14 @@ function editAddress(addr) {
   }
   formError.value = ''
   showAddressDialog.value = true
+}
+
+function openFmoPage(addr) {
+  const httpProtocol = addr.protocol === 'wss' ? 'https' : 'http'
+  const host = normalizeHost(addr.host)
+  const sep = host.includes('?') ? '&' : '?'
+  const url = `${httpProtocol}://${host}${sep}_t=${Date.now()}`
+  window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 function cancelAddressDialog() {
@@ -1491,8 +1514,44 @@ defineExpose({ clearConnecting, clearRefreshing })
   border-top: 1px solid var(--border-light);
 }
 
+/* 响应式文案：桌面端显示完整文案，移动端显示精简文案 */
+.text-mobile {
+  display: none;
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
+  .text-desktop {
+    display: none;
+  }
+
+  .text-mobile {
+    display: inline;
+  }
+
+  .setting-item {
+    gap: 0.4rem;
+  }
+
+  .setting-label {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .setting-actions {
+    gap: 0.3rem;
+  }
+
+  .btn-text-danger {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.78rem;
+  }
+
+  .btn-add {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+  }
+
   .address-card {
     padding: 0.6rem 0.75rem;
   }

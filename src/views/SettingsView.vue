@@ -26,9 +26,13 @@
                 class="btn-text-danger"
                 @click="handleClearAllAddresses"
               >
-                清空FMO地址
+                <span class="text-desktop">清空FMO地址</span>
+                <span class="text-mobile">清空</span>
               </button>
-              <button class="btn-add" @click="showAddForm">+ 添加地址</button>
+              <button class="btn-add" @click="showAddForm">
+                <span class="text-desktop">+ 添加地址</span>
+                <span class="text-mobile">添加</span>
+              </button>
             </div>
           </div>
 
@@ -111,7 +115,6 @@
                   </svg>
                 </button>
                 <button
-                  v-if="addr.id === activeAddressId"
                   class="btn-icon"
                   title="打开FMO页面"
                   @click="openFmoPage(addr)"
@@ -1592,8 +1595,44 @@ function handleVolumeChange(e) {
   }
 }
 
+/* 响应式文案：桌面端显示完整文案，移动端显示精简文案 */
+.text-mobile {
+  display: none;
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
+  .text-desktop {
+    display: none;
+  }
+
+  .text-mobile {
+    display: inline;
+  }
+
+  .setting-item {
+    gap: 0.4rem;
+  }
+
+  .setting-label {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .setting-actions {
+    gap: 0.3rem;
+  }
+
+  .btn-text-danger {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.78rem;
+  }
+
+  .btn-add {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+  }
+
   .address-card {
     padding: 0.6rem 0.75rem;
   }
