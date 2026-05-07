@@ -72,15 +72,55 @@ jobs:
           echo "## Windows 启动" >> release_body.md
           echo "" >> release_body.md
           echo "点\"更多信息 → 仍要运行\"" >> release_body.md
+          
+          # 输出 body 内容供后续使用
+          echo "BODY_CONTENT=$(cat release_body.md | base64 -w 0)" >> "$GITHUB_OUTPUT"
 
-      - name: Update Release
-        uses: softprops/action-gh-release@v2
+      - name: Update Release via GitHub API
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.release.outputs.tag }}
-          name: FmoLogs ${{ steps.release.outputs.tag }}
-          body_path: release_body.md
-          draft: false
-          prerelease: false
-          make_latest: true
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_NAME: FmoLogs ${{ steps.release.outputs.tag }}
+          BODY_FILE: release_body.md
+        run: |
+          # 先尝试获取已存在的 release
+          EXISTING_RELEASE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$RELEASE_TAG")
+          
+          RELEASE_ID=$(echo "$EXISTING_RELEASE" | jq -r '.id // empty')
+          
+          if [ -n "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
+            echo "Release exists, updating..."
+            # 更新已存在的 release
+            curl -s -X PATCH \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"name\": \"$RELEASE_NAME\",
+                \"body\": $(cat $BODY_FILE | jq -Rs .),
+                \"draft\": false,
+                \"prerelease\": false,
+                \"make_latest\": \"true\"
+              }" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+            echo "Release updated successfully"
+          else
+            echo "Release not found, creating..."
+            # 创建新的 release
+            curl -s -X POST \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"tag_name\": \"$RELEASE_TAG\",
+                \"name\": \"$RELEASE_NAME\",
+                \"body\": $(cat $BODY_FILE | jq -Rs .),
+                \"draft\": false,
+                \"prerelease\": false,
+                \"make_latest\": \"true\"
+              }" \
+              "https://api.github.com/repos/${{ github.repository }}/releases"
+            echo "Release created successfully"
+          fi
