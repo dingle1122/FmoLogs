@@ -48,30 +48,20 @@ jobs:
             echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Collect APK files info
-        id: apk_info
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          APK_LINE="Android：FmoLogs-v${VERSION}-android.apk"
-          echo "apk_line=$APK_LINE" >> "$GITHUB_OUTPUT"
-
       - name: Generate release body
         id: body
         shell: bash
         run: |
-          cat > release_body.md << 'EOF'
+          VERSION=$(node -p "require('./package.json').version")
+          
+          cat > release_body.md << EOF
 ## 下载
 
 macOS Apple Silicon (M1/M2/M3/M4)：FmoLogs_aarch64.dmg
 macOS Intel：FmoLogs_x64.dmg
 Windows：FmoLogs_x64-setup.exe 或 .msi
 Linux：FmoLogs_amd64.deb 或 .AppImage
-EOF
-
-          echo "${{ steps.apk_info.outputs.apk_line }}" >> release_body.md
-
-          cat >> release_body.md << 'EOF'
+Android：FmoLogs-v${VERSION}-android.apk
 
 ## Mac 启动
 
@@ -84,8 +74,6 @@ macOS（已做 ad-hoc 签名，仍可能被 Gatekeeper 拦）
 
 点"更多信息 → 仍要运行"
 EOF
-
-          echo "body=$(cat release_body.md)" >> "$GITHUB_OUTPUT"
 
       - name: Update Release
         uses: softprops/action-gh-release@v2
