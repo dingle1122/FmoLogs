@@ -64,6 +64,15 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: sync version from package.json
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          # 更新 Cargo.toml 中的版本号
+          sed -i.bak "s/^version = \".*\"/version = \"${VERSION}\"/" src-tauri/Cargo.toml
+          rm -f src-tauri/Cargo.toml.bak
+          echo "Updated Cargo.toml version to ${VERSION}"
+
       - name: generate icons from source
         run: npx tauri icon src-tauri/icon-desktop.png
 
@@ -86,7 +95,6 @@ jobs:
         with:
           tagName: ${{ steps.release.outputs.tag }}
           releaseName: ${{ steps.release.outputs.name }}
-          releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

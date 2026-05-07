@@ -99,10 +99,10 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           if [ -n "${{ github.event.inputs.release_tag }}" ]; then
             echo "tag=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
-            echo "name=FmoLogs Android ${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+            echo "name=FmoLogs ${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-            echo "name=FmoLogs Android v${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "name=FmoLogs v${VERSION}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Rename APK with version

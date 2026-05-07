@@ -1,6 +1,6 @@
 [package]
 name = "fmologs"
-version = "1.2.3"
+version = "0.0.0"
 description = "FMO 日志查看器"
 authors = ["FmoLogs Team"]
 license = "MIT"

@@ -1,0 +1,99 @@
+name: 'Update Release Notes'
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: '要更新的 Release Tag（如 v1.2.4）。留空则使用 package.json 版本自动生成。'
+        required: false
+        default: ''
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# 让所有 JavaScript actions 强制在 Node.js 24 运行时执行，
+# 消除 2026-06-02 起生效的 Node.js 20 弃用警告。
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  update-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: 'npm'
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Collect APK files info
+        id: apk_info
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          APK_LINE="Android：FmoLogs-v${VERSION}-android.apk"
+          echo "apk_line=$APK_LINE" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release body
+        id: body
+        shell: bash
+        run: |
+          cat > release_body.md << 'EOF'
+## 下载
+
+macOS Apple Silicon (M1/M2/M3/M4)：FmoLogs_aarch64.dmg
+macOS Intel：FmoLogs_x64.dmg
+Windows：FmoLogs_x64-setup.exe 或 .msi
+Linux：FmoLogs_amd64.deb 或 .AppImage
+EOF
+
+          echo "${{ steps.apk_info.outputs.apk_line }}" >> release_body.md
+
+          cat >> release_body.md << 'EOF'
+
+## Mac 启动
+
+未签名版本首次打开会被 Gatekeeper / SmartScreen 拦截：
+macOS（已做 ad-hoc 签名，仍可能被 Gatekeeper 拦）
+常规：右键 FmoLogs.app → 打开 → "仍要打开"
+若提示"已损坏"：终端执行 xattr -cr /Applications/FmoLogs.app 后再打开
+
+## Windows 启动
+
+点"更多信息 → 仍要运行"
+EOF
+
+          echo "body=$(cat release_body.md)" >> "$GITHUB_OUTPUT"
+
+      - name: Update Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: FmoLogs ${{ steps.release.outputs.tag }}
+          body_path: release_body.md
+          draft: true
+          prerelease: false
