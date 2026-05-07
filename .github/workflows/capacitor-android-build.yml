@@ -125,6 +125,6 @@ jobs:
         with:
           tag_name: ${{ steps.release.outputs.tag }}
           name: ${{ steps.release.outputs.name }}
-          draft: true
+          draft: false
           prerelease: false
           files: apk-output/*.apk
