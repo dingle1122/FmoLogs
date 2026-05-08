@@ -88,7 +88,6 @@
         <div class="setting-row-actions">
           <button
             class="btn-primary"
-            :disabled="!store.enabled"
             @click="handleManualReport"
           >
             立即上报

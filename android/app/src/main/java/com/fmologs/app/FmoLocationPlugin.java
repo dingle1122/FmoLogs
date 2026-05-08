@@ -79,6 +79,28 @@ public class FmoLocationPlugin extends Plugin {
         }
     }
 
+    /** FMO WebSocket 地址（静态存储，供 Service 侧读取） */
+    private static volatile String sFmoUrl = "";
+
+    /**
+     * JS 告知原生侧 FMO 服务器地址与上报间隔。
+     * 原生 Service 通过 Intent EXTRA_FMO_URL 读取，但此处也缓存一份供静态查询。
+     */
+    @PluginMethod
+    public void setFmoConfig(PluginCall call) {
+        String url = call.getString("url", "");
+        if (!url.isEmpty()) {
+            sFmoUrl = url;
+            Log.i(TAG, "setFmoConfig url=" + url);
+        }
+        call.resolve();
+    }
+
+    /** 供 Service 侧向 JS 推送上报结果 */
+    public void notifyJsReportResult(JSObject result) {
+        notifyListeners("reportStatus", result);
+    }
+
     // ---- 权限 ----
 
     /**
@@ -282,6 +304,7 @@ public class FmoLocationPlugin extends Plugin {
                 JSObject result = new JSObject();
                 result.put("latitude", loc.getLatitude());
                 result.put("longitude", loc.getLongitude());
+                result.put("accuracy", loc.hasAccuracy() ? loc.getAccuracy() : 0);
                 call.resolve(result);
                 return;
             }
@@ -298,6 +321,7 @@ public class FmoLocationPlugin extends Plugin {
                             JSObject result = new JSObject();
                             result.put("latitude", location.getLatitude());
                             result.put("longitude", location.getLongitude());
+                            result.put("accuracy", location.hasAccuracy() ? location.getAccuracy() : 0);
                             call.resolve(result);
                         } else {
                             call.reject("Unable to get location");
@@ -349,6 +373,7 @@ public class FmoLocationPlugin extends Plugin {
                         JSObject result = new JSObject();
                         result.put("latitude", fallback.getLatitude());
                         result.put("longitude", fallback.getLongitude());
+                        result.put("accuracy", fallback.hasAccuracy() ? fallback.getAccuracy() : 0);
                         call.resolve(result);
                     } else {
                         call.reject("Location request timed out");
@@ -440,7 +465,8 @@ public class FmoLocationPlugin extends Plugin {
                 .setAction(FmoLocationService.ACTION_START)
                 .putExtra(FmoLocationService.EXTRA_TITLE, title)
                 .putExtra(FmoLocationService.EXTRA_TEXT, text)
-                .putExtra(FmoLocationService.EXTRA_INTERVAL_MINUTES, intervalMinutes);
+                .putExtra(FmoLocationService.EXTRA_INTERVAL_MINUTES, intervalMinutes)
+                .putExtra(FmoLocationService.EXTRA_FMO_URL, sFmoUrl);
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -448,7 +474,7 @@ public class FmoLocationPlugin extends Plugin {
             } else {
                 getContext().startService(intent);
             }
-            Log.i(TAG, "startForegroundService title=" + title + " intervalMinutes=" + intervalMinutes);
+            Log.i(TAG, "startForegroundService title=" + title + " intervalMinutes=" + intervalMinutes + " fmoUrl=" + sFmoUrl);
             call.resolve();
         } catch (Exception e) {
             Log.w(TAG, "startForegroundService failed", e);

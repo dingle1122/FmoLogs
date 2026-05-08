@@ -1,4 +1,4 @@
-import type { ILocationService, PermissionCheckResult } from '../interfaces/ILocationService'
+import type { ILocationService, PermissionCheckResult, ReportStatusResult } from '../interfaces/ILocationService'
 
 export class WebLocationService implements ILocationService {
   async checkPermission(): Promise<PermissionCheckResult> {
@@ -13,7 +13,11 @@ export class WebLocationService implements ILocationService {
     return false
   }
 
-  async getCurrentPosition(): Promise<{ latitude: number; longitude: number } | null> {
+  async setFmoConfig(_url: string, _intervalMinutes: number): Promise<void> {
+    // no-op
+  }
+
+  async getCurrentPosition(): Promise<{ latitude: number; longitude: number; accuracy: number } | null> {
     return null
   }
 
@@ -34,6 +38,10 @@ export class WebLocationService implements ILocationService {
   }
 
   onLocation(_callback: (pos: { latitude: number; longitude: number }) => void): void {
+    // no-op
+  }
+
+  onReportStatus(_callback: (result: ReportStatusResult) => void): void {
     // no-op
   }
 }
