@@ -186,11 +186,18 @@ export const useLocationStore = defineStore('location', () => {
     if (permissionGranted.value) {
       await refreshGps()
       // 同时拉取 FMO 当前坐标（server 端已知的最新位置）
-      fetchFmoCoordinate()
+      // 注意：冷启动时 settingsStore.fmoAddress 可能尚未从 IndexedDB 加载完毕，
+      // 如果地址为空则静默跳过，避免误报"未配置 FMO 地址"
+      if (getActiveAddress()) {
+        fetchFmoCoordinate()
+      }
     }
 
     // 如果之前开启了但还没启动（比如之前权限不足），补启动上报
-    if (enabled.value && !isReporting.value && permissionGranted.value) {
+    // 注意：冷启动时地址可能尚未从 IndexedDB 加载完毕，
+    // 此时若跳过则交由上方的 watch 在地址就绪后补启动，
+    // 避免以空地址启动原生服务导致通知栏显示"未配置地址"
+    if (enabled.value && !isReporting.value && permissionGranted.value && getActiveAddress()) {
       await startReporting()
     }
   }
