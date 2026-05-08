@@ -68,7 +68,8 @@ function handleModalPopState(event) {
 
 function installPopstateListener() {
   if (popstateInstalled) return
-  window.addEventListener('popstate', handleModalPopState)
+  // capture: true 确保在捕获阶段运行，早于 Vue Router 在冒泡阶段注册的监听器
+  window.addEventListener('popstate', handleModalPopState, { capture: true })
   popstateInstalled = true
 }
 
