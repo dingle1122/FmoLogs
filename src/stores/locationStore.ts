@@ -10,6 +10,26 @@ import { useSettingsStore } from './settingsStore'
 const ENABLED_KEY = 'fmo_location_report_enabled'
 const INTERVAL_KEY = 'fmo_location_report_interval'
 
+// 上报间隔选项（秒）
+export const INTERVAL_OPTIONS = [
+  { value: 10, label: '10秒' },
+  { value: 15, label: '15秒' },
+  { value: 30, label: '30秒' },
+  { value: 60, label: '1分钟' },
+  { value: 120, label: '2分钟' },
+  { value: 180, label: '3分钟' },
+  { value: 300, label: '5分钟' },
+  { value: 600, label: '10分钟' },
+  { value: 900, label: '15分钟' },
+  { value: 1200, label: '20分钟' },
+  { value: 1800, label: '30分钟' }
+]
+
+// 获取默认间隔（秒），默认 15 分钟
+export function getDefaultInterval(): number {
+  return 900
+}
+
 /**
  * 定位上报 store。
  *
@@ -22,7 +42,7 @@ const INTERVAL_KEY = 'fmo_location_report_interval'
 export const useLocationStore = defineStore('location', () => {
   // ========== state ==========
   const enabled = ref(false)
-  const intervalMinutes = ref(5)
+  const intervalSeconds = ref(getDefaultInterval())
   const currentGps = ref<{ lat: number; lng: number } | null>(null)
   const fmoCoordinate = ref<{ lat: number; lng: number } | null>(null)
   const isReporting = ref(false)
@@ -99,7 +119,7 @@ export const useLocationStore = defineStore('location', () => {
       await getPlatform().location.startForegroundService(
         'FMO 位置上报中',
         `${label}: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (${checkTime})`,
-        intervalMinutes.value
+        Math.ceil(intervalSeconds.value / 60)
       )
     } catch { /* ignore */ }
   }
@@ -135,8 +155,10 @@ export const useLocationStore = defineStore('location', () => {
       const savedInterval = await platform.storage.get(INTERVAL_KEY)
       if (savedInterval !== null) {
         const val = parseInt(savedInterval, 10)
-        if (!isNaN(val) && val >= 1 && val <= 30) {
-          intervalMinutes.value = val
+        // 验证是否为有效的间隔选项
+        const validOption = INTERVAL_OPTIONS.find(opt => opt.value === val)
+        if (validOption) {
+          intervalSeconds.value = val
         }
       }
 
@@ -224,16 +246,46 @@ export const useLocationStore = defineStore('location', () => {
     }
   }
 
-  /** 设置上报间隔（分钟），1-30 */
-  async function setInterval(minutes: number) {
-    const clamped = Math.max(1, Math.min(30, Math.round(minutes)))
-    intervalMinutes.value = clamped
-    await getPlatform().storage.set(INTERVAL_KEY, String(clamped))
+  /** 设置上报间隔（秒），从预设选项中选择最近的 
+   * @deprecated 使用 setIntervalByIndex 更精确
+   */
+  async function setInterval(seconds: number) {
+    // 找到最接近的预设值
+    const closest = INTERVAL_OPTIONS.reduce((prev, curr) => {
+      return Math.abs(curr.value - seconds) < Math.abs(prev.value - seconds) ? curr : prev
+    })
+    intervalSeconds.value = closest.value
+    await getPlatform().storage.set(INTERVAL_KEY, String(closest.value))
     // 如果正在上报，重启服务以应用新间隔
     if (enabled.value && isReporting.value) {
       await stopReporting()
       await startReporting()
     }
+  }
+
+  /** 通过索引设置间隔（精确选择预设选项） */
+  async function setIntervalByIndex(index: number) {
+    if (index < 0 || index >= INTERVAL_OPTIONS.length) return
+    const option = INTERVAL_OPTIONS[index]
+    intervalSeconds.value = option.value
+    await getPlatform().storage.set(INTERVAL_KEY, String(option.value))
+    // 如果正在上报，重启服务以应用新间隔
+    if (enabled.value && isReporting.value) {
+      await stopReporting()
+      await startReporting()
+    }
+  }
+
+  /** 获取当前间隔选项的索引 */
+  function getIntervalIndex(): number {
+    const index = INTERVAL_OPTIONS.findIndex(opt => opt.value === intervalSeconds.value)
+    return index >= 0 ? index : INTERVAL_OPTIONS.findIndex(opt => opt.value === 900) // 默认15分钟
+  }
+
+  /** 格式化间隔时间为友好显示 */
+  function formatInterval(seconds: number): string {
+    const option = INTERVAL_OPTIONS.find(opt => opt.value === seconds)
+    return option ? option.label : `${seconds}秒`
   }
 
   /**
@@ -366,7 +418,9 @@ export const useLocationStore = defineStore('location', () => {
     const fmoUrl = getFmoUrl()
     if (!fmoUrl) return
     try {
-      await getPlatform().location.setFmoConfig(fmoUrl, intervalMinutes.value)
+      // 转换为分钟（向上取整）
+      const intervalMinutes = Math.ceil(intervalSeconds.value / 60)
+      await getPlatform().location.setFmoConfig(fmoUrl, intervalMinutes)
     } catch (e) {
       console.warn('[locationStore] setFmoConfig failed:', e)
     }
@@ -389,11 +443,13 @@ export const useLocationStore = defineStore('location', () => {
     await setFmoConfigAction()
 
     // 启动前台服务（原生侧接管定时上报 + 通知栏管理）
+    // 转换为分钟（向上取整，至少1分钟）
+    const intervalMinutes = Math.max(1, Math.ceil(intervalSeconds.value / 60))
     try {
       await getPlatform().location.startForegroundService(
         'FMO 位置上报中',
-        `间隔 ${intervalMinutes.value} 分钟，等待首次上报`,
-        intervalMinutes.value
+        `间隔 ${formatInterval(intervalSeconds.value)}，等待首次上报`,
+        intervalMinutes
       )
     } catch (e) {
       console.warn('[locationStore] 启动前台服务失败:', e)
@@ -422,7 +478,7 @@ export const useLocationStore = defineStore('location', () => {
   return {
     // state
     enabled,
-    intervalMinutes,
+    intervalSeconds,
     currentGps,
     fmoCoordinate,
     isReporting,
@@ -437,6 +493,8 @@ export const useLocationStore = defineStore('location', () => {
     init,
     toggleEnabled,
     setInterval,
+    setIntervalByIndex,
+    getIntervalIndex,
     fetchFmoCoordinate,
     reportLocation,
     refreshGps,
@@ -444,6 +502,9 @@ export const useLocationStore = defineStore('location', () => {
     stopReporting,
     teardown,
     checkPermission,
-    requestPermission
+    requestPermission,
+    // constants & utils
+    INTERVAL_OPTIONS,
+    formatInterval
   }
 })

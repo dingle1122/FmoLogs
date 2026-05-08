@@ -70,19 +70,20 @@
 
         <div class="setting-row">
           <span class="setting-label">上报间隔</span>
-          <div class="interval-control">
-            <button
-              class="interval-btn"
-              :disabled="intervalMinutes <= 1"
-              @click="adjustInterval(-1)"
-            >-</button>
-            <span class="interval-value">{{ store.intervalMinutes }} 分钟</span>
-            <button
-              class="interval-btn"
-              :disabled="intervalMinutes >= 30"
-              @click="adjustInterval(1)"
-            >+</button>
-          </div>
+          <span class="interval-current">{{ store.formatInterval(store.intervalSeconds) }}</span>
+        </div>
+        <div class="interval-slider-container">
+          <input
+            type="range"
+            min="0"
+            :max="store.INTERVAL_OPTIONS.length - 1"
+            :value="currentIntervalIndex"
+            class="interval-slider"
+            :style="{
+              background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${(currentIntervalIndex / (store.INTERVAL_OPTIONS.length - 1)) * 100}%, var(--border-primary) ${(currentIntervalIndex / (store.INTERVAL_OPTIONS.length - 1)) * 100}%, var(--border-primary) 100%)`
+            }"
+            @input="handleIntervalChange"
+          />
         </div>
 
         <div class="setting-row-actions">
@@ -126,10 +127,10 @@ import { useLocationStore } from '../stores/locationStore'
 
 const store = useLocationStore()
 
-const intervalMinutes = computed(() => store.intervalMinutes)
+const currentIntervalIndex = computed(() => store.getIntervalIndex())
 
-function adjustInterval(delta) {
-  store.setInterval(store.intervalMinutes + delta)
+function handleIntervalChange(e) {
+  store.setIntervalByIndex(Number(e.target.value))
 }
 
 async function handleFetchFmo() {
@@ -310,45 +311,47 @@ onUnmounted(() => {
   transform: translateX(20px);
 }
 
-/* 间隔控制 */
-.interval-control {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+/* 间隔滑块 */
+.interval-slider-container {
+  padding: 0.25rem 0 0.5rem;
 }
 
-.interval-btn {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  font-weight: 600;
-  background: var(--bg-container);
-  color: var(--text-primary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+.interval-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border-primary);
+  border-radius: 3px;
+  outline: none;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
-.interval-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+.interval-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary, #409eff);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.interval-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.interval-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-primary, #409eff);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.interval-value {
-  font-size: 0.95rem;
+.interval-current {
+  font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-primary);
-  min-width: 5em;
-  text-align: center;
+  color: var(--color-primary);
 }
 
 /* 按钮 */
