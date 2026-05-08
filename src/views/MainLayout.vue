@@ -1277,7 +1277,7 @@ function connectEventsWebSocket() {
   }
 }
 
-// 安卓硬件返回键处理：优先关闭弹框 → 路由回退 → 询问退出
+// 安卓硬件返回键处理：优先关闭弹框 → 首页直接询问退出 → 路由回退 → 询问退出
 let backButtonListener = null
 let exitConfirming = false
 
@@ -1300,13 +1300,28 @@ async function handleHardwareBack({ canGoBack }) {
     return
   }
 
-  // 2) 可返回则交给 Vue Router（popstate 也会被各页面自有逻辑处理，例如 MessageView 详情）
+  // 2) 在通联日志首页时，忽略历史记录栈，直接询问退出（防止退回到之前的页面）
+  if (route.path === '/logs') {
+    if (exitConfirming) return
+    exitConfirming = true
+    try {
+      const confirmed = await confirmDialog.show('确定要退出应用吗？')
+      if (confirmed) {
+        await CapacitorApp.exitApp()
+      }
+    } finally {
+      exitConfirming = false
+    }
+    return
+  }
+
+  // 3) 可返回则交给 Vue Router（popstate 也会被各页面自有逻辑处理，例如 MessageView 详情）
   if (canGoBack) {
     router.back()
     return
   }
 
-  // 3) 根路由且无其他可回退状态 → 确认退出
+  // 4) 根路由且无其他可回退状态 → 确认退出
   if (exitConfirming) return
   exitConfirming = true
   try {
