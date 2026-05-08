@@ -9,6 +9,68 @@ import RemoteControlView from '../views/RemoteControlView.vue'
 import FriendLinksView from '../views/FriendLinksView.vue'
 import AboutView from '../views/AboutView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import { getPlatform } from '../platform'
+
+const children = [
+  {
+    path: '',
+    redirect: '/logs'
+  },
+  {
+    path: 'logs',
+    name: 'logs',
+    component: LogsView
+  },
+  {
+    path: 'top20',
+    name: 'top20',
+    component: Top20View
+  },
+  {
+    path: 'old-friends',
+    name: 'oldFriends',
+    component: OldFriendsView
+  },
+  {
+    path: 'messages',
+    name: 'messages',
+    component: MessageView
+  },
+  {
+    path: 'more',
+    name: 'more',
+    component: MoreView
+  },
+  {
+    path: 'remote-control',
+    name: 'remoteControl',
+    component: RemoteControlView
+  },
+  {
+    path: 'friend-links',
+    name: 'friendLinks',
+    component: FriendLinksView
+  },
+  {
+    path: 'about',
+    name: 'about',
+    component: AboutView
+  },
+  {
+    path: 'settings',
+    name: 'settings',
+    component: SettingsView
+  }
+]
+
+// 仅 Android 端注册定位上报路由
+if (getPlatform().capabilities.hasNativeLocation) {
+  children.push({
+    path: 'location-report',
+    name: 'locationReport',
+    component: () => import('../views/LocationReportView.vue')
+  })
+}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,57 +78,7 @@ const router = createRouter({
     {
       path: '/',
       component: MainLayout,
-      children: [
-        {
-          path: '',
-          redirect: '/logs'
-        },
-        {
-          path: 'logs',
-          name: 'logs',
-          component: LogsView
-        },
-        {
-          path: 'top20',
-          name: 'top20',
-          component: Top20View
-        },
-        {
-          path: 'old-friends',
-          name: 'oldFriends',
-          component: OldFriendsView
-        },
-        {
-          path: 'messages',
-          name: 'messages',
-          component: MessageView
-        },
-        {
-          path: 'more',
-          name: 'more',
-          component: MoreView
-        },
-        {
-          path: 'remote-control',
-          name: 'remoteControl',
-          component: RemoteControlView
-        },
-        {
-          path: 'friend-links',
-          name: 'friendLinks',
-          component: FriendLinksView
-        },
-        {
-          path: 'about',
-          name: 'about',
-          component: AboutView
-        },
-        {
-          path: 'settings',
-          name: 'settings',
-          component: SettingsView
-        }
-      ]
+      children
     }
   ]
 })

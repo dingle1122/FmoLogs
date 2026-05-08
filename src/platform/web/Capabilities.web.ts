@@ -5,5 +5,6 @@ export const webCapabilities: ICapabilities = {
   hasBackgroundMode: false,
   hasPersistentGridCache: false, // Web 走 IndexedDB 但默认 TTL 过期策略与原生不同
   hasNativeEvents: false,
-  hasNativeAudio: false
+  hasNativeAudio: false,
+  hasNativeLocation: false
 }

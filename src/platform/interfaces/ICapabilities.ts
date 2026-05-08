@@ -12,4 +12,6 @@ export interface ICapabilities {
   hasNativeEvents: boolean
   /** 是否具备原生音频保活（后台播放） */
   hasNativeAudio: boolean
+  /** 是否具备原生GPS定位能力 */
+  hasNativeLocation: boolean
 }

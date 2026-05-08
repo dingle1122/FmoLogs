@@ -230,6 +230,15 @@ export class FmoApiClient {
     return this.sendRequest('user', 'getInfo', {})
   }
 
+  // Config 相关方法
+  async getCoordinate() {
+    return this.sendRequest('config', 'getCordinate', {})
+  }
+
+  async setCoordinate(latitude, longitude) {
+    return this.sendRequest('config', 'setCordinate', { latitude, longitude })
+  }
+
   close() {
     // 清理连接 Promise
     this.connectPromise = null

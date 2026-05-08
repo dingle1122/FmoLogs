@@ -6,6 +6,7 @@ import type {
   ICapabilities,
   IEventsService,
   IGridService,
+  ILocationService,
   IStorageService
 } from './interfaces'
 import { createWebPlatform } from './web'
@@ -17,6 +18,7 @@ export interface Platform {
   aprs: IAprsService
   grid: IGridService
   background: IBackgroundService
+  location: ILocationService
   storage: IStorageService
   capabilities: ICapabilities
 }
@@ -48,5 +50,6 @@ export type {
   ICapabilities,
   IEventsService,
   IGridService,
+  ILocationService,
   IStorageService
 }

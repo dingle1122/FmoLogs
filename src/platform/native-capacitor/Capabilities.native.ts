@@ -5,5 +5,6 @@ export const nativeCapabilities: ICapabilities = {
   hasBackgroundMode: true,
   hasPersistentGridCache: true,
   hasNativeEvents: true,
-  hasNativeAudio: true
+  hasNativeAudio: true,
+  hasNativeLocation: true
 }
