@@ -281,6 +281,7 @@ import { storeToRefs } from 'pinia'
 import { getPlatform } from '../../../platform'
 import { useAprsStore } from '../../../stores/aprsStore'
 import confirmDialog from '../../../composables/useConfirm'
+import { useModalBackHandler, registerModal } from '../../../composables/useModalBackHandler'
 import CallsignInput from '../../common/CallsignInput.vue'
 
 // 原生 APRS 直连模式：隐藏服务器列表/添加/编辑/删除等中转相关 UI
@@ -525,6 +526,15 @@ function onFmoSsidChange() {
 // 服务器弹窗状态
 const showAddServerDialog = ref(false)
 const showEditServerDialog = ref(false)
+
+// ---- 弹框返回键拦截 ----
+useModalBackHandler([showAddServerDialog, showEditServerDialog])
+
+const _unregServerDialog = registerModal(
+  () => showAddServerDialog.value || showEditServerDialog.value,
+  () => closeServerDialog(),
+  50
+)
 const editingServerId = ref(null)
 const serverFormData = ref({ url: '' })
 const serverFormError = ref('')
@@ -648,6 +658,7 @@ function formatMessage(message) {
 // 组件卸载时断开连接
 onUnmounted(() => {
   disconnectWebSocket()
+  _unregServerDialog()
 })
 </script>
 

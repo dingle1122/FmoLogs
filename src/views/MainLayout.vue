@@ -215,6 +215,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
+import { useModalBackHandler, registerModal, countOpenModals, closeTopModal } from '../composables/useModalBackHandler'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToAdif } from '../services/db'
@@ -1281,22 +1282,49 @@ function connectEventsWebSocket() {
 let backButtonListener = null
 let exitConfirming = false
 
+// ---- 浏览器返回键拦截（popstate）----
+// 通过全局弹框注册表统一管理，所有弹框组件各自注册
+// 注册 MainLayout 的 4 个弹框
+useModalBackHandler([
+  showSpeakingHistory,
+  showStationList,
+  showQuickNav,
+  () => callsignRecords.showCallsignModal.value
+])
+
+// 在 setup 中立即注册 MainLayout 的弹框（返回 unregister 函数在组件卸载时调用）
+const _unregCallsignRecords = registerModal(
+  () => callsignRecords.showCallsignModal.value,
+  () => callsignRecords.closeCallsignModal(),
+  10
+)
+const _unregStationList = registerModal(
+  () => showStationList.value,
+  () => { showStationList.value = false },
+  50
+)
+const _unregQuickNav = registerModal(
+  () => showQuickNav.value,
+  () => { showQuickNav.value = false },
+  60
+)
+const _unregSpeakingHistory = registerModal(
+  () => showSpeakingHistory.value,
+  () => { showSpeakingHistory.value = false },
+  70
+)
+
+onUnmounted(() => {
+  _unregCallsignRecords()
+  _unregStationList()
+  _unregQuickNav()
+  _unregSpeakingHistory()
+})
+
 async function handleHardwareBack({ canGoBack }) {
-  // 1) 优先关闭已打开的 modal（按可见性倒序关闭最顶层一个）
-  if (callsignRecords.showCallsignModal.value) {
-    callsignRecords.closeCallsignModal()
-    return
-  }
-  if (showStationList.value) {
-    showStationList.value = false
-    return
-  }
-  if (showQuickNav.value) {
-    showQuickNav.value = false
-    return
-  }
-  if (showSpeakingHistory.value) {
-    showSpeakingHistory.value = false
+  // 1) 优先关闭已打开的 modal（通过全局注册表关闭最顶层弹框）
+  if (countOpenModals() > 0) {
+    closeTopModal()
     return
   }
 

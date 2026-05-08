@@ -351,10 +351,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { normalizeHost } from '../utils/urlUtils'
 import confirmDialog from '../composables/useConfirm'
 import { clearGridCache } from '../services/gridService'
+import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
 
 const props = defineProps({
   dbLoaded: {
@@ -506,6 +507,26 @@ function openFmoExternal() {
 
 // 地址编辑弹框状态
 const showAddressDialog = ref(false)
+
+// ---- 弹框返回键拦截 ----
+useModalBackHandler([showFmoPreview, showAddressDialog])
+
+const _unregFmoPreview = registerModal(
+  () => showFmoPreview.value,
+  () => closeFmoPreview(),
+  50
+)
+const _unregAddressDialog = registerModal(
+  () => showAddressDialog.value,
+  () => cancelAddressDialog(),
+  50
+)
+
+onUnmounted(() => {
+  _unregFmoPreview()
+  _unregAddressDialog()
+})
+
 const editingId = ref(null)
 const formData = ref({
   name: '',

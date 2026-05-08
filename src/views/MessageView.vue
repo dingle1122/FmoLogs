@@ -238,6 +238,7 @@ import { ref, computed, onMounted, onUnmounted, watch, inject } from 'vue'
 import { getMessageService, validateCallsign, validateSSID } from '../services/messageService'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
+import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
 import CallsignInput from '../components/common/CallsignInput.vue'
 
 // 注入父组件提供的状态
@@ -258,6 +259,15 @@ const selectedMessageId = ref(0)
 const currentDetail = ref(null)
 const showDetail = ref(false)
 const showSendModal = ref(false)
+
+// ---- 弹框返回键拦截 ----
+useModalBackHandler([showSendModal])
+
+const _unregSendModal = registerModal(
+  () => showSendModal.value,
+  () => closeSendModal(),
+  50
+)
 const sending = ref(false)
 const sendResult = ref(null)
 const sendResultTimer = ref(null)
@@ -578,6 +588,7 @@ onUnmounted(() => {
     clearTimeout(sendResultTimer.value)
   }
   window.removeEventListener('popstate', handlePopState)
+  _unregSendModal()
 })
 </script>
 
