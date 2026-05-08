@@ -32,8 +32,26 @@
       @toggle-audio="handleToggleAudio"
     />
 
+    <!-- 下拉刷新指示器（触摸设备，在 content-area 上方） -->
+    <div
+      v-if="supportsPullToRefresh"
+      class="pull-refresh-indicator"
+      :style="{ height: pullDistance + 'px', opacity: Math.min(pullDistance / PULL_THRESHOLD, 1) }"
+    >
+      <span class="refresh-icon" :class="{ spinning: isRefreshing }">↻</span>
+      <span class="refresh-text">{{ isRefreshing ? '刷新中...' : pullDistance >= PULL_THRESHOLD ? '松开刷新' : '下拉刷新' }}</span>
+    </div>
+
     <!-- 路由视图 -->
-    <div ref="contentAreaRef" class="content-area">
+    <div
+      ref="contentAreaRef"
+      class="content-area"
+      :class="{ 'pull-snapping': !isPullTracking && !isRefreshing }"
+      :style="supportsPullToRefresh ? { transform: `translateY(${pullDistance}px)` } : {}"
+      @touchstart="handleTouchStart"
+      @touchmove="handleTouchMove"
+      @touchend="handleTouchEnd"
+    >
       <router-view v-slot="{ Component }">
         <component
           :is="Component"
@@ -222,6 +240,106 @@ const showQuickNav = ref(false)
 
 // 服务器列表弹框状态
 const showStationList = ref(false)
+
+// 下拉刷新状态（触摸设备，包括原生 App 和手机浏览器）
+const supportsPullToRefresh = 'ontouchstart' in window
+const isRefreshing = ref(false)
+const pullDistance = ref(0)
+const PULL_THRESHOLD = 80
+let pullTouchStartY = 0
+let pullTouchCurrentY = 0
+let isPullTracking = false
+
+function handleTouchStart(e) {
+  if (isRefreshing.value) return
+  // 仅当内容区滚动到顶部时触发
+  if (contentAreaRef.value?.scrollTop > 0) return
+  pullTouchStartY = e.touches[0].clientY
+  pullTouchCurrentY = pullTouchStartY
+  isPullTracking = true
+}
+
+function handleTouchMove(e) {
+  if (!isPullTracking || isRefreshing.value) return
+  pullTouchCurrentY = e.touches[0].clientY
+  const dist = pullTouchCurrentY - pullTouchStartY
+  if (dist > 0) {
+    pullDistance.value = Math.min(dist * 0.4, 140)
+  }
+}
+
+function handleTouchEnd() {
+  if (!isPullTracking) return
+  isPullTracking = false
+
+  if (pullDistance.value >= PULL_THRESHOLD) {
+    doPullRefresh()
+  } else {
+    pullDistance.value = 0
+  }
+}
+
+async function doPullRefresh() {
+  isRefreshing.value = true
+  // 保持指示器在阈值高度，确保用户能看到刷新动画
+  pullDistance.value = PULL_THRESHOLD
+
+  // 记住刷新前的音频播放状态
+  const wasAudioPlaying = isAudioPlaying.value
+
+  try {
+    // 停止音频
+    if (wasAudioPlaying) stopAudio()
+
+    // 断开所有连接
+    messageService.disconnect()
+    speakingStatus.disconnectAllEventWs()
+    fmoSync.stopAutoSyncTask()
+
+    // 短暂等待确保断开完成
+    await new Promise((r) => setTimeout(r, 300))
+
+    // 重新连接
+    connectEventsWebSocket()
+    speakingStatus.setOnMessageCallback((data) => {
+      messageService.handleNewMessageSummary(data)
+    })
+
+    if (settings.fmoAddress.value) {
+      messageService.connect(settings.fmoAddress.value, settings.protocol.value).catch((err) => {
+        console.error('消息服务连接失败:', err)
+      })
+      messageService.getList(settings.fmoAddress.value, settings.protocol.value, 0).catch((err) => {
+        console.error('获取消息列表失败:', err)
+      })
+    }
+
+    // 重新启动定时同步
+    fmoSync.startAutoSyncTask(getSyncAddresses)
+
+    // 重新查询数据
+    if (dbLoaded.value) {
+      await executeQuery()
+      await updateStats()
+    }
+
+    // 恢复音频播放
+    if (wasAudioPlaying && settings.fmoAddress.value) {
+      toggleAudio(settings.fmoAddress.value, settings.protocol.value)
+      if (isAudioPlaying.value && !isAudioMuted.value) {
+        setAudioVolumePlayer(settings.audioVolume.value)
+      }
+    }
+
+    toast.success('刷新成功')
+  } catch (err) {
+    console.error('刷新失败:', err)
+    toast.error('刷新失败')
+  } finally {
+    isRefreshing.value = false
+    pullDistance.value = 0
+  }
+}
 
 // 从 localStorage 读取缓存的服务器列表
 function getCachedStationList() {
@@ -1350,6 +1468,12 @@ provide('protocol', settings.protocol)
   display: flex;
   flex-direction: column;
   position: relative;
+  will-change: transform;
+}
+
+/* 下拉松手后的回弹动画 */
+.content-area.pull-snapping {
+  transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .back-to-top-btn {
@@ -1415,5 +1539,40 @@ provide('protocol', settings.protocol)
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 下拉刷新指示器（在 content-area 上方） */
+.pull-refresh-indicator {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  background: var(--bg-page);
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.refresh-icon {
+  display: inline-block;
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform 0.2s ease-out;
+}
+
+.refresh-icon.spinning {
+  animation: pull-spin 0.8s linear infinite;
+}
+
+.refresh-text {
+  white-space: nowrap;
+}
+
+@keyframes pull-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 </style>
