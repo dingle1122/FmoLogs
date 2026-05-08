@@ -53,7 +53,7 @@ public class FmoLocationService extends Service {
 
     public static final String EXTRA_TITLE = "title";
     public static final String EXTRA_TEXT = "text";
-    public static final String EXTRA_INTERVAL_MINUTES = "intervalMinutes";
+    public static final String EXTRA_INTERVAL_SECONDS = "intervalSeconds";
     public static final String EXTRA_FMO_URL = "fmoUrl";
 
     // GPS 可靠性阈值
@@ -62,7 +62,7 @@ public class FmoLocationService extends Service {
 
     private static volatile String sTitle = "FMO 位置上报中";
     private static volatile String sText = "正在定时上报GPS位置";
-    private static volatile int sIntervalMinutes = 5;
+    private static volatile int sIntervalSeconds = 300;
     private static volatile String sFmoUrl = "";
     private static volatile double sLastReportedLat = 0;
     private static volatile double sLastReportedLng = 0;
@@ -141,11 +141,11 @@ public class FmoLocationService extends Service {
     private void applyExtras(Intent intent) {
         String t = intent.getStringExtra(EXTRA_TITLE);
         String x = intent.getStringExtra(EXTRA_TEXT);
-        int i = intent.getIntExtra(EXTRA_INTERVAL_MINUTES, 0);
+        int i = intent.getIntExtra(EXTRA_INTERVAL_SECONDS, 0);
         String url = intent.getStringExtra(EXTRA_FMO_URL);
         if (t != null && !t.isEmpty()) sTitle = t;
         if (x != null) sText = x;
-        if (i > 0) sIntervalMinutes = i;
+        if (i > 0) sIntervalSeconds = i;
         if (url != null && !url.isEmpty()) sFmoUrl = url;
     }
 
@@ -198,7 +198,7 @@ public class FmoLocationService extends Service {
 
     private void startTimer() {
         stopTimer();
-        long intervalMs = sIntervalMinutes * 60L * 1000L;
+        long intervalMs = sIntervalSeconds * 1000L;
         reportRunnable = new Runnable() {
             @Override
             public void run() {

@@ -119,7 +119,7 @@ export const useLocationStore = defineStore('location', () => {
       await getPlatform().location.startForegroundService(
         'FMO 位置上报中',
         `${label}: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (${checkTime})`,
-        Math.ceil(intervalSeconds.value / 60)
+        intervalSeconds.value
       )
     } catch { /* ignore */ }
   }
@@ -418,9 +418,7 @@ export const useLocationStore = defineStore('location', () => {
     const fmoUrl = getFmoUrl()
     if (!fmoUrl) return
     try {
-      // 转换为分钟（向上取整）
-      const intervalMinutes = Math.ceil(intervalSeconds.value / 60)
-      await getPlatform().location.setFmoConfig(fmoUrl, intervalMinutes)
+      await getPlatform().location.setFmoConfig(fmoUrl, intervalSeconds.value)
     } catch (e) {
       console.warn('[locationStore] setFmoConfig failed:', e)
     }
@@ -443,13 +441,11 @@ export const useLocationStore = defineStore('location', () => {
     await setFmoConfigAction()
 
     // 启动前台服务（原生侧接管定时上报 + 通知栏管理）
-    // 转换为分钟（向上取整，至少1分钟）
-    const intervalMinutes = Math.max(1, Math.ceil(intervalSeconds.value / 60))
     try {
       await getPlatform().location.startForegroundService(
         'FMO 位置上报中',
         `间隔 ${formatInterval(intervalSeconds.value)}，等待首次上报`,
-        intervalMinutes
+        intervalSeconds.value
       )
     } catch (e) {
       console.warn('[locationStore] 启动前台服务失败:', e)

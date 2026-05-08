@@ -459,13 +459,13 @@ public class FmoLocationPlugin extends Plugin {
     public void startForegroundService(PluginCall call) {
         String title = call.getString("title", "FMO 位置上报中");
         String text = call.getString("text", "正在定时上报GPS位置");
-        int intervalMinutes = call.getInt("intervalMinutes", 5);
+        int intervalSeconds = call.getInt("intervalSeconds", 300);
 
         Intent intent = new Intent(getContext(), FmoLocationService.class)
                 .setAction(FmoLocationService.ACTION_START)
                 .putExtra(FmoLocationService.EXTRA_TITLE, title)
                 .putExtra(FmoLocationService.EXTRA_TEXT, text)
-                .putExtra(FmoLocationService.EXTRA_INTERVAL_MINUTES, intervalMinutes)
+                .putExtra(FmoLocationService.EXTRA_INTERVAL_SECONDS, intervalSeconds)
                 .putExtra(FmoLocationService.EXTRA_FMO_URL, sFmoUrl);
 
         try {
@@ -474,7 +474,7 @@ public class FmoLocationPlugin extends Plugin {
             } else {
                 getContext().startService(intent);
             }
-            Log.i(TAG, "startForegroundService title=" + title + " intervalMinutes=" + intervalMinutes + " fmoUrl=" + sFmoUrl);
+            Log.i(TAG, "startForegroundService title=" + title + " intervalSeconds=" + intervalSeconds + " fmoUrl=" + sFmoUrl);
             call.resolve();
         } catch (Exception e) {
             Log.w(TAG, "startForegroundService failed", e);

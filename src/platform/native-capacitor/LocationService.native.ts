@@ -6,11 +6,11 @@ interface FmoLocationPlugin {
   checkPermission(): Promise<{ granted: boolean; notificationGranted: boolean; backgroundGranted: boolean; needRationale: boolean }>
   requestPermission(): Promise<{ granted: boolean }>
   requestBackgroundPermission(): Promise<{ granted: boolean }>
-  setFmoConfig(options: { url: string; intervalMinutes: number }): Promise<void>
+  setFmoConfig(options: { url: string; intervalSeconds: number }): Promise<void>
   getCurrentPosition(): Promise<{ latitude: number; longitude: number; accuracy: number } | null>
   startWatching(options: { intervalSeconds: number }): Promise<void>
   stopWatching(): Promise<void>
-  startForegroundService(options: { title: string; text: string; intervalMinutes: number }): Promise<void>
+  startForegroundService(options: { title: string; text: string; intervalSeconds: number }): Promise<void>
   stopForegroundService(): Promise<void>
   addListener(eventName: string, callback: (data: any) => void): void
 }
@@ -89,9 +89,9 @@ export class NativeLocationService implements ILocationService {
     }
   }
 
-  async setFmoConfig(url: string, intervalMinutes: number): Promise<void> {
+  async setFmoConfig(url: string, intervalSeconds: number): Promise<void> {
     try {
-      await Location.setFmoConfig({ url, intervalMinutes })
+      await Location.setFmoConfig({ url, intervalSeconds })
     } catch {
       // ignore
     }
@@ -109,8 +109,8 @@ export class NativeLocationService implements ILocationService {
     await Location.stopWatching()
   }
 
-  async startForegroundService(title: string, text: string, intervalMinutes: number): Promise<void> {
-    await Location.startForegroundService({ title, text, intervalMinutes })
+  async startForegroundService(title: string, text: string, intervalSeconds: number): Promise<void> {
+    await Location.startForegroundService({ title, text, intervalSeconds })
   }
 
   async stopForegroundService(): Promise<void> {

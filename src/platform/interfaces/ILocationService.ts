@@ -44,7 +44,7 @@ export interface ILocationService {
   /** 单独请求后台定位权限（Android 10+） */
   requestBackgroundPermission(): Promise<boolean>
   /** 设置 FMO 服务器地址，供原生侧定时上报使用 */
-  setFmoConfig(url: string, intervalMinutes: number): Promise<void>
+  setFmoConfig(url: string, intervalSeconds: number): Promise<void>
   /** 获取当前GPS坐标（含精度，单位米） */
   getCurrentPosition(): Promise<{ latitude: number; longitude: number; accuracy: number } | null>
   /** 开启持续定位更新（秒级间隔，用于实时显示） */
@@ -52,7 +52,7 @@ export interface ILocationService {
   /** 停止持续定位 */
   stopWatching(): Promise<void>
   /** 开启前台定位服务（常驻通知，支持后台持续定位） */
-  startForegroundService(title: string, text: string, intervalMinutes: number): Promise<void>
+  startForegroundService(title: string, text: string, intervalSeconds: number): Promise<void>
   /** 停止前台定位服务 */
   stopForegroundService(): Promise<void>
   /** 定位更新回调注册 */
