@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 // @ts-ignore - legacy JS
 import { FmoApiClient } from '../services/fmoApi'
 // @ts-ignore - legacy JS
@@ -45,6 +45,7 @@ export const useLocationStore = defineStore('location', () => {
 
   // ========== 内部状态 ==========
   let isTearingDown = false
+  let _initCalled = false
 
   // ========== 帮助方法 ==========
 
@@ -107,34 +108,64 @@ export const useLocationStore = defineStore('location', () => {
 
   /** 从持久化存储恢复状态，并自动处理权限与GPS */
   async function init() {
-    // 注册原生上报状态监听
-    getPlatform().location.onReportStatus((result) => {
-      lastReportResult.value = result.message
-      if (result.isFmoCoord) {
-        // FMO 坐标回执
-        fmoCoordinate.value = { lat: result.latitude, lng: result.longitude }
-        return
-      }
-      if (result.success) {
-        lastReportTime.value = result.time
-        currentGps.value = { lat: result.latitude, lng: result.longitude }
-      }
-      lastCheckTime.value = result.time
-    })
+    if (!_initCalled) {
+      _initCalled = true
 
-    const platform = getPlatform()
-    const savedEnabled = await platform.storage.get(ENABLED_KEY)
-    if (savedEnabled !== null) {
-      enabled.value = savedEnabled === 'true'
-    }
-    const savedInterval = await platform.storage.get(INTERVAL_KEY)
-    if (savedInterval !== null) {
-      const val = parseInt(savedInterval, 10)
-      if (!isNaN(val) && val >= 1 && val <= 30) {
-        intervalMinutes.value = val
+      // 注册原生上报状态监听（仅一次）
+      getPlatform().location.onReportStatus((result) => {
+        lastReportResult.value = result.message
+        if (result.isFmoCoord) {
+          // FMO 坐标回执
+          fmoCoordinate.value = { lat: result.latitude, lng: result.longitude }
+          return
+        }
+        if (result.success) {
+          lastReportTime.value = result.time
+          currentGps.value = { lat: result.latitude, lng: result.longitude }
+        }
+        lastCheckTime.value = result.time
+      })
+
+      // 恢复持久化设置（仅一次）
+      const platform = getPlatform()
+      const savedEnabled = await platform.storage.get(ENABLED_KEY)
+      if (savedEnabled !== null) {
+        enabled.value = savedEnabled === 'true'
+      }
+      const savedInterval = await platform.storage.get(INTERVAL_KEY)
+      if (savedInterval !== null) {
+        const val = parseInt(savedInterval, 10)
+        if (!isNaN(val) && val >= 1 && val <= 30) {
+          intervalMinutes.value = val
+        }
+      }
+
+      // 如果之前开启了，冷启动自动恢复上报
+      if (enabled.value) {
+        const settingsStore = useSettingsStore()
+        // FMO 地址可能尚未加载（IndexedDB 异步），等待就绪后再启动
+        if (settingsStore.fmoAddress) {
+          await checkPermission()
+          if (permissionGranted.value) {
+            await startReporting()
+          }
+        } else {
+          const unwatch = watch(
+            () => settingsStore.fmoAddress,
+            async (addr) => {
+              if (!addr || !enabled.value || isReporting.value) return
+              await checkPermission()
+              if (permissionGranted.value) {
+                await startReporting()
+              }
+              unwatch()
+            }
+          )
+        }
       }
     }
 
+    // 以下每次进入自动定位页面都执行
     // 检查权限状态
     await checkPermission()
 
@@ -158,8 +189,8 @@ export const useLocationStore = defineStore('location', () => {
       fetchFmoCoordinate()
     }
 
-    // 如果之前开启了，重启上报
-    if (enabled.value) {
+    // 如果之前开启了但还没启动（比如之前权限不足），补启动上报
+    if (enabled.value && !isReporting.value && permissionGranted.value) {
       await startReporting()
     }
   }
@@ -256,7 +287,6 @@ export const useLocationStore = defineStore('location', () => {
 
     if (!rawPos) {
       lastReportResult.value = '获取 GPS 定位失败'
-      await updateNotification('定位失败', checkTime)
       return false
     }
 
@@ -266,7 +296,6 @@ export const useLocationStore = defineStore('location', () => {
     // --- 精度门限检查 ---
     if (rawPos.accuracy > ACCURACY_THRESHOLD) {
       lastReportResult.value = `GPS 精度不足 (${rawPos.accuracy.toFixed(0)}m > ${ACCURACY_THRESHOLD}m)`
-      await updateNotification('精度不足', checkTime)
       return false
     }
 
@@ -275,7 +304,6 @@ export const useLocationStore = defineStore('location', () => {
       const dist = calcDistance(lastReportedPos.value, currentGps.value)
       if (dist < DRIFT_THRESHOLD) {
         lastReportResult.value = `位置未变化 (偏移 ${dist.toFixed(1)}m < ${DRIFT_THRESHOLD}m)，跳过上报`
-        await updateNotification('位置未变', checkTime)
         return true
       }
     }
@@ -294,8 +322,6 @@ export const useLocationStore = defineStore('location', () => {
       lastReportTime.value = checkTime
       lastReportedPos.value = { lat: rawPos.latitude, lng: rawPos.longitude }
       lastReportResult.value = `上报成功 (${checkTime})`
-      // 更新通知栏文案
-      await updateNotification('最近上报', checkTime)
       // 上报后等 5s 再从 FMO 拉取坐标（等 server 处理完落库）
       window.setTimeout(() => {
         if (!isTearingDown) {

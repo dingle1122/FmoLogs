@@ -1,8 +1,10 @@
 import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import pinia from './stores'
+import { useLocationStore } from './stores/locationStore'
 import { getPlatform } from './platform'
 import { applySafeAreaInsets } from './platform/native-capacitor/SystemUiService.native'
 import './style.css'
@@ -22,4 +24,20 @@ const app = createApp(App)
 app.use(pinia)
 app.use(router)
 
+// 深度链接：点击定位上报通知直接打开自动定位页面
+if (Capacitor.isNativePlatform()) {
+  CapacitorApp.addListener('appUrlOpen', (data) => {
+    try {
+      const url = new URL(data.url)
+      if (url.host === 'location-report') {
+        router.push('/location-report')
+      }
+    } catch { /* ignore invalid URL */ }
+  })
+}
+
 app.mount('#app')
+
+// 冷启动自动恢复定位上报（如果之前已开启）
+const locationStore = useLocationStore()
+locationStore.init()

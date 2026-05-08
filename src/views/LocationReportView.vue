@@ -109,7 +109,7 @@
             <span class="status-label">结果</span>
             <span
               class="status-value"
-              :class="{ 'text-success': store.lastReportResult.includes('成功'), 'text-danger': store.lastReportResult.includes('失败') }"
+              :class="{ 'text-success': store.lastReportResult?.includes('成功'), 'text-danger': store.lastReportResult?.includes('失败') }"
             >{{ store.lastReportResult }}</span>
           </div>
         </div>

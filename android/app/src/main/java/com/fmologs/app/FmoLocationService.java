@@ -8,8 +8,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
@@ -159,21 +157,11 @@ public class FmoLocationService extends Service {
     }
 
     private static Notification buildNotification(Context ctx, String title, String text) {
-        Intent launch = new Intent(ctx, MainActivity.class);
-        launch.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        // 使用深度链接，点击通知直接打开自动定位页面
+        Intent launch = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("fmologs://location-report"));
         PendingIntent contentPI = PendingIntent.getActivity(
                 ctx, 0, launch,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Intent stopIntent = new Intent(ctx, FmoLocationService.class).setAction(ACTION_STOP);
-        PendingIntent stopPI = PendingIntent.getService(
-                ctx, 1, stopIntent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Bitmap largeIcon = null;
-        try {
-            largeIcon = BitmapFactory.decodeResource(ctx.getResources(), R.mipmap.ic_launcher);
-        } catch (Exception ignore) {}
 
         NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -185,9 +173,7 @@ public class FmoLocationService extends Service {
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setOnlyAlertOnce(true)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止上报", stopPI);
-        if (largeIcon != null) b.setLargeIcon(largeIcon);
+                .setOnlyAlertOnce(true);
         return b.build();
     }
 
