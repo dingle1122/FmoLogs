@@ -25,9 +25,13 @@ export const INTERVAL_OPTIONS = [
   { value: 1800, label: '30分钟' }
 ]
 
-// 获取默认间隔（秒），默认 15 分钟
+// 滑动条上每个选项对应的位置（0–100 非线性），使 10 分钟落在视觉中间（50%）
+// 前段压缩（短间隔密集），后段拉伸（长间隔稀疏）
+export const SLIDER_POSITIONS = [0, 5, 10, 16, 23, 31, 40, 50, 64, 80, 100]
+
+// 获取默认间隔（秒），默认 10 分钟
 export function getDefaultInterval(): number {
-  return 900
+  return 600
 }
 
 /**
@@ -279,7 +283,7 @@ export const useLocationStore = defineStore('location', () => {
   /** 获取当前间隔选项的索引 */
   function getIntervalIndex(): number {
     const index = INTERVAL_OPTIONS.findIndex(opt => opt.value === intervalSeconds.value)
-    return index >= 0 ? index : INTERVAL_OPTIONS.findIndex(opt => opt.value === 900) // 默认15分钟
+    return index >= 0 ? index : INTERVAL_OPTIONS.findIndex(opt => opt.value === 600) // 默认10分钟
   }
 
   /** 格式化间隔时间为友好显示 */

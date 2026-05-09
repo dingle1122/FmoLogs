@@ -68,22 +68,20 @@
           </label>
         </div>
 
-        <div class="setting-row">
+        <div class="setting-row interval-row">
           <span class="setting-label">上报间隔</span>
-          <span class="interval-current">{{ store.formatInterval(store.intervalSeconds) }}</span>
-        </div>
-        <div class="interval-slider-container">
           <input
             type="range"
             min="0"
-            :max="store.INTERVAL_OPTIONS.length - 1"
-            :value="currentIntervalIndex"
+            :max="SLIDER_MAX"
+            v-model="sliderValue"
             class="interval-slider"
             :style="{
-              background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${(currentIntervalIndex / (store.INTERVAL_OPTIONS.length - 1)) * 100}%, var(--border-primary) ${(currentIntervalIndex / (store.INTERVAL_OPTIONS.length - 1)) * 100}%, var(--border-primary) 100%)`
+              background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) 100%)`
             }"
-            @input="handleIntervalChange"
+            @change="handleSliderChange"
           />
+          <span class="interval-current">{{ displayLabel }}</span>
         </div>
 
         <div class="setting-row-actions">
@@ -122,16 +120,50 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useLocationStore } from '../stores/locationStore'
+import { SLIDER_POSITIONS } from '../stores/locationStore'
 
 const store = useLocationStore()
+const SLIDER_MAX = 100
 
-const currentIntervalIndex = computed(() => store.getIntervalIndex())
+// 滑块当前值（v-model 双向绑定，拖拽时实时更新，松手时吸附）
+const sliderValue = ref(SLIDER_POSITIONS[store.getIntervalIndex()])
 
-function handleIntervalChange(e) {
-  store.setIntervalByIndex(Number(e.target.value))
+// 监听 store 间隔变化（如外部修改），同步滑块位置
+watch(() => store.intervalSeconds, () => {
+  const idx = store.getIntervalIndex()
+  sliderValue.value = SLIDER_POSITIONS[idx]
+})
+
+// 将滑块位置 (0-100) 映射到最近的有效选项索引
+function sliderToIndex(pos) {
+  let nearest = 0
+  let minDist = Infinity
+  for (let i = 0; i < SLIDER_POSITIONS.length; i++) {
+    const dist = Math.abs(SLIDER_POSITIONS[i] - pos)
+    if (dist < minDist) {
+      minDist = dist
+      nearest = i
+    }
+  }
+  return nearest
 }
+
+// 松手时吸附到最近有效位置并应用
+function handleSliderChange(e) {
+  const pos = Number(e.target.value)
+  const idx = sliderToIndex(pos)
+  const snapped = SLIDER_POSITIONS[idx]
+  sliderValue.value = snapped
+  store.setIntervalByIndex(idx)
+}
+
+// 根据滑块位置实时显示对应的标签文字
+const displayLabel = computed(() => {
+  const idx = sliderToIndex(sliderValue.value)
+  return store.INTERVAL_OPTIONS[idx].label
+})
 
 async function handleFetchFmo() {
   await store.fetchFmoCoordinate()
@@ -251,7 +283,7 @@ onUnmounted(() => {
 }
 
 .setting-row + .setting-row {
-  border-top: 1px solid var(--border-light);
+  /* interval-row 已同行，无需分隔线 */
 }
 
 .setting-label {
@@ -261,8 +293,7 @@ onUnmounted(() => {
 }
 
 .setting-row-actions {
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border-light);
+  padding-top: 0.5rem;
 }
 
 /* Toggle Switch */
@@ -311,13 +342,19 @@ onUnmounted(() => {
   transform: translateX(20px);
 }
 
-/* 间隔滑块 */
-.interval-slider-container {
-  padding: 0.25rem 0 0.5rem;
+/* 间隔滑块 - 同行布局 */
+.setting-row.interval-row {
+  flex-wrap: nowrap;
+  padding: 0.6rem 0;
+}
+
+.interval-row .setting-label {
+  flex-shrink: 0;
 }
 
 .interval-slider {
-  width: 100%;
+  flex: 1;
+  margin: 0 0.75rem;
   height: 6px;
   -webkit-appearance: none;
   appearance: none;
