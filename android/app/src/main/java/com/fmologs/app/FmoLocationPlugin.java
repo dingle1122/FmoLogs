@@ -35,6 +35,7 @@ public class FmoLocationPlugin extends Plugin {
     private static final String TAG = "FmoLocationPlugin";
     private static final int PERM_REQ_LOCATION = 2001;
     private static final int PERM_REQ_BACKGROUND = 2002;
+    private static final long LOCATION_MAX_AGE_MS = 60_000L;  // 缓存定位最大有效期 60s
 
     private static volatile FmoLocationPlugin sInstance;
 
@@ -270,6 +271,11 @@ public class FmoLocationPlugin extends Plugin {
 
     // ---- 单次定位 ----
 
+    /**
+     * 获取当前位置：始终使用 requestSingleUpdate 主动请求实时定位。
+     * 用户点击「获取定位」或「立即上报」时确保获取的是最新坐标。
+     * 30s 超时后回退到系统缓存兜底。
+     */
     @PluginMethod
     public void getCurrentPosition(PluginCall call) {
         if (locationManager == null) {
@@ -287,29 +293,7 @@ public class FmoLocationPlugin extends Plugin {
         }
 
         try {
-            // 优先使用 GPS，其次网络定位
-            Location loc = null;
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            }
-            if (loc == null) {
-                loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            }
-            if (loc == null) {
-                loc = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
-            }
-
-            if (loc != null) {
-                lastLocation = loc;
-                JSObject result = new JSObject();
-                result.put("latitude", loc.getLatitude());
-                result.put("longitude", loc.getLongitude());
-                result.put("accuracy", loc.hasAccuracy() ? loc.getAccuracy() : 0);
-                call.resolve(result);
-                return;
-            }
-
-            // 没有缓存位置，请求单次更新
+            // 请求实时定位
             final boolean[] resolved = {false};
             LocationListener onceListener = new LocationListener() {
                 @Override
@@ -363,7 +347,7 @@ public class FmoLocationPlugin extends Plugin {
                 } catch (Exception ignore) {}
                 if (!resolved[0]) {
                     resolved[0] = true;
-                    // 尝试用 lastKnownLocation 兜底
+                    // 尝试用 lastKnownLocation 兜底（即使是过期的）
                     Location fallback = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
                     if (fallback == null) {
                         fallback = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
@@ -384,6 +368,43 @@ public class FmoLocationPlugin extends Plugin {
         } catch (SecurityException se) {
             call.reject("Location permission denied: " + se.getMessage());
         }
+    }
+
+    /**
+     * 获取系统缓存的定位，仅当定位年龄不超过 LOCATION_MAX_AGE_MS 时才返回。
+     * 回退链路：GPS → NETWORK → PASSIVE，均检查新鲜度。
+     * 供 Service 侧定时上报超时回退使用。
+     */
+    private Location getFreshCachedLocation() {
+        if (locationManager == null) return null;
+        Location loc = null;
+        try {
+            long now = System.currentTimeMillis();
+            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            }
+            if (loc != null && (now - loc.getTime()) > LOCATION_MAX_AGE_MS) {
+                Log.i(TAG, "getFreshCachedLocation: GPS cached too old, discarding");
+                loc = null;
+            }
+            if (loc == null) {
+                loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                if (loc != null && (now - loc.getTime()) > LOCATION_MAX_AGE_MS) {
+                    Log.i(TAG, "getFreshCachedLocation: NETWORK cached too old, discarding");
+                    loc = null;
+                }
+            }
+            if (loc == null) {
+                loc = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
+                if (loc != null && (now - loc.getTime()) > LOCATION_MAX_AGE_MS) {
+                    Log.i(TAG, "getFreshCachedLocation: PASSIVE cached too old, discarding");
+                    loc = null;
+                }
+            }
+        } catch (SecurityException e) {
+            Log.w(TAG, "getFreshCachedLocation: permission denied", e);
+        }
+        return loc;
     }
 
     // ---- 持续定位 ----

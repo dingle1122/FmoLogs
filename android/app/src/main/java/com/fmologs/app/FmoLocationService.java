@@ -9,8 +9,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -40,6 +42,10 @@ import okhttp3.WebSocketListener;
  * 使用 Handler.postDelayed 原生定时器驱动 GPS 定位获取与 FMO 上报，
  * 息屏后不受 WebView JS 线程挂起影响。
  * 通过 OkHttp WebSocket + WebViewAuthHelper 认证头与 FMO 通信。
+ *
+ * 定位策略：每次上报前使用 requestSingleUpdate 主动请求实时 GPS 定位，
+ * 30s 超时后回退到带新鲜度检查（60s 有效期）的系统缓存定位。
+ * 彻底解决 getLastKnownLocation 仅返回陈旧缓存导致「位置不变/坐标错误」的问题。
  */
 public class FmoLocationService extends Service {
 
@@ -59,6 +65,8 @@ public class FmoLocationService extends Service {
     // GPS 可靠性阈值
     private static final float ACCURACY_THRESHOLD = 100f; // 精度 > 100m 视为不可靠
     private static final float DRIFT_THRESHOLD = 10f;      // 偏移 < 10m 视为未移动
+    private static final long LOCATION_MAX_AGE_MS = 60_000L;   // 缓存定位最大有效期 60s
+    private static final long FRESH_FIX_TIMEOUT_MS = 30_000L;  // 请求实时定位超时 30s
 
     private static volatile String sTitle = "FMO 位置上报中";
     private static volatile String sText = "正在定时上报GPS位置";
@@ -74,6 +82,11 @@ public class FmoLocationService extends Service {
     private LocationManager locationManager;
     private final Handler reportHandler = new Handler(Looper.getMainLooper());
     private Runnable reportRunnable;
+
+    // 实时定位请求状态
+    private volatile boolean isPendingReport = false;
+    private LocationListener pendingReportListener;
+    private Runnable pendingReportTimeout;
 
     @Override
     public void onCreate() {
@@ -129,6 +142,7 @@ public class FmoLocationService extends Service {
     @Override
     public void onDestroy() {
         stopTimer();
+        cancelPendingReport();
         if (sInstance == this) sInstance = null;
         super.onDestroy();
     }
@@ -220,60 +234,176 @@ public class FmoLocationService extends Service {
         Log.i(TAG, "stopTimer");
     }
 
+    /**
+     * 发起上报流程：主动请求实时 GPS 定位（requestSingleUpdate），
+     * 获取到新鲜数据后进行精度/漂移检查与上报。
+     * 30s 超时后回退到带新鲜度检查的缓存定位。
+     */
     private void doReport() {
-        String checkTime = formatNow();
+        final String checkTime = formatNow();
 
-        // 1. 获取 GPS
-        Location loc = getBestLocation();
-        if (loc == null) {
-            Log.w(TAG, "doReport: no location available");
-            updateNotificationText("定位失败", checkTime);
+        // 防止重复请求：上一次请求还在等待回调
+        if (isPendingReport) {
+            Log.w(TAG, "doReport: previous report still pending, skip");
             return;
         }
 
+        // 先用缓存快速更新通知栏（仅供展示，不用于上报决策）
+        Location cached = getFreshCachedLocation();
+        if (cached != null) {
+            sText = "定位中... " + String.format("%.6f", cached.getLatitude())
+                    + ", " + String.format("%.6f", cached.getLongitude()) + " (" + checkTime + ")";
+        } else {
+            sText = "定位中... (" + checkTime + ")";
+        }
+        refreshNotification();
+
+        isPendingReport = true;
+
+        // 1. 主动请求实时 GPS 定位
+        pendingReportListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                if (!isPendingReport || location == null) return;
+                cancelPendingReport();
+                Log.i(TAG, "doReport: got fresh fix from " + location.getProvider()
+                        + " accuracy=" + (location.hasAccuracy() ? location.getAccuracy() : "N/A"));
+                processLocation(location, checkTime);
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {}
+            @Override
+            public void onProviderEnabled(String provider) {}
+            @Override
+            public void onProviderDisabled(String provider) {
+                // provider 被禁用时不处理，等待超时回退
+            }
+        };
+
+        try {
+            if (locationManager != null) {
+                if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    locationManager.requestSingleUpdate(
+                            LocationManager.GPS_PROVIDER, pendingReportListener, Looper.getMainLooper());
+                }
+                if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                    locationManager.requestSingleUpdate(
+                            LocationManager.NETWORK_PROVIDER, pendingReportListener, Looper.getMainLooper());
+                }
+            }
+        } catch (SecurityException e) {
+            Log.w(TAG, "doReport: permission denied when requesting update", e);
+            cancelPendingReport();
+            updateNotificationText("定位失败", checkTime);
+            notifyJs(false, 0, 0, checkTime, "定位权限被拒绝");
+            return;
+        }
+
+        // 2. 超时回退：FRESH_FIX_TIMEOUT_MS 后无新鲜定位则用缓存兜底
+        pendingReportTimeout = new Runnable() {
+            @Override
+            public void run() {
+                if (!isPendingReport) return;
+                cancelPendingReport();
+                Log.w(TAG, "doReport: fresh fix timed out, falling back to cached location");
+                Location fallback = getFreshCachedLocation();
+                if (fallback != null) {
+                    processLocation(fallback, checkTime);
+                } else {
+                    updateNotificationText("定位超时", checkTime);
+                    notifyJs(false, 0, 0, checkTime, "获取实时定位超时，且无有效缓存");
+                }
+            }
+        };
+        reportHandler.postDelayed(pendingReportTimeout, FRESH_FIX_TIMEOUT_MS);
+    }
+
+    /** 取消正在等待的实时定位请求 */
+    private void cancelPendingReport() {
+        isPendingReport = false;
+        if (pendingReportTimeout != null) {
+            reportHandler.removeCallbacks(pendingReportTimeout);
+            pendingReportTimeout = null;
+        }
+        if (pendingReportListener != null && locationManager != null) {
+            try {
+                locationManager.removeUpdates(pendingReportListener);
+            } catch (Exception ignore) {}
+            pendingReportListener = null;
+        }
+    }
+
+    /**
+     * 对获得的定位进行精度检查、漂移过滤，最终上报到 FMO。
+     */
+    private void processLocation(Location loc, String checkTime) {
         double lat = loc.getLatitude();
         double lng = loc.getLongitude();
 
-        // 2. 精度门限检查
+        // 1. 精度门限检查
         if (loc.hasAccuracy() && loc.getAccuracy() > ACCURACY_THRESHOLD) {
-            Log.w(TAG, "doReport: accuracy too low: " + loc.getAccuracy() + "m");
+            Log.w(TAG, "processLocation: accuracy too low: " + loc.getAccuracy() + "m");
             updateNotificationText("精度不足", checkTime);
             notifyJs(false, lat, lng, checkTime, "GPS精度不足(" + (int) loc.getAccuracy() + "m)");
             return;
         }
 
-        // 3. 漂移过滤：与上次上报位置比较
+        // 2. 漂移过滤：与上次上报位置比较
         if (sLastReportTime > 0 && sLastReportedLat != 0) {
             float[] results = new float[1];
             Location.distanceBetween(sLastReportedLat, sLastReportedLng, lat, lng, results);
             float dist = results[0];
             if (dist < DRIFT_THRESHOLD) {
-                Log.i(TAG, "doReport: position unchanged (" + dist + "m), skip");
+                Log.i(TAG, "processLocation: position unchanged (" + dist + "m), skip");
                 updateNotificationText("位置未变", checkTime);
                 notifyJs(true, lat, lng, checkTime, "位置未变化(偏移" + String.format("%.1f", dist) + "m)，跳过上报");
                 return;
             }
         }
 
-        // 4. 上报到 FMO
+        // 3. 上报到 FMO
         reportToFmo(lat, lng, checkTime);
     }
 
-    private Location getBestLocation() {
+    /**
+     * 获取系统缓存的定位，但仅当定位年龄不超过 LOCATION_MAX_AGE_MS 时才返回。
+     * 回退链路：GPS → NETWORK → PASSIVE，均检查新鲜度。
+     */
+    private Location getFreshCachedLocation() {
         if (locationManager == null) return null;
         Location loc = null;
         try {
+            long now = System.currentTimeMillis();
+            // 尝试 GPS 缓存
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 loc = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             }
+            if (loc != null && (now - loc.getTime()) > LOCATION_MAX_AGE_MS) {
+                Log.i(TAG, "getFreshCachedLocation: GPS cached location too old ("
+                        + (now - loc.getTime()) / 1000 + "s), discarding");
+                loc = null;
+            }
+            // 回退：网络定位
             if (loc == null) {
                 loc = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                if (loc != null && (now - loc.getTime()) > LOCATION_MAX_AGE_MS) {
+                    Log.i(TAG, "getFreshCachedLocation: NETWORK cached location too old ("
+                            + (now - loc.getTime()) / 1000 + "s), discarding");
+                    loc = null;
+                }
             }
+            // 回退：被动定位
             if (loc == null) {
                 loc = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
+                if (loc != null && (now - loc.getTime()) > LOCATION_MAX_AGE_MS) {
+                    Log.i(TAG, "getFreshCachedLocation: PASSIVE cached location too old ("
+                            + (now - loc.getTime()) / 1000 + "s), discarding");
+                    loc = null;
+                }
             }
         } catch (SecurityException e) {
-            Log.w(TAG, "getBestLocation: permission denied", e);
+            Log.w(TAG, "getFreshCachedLocation: permission denied", e);
         }
         return loc;
     }
@@ -402,7 +532,7 @@ public class FmoLocationService extends Service {
     }
 
     private void updateNotificationText(String label, String time) {
-        Location loc = getBestLocation();
+        Location loc = getFreshCachedLocation();
         if (loc != null) {
             sText = label + ": " + String.format("%.6f", loc.getLatitude())
                     + ", " + String.format("%.6f", loc.getLongitude())
