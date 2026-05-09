@@ -341,7 +341,7 @@
             :src="fmoPreviewUrl"
             class="fmo-preview-iframe"
             referrerpolicy="no-referrer"
-            sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
+            sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
             @load="onFmoIframeLoad"
           ></iframe>
         </div>
