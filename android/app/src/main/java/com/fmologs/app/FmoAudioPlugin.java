@@ -58,6 +58,8 @@ public class FmoAudioPlugin extends Plugin {
     private AudioTrack audioTrack;
     private PowerManager.WakeLock wakeLock;
     private final AtomicBoolean serviceStarted = new AtomicBoolean(false);
+    /** 是否曾经成功连接过。用于区分"首次连接失败→停止"与"已连接后的断线→重连"。 */
+    private final AtomicBoolean wasEverConnected = new AtomicBoolean(false);
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicBoolean manualStop = new AtomicBoolean(false);
@@ -151,13 +153,8 @@ public class FmoAudioPlugin extends Plugin {
         Log.i(TAG, "start(): url=" + url + " gain=" + gain.get() + " muted=" + muted.get());
         try {
             ensureNotificationPermission();
-            // 启动自己的前台服务，挂起进程保命
-            try {
-                FmoAudioService.startService(getContext());
-                serviceStarted.set(true);
-            } catch (Exception svcErr) {
-                Log.w(TAG, "FmoAudioService start failed", svcErr);
-            }
+            // 不在此时启动前台服务——未连接成功前不需要通知。
+            // 前台服务延后到 WebSocket onOpen 时启动。
             acquireWakeLock();
             initAudioTrack();
             openWebSocket(url);
@@ -312,6 +309,14 @@ public class FmoAudioPlugin extends Plugin {
                 Log.i(TAG, "WS onOpen gen=" + myGen);
                 firstChunk.set(true);
                 reconnectAttempts.set(0);
+                wasEverConnected.set(true);
+                // WebSocket 真正连接成功后才启动前台服务、显示带媒体控件的通知
+                Context ctx = getContext();
+                if (ctx != null) {
+                    FmoAudioService.startService(ctx);
+                    serviceStarted.set(true);
+                    FmoAudioService.setConnected(ctx, true);
+                }
                 emitStatus("connected");
             }
 
@@ -407,6 +412,17 @@ public class FmoAudioPlugin extends Plugin {
             emitStatus("disconnected");
             return;
         }
+        // 首次连接失败：直接停止，不自动重连，等待用户下次手动点击开始
+        if (!wasEverConnected.get()) {
+            Log.i(TAG, "first connection failed, stopping (no auto-reconnect)");
+            manualStop.set(true);
+            releaseInternal();
+            emitStatus("disconnected");
+            return;
+        }
+        // 已连接过的断线：降级通知，自动重连
+        Context ctx = getContext();
+        if (ctx != null) FmoAudioService.setConnected(ctx, false);
         // 幂等：同一波 onClosed + onFailure 只调度一次重连。
         if (!reconnectScheduled.compareAndSet(false, true)) {
             return;
@@ -459,6 +475,7 @@ public class FmoAudioPlugin extends Plugin {
             audioTrack = null;
         }
         releaseWakeLock();
+        wasEverConnected.set(false);
         // 仅在服务确实启动过时才去停，避免首次 stop() 空启服务
         if (serviceStarted.compareAndSet(true, false)) {
             try {

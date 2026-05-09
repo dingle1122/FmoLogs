@@ -49,6 +49,8 @@ public class FmoAudioService extends Service {
     private static volatile String sTitle = "FMO 音频播放中";
     private static volatile String sText = "当前无人发言";
     private static volatile boolean sMuted = false;
+    /** 音频 WebSocket 是否已真正建立连接。未连接时不显示播放/暂停/停止等媒体控件。 */
+    private static volatile boolean sConnected = false;
 
     private static volatile FmoAudioService sInstance;
 
@@ -116,7 +118,7 @@ public class FmoAudioService extends Service {
 
         if (intent != null) applyExtras(intent);
         updatePlaybackState(sMuted);
-        Notification notification = buildNotification(this, sTitle, sText, sMuted, mediaSession);
+        Notification notification = buildNotification(this, sTitle, sText, sMuted, mediaSession, sConnected);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(
                     NOTIFICATION_ID,
@@ -183,7 +185,7 @@ public class FmoAudioService extends Service {
         updatePlaybackState(sMuted);
         updateMetadata();
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (nm != null) nm.notify(NOTIFICATION_ID, buildNotification(this, sTitle, sText, sMuted, mediaSession));
+        if (nm != null) nm.notify(NOTIFICATION_ID, buildNotification(this, sTitle, sText, sMuted, mediaSession, sConnected));
     }
 
     /**
@@ -232,35 +234,18 @@ public class FmoAudioService extends Service {
     }
 
     private static Notification buildNotification(
-            Context ctx, String title, String text, boolean muted, MediaSessionCompat session) {
+            Context ctx, String title, String text, boolean muted, MediaSessionCompat session,
+            boolean connected) {
         Intent launch = new Intent(ctx, MainActivity.class);
         launch.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent contentPI = PendingIntent.getActivity(
                 ctx, 0, launch,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
-        // 根据当前状态选择明确动作：muted=true 时按钮是"继续"（UNMUTE），否则是"暂停"（MUTE）
-        String toggleAction = muted ? ACTION_UNMUTE : ACTION_MUTE;
-        Intent togglePI = new Intent(ctx, FmoAudioService.class).setAction(toggleAction);
-        PendingIntent togglePendingIntent = PendingIntent.getService(
-                ctx, muted ? 11 : 10, togglePI,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
         Intent stopIntent = new Intent(ctx, FmoAudioService.class).setAction(ACTION_STOP_CLICK);
         PendingIntent stopPendingIntent = PendingIntent.getService(
                 ctx, 2, stopIntent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-        int toggleIcon = muted ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause;
-        String toggleLabel = muted ? "继续" : "暂停";
-
-        MediaStyle style = new MediaStyle()
-                .setShowActionsInCompactView(0, 1)
-                .setShowCancelButton(true)
-                .setCancelButtonIntent(stopPendingIntent);
-        if (session != null) {
-            style.setMediaSession(session.getSessionToken());
-        }
 
         Bitmap largeIcon = null;
         try {
@@ -275,14 +260,41 @@ public class FmoAudioService extends Service {
                 .setDeleteIntent(stopPendingIntent)
                 .setOngoing(true)
                 .setSilent(true)
-                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setOnlyAlertOnce(true)
+                .setOnlyAlertOnce(true);
+        if (largeIcon != null) b.setLargeIcon(largeIcon);
+
+        if (!connected) {
+            // 未连接：不显示媒体控件，仅显示"连接中…"等文案。
+            // 仍然 setCategory/setStyle 保证锁屏/胶囊等场景正确显示内容。
+            b.setCategory(NotificationCompat.CATEGORY_SERVICE);
+            return b.build();
+        }
+
+        // 已连接：显示完整媒体控件
+        // 根据当前状态选择明确动作：muted=true 时按钮是"继续"（UNMUTE），否则是"暂停"（MUTE）
+        String toggleAction = muted ? ACTION_UNMUTE : ACTION_MUTE;
+        Intent togglePI = new Intent(ctx, FmoAudioService.class).setAction(toggleAction);
+        PendingIntent togglePendingIntent = PendingIntent.getService(
+                ctx, muted ? 11 : 10, togglePI,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        int toggleIcon = muted ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause;
+        String toggleLabel = muted ? "继续" : "暂停";
+
+        MediaStyle style = new MediaStyle()
+                .setShowActionsInCompactView(0, 1)
+                .setShowCancelButton(true)
+                .setCancelButtonIntent(stopPendingIntent);
+        if (session != null) {
+            style.setMediaSession(session.getSessionToken());
+        }
+
+        b.setCategory(NotificationCompat.CATEGORY_TRANSPORT)
                 .addAction(toggleIcon, toggleLabel, togglePendingIntent)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止", stopPendingIntent)
                 .setStyle(style);
-        if (largeIcon != null) b.setLargeIcon(largeIcon);
         return b.build();
     }
 
@@ -315,6 +327,20 @@ public class FmoAudioService extends Service {
     public static void stopService(Context ctx) {
         Intent i = new Intent(ctx, FmoAudioService.class).setAction(ACTION_STOP);
         ctx.startService(i);
+    }
+
+    /**
+     * 由插件在 WebSocket onOpen / onFailure 时调用，控制通知是否显示媒体控件。
+     * connected=true 时通知栏展示播放/暂停/停止按钮；false 时仅展示文案。
+     */
+    public static void setConnected(Context ctx, boolean connected) {
+        if (sConnected == connected) return;
+        sConnected = connected;
+        Log.i(TAG, "setConnected -> " + connected);
+        FmoAudioService inst = sInstance;
+        if (inst != null) {
+            inst.refreshNotificationAndState();
+        }
     }
 
     /**
