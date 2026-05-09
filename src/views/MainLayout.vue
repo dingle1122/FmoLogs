@@ -251,10 +251,26 @@ let pullTouchStartY = 0
 let pullTouchCurrentY = 0
 let isPullTracking = false
 
+// 判断触摸目标是否为 range 滑块（避免与下拉刷新冲突）
+function isRangeSliderTarget(target) {
+  if (!target) return false
+  // 检查当前节点及其祖先节点（最多向上查找5层，避免性能问题）
+  let el = target
+  let depth = 0
+  while (el && depth < 5) {
+    if (el.tagName === 'INPUT' && el.type === 'range') return true
+    el = el.parentElement
+    depth++
+  }
+  return false
+}
+
 function handleTouchStart(e) {
   if (isRefreshing.value) return
   // 仅当内容区滚动到顶部时触发
   if (contentAreaRef.value?.scrollTop > 0) return
+  // 如果触摸目标是 range 滑块，跳过下拉刷新，让滑块正常响应
+  if (isRangeSliderTarget(e.target)) return
   pullTouchStartY = e.touches[0].clientY
   pullTouchCurrentY = pullTouchStartY
   isPullTracking = true
