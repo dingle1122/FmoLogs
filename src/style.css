@@ -249,12 +249,12 @@ body::before {
   z-index: -1;
   background-color: var(--bg-page);
   background-image:
-    /* 渐变遮罩 - 两侧深中间淡 */
+    /* 渐变遮罩 - 两侧深中间淡（使用calc实现更精确的中间透明区域） */
     linear-gradient(
       to right,
       rgba(0, 0, 0, 0.25) 0%,
-      transparent 22%,
-      transparent 78%,
+      transparent calc(50% - 800px),
+      transparent calc(50% + 800px),
       rgba(0, 0, 0, 0.25) 100%
     ),
     /* 右半屏：45° 向上斜线 */
@@ -282,19 +282,19 @@ body::before {
     100% 0,
     0 0;
   background-repeat: no-repeat;
-  /* 纹理可见区域：浏览器边缘峰值 → #app 边界前消失 → 中间无色 → 渐显回峰值 */
+  /* 纹理可见区域：与渐变遮罩匹配，使用calc实现更精确的中间透明区域 */
   -webkit-mask-image: linear-gradient(
     to right,
     black 0%,
-    transparent 16%,
-    transparent 84%,
+    transparent calc(50% - 800px),
+    transparent calc(50% + 800px),
     black 100%
   );
   mask-image: linear-gradient(
     to right,
     black 0%,
-    transparent 16%,
-    transparent 84%,
+    transparent calc(50% - 800px),
+    transparent calc(50% + 800px),
     black 100%
   );
 }
@@ -303,12 +303,12 @@ body::before {
 @media (prefers-color-scheme: dark) {
   body::before {
     background-image:
-      /* 渐变遮罩 - 两侧深中间淡 */
+      /* 渐变遮罩 - 两侧深中间淡（使用calc实现更精确的中间透明区域） */
       linear-gradient(
         to right,
         rgba(255, 255, 255, 0.15) 0%,
-        transparent 22%,
-        transparent 78%,
+        transparent calc(50% - 800px),
+        transparent calc(50% + 800px),
         rgba(255, 255, 255, 0.15) 100%
       ),
       /* 右半屏：45° 向上斜线 */
@@ -406,17 +406,18 @@ button:focus-visible {
   text-align: left;
   background-color: var(--bg-page);
   /* 宽屏下左右边缘阴影，勾勒内容区边界，与两侧留白形成层次 */
+  /* 阴影范围与渐变遮罩边界对齐（calc(50% - 800px) 约等于内容区边缘） */
   box-shadow:
-    -36px 0 60px 0 rgba(0, 0, 0, 0.1),
-    36px 0 60px 0 rgba(0, 0, 0, 0.1);
+    -24px 0 48px 0 rgba(0, 0, 0, 0.1),
+    24px 0 48px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* 暗色模式 #app 阴影覆盖（必须在基础 #app 之后） */
 @media (prefers-color-scheme: dark) {
   #app {
     box-shadow:
-      -36px 0 60px 0 rgba(255, 255, 255, 0.15),
-      36px 0 60px 0 rgba(255, 255, 255, 0.15);
+      -24px 0 48px 0 rgba(255, 255, 255, 0.15),
+      24px 0 48px 0 rgba(255, 255, 255, 0.15);
   }
 }
 
