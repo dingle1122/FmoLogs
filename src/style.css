@@ -230,9 +230,42 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
+  /* background 由 ::before 伪元素提供，避免遮挡底纹 */
+  color: var(--text-primary);
+  text-shadow: 0 0 0.3px rgba(0, 0, 0, 0.3);
+}
+
+/*
+  宽屏留白区域底纹（::before 伪元素）：
+  - 左右分向：左半屏 -45° 向下，右半屏 45° 向上，形成对称纹理
+  - mask-image 控制纹理可见范围：边缘清晰 → 中间渐隐
+  - 渐变遮罩叠加：两侧深中间淡，强化边缘层次
+  - 内容区由 #app 背景色 + 左右定向阴影覆盖
+*/
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   background-color: var(--bg-page);
-  /* 宽屏留白区域：粗空白 + 细斜线 + 大色差，内容区由 #app 背景色覆盖 */
   background-image:
+    /* 渐变遮罩 - 两侧深中间淡 */
+    linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0.25) 0%,
+      transparent 22%,
+      transparent 78%,
+      rgba(0, 0, 0, 0.25) 100%
+    ),
+    /* 右半屏：45° 向上斜线 */
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(0, 0, 0, 0.06) 8px,
+      rgba(0, 0, 0, 0.06) 12px
+    ),
+    /* 左半屏：45° 向下斜线 */
     repeating-linear-gradient(
       -45deg,
       transparent,
@@ -240,14 +273,53 @@ body {
       rgba(0, 0, 0, 0.06) 8px,
       rgba(0, 0, 0, 0.06) 12px
     );
-  color: var(--text-primary);
-  text-shadow: 0 0 0.3px rgba(0, 0, 0, 0.3);
+  background-size:
+    100% 100%,
+    50% 100%,
+    50% 100%;
+  background-position:
+    0 0,
+    100% 0,
+    0 0;
+  background-repeat: no-repeat;
+  /* 纹理可见区域：浏览器边缘峰值 → #app 边界前消失 → 中间无色 → 渐显回峰值 */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black 0%,
+    transparent 16%,
+    transparent 84%,
+    black 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black 0%,
+    transparent 16%,
+    transparent 84%,
+    black 100%
+  );
 }
 
-/* 暗色模式底纹（必须在基础 body 之后，确保覆盖） */
+/* 暗色模式底纹（必须在基础 body::before 之后，确保覆盖） */
 @media (prefers-color-scheme: dark) {
-  body {
+  body::before {
     background-image:
+      /* 渐变遮罩 - 两侧深中间淡 */
+      linear-gradient(
+        to right,
+        rgba(255, 255, 255, 0.15) 0%,
+        transparent 22%,
+        transparent 78%,
+        rgba(255, 255, 255, 0.15) 100%
+      ),
+      /* 右半屏：45° 向上斜线 */
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 8px,
+        rgba(255, 255, 255, 0.06) 8px,
+        rgba(255, 255, 255, 0.06) 12px
+      ),
+      /* 左半屏：45° 向下斜线 */
       repeating-linear-gradient(
         -45deg,
         transparent,
@@ -335,16 +407,16 @@ button:focus-visible {
   background-color: var(--bg-page);
   /* 宽屏下左右边缘阴影，勾勒内容区边界，与两侧留白形成层次 */
   box-shadow:
-    -24px 0 36px 0 rgba(0, 0, 0, 0.25),
-    24px 0 36px 0 rgba(0, 0, 0, 0.25);
+    -36px 0 60px 0 rgba(0, 0, 0, 0.1),
+    36px 0 60px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* 暗色模式 #app 阴影覆盖（必须在基础 #app 之后） */
 @media (prefers-color-scheme: dark) {
   #app {
     box-shadow:
-      -24px 0 36px 0 rgba(0, 0, 0, 0.40),
-      24px 0 36px 0 rgba(0, 0, 0, 0.40);
+      -36px 0 60px 0 rgba(255, 255, 255, 0.15),
+      36px 0 60px 0 rgba(255, 255, 255, 0.15);
   }
 }
 
