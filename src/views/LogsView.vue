@@ -29,6 +29,8 @@
       :loading-more="loadingMore"
       :has-more="hasMore"
       :contact-counts="contactCounts"
+      :fmo-address="fmoAddress"
+      :protocol="protocol"
       @show-callsign-records="handleShowCallsignRecords"
       @load-more="handleLoadMore"
     />
@@ -67,6 +69,14 @@ const props = defineProps({
   contactCounts: {
     type: Map,
     default: () => new Map()
+  },
+  fmoAddress: {
+    type: String,
+    default: ''
+  },
+  protocol: {
+    type: String,
+    default: 'ws'
   }
 })
 

@@ -103,6 +103,8 @@
       :callsign="callsignRecords.currentCallsign.value"
       :records="callsignRecords.callsignRecords.value"
       :highlight-timestamp="callsignRecords.highlightTimestamp.value"
+      :fmo-address="settings.fmoAddress.value"
+      :protocol="settings.protocol.value"
       @close="callsignRecords.closeCallsignModal()"
     />
 
