@@ -172,8 +172,13 @@ public class FmoLocationPlugin extends Plugin {
                     == PackageManager.PERMISSION_GRANTED;
         }
 
-        // 前台定位已有即视为已满足（通知权限非强依赖）
-        if (fineGranted || coarseGranted) {
+        // 只要任一权限缺失（包括通知），就发起请求
+        boolean needRequest = false;
+        if (!fineGranted) needRequest = true;
+        if (!coarseGranted) needRequest = true;
+        if (!notifGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) needRequest = true;
+
+        if (!needRequest) {
             call.resolve(new JSObject().put("granted", true));
             return;
         }
@@ -243,18 +248,14 @@ public class FmoLocationPlugin extends Plugin {
         if (savedCall == null) return;
 
         if (requestCode == PERM_REQ_LOCATION) {
-            // 前台定位：任一定位权限授予即为成功
+            // 前台定位：检查系统最新的权限状态
+            Activity act = getActivity();
             boolean locGranted = false;
-            if (grantResults != null) {
-                for (int i = 0; i < permissions.length; i++) {
-                    String perm = permissions[i];
-                    if ((Manifest.permission.ACCESS_FINE_LOCATION.equals(perm)
-                            || Manifest.permission.ACCESS_COARSE_LOCATION.equals(perm))
-                            && grantResults[i] == PackageManager.PERMISSION_GRANTED) {
-                        locGranted = true;
-                        break;
-                    }
-                }
+            if (act != null) {
+                locGranted = ContextCompat.checkSelfPermission(act, Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED
+                        || ContextCompat.checkSelfPermission(act, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED;
             }
             JSObject result = new JSObject();
             result.put("granted", locGranted);
