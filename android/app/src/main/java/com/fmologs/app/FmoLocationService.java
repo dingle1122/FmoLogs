@@ -1,5 +1,6 @@
 package com.fmologs.app;
 
+import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -70,6 +71,8 @@ public class FmoLocationService extends Service {
     public static final String ACTION_START = "com.fmologs.app.FMO_LOCATION_START";
     public static final String ACTION_STOP = "com.fmologs.app.FMO_LOCATION_STOP";
     public static final String ACTION_UPDATE = "com.fmologs.app.FMO_LOCATION_UPDATE";
+    public static final String ACTION_ALARM = "com.fmologs.app.FMO_LOCATION_ALARM";
+    public static final String ACTION_WARMUP = "com.fmologs.app.FMO_LOCATION_WARMUP";
 
     public static final String EXTRA_TITLE = "title";
     public static final String EXTRA_TEXT = "text";
@@ -83,7 +86,7 @@ public class FmoLocationService extends Service {
     /** NETWORK 兜底定位精度门限（仅在缓冲池完全为空时使用） */
     private static final float NETWORK_ACCURACY_THRESHOLD = 50f;
     /** 与上一次上报点的偏移 < 此值时跳过本次上报 */
-    private static final float DRIFT_THRESHOLD = 10f;
+    private static final float DRIFT_THRESHOLD = 1.0f;
     /** 缓冲池点的最大存活时间，超过自动过期 */
     private static final long BUFFER_MAX_AGE_MS = 60_000L;
     /** 缓冲池容量 */
@@ -95,12 +98,12 @@ public class FmoLocationService extends Service {
     /** 短间隔阈值：interval ≤ 此值时启用持续监听模式；否则使用预热模式 */
     private static final int CONTINUOUS_THRESHOLD_SECONDS = 60;
     /** 预热模式下，每次报告前预热 GPS 的时长 */
-    private static final long WARMUP_BEFORE_REPORT_MS = 5_000L;
+    private static final long WARMUP_BEFORE_REPORT_MS = 10_000L;
     /** 报告时等待新鲜点的最大时长（NETWORK 兜底前的窗口） */
     private static final long FRESH_FIX_TIMEOUT_MS = 30_000L;
     /** 静止检测：最近 N 个点都在 STATIONARY_RADIUS 内视为静止 */
     private static final int STATIONARY_SAMPLE_COUNT = 5;
-    private static final float STATIONARY_RADIUS = 5f;
+    private static final float STATIONARY_RADIUS = 1.0f;
     /** 时钟有效性：GPS 上报时钟与系统时钟相差超过此值视为异常点 */
     private static final long MAX_CLOCK_SKEW_MS = 5L * 60L * 1000L;
 
@@ -134,7 +137,6 @@ public class FmoLocationService extends Service {
     private OkHttpClient httpClient;
     private LocationManager locationManager;
     private final Handler reportHandler = new Handler(Looper.getMainLooper());
-    private Runnable reportRunnable;
 
     // ---- 持续监听 ----
     private LocationListener continuousListener;
@@ -142,9 +144,6 @@ public class FmoLocationService extends Service {
 
     // ---- 点缓冲池 ----
     private final Deque<LocationSample> buffer = new ArrayDeque<>(BUFFER_CAPACITY);
-
-    // ---- 预热模式状态 ----
-    private Runnable warmupStarter;
 
     // ---- 首次上报状态（Service 启动后的 GPS 收集窗口） ----
     /** 是否处于"首次上报等待中"状态 */
@@ -189,6 +188,26 @@ public class FmoLocationService extends Service {
         if (ACTION_UPDATE.equals(action) && intent != null) {
             applyExtras(intent);
             refreshNotification();
+            applyMode();
+            startTimer();
+            return START_STICKY;
+        }
+
+        if (ACTION_ALARM.equals(action)) {
+            doReport();
+            // 准备下一个周期
+            startTimer();
+            // 预热模式：上报完后立即关 GPS，并安排下个周期的预热
+            if (sIntervalSeconds > CONTINUOUS_THRESHOLD_SECONDS) {
+                stopContinuousGps();
+                scheduleWarmup();
+            }
+            return START_STICKY;
+        }
+
+        if (ACTION_WARMUP.equals(action)) {
+            Log.i(TAG, "warmup: starting GPS before next report");
+            startContinuousGps();
             return START_STICKY;
         }
 
@@ -397,21 +416,34 @@ public class FmoLocationService extends Service {
         long intervalMs = sIntervalSeconds * 1000L;
         long delay = intervalMs - WARMUP_BEFORE_REPORT_MS;
         if (delay < 0) delay = 0;
-        warmupStarter = new Runnable() {
-            @Override
-            public void run() {
-                Log.i(TAG, "warmup: starting GPS before next report");
-                startContinuousGps();
-            }
-        };
-        reportHandler.postDelayed(warmupStarter, delay);
+
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Intent i = new Intent(this, FmoLocationService.class).setAction(ACTION_WARMUP);
+        PendingIntent pi = PendingIntent.getService(this, 0, i,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        long triggerAt = System.currentTimeMillis() + delay;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        } else {
+            am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        }
+        Log.i(TAG, "scheduleWarmup (AlarmManager) delay=" + delay);
     }
 
     private void cancelWarmup() {
-        if (warmupStarter != null) {
-            reportHandler.removeCallbacks(warmupStarter);
-            warmupStarter = null;
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (am != null) {
+            Intent i = new Intent(this, FmoLocationService.class).setAction(ACTION_WARMUP);
+            PendingIntent pi = PendingIntent.getService(this, 0, i,
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            am.cancel(pi);
         }
+        Log.i(TAG, "cancelWarmup (AlarmManager)");
     }
 
     // ---- 首次上报：GPS 收集窗口 ----
@@ -582,32 +614,34 @@ public class FmoLocationService extends Service {
 
     private void startTimer() {
         stopTimer();
-        final long intervalMs = sIntervalSeconds * 1000L;
-        reportRunnable = new Runnable() {
-            @Override
-            public void run() {
-                doReport();
-                // 准备下一个周期
-                if (reportHandler != null && reportRunnable != null) {
-                    reportHandler.postDelayed(reportRunnable, intervalMs);
-                }
-                // 预热模式：上报完后立即关 GPS，并安排下个周期的预热
-                if (sIntervalSeconds > CONTINUOUS_THRESHOLD_SECONDS) {
-                    stopContinuousGps();
-                    scheduleWarmup();
-                }
-            }
-        };
-        reportHandler.postDelayed(reportRunnable, intervalMs);
-        Log.i(TAG, "startTimer intervalMs=" + intervalMs);
+        long intervalMs = sIntervalSeconds * 1000L;
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (am == null) return;
+
+        Intent i = new Intent(this, FmoLocationService.class).setAction(ACTION_ALARM);
+        PendingIntent pi = PendingIntent.getService(this, 0, i,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+        long triggerAt = System.currentTimeMillis() + intervalMs;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        } else {
+            am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi);
+        }
+        Log.i(TAG, "startTimer (AlarmManager) intervalMs=" + intervalMs);
     }
 
     private void stopTimer() {
-        if (reportHandler != null && reportRunnable != null) {
-            reportHandler.removeCallbacks(reportRunnable);
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (am != null) {
+            Intent i = new Intent(this, FmoLocationService.class).setAction(ACTION_ALARM);
+            PendingIntent pi = PendingIntent.getService(this, 0, i,
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            am.cancel(pi);
         }
-        reportRunnable = null;
-        Log.i(TAG, "stopTimer");
+        Log.i(TAG, "stopTimer (AlarmManager)");
     }
 
     /**

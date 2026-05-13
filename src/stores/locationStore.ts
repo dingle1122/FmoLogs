@@ -76,7 +76,7 @@ export const useLocationStore = defineStore('location', () => {
 
   // GPS 可靠性阈值（与原生侧 FmoLocationService 对齐）
   const ACCURACY_THRESHOLD = 30 // 精度 > 30m 视为不可靠，放弃本次上报
-  const DRIFT_THRESHOLD = 10 // 偏移 < 10m 视为未移动，跳过上报（仅刷新通知时间）
+  const DRIFT_THRESHOLD = 1 // 偏移 < 1m 视为未移动，跳过上报（仅刷新通知时间）
   const MAX_REASONABLE_SPEED = 50 // 速度 > 50m/s (180km/h) 视为疑似漂移
 
   // ========== 内部状态 ==========
