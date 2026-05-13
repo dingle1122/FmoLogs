@@ -1,14 +1,23 @@
 <template>
   <div class="location-view">
     <div class="location-content">
-
       <!-- FMO 当前坐标 -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">FMO 当前坐标</span>
-          <button class="btn-refresh" @click="handleFetchFmo">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          <button class="btn-refresh" :disabled="store.isFetchingFmo" @click="handleFetchFmo">
+            <svg
+              ref="fmoIconRef"
+              class="btn-icon"
+              :class="{ spinning: isFmoSpinning }"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+            >
+              <path
+                d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+              />
             </svg>
             刷新
           </button>
@@ -30,9 +39,19 @@
       <div class="card">
         <div class="card-header">
           <span class="card-title">当前 GPS 定位</span>
-          <button class="btn-refresh" @click="handleRefreshGps">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+          <button class="btn-refresh" :disabled="store.isRefreshingGps" @click="handleRefreshGps">
+            <svg
+              ref="gpsIconRef"
+              class="btn-icon"
+              :class="{ spinning: isGpsSpinning }"
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+            >
+              <path
+                d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"
+              />
             </svg>
             获取定位
           </button>
@@ -59,11 +78,7 @@
         <div class="setting-row">
           <span class="setting-label">开启自动上报</span>
           <label class="toggle-switch">
-            <input
-              type="checkbox"
-              :checked="store.enabled"
-              @change="store.toggleEnabled()"
-            />
+            <input type="checkbox" :checked="store.enabled" @change="store.toggleEnabled()" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -71,10 +86,10 @@
         <div class="setting-row interval-row">
           <span class="setting-label">上报间隔</span>
           <input
+            v-model="sliderValue"
             type="range"
             min="0"
             :max="SLIDER_MAX"
-            v-model="sliderValue"
             class="interval-slider"
             :style="{
               background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) 100%)`
@@ -84,12 +99,18 @@
           <span class="interval-current">{{ displayLabel }}</span>
         </div>
 
+        <div v-if="isShortInterval" class="setting-hint">
+          短间隔（≤60秒）会启用 GPS 持续监听，定位更准，但耗电增加。
+        </div>
+
         <div class="setting-row-actions">
           <button
             class="btn-primary"
+            :disabled="store.isManualReporting"
             @click="handleManualReport"
           >
-            立即上报
+            <span v-if="store.isManualReporting" class="btn-spinner btn-spinner-light" />
+            {{ manualReportLabel }}
           </button>
         </div>
       </div>
@@ -106,15 +127,13 @@
           </div>
           <div class="status-row">
             <span class="status-label">结果</span>
-            <span
-              class="status-value"
-              :class="{ 'text-success': store.lastReportResult?.includes('成功'), 'text-danger': store.lastReportResult?.includes('失败') }"
-            >{{ store.lastReportResult }}</span>
+            <span class="status-value" :class="resultStatusClass">{{
+              store.lastReportResult
+            }}</span>
           </div>
         </div>
         <div v-else class="card-empty">尚未上报</div>
       </div>
-
     </div>
   </div>
 </template>
@@ -127,14 +146,66 @@ import { SLIDER_POSITIONS } from '../stores/locationStore'
 const store = useLocationStore()
 const SLIDER_MAX = 100
 
+// 图标 DOM 引用，用于监听 animationiteration
+const fmoIconRef = (ref < SVGElement) | (null > null)
+const gpsIconRef = (ref < SVGElement) | (null > null)
+
+// 本地旋转态：在 store.isFetchingFmo/isRefreshingGps 变为 false 后，
+// 延迟等到当前动画周期完成再停止旋转，避免图标卡在中间角度
+const isFmoSpinning = ref(false)
+const isGpsSpinning = ref(false)
+
+/** 等待图标当前旋转周期完成，再执行回调 */
+function waitSpinComplete(iconRef, callback) {
+  const el = iconRef.value
+  if (!el) {
+    callback()
+    return
+  }
+  const onIteration = () => {
+    el.removeEventListener('animationiteration', onIteration)
+    callback()
+  }
+  el.addEventListener('animationiteration', onIteration)
+}
+
+watch(
+  () => store.isFetchingFmo,
+  (val) => {
+    if (val) {
+      isFmoSpinning.value = true
+    } else {
+      waitSpinComplete(fmoIconRef, () => {
+        isFmoSpinning.value = false
+      })
+    }
+  }
+)
+
+watch(
+  () => store.isRefreshingGps,
+  (val) => {
+    if (val) {
+      isGpsSpinning.value = true
+    } else {
+      waitSpinComplete(gpsIconRef, () => {
+        isGpsSpinning.value = false
+      })
+    }
+  }
+)
+
 // 滑块当前值（v-model 双向绑定，拖拽时实时更新，松手时吸附）
 const sliderValue = ref(SLIDER_POSITIONS[store.getIntervalIndex()])
 
 // 监听 store 间隔变化（如外部修改），同步滑块位置
-watch(() => store.intervalSeconds, () => {
-  const idx = store.getIntervalIndex()
-  sliderValue.value = SLIDER_POSITIONS[idx]
-})
+watch(
+  () => store.intervalSeconds,
+  () => {
+    const idx = store.getIntervalIndex()
+    sliderValue.value = SLIDER_POSITIONS[idx]
+  }
+)
 
 // 将滑块位置 (0-100) 映射到最近的有效选项索引
 function sliderToIndex(pos) {
@@ -165,6 +236,39 @@ const displayLabel = computed(() => {
   return store.INTERVAL_OPTIONS[idx].label
 })
 
+// 当前是否处于短间隔（≤60秒，对应原生侧的持续监听模式）
+const isShortInterval = computed(() => store.intervalSeconds <= 60)
+
+// 立即上报按钮文案（根据阶段变化）
+const manualReportLabel = computed(() => {
+  if (!store.isManualReporting) return '立即上报'
+  switch (store.reportingPhase) {
+    case 'locating':
+      return '正在获取定位…'
+    case 'reporting':
+      return '正在上报…'
+    case 'awaiting':
+      return '等待 FMO 回执…'
+    default:
+      return '处理中…'
+  }
+})
+
+/**
+ * 上报结果状态分类，决定文字颜色：
+ *   - 失败/异常 → red
+ *   - 静止/未变化/跳过 → muted（次要色，非错误）
+ *   - 成功 → green
+ */
+const resultStatusClass = computed(() => {
+  const msg = store.lastReportResult || ''
+  if (!msg) return ''
+  if (/失败|超时|不足|异常|拒绝|未配置|疑似漂移/.test(msg)) return 'text-danger'
+  if (/未变化|静止|跳过/.test(msg)) return 'text-muted'
+  if (/成功/.test(msg)) return 'text-success'
+  return ''
+})
+
 async function handleFetchFmo() {
   await store.fetchFmoCoordinate()
 }
@@ -182,6 +286,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  isFmoSpinning.value = false
+  isGpsSpinning.value = false
   store.teardown()
 })
 </script>
@@ -225,6 +331,7 @@ onUnmounted(() => {
 .btn-refresh {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.3rem;
   padding: 0.3rem 0.6rem;
   font-size: 0.8rem;
@@ -233,12 +340,44 @@ onUnmounted(() => {
   border: 1px solid var(--color-primary);
   border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s,
+    opacity 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.btn-refresh:hover {
+/* 按钮内图标固定 16px，避免影响按钮宽度 */
+.btn-refresh > .btn-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+/* 加载中图标自转：保持原位置不变 */
+.btn-icon.spinning {
+  animation: btn-spin 0.9s linear infinite;
+  transform-origin: 50% 50%;
+}
+
+/* hover 样式仅在真正支持悬浮的设备生效（鼠标）；
+   触屏设备 hover: none，避免点击后样式粘住 */
+@media (hover: hover) {
+  .btn-refresh:hover:not(:disabled) {
+    background: var(--color-primary);
+    color: var(--text-white);
+  }
+}
+
+/* 按下时的视觉反馈（替代触屏的 hover） */
+.btn-refresh:active:not(:disabled) {
   background: var(--color-primary);
   color: var(--text-white);
+  opacity: 0.85;
 }
 
 .card-empty {
@@ -402,15 +541,24 @@ onUnmounted(() => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
-.btn-primary:hover:not(:disabled) {
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+}
+
+.btn-primary:active:not(:disabled) {
   background: var(--color-primary-hover);
+  opacity: 0.9;
 }
 
 .btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.8;
+  cursor: progress;
 }
 
 /* 状态 */
@@ -444,6 +592,53 @@ onUnmounted(() => {
 
 .text-danger {
   color: var(--color-danger);
+}
+
+.text-muted {
+  color: var(--text-secondary);
+}
+
+/* 提示文案（小号灰字） */
+.setting-hint {
+  margin-top: 0.25rem;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+/* loading spinner（用于"立即上报"按钮 btn-primary） */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: btn-spin 0.7s linear infinite;
+  box-sizing: border-box;
+}
+
+/* btn-primary 内的 spinner 与文字保持间距 */
+.btn-primary > .btn-spinner {
+  margin-right: 0.4rem;
+}
+
+.btn-spinner-light {
+  border-color: white;
+  border-right-color: transparent;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn-refresh:disabled {
+  cursor: progress;
+  opacity: 0.7;
 }
 
 /* 移动端 */

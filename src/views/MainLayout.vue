@@ -1,5 +1,4 @@
 <template>
-  
   <div class="container">
     <!-- 标题栏（含桌面端导航） -->
     <AppHeader
@@ -39,7 +38,9 @@
       :style="{ height: pullDistance + 'px', opacity: Math.min(pullDistance / PULL_THRESHOLD, 1) }"
     >
       <span class="refresh-icon" :class="{ spinning: isRefreshing }">↻</span>
-      <span class="refresh-text">{{ isRefreshing ? '刷新中...' : pullDistance >= PULL_THRESHOLD ? '松开刷新' : '下拉刷新' }}</span>
+      <span class="refresh-text">{{
+        isRefreshing ? '刷新中...' : pullDistance >= PULL_THRESHOLD ? '松开刷新' : '下拉刷新'
+      }}</span>
     </div>
 
     <!-- 路由视图 -->
@@ -174,12 +175,7 @@
 
     <!-- 底部导航栏（手机端显示） -->
     <nav class="query-nav mobile-nav">
-      <router-link
-        v-for="route in NAV_ROUTES"
-        :key="route.path"
-        :to="route.path"
-        class="nav-tab"
-      >
+      <router-link v-for="route in NAV_ROUTES" :key="route.path" :to="route.path" class="nav-tab">
         <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
         <span
@@ -215,7 +211,12 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useDataQuery, useCallsignRecords } from '../composables/useDataQuery'
 import { useDbManager } from '../composables/useDbManager'
-import { useModalBackHandler, registerModal, countOpenModals, closeTopModal } from '../composables/useModalBackHandler'
+import {
+  useModalBackHandler,
+  registerModal,
+  countOpenModals,
+  closeTopModal
+} from '../composables/useModalBackHandler'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToAdif } from '../services/db'
@@ -1316,17 +1317,23 @@ const _unregCallsignRecords = registerModal(
 )
 const _unregStationList = registerModal(
   () => showStationList.value,
-  () => { showStationList.value = false },
+  () => {
+    showStationList.value = false
+  },
   50
 )
 const _unregQuickNav = registerModal(
   () => showQuickNav.value,
-  () => { showQuickNav.value = false },
+  () => {
+    showQuickNav.value = false
+  },
   60
 )
 const _unregSpeakingHistory = registerModal(
   () => showSpeakingHistory.value,
-  () => { showSpeakingHistory.value = false },
+  () => {
+    showSpeakingHistory.value = false
+  },
   70
 )
 
@@ -1631,7 +1638,11 @@ provide('protocol', settings.protocol)
 }
 
 @keyframes pull-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

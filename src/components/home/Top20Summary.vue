@@ -2,11 +2,17 @@
   <div class="top20-container">
     <div v-if="!dbLoaded" class="empty-hint">
       <div class="empty-state">
-        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-          <polyline points="13 2 13 9 20 9"/>
-          <line x1="9" y1="13" x2="15" y2="13"/>
-          <line x1="9" y1="17" x2="13" y2="17"/>
+        <svg
+          class="empty-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+          <polyline points="13 2 13 9 20 9" />
+          <line x1="9" y1="13" x2="15" y2="13" />
+          <line x1="9" y1="17" x2="13" y2="17" />
         </svg>
         <p class="empty-title">暂无通联数据</p>
         <p class="empty-desc">导入数据库文件或同步FMO服务器即可查看</p>
@@ -62,9 +68,7 @@
 
       <!-- 中继名称 TOP20 -->
       <div class="top20-card">
-        <h3>
-          中继名称 TOP20
-        </h3>
+        <h3>中继名称 TOP20</h3>
         <div class="top20-list">
           <div
             v-for="(item, index) in top20Result.relayName"

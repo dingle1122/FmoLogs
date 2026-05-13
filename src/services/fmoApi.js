@@ -51,9 +51,7 @@ export class FmoApiClient {
     // 兼容两种 baseUrl：
     //  1) 基础地址，如 'wss://host'           → 自动拼 /ws
     //  2) 完整地址，如 'wss://host/ws'        → 直接使用，避免拼成 /ws/ws
-    const wsUrl = host.endsWith('/ws')
-      ? `${protocol}://${host}`
-      : `${protocol}://${host}/ws`
+    const wsUrl = host.endsWith('/ws') ? `${protocol}://${host}` : `${protocol}://${host}/ws`
 
     this.connectPromise = new Promise((resolve, reject) => {
       console.log(`Connecting to FMO: ${wsUrl}`)

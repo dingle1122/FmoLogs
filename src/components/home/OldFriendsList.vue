@@ -2,11 +2,17 @@
   <div ref="containerRef" class="old-friends-container">
     <div v-if="!dbLoaded" class="empty-hint">
       <div class="empty-state">
-        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-          <polyline points="13 2 13 9 20 9"/>
-          <line x1="9" y1="13" x2="15" y2="13"/>
-          <line x1="9" y1="17" x2="13" y2="17"/>
+        <svg
+          class="empty-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+          <polyline points="13 2 13 9 20 9" />
+          <line x1="9" y1="13" x2="15" y2="13" />
+          <line x1="9" y1="17" x2="13" y2="17" />
         </svg>
         <p class="empty-title">暂无通联数据</p>
         <p class="empty-desc">导入数据库文件或同步FMO服务器即可查看</p>
@@ -52,10 +58,16 @@
     </template>
     <div v-else-if="oldFriendsResult" class="empty-hint">
       <div class="empty-state">
-        <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          <line x1="8" y1="11" x2="14" y2="11"/>
+        <svg
+          class="empty-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          <line x1="8" y1="11" x2="14" y2="11" />
         </svg>
         <p class="empty-title">暂无老朋友</p>
         <p class="empty-desc">导入数据后即可查看老朋友统计</p>
@@ -106,9 +118,10 @@ const emit = defineEmits(['show-records', 'load-more'])
 const gridAddressMap = reactive({})
 
 const sortedData = computed(() => {
-  const allData = props.oldFriendsAllData.length > 0
-    ? props.oldFriendsAllData
-    : (props.oldFriendsResult?.data || [])
+  const allData =
+    props.oldFriendsAllData.length > 0
+      ? props.oldFriendsAllData
+      : props.oldFriendsResult?.data || []
   if (allData.length === 0) return []
 
   if (!props.prioritizeToday) {
@@ -136,9 +149,10 @@ function formatGridAddress(data) {
 }
 
 async function loadGridAddresses() {
-  const allData = props.oldFriendsAllData.length > 0
-    ? props.oldFriendsAllData
-    : (props.oldFriendsResult?.data || [])
+  const allData =
+    props.oldFriendsAllData.length > 0
+      ? props.oldFriendsAllData
+      : props.oldFriendsResult?.data || []
   if (allData.length === 0) return
   const grids = new Set()
   for (const item of allData) {

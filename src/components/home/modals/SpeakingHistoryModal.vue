@@ -40,10 +40,10 @@
                     }}</span>
                     <span class="callsign-text">{{ record.callsign }}</span>
                     <span class="callsign-badge">
-                      <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
-                      <span
-                        v-if="todayContactedCallsigns.has(record.callsign)"
-                        class="today-star"
+                      <span v-if="record.callsign === selectedFromCallsign" class="self-tag"
+                        >您</span
+                      >
+                      <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
                         >&#11088;</span
                       >
                     </span>

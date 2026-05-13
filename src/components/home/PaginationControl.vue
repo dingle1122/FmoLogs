@@ -5,9 +5,16 @@
       class="page-btn nav-btn"
       @click="$emit('page-change', 1)"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-        <polyline points="11 17 6 12 11 7"/>
-        <polyline points="18 17 13 12 18 7"/>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        width="14"
+        height="14"
+      >
+        <polyline points="11 17 6 12 11 7" />
+        <polyline points="18 17 13 12 18 7" />
       </svg>
     </button>
     <button
@@ -15,8 +22,15 @@
       class="page-btn"
       @click="$emit('page-change', currentPage - 1)"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-        <polyline points="15 18 9 12 15 6"/>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        width="14"
+        height="14"
+      >
+        <polyline points="15 18 9 12 15 6" />
       </svg>
     </button>
     <div class="page-info">
@@ -41,8 +55,15 @@
       class="page-btn"
       @click="$emit('page-change', currentPage + 1)"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-        <polyline points="9 18 15 12 9 6"/>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        width="14"
+        height="14"
+      >
+        <polyline points="9 18 15 12 9 6" />
       </svg>
     </button>
     <button
@@ -50,9 +71,16 @@
       class="page-btn nav-btn"
       @click="$emit('page-change', totalPages)"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
-        <polyline points="13 17 18 12 13 7"/>
-        <polyline points="6 17 11 12 6 7"/>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        width="14"
+        height="14"
+      >
+        <polyline points="13 17 18 12 13 7" />
+        <polyline points="6 17 11 12 6 7" />
       </svg>
     </button>
   </div>

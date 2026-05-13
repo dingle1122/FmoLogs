@@ -194,8 +194,7 @@ export async function downloadRemoteFile(url, fallbackFilename) {
   for (let i = 0; i < binary.length; i++) {
     data[i] = binary.charCodeAt(i)
   }
-  const mimeType =
-    (headers['Content-Type'] || headers['content-type']) || 'application/octet-stream'
+  const mimeType = headers['Content-Type'] || headers['content-type'] || 'application/octet-stream'
 
   return await exportFile(filename, data, mimeType)
 }

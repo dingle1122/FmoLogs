@@ -272,9 +272,15 @@ public class FmoLocationPlugin extends Plugin {
     // ---- 单次定位 ----
 
     /**
-     * 获取当前位置：始终使用 requestSingleUpdate 主动请求实时定位。
-     * 用户点击「获取定位」或「立即上报」时确保获取的是最新坐标。
-     * 30s 超时后回退到系统缓存兜底。
+     * 获取当前位置：GPS 优先策略。
+     *
+     * 流程：
+     *   1. 若 Service 正在运行（自动上报开启中）→ 直接从缓冲池取最佳点（最快最准）；
+     *   2. 否则请求 GPS_PROVIDER 单次定位，给 {@link #GPS_PREFERRED_WAIT_MS} 时间收星；
+     *   3. GPS 超时后再启用 NETWORK_PROVIDER 兜底；
+     *   4. NETWORK 也超时（总 {@link #SINGLE_UPDATE_TOTAL_TIMEOUT_MS}）才用 lastKnownLocation 兜底。
+     *
+     * 避免了"GPS 与 NETWORK 并发请求 + 网络定位秒回 + 漂移"的老问题。
      */
     @PluginMethod
     public void getCurrentPosition(PluginCall call) {
@@ -292,81 +298,155 @@ public class FmoLocationPlugin extends Plugin {
             return;
         }
 
-        try {
-            // 请求实时定位
-            final boolean[] resolved = {false};
-            LocationListener onceListener = new LocationListener() {
-                @Override
-                public void onLocationChanged(Location location) {
-                    if (!resolved[0]) {
-                        resolved[0] = true;
-                        if (location != null) {
-                            lastLocation = location;
-                            JSObject result = new JSObject();
-                            result.put("latitude", location.getLatitude());
-                            result.put("longitude", location.getLongitude());
-                            result.put("accuracy", location.hasAccuracy() ? location.getAccuracy() : 0);
-                            call.resolve(result);
-                        } else {
-                            call.reject("Unable to get location");
-                        }
-                    }
-                    try {
-                        locationManager.removeUpdates(this);
-                    } catch (Exception ignore) {}
-                }
-
-                @Override
-                public void onStatusChanged(String provider, int status, Bundle extras) {}
-                @Override
-                public void onProviderEnabled(String provider) {}
-                @Override
-                public void onProviderDisabled(String provider) {
-                    if (!resolved[0]) {
-                        resolved[0] = true;
-                        call.reject("Location provider disabled");
-                    }
-                    try {
-                        locationManager.removeUpdates(this);
-                    } catch (Exception ignore) {}
-                }
-            };
-
-            // 同时使用 GPS 和网络定位
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                locationManager.requestSingleUpdate(LocationManager.GPS_PROVIDER, onceListener, Looper.getMainLooper());
+        // 优先从 Service 缓冲池读取（自动上报运行时）
+        if (FmoLocationService.isRunning()) {
+            Location buffered = FmoLocationService.getBestLocationFromBuffer();
+            if (buffered != null) {
+                Log.i(TAG, "getCurrentPosition: served from Service buffer, accuracy="
+                        + (buffered.hasAccuracy() ? buffered.getAccuracy() : "N/A"));
+                lastLocation = buffered;
+                JSObject result = new JSObject();
+                result.put("latitude", buffered.getLatitude());
+                result.put("longitude", buffered.getLongitude());
+                result.put("accuracy", buffered.hasAccuracy() ? buffered.getAccuracy() : 0);
+                result.put("source", "buffer");
+                call.resolve(result);
+                return;
             }
-            if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                locationManager.requestSingleUpdate(LocationManager.NETWORK_PROVIDER, onceListener, Looper.getMainLooper());
-            }
+            // Service 在跑但缓冲池为空（GPS 刚启动还没收到点），继续走单次定位
+            Log.i(TAG, "getCurrentPosition: Service running but buffer empty, request single update");
+        }
 
-            // 超时兜底（30 秒）
-            mainHandler.postDelayed(() -> {
+        final boolean[] resolved = {false};
+        final LocationListener[] activeListenerHolder = new LocationListener[1];
+
+        // 内部辅助：解析并清理
+        final Runnable cleanup = () -> {
+            if (activeListenerHolder[0] != null) {
                 try {
-                    locationManager.removeUpdates(onceListener);
+                    locationManager.removeUpdates(activeListenerHolder[0]);
                 } catch (Exception ignore) {}
-                if (!resolved[0]) {
-                    resolved[0] = true;
-                    // 尝试用 lastKnownLocation 兜底（即使是过期的）
-                    Location fallback = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                    if (fallback == null) {
-                        fallback = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                    }
-                    if (fallback != null) {
-                        lastLocation = fallback;
-                        JSObject result = new JSObject();
-                        result.put("latitude", fallback.getLatitude());
-                        result.put("longitude", fallback.getLongitude());
-                        result.put("accuracy", fallback.hasAccuracy() ? fallback.getAccuracy() : 0);
-                        call.resolve(result);
-                    } else {
-                        call.reject("Location request timed out");
-                    }
-                }
-            }, 30_000);
+                activeListenerHolder[0] = null;
+            }
+        };
 
+        // 阶段 1：GPS 优先
+        boolean gpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        boolean networkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        LocationListener gpsListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                if (resolved[0] || location == null) return;
+                resolved[0] = true;
+                lastLocation = location;
+                cleanup.run();
+                JSObject result = new JSObject();
+                result.put("latitude", location.getLatitude());
+                result.put("longitude", location.getLongitude());
+                result.put("accuracy", location.hasAccuracy() ? location.getAccuracy() : 0);
+                call.resolve(result);
+            }
+            @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+            @Override public void onProviderEnabled(String provider) {}
+            @Override public void onProviderDisabled(String provider) {}
+        };
+
+        try {
+            if (gpsEnabled) {
+                activeListenerHolder[0] = gpsListener;
+                locationManager.requestSingleUpdate(
+                        LocationManager.GPS_PROVIDER, gpsListener, Looper.getMainLooper());
+                Log.i(TAG, "getCurrentPosition: requesting GPS first");
+            } else if (networkEnabled) {
+                // 跳过 GPS 阶段，直接 NETWORK
+                Log.i(TAG, "getCurrentPosition: GPS disabled, fallback to NETWORK");
+                startNetworkPhase(call, resolved, activeListenerHolder, cleanup);
+                return;
+            } else {
+                call.reject("No location provider available");
+                return;
+            }
         } catch (SecurityException se) {
             call.reject("Location permission denied: " + se.getMessage());
+            return;
+        }
+
+        // 阶段 1 超时 → 阶段 2：NETWORK 兜底
+        mainHandler.postDelayed(() -> {
+            if (resolved[0]) return;
+            cleanup.run();
+            if (networkEnabled) {
+                Log.i(TAG, "getCurrentPosition: GPS timed out, fallback to NETWORK");
+                startNetworkPhase(call, resolved, activeListenerHolder, cleanup);
+            } else {
+                // GPS 超时且无 NETWORK，等总超时再用 lastKnown 兜底
+                Log.w(TAG, "getCurrentPosition: GPS timed out and NETWORK disabled");
+            }
+        }, GPS_PREFERRED_WAIT_MS);
+
+        // 总超时：lastKnownLocation 兜底
+        mainHandler.postDelayed(() -> {
+            if (resolved[0]) return;
+            cleanup.run();
+            resolved[0] = true;
+            Location fallback = null;
+            try {
+                if (gpsEnabled) {
+                    fallback = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                }
+                if (fallback == null && networkEnabled) {
+                    fallback = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                }
+            } catch (SecurityException ignore) {}
+            if (fallback != null) {
+                lastLocation = fallback;
+                JSObject result = new JSObject();
+                result.put("latitude", fallback.getLatitude());
+                result.put("longitude", fallback.getLongitude());
+                result.put("accuracy", fallback.hasAccuracy() ? fallback.getAccuracy() : 0);
+                call.resolve(result);
+            } else {
+                call.reject("Location request timed out");
+            }
+        }, SINGLE_UPDATE_TOTAL_TIMEOUT_MS);
+    }
+
+    /** GPS 优先等待窗口：GPS 没回 → NETWORK 兜底 */
+    private static final long GPS_PREFERRED_WAIT_MS = 10_000L;
+    /** 单次定位总超时：之后用 lastKnownLocation 兜底 */
+    private static final long SINGLE_UPDATE_TOTAL_TIMEOUT_MS = 30_000L;
+
+    private void startNetworkPhase(
+            PluginCall call,
+            boolean[] resolved,
+            LocationListener[] activeListenerHolder,
+            Runnable cleanup
+    ) {
+        LocationListener networkListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(Location location) {
+                if (resolved[0] || location == null) return;
+                resolved[0] = true;
+                lastLocation = location;
+                cleanup.run();
+                JSObject result = new JSObject();
+                result.put("latitude", location.getLatitude());
+                result.put("longitude", location.getLongitude());
+                result.put("accuracy", location.hasAccuracy() ? location.getAccuracy() : 0);
+                call.resolve(result);
+            }
+            @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
+            @Override public void onProviderEnabled(String provider) {}
+            @Override public void onProviderDisabled(String provider) {}
+        };
+        try {
+            activeListenerHolder[0] = networkListener;
+            locationManager.requestSingleUpdate(
+                    LocationManager.NETWORK_PROVIDER, networkListener, Looper.getMainLooper());
+        } catch (SecurityException se) {
+            // 由总超时 lastKnown 兜底处理
+            activeListenerHolder[0] = null;
         }
     }
 

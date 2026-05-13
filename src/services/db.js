@@ -741,10 +741,7 @@ export async function getTop20StatsFromIndexedDB(fromCallsign = null) {
 }
 
 // 获取全部老朋友数据（不分页），用于前端全量排序+懒加载展示
-export async function getAllOldFriendsFromIndexedDB(
-  searchKeyword = '',
-  fromCallsign = null
-) {
+export async function getAllOldFriendsFromIndexedDB(searchKeyword = '', fromCallsign = null) {
   if (!fromCallsign) {
     return []
   }

@@ -32,7 +32,9 @@ if (Capacitor.isNativePlatform()) {
       if (url.host === 'location-report') {
         router.push('/location-report')
       }
-    } catch { /* ignore invalid URL */ }
+    } catch {
+      /* ignore invalid URL */
+    }
   })
 }
 

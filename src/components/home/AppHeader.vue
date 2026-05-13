@@ -14,12 +14,7 @@
       </span>
     </div>
     <nav class="header-nav">
-      <router-link
-        v-for="route in NAV_ROUTES"
-        :key="route.path"
-        :to="route.path"
-        class="nav-tab"
-      >
+      <router-link v-for="route in NAV_ROUTES" :key="route.path" :to="route.path" class="nav-tab">
         {{ route.label }}
         <span v-if="route.type === 'messages' && hasUnreadMessages" class="unread-badge"></span>
       </router-link>

@@ -62,10 +62,22 @@ export const useLocationStore = defineStore('location', () => {
   const lastReportedPos = ref<{ lat: number; lng: number } | null>(null)
   /** 最近一次检查时间（即使跳过上报也更新通知） */
   const lastCheckTime = ref('')
+  /** 手动上报中标志（用于 UI 按钮 loading 状态） */
+  const isManualReporting = ref(false)
+  /**
+   * 手动上报当前阶段（用于 UI 显示进度）：
+   *   '' / 'locating' / 'reporting' / 'awaiting'
+   */
+  const reportingPhase = ref<'' | 'locating' | 'reporting' | 'awaiting'>('')
+  /** 手动刷新 GPS 中标志（用于"获取定位"按钮 loading） */
+  const isRefreshingGps = ref(false)
+  /** 拉取 FMO 坐标中标志（用于"刷新 FMO 坐标"按钮 loading） */
+  const isFetchingFmo = ref(false)
 
-  // GPS 可靠性阈值
-  const ACCURACY_THRESHOLD = 100  // 精度 > 100m 视为不可靠，放弃本次上报
-  const DRIFT_THRESHOLD = 10     // 偏移 < 10m 视为未移动，跳过上报（仅刷新通知时间）
+  // GPS 可靠性阈值（与原生侧 FmoLocationService 对齐）
+  const ACCURACY_THRESHOLD = 30 // 精度 > 30m 视为不可靠，放弃本次上报
+  const DRIFT_THRESHOLD = 10 // 偏移 < 10m 视为未移动，跳过上报（仅刷新通知时间）
+  const MAX_REASONABLE_SPEED = 50 // 速度 > 50m/s (180km/h) 视为疑似漂移
 
   // ========== 内部状态 ==========
   let isTearingDown = false
@@ -111,8 +123,31 @@ export const useLocationStore = defineStore('location', () => {
   function calcDistance(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
     const R = 111320 // meters per degree latitude
     const dLat = (b.lat - a.lat) * R
-    const dLng = (b.lng - a.lng) * R * Math.cos(a.lat * Math.PI / 180)
+    const dLng = (b.lng - a.lng) * R * Math.cos((a.lat * Math.PI) / 180)
     return Math.sqrt(dLat * dLat + dLng * dLng)
+  }
+
+  /** 将 "HH:mm:ss" 解析为当天对应的毫秒时间戳；解析失败返回 0 */
+  function parseTimeToMs(hhmmss: string): number {
+    if (!hhmmss) return 0
+    const m = /^(\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(hhmmss)
+    if (!m) return 0
+    const now = new Date()
+    const d = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      Number(m[1]),
+      Number(m[2]),
+      Number(m[3]),
+      0
+    )
+    let t = d.getTime()
+    // 处理跨日：若解析出的时间在未来超过 1 小时，认为是昨天
+    if (t - now.getTime() > 60 * 60 * 1000) {
+      t -= 24 * 60 * 60 * 1000
+    }
+    return t
   }
 
   /** 更新Android前台通知栏文案（即使跳过上报也更新时间） */
@@ -125,7 +160,9 @@ export const useLocationStore = defineStore('location', () => {
         `${label}: ${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)} (${checkTime})`,
         intervalSeconds.value
       )
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // ========== actions ==========
@@ -160,7 +197,7 @@ export const useLocationStore = defineStore('location', () => {
       if (savedInterval !== null) {
         const val = parseInt(savedInterval, 10)
         // 验证是否为有效的间隔选项
-        const validOption = INTERVAL_OPTIONS.find(opt => opt.value === val)
+        const validOption = INTERVAL_OPTIONS.find((opt) => opt.value === val)
         if (validOption) {
           intervalSeconds.value = val
         }
@@ -250,7 +287,7 @@ export const useLocationStore = defineStore('location', () => {
     }
   }
 
-  /** 设置上报间隔（秒），从预设选项中选择最近的 
+  /** 设置上报间隔（秒），从预设选项中选择最近的
    * @deprecated 使用 setIntervalByIndex 更精确
    */
   async function setInterval(seconds: number) {
@@ -282,13 +319,13 @@ export const useLocationStore = defineStore('location', () => {
 
   /** 获取当前间隔选项的索引 */
   function getIntervalIndex(): number {
-    const index = INTERVAL_OPTIONS.findIndex(opt => opt.value === intervalSeconds.value)
-    return index >= 0 ? index : INTERVAL_OPTIONS.findIndex(opt => opt.value === 600) // 默认10分钟
+    const index = INTERVAL_OPTIONS.findIndex((opt) => opt.value === intervalSeconds.value)
+    return index >= 0 ? index : INTERVAL_OPTIONS.findIndex((opt) => opt.value === 600) // 默认10分钟
   }
 
   /** 格式化间隔时间为友好显示 */
   function formatInterval(seconds: number): string {
-    const option = INTERVAL_OPTIONS.find(opt => opt.value === seconds)
+    const option = INTERVAL_OPTIONS.find((opt) => opt.value === seconds)
     return option ? option.label : `${seconds}秒`
   }
 
@@ -319,11 +356,13 @@ export const useLocationStore = defineStore('location', () => {
     }
   }
   async function fetchFmoCoordinate(): Promise<boolean> {
+    if (isFetchingFmo.value) return false
     const client = createClient()
     if (!client) {
       lastReportResult.value = '未配置 FMO 地址'
       return false
     }
+    isFetchingFmo.value = true
     try {
       const data = await client.getCoordinate()
       if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
@@ -336,72 +375,108 @@ export const useLocationStore = defineStore('location', () => {
       return false
     } finally {
       client.close()
+      isFetchingFmo.value = false
     }
   }
 
-  /** 立即上报一次定位 */
+  /** 立即上报一次定位（带分阶段状态反馈） */
   async function reportLocation(): Promise<boolean> {
-    const platform = getPlatform()
-
-    // 获取 GPS
-    const rawPos = await platform.location.getCurrentPosition()
-    const checkTime = formatNow()
-    lastCheckTime.value = checkTime
-
-    if (!rawPos) {
-      lastReportResult.value = '获取 GPS 定位失败'
+    if (isManualReporting.value) {
+      // 防止重复点击
       return false
     }
+    isManualReporting.value = true
+    reportingPhase.value = 'locating'
+    lastReportResult.value = '正在获取定位…'
 
-    // 更新 GPS 展示（始终更新，即使不上报）
-    currentGps.value = { lat: rawPos.latitude, lng: rawPos.longitude }
-
-    // --- 精度门限检查 ---
-    if (rawPos.accuracy > ACCURACY_THRESHOLD) {
-      lastReportResult.value = `GPS 精度不足 (${rawPos.accuracy.toFixed(0)}m > ${ACCURACY_THRESHOLD}m)`
-      return false
-    }
-
-    // --- 漂移过滤：与上次上报位置比较 ---
-    if (lastReportedPos.value) {
-      const dist = calcDistance(lastReportedPos.value, currentGps.value)
-      if (dist < DRIFT_THRESHOLD) {
-        lastReportResult.value = `位置未变化 (偏移 ${dist.toFixed(1)}m < ${DRIFT_THRESHOLD}m)，跳过上报`
-        return true
-      }
-    }
-
-    // --- 上报到 FMO ---
-    const client = createClient()
-    if (!client) {
-      lastReportResult.value = '未配置 FMO 地址'
-      return false
-    }
     try {
-      await client.setCoordinate(
-        rawPos.latitude,
-        rawPos.longitude
-      )
-      lastReportTime.value = checkTime
-      lastReportedPos.value = { lat: rawPos.latitude, lng: rawPos.longitude }
-      lastReportResult.value = `上报成功 (${checkTime})`
-      // 上报后等 5s 再从 FMO 拉取坐标（等 server 处理完落库）
-      window.setTimeout(() => {
-        if (!isTearingDown) {
-          fetchFmoCoordinate()
+      const platform = getPlatform()
+
+      // 阶段 1：获取 GPS
+      const rawPos = await platform.location.getCurrentPosition()
+      const checkTime = formatNow()
+      lastCheckTime.value = checkTime
+
+      if (!rawPos) {
+        lastReportResult.value = '获取 GPS 定位失败'
+        return false
+      }
+
+      // 更新 GPS 展示（始终更新，即使不上报）
+      currentGps.value = { lat: rawPos.latitude, lng: rawPos.longitude }
+
+      // --- 精度门限检查 ---
+      if (rawPos.accuracy > ACCURACY_THRESHOLD) {
+        lastReportResult.value = `GPS 精度不足 (${rawPos.accuracy.toFixed(0)}m > ${ACCURACY_THRESHOLD}m)`
+        return false
+      }
+
+      // --- 漂移过滤：与上次上报位置比较 ---
+      if (lastReportedPos.value && lastReportTime.value) {
+        const dist = calcDistance(lastReportedPos.value, currentGps.value)
+        const lastTime = parseTimeToMs(lastReportTime.value)
+        if (lastTime > 0) {
+          const dtSec = (Date.now() - lastTime) / 1000
+          if (dtSec > 0) {
+            const speed = dist / dtSec
+            if (speed > MAX_REASONABLE_SPEED) {
+              lastReportResult.value = `速度异常 (${speed.toFixed(1)} m/s)，疑似漂移，跳过上报`
+              return false
+            }
+          }
         }
-      }, 5000)
-      return true
-    } catch (err: any) {
-      lastReportResult.value = `上报失败 (${formatNow()}): ${err?.message || String(err)}`
-      return false
+        if (dist < DRIFT_THRESHOLD) {
+          lastReportResult.value = `位置未变化 (偏移 ${dist.toFixed(1)}m < ${DRIFT_THRESHOLD}m)，跳过上报`
+          return true
+        }
+      }
+
+      // 阶段 2：上报到 FMO
+      reportingPhase.value = 'reporting'
+      lastReportResult.value = '正在上报至 FMO…'
+
+      const client = createClient()
+      if (!client) {
+        lastReportResult.value = '未配置 FMO 地址'
+        return false
+      }
+      try {
+        await client.setCoordinate(rawPos.latitude, rawPos.longitude)
+        lastReportTime.value = checkTime
+        lastReportedPos.value = { lat: rawPos.latitude, lng: rawPos.longitude }
+        lastReportResult.value = `上报成功 (${checkTime})`
+
+        // 阶段 3：等 FMO 回执（不阻塞 reportLocation 返回，但更新 UI 状态）
+        reportingPhase.value = 'awaiting'
+        window.setTimeout(() => {
+          if (!isTearingDown) {
+            fetchFmoCoordinate()
+          }
+          // 5s 后清除"等待中"状态
+          if (reportingPhase.value === 'awaiting') {
+            reportingPhase.value = ''
+          }
+        }, 5000)
+        return true
+      } catch (err: any) {
+        lastReportResult.value = `上报失败 (${formatNow()}): ${err?.message || String(err)}`
+        return false
+      } finally {
+        client.close()
+      }
     } finally {
-      client.close()
+      isManualReporting.value = false
+      // 注意：reportingPhase 在 'awaiting' 状态下由 setTimeout 自行清理；
+      // 其他失败/跳过分支这里立即清空
+      if (reportingPhase.value !== 'awaiting') {
+        reportingPhase.value = ''
+      }
     }
   }
 
   /** 仅获取 GPS 坐标（不上报） */
   async function refreshGps(): Promise<boolean> {
+    if (isRefreshingGps.value) return false
     if (!permissionGranted.value) {
       await checkPermission()
       if (!permissionGranted.value) {
@@ -409,12 +484,17 @@ export const useLocationStore = defineStore('location', () => {
         return false
       }
     }
-    const pos = await getPlatform().location.getCurrentPosition()
-    if (pos) {
-      currentGps.value = { lat: pos.latitude, lng: pos.longitude }
-      return true
+    isRefreshingGps.value = true
+    try {
+      const pos = await getPlatform().location.getCurrentPosition()
+      if (pos) {
+        currentGps.value = { lat: pos.latitude, lng: pos.longitude }
+        return true
+      }
+      return false
+    } finally {
+      isRefreshingGps.value = false
     }
-    return false
   }
 
   /** 设置 FMO 配置到原生侧（用于息屏定时上报） */
@@ -489,6 +569,10 @@ export const useLocationStore = defineStore('location', () => {
     isRequestingPermission,
     lastReportedPos,
     lastCheckTime,
+    isManualReporting,
+    reportingPhase,
+    isRefreshingGps,
+    isFetchingFmo,
     // actions
     init,
     toggleEnabled,
