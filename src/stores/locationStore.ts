@@ -426,9 +426,8 @@ export const useLocationStore = defineStore('location', () => {
           }
         }
         if (dist < DRIFT_THRESHOLD) {
-          // 位置未变化时，仍然上报维持心跳
-          lastReportResult.value = `位置未变化 (偏移 ${dist.toFixed(1)}m < ${DRIFT_THRESHOLD}m)，正常上报`
-          // 不再 return true 阻断后续流程
+          lastReportResult.value = `位置未变化 (偏移 ${dist.toFixed(1)}m < ${DRIFT_THRESHOLD}m)，跳过上报`
+          return true
         }
       }
 

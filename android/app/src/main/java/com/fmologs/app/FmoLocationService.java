@@ -631,15 +631,15 @@ public class FmoLocationService extends Service {
 
         Location best = pickBestLocation();
         if (best != null) {
-            // 静止检测：池中最近 N 个点都聚集 → 仍然上报以维持心跳，但通知可提示静止
+            // 静止检测：池中最近 N 个点都聚集 → 跳过上报
             if (isStationary()) {
-                Log.i(TAG, "doReport: device stationary, but still report to maintain heartbeat");
-                updateNotificationText("设备静止", checkTime);
-                // 走正常上报流程
-                processLocation(best, checkTime, false, true);
+                Log.i(TAG, "doReport: device stationary, skip report");
+                updateNotificationText("设备静止", checkTime, best.getLatitude(), best.getLongitude());
+                notifyJs(true, best.getLatitude(), best.getLongitude(), checkTime,
+                        "设备静止，跳过上报");
                 return;
             }
-            processLocation(best, checkTime, false, false);
+            processLocation(best, checkTime, false);
             return;
         }
 
@@ -676,7 +676,7 @@ public class FmoLocationService extends Service {
                 }
                 Log.i(TAG, "networkFallback: got fix accuracy="
                         + (location.hasAccuracy() ? location.getAccuracy() : "N/A"));
-                processLocation(location, checkTime, true, false);
+                processLocation(location, checkTime, true);
             }
             @Override public void onStatusChanged(String provider, int status, Bundle extras) {}
             @Override public void onProviderEnabled(String provider) {}
@@ -724,9 +724,8 @@ public class FmoLocationService extends Service {
     /**
      * 上报前的最终校验：精度（按来源分级）、漂移、速度合理性。
      * @param fromNetwork true 表示这是 NETWORK 兜底点，使用更宽的精度门限
-     * @param isStationary true 表示已通过 isStationary() 检测
      */
-    private void processLocation(Location loc, String checkTime, boolean fromNetwork, boolean isStationary) {
+    private void processLocation(Location loc, String checkTime, boolean fromNetwork) {
         double lat = loc.getLatitude();
         double lng = loc.getLongitude();
 
@@ -735,14 +734,13 @@ public class FmoLocationService extends Service {
         if (loc.hasAccuracy() && loc.getAccuracy() > threshold) {
             Log.w(TAG, "processLocation: accuracy too low: " + loc.getAccuracy()
                     + "m (threshold " + threshold + ")");
-            updateNotificationText("精度不足", checkTime);
+            updateNotificationText("精度不足", checkTime, lat, lng);
             notifyJs(false, lat, lng, checkTime,
                     "定位精度不足(" + (int) loc.getAccuracy() + "m)");
             return;
         }
 
         // 2. 漂移过滤：与上次上报位置比较
-        String prefixMsg = "";
         if (sLastReportTime > 0 && sLastReportedLat != 0) {
             float[] results = new float[1];
             Location.distanceBetween(sLastReportedLat, sLastReportedLng, lat, lng, results);
@@ -755,26 +753,27 @@ public class FmoLocationService extends Service {
                 if (speed > MAX_REASONABLE_SPEED) {
                     Log.w(TAG, "processLocation: speed too high vs last report ("
                             + speed + " m/s), drop");
-                    updateNotificationText("疑似漂移", checkTime);
+                    updateNotificationText("疑似漂移", checkTime, lat, lng);
                     notifyJs(false, lat, lng, checkTime,
                             "速度异常(" + String.format(Locale.US, "%.1f", speed) + " m/s)，疑似漂移");
                     return;
                 }
             }
 
-            if (dist < DRIFT_THRESHOLD || isStationary) {
-                Log.i(TAG, "processLocation: position unchanged (" + dist + "m) or stationary, still reporting for heartbeat");
-                updateNotificationText("位置未变", checkTime);
-                prefixMsg = "位置未变化(偏移" + String.format(Locale.US, "%.1f", dist) + "m)，正常上报";
-                // 继续执行上报，不再 return
+            if (dist < DRIFT_THRESHOLD) {
+                Log.i(TAG, "processLocation: position unchanged (" + dist + "m), skip");
+                updateNotificationText("位置未变", checkTime, lat, lng);
+                notifyJs(true, lat, lng, checkTime,
+                        "位置未变化(偏移" + String.format(Locale.US, "%.1f", dist) + "m)，跳过上报");
+                return;
             }
         }
 
         // 3. 上报到 FMO
-        reportToFmo(lat, lng, checkTime, prefixMsg);
+        reportToFmo(lat, lng, checkTime);
     }
 
-    private void reportToFmo(final double lat, final double lng, final String checkTime, final String prefixMsg) {
+    private void reportToFmo(final double lat, final double lng, final String checkTime) {
         if (sFmoUrl.isEmpty()) {
             Log.w(TAG, "reportToFmo: no FMO URL configured");
             updateNotificationText("未配置地址", checkTime);
@@ -822,9 +821,8 @@ public class FmoLocationService extends Service {
                 sLastReportedLng = lng;
                 sLastReportTime = now;
                 persistLastReported(lat, lng, now);
-                updateNotificationText("最近上报", checkTime);
-                String msg = (prefixMsg != null && !prefixMsg.isEmpty()) ? prefixMsg : "上报成功";
-                notifyJs(true, lat, lng, checkTime, msg);
+                updateNotificationText("最近上报", checkTime, lat, lng);
+                notifyJs(true, lat, lng, checkTime, "上报成功");
                 ws.close(1000, null);
 
                 // 5s 后从 FMO 拉取坐标确认
@@ -834,7 +832,7 @@ public class FmoLocationService extends Service {
             @Override
             public void onFailure(@NonNull WebSocket ws, @NonNull Throwable t, Response response) {
                 Log.w(TAG, "reportToFmo: failed", t);
-                updateNotificationText("上报失败", checkTime);
+                updateNotificationText("上报失败", checkTime, lat, lng);
                 notifyJs(false, lat, lng, checkTime, "上报失败: " + t.getMessage());
             }
         });
@@ -903,12 +901,20 @@ public class FmoLocationService extends Service {
     private void updateNotificationText(String label, String time) {
         Location loc = pickBestLocation();
         if (loc != null) {
-            sText = label + ": " + String.format(Locale.US, "%.6f", loc.getLatitude())
-                    + ", " + String.format(Locale.US, "%.6f", loc.getLongitude())
-                    + " (" + time + ")";
+            updateNotificationText(label, time, loc.getLatitude(), loc.getLongitude());
+        } else if (sLastReportedLat != 0 && sLastReportedLng != 0) {
+            // 如果当前无最佳点（例如网络兜底等情况），尝试兜底使用上一次的已知坐标，避免坐标突然消失
+            updateNotificationText(label, time, sLastReportedLat, sLastReportedLng);
         } else {
             sText = label + " (" + time + ")";
+            refreshNotification();
         }
+    }
+
+    private void updateNotificationText(String label, String time, double lat, double lng) {
+        sText = label + ": " + String.format(Locale.US, "%.6f", lat)
+                + ", " + String.format(Locale.US, "%.6f", lng)
+                + " (" + time + ")";
         refreshNotification();
     }
 
