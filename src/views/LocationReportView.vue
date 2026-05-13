@@ -9,7 +9,6 @@
             <svg
               ref="fmoIconRef"
               class="btn-icon"
-              :class="{ spinning: isFmoSpinning }"
               viewBox="0 0 24 24"
               width="16"
               height="16"
@@ -43,7 +42,6 @@
             <svg
               ref="gpsIconRef"
               class="btn-icon"
-              :class="{ spinning: isGpsSpinning }"
               viewBox="0 0 24 24"
               width="16"
               height="16"
@@ -146,38 +144,69 @@ import { SLIDER_POSITIONS } from '../stores/locationStore'
 const store = useLocationStore()
 const SLIDER_MAX = 100
 
-// 图标 DOM 引用，用于监听 animationiteration
-const fmoIconRef = (ref < SVGElement) | (null > null)
-const gpsIconRef = (ref < SVGElement) | (null > null)
+// 图标 DOM 引用，用于通过 JS 驱动旋转动画
+const fmoIconRef = ref(null)
+const gpsIconRef = ref(null)
 
-// 本地旋转态：在 store.isFetchingFmo/isRefreshingGps 变为 false 后，
-// 延迟等到当前动画周期完成再停止旋转，避免图标卡在中间角度
-const isFmoSpinning = ref(false)
-const isGpsSpinning = ref(false)
+const iconAngles = new WeakMap()
 
-/** 等待图标当前旋转周期完成，再执行回调 */
-function waitSpinComplete(iconRef, callback) {
+/**
+ * JS 驱动的完美平滑旋转动画
+ * 保证动画在 isProcessing 结束后，一定会平滑过渡到 360° 的整数倍，
+ * 然后完美停在原点，绝对不会出现任何 CSS 造成的「回跳」或「单次强制停止」问题。
+ */
+function startSpinning(iconRef, isProcessingRef) {
   const el = iconRef.value
-  if (!el) {
-    callback()
-    return
+  if (!el) return
+
+  if (el.dataset.spinning === 'true') return
+  el.dataset.spinning = 'true'
+
+  let startTime = window.performance.now()
+  let currentAngle = iconAngles.get(el) || 0
+  const speed = 360 / 900 // 每毫秒 0.4°（一圈 0.9 秒，与之前 btn-spin 动画一致）
+
+  function animate(time) {
+    if (!iconRef.value) {
+      el.dataset.spinning = 'false'
+      return
+    }
+
+    // 限制单帧最大时间间隔为 50ms（防止由于切后台再切回导致的极端大角度跳跃）
+    const dt = Math.min(time - startTime, 50)
+    startTime = time
+
+    currentAngle += speed * dt
+
+    // 停止逻辑：当处理结束时，计算下一个 360 的整数倍
+    if (!isProcessingRef.value) {
+      const nextStop = Math.ceil(currentAngle / 360) * 360
+      // 如果当前角度已经非常接近目标（或刚好跨过），就直接吸附过去并停止
+      if (currentAngle >= nextStop - speed * dt) {
+        currentAngle = nextStop
+        el.style.transform = `rotate(${currentAngle}deg)`
+        // 保存归零状态，确保下次点击完美衔接（取模避免数值无限膨胀）
+        iconAngles.set(el, currentAngle % 360)
+        el.dataset.spinning = 'false'
+        return // 结束动画循环
+      }
+    }
+
+    el.style.transform = `rotate(${currentAngle}deg)`
+    window.requestAnimationFrame(animate)
   }
-  const onIteration = () => {
-    el.removeEventListener('animationiteration', onIteration)
-    callback()
-  }
-  el.addEventListener('animationiteration', onIteration)
+
+  window.requestAnimationFrame(animate)
 }
 
 watch(
   () => store.isFetchingFmo,
   (val) => {
     if (val) {
-      isFmoSpinning.value = true
-    } else {
-      waitSpinComplete(fmoIconRef, () => {
-        isFmoSpinning.value = false
-      })
+      startSpinning(
+        fmoIconRef,
+        computed(() => store.isFetchingFmo)
+      )
     }
   }
 )
@@ -186,11 +215,10 @@ watch(
   () => store.isRefreshingGps,
   (val) => {
     if (val) {
-      isGpsSpinning.value = true
-    } else {
-      waitSpinComplete(gpsIconRef, () => {
-        isGpsSpinning.value = false
-      })
+      startSpinning(
+        gpsIconRef,
+        computed(() => store.isRefreshingGps)
+      )
     }
   }
 )
@@ -286,8 +314,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  isFmoSpinning.value = false
-  isGpsSpinning.value = false
   store.teardown()
 })
 </script>
@@ -356,11 +382,6 @@ onUnmounted(() => {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-}
-
-/* 加载中图标自转：保持原位置不变 */
-.btn-icon.spinning {
-  animation: btn-spin 0.9s linear infinite;
   transform-origin: 50% 50%;
 }
 
