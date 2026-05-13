@@ -91,7 +91,16 @@
               </template>
               <template v-else-if="col === 'relayName'">
                 <div class="relay-cell">
-                  <div>{{ row.relayName }}</div>
+                  <button
+                    v-if="row.relayName"
+                    class="relay-link"
+                    :disabled="switchingRelay === row.relayName"
+                    :title="`切换到 ${row.relayName}`"
+                    @click.stop="handleRelaySwitch(row.relayName)"
+                  >
+                    {{ row.relayName }}
+                  </button>
+                  <div v-else>-</div>
                   <div class="relay-admin">（{{ row.relayAdmin }}）</div>
                 </div>
               </template>
@@ -140,6 +149,8 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { ColumnNames, formatTimestamp, formatFreqHz, isTodayContact } from './constants'
 import { gridToAddress } from '../../services/gridService.js'
+import { switchStationByRelayName } from '../../services/stationControl'
+import toast from '../../composables/useToast'
 
 const props = defineProps({
   queryResult: {
@@ -165,6 +176,14 @@ const props = defineProps({
   contactCounts: {
     type: Map,
     default: () => new Map()
+  },
+  fmoAddress: {
+    type: String,
+    default: ''
+  },
+  protocol: {
+    type: String,
+    default: 'ws'
   }
 })
 
@@ -175,6 +194,25 @@ function handleRowClick(row) {
 }
 
 const gridAddressMap = reactive({})
+const switchingRelay = ref('')
+
+async function handleRelaySwitch(relayName) {
+  if (!relayName || switchingRelay.value) return
+  switchingRelay.value = relayName
+
+  try {
+    const { current, station } = await switchStationByRelayName(
+      relayName,
+      props.fmoAddress,
+      props.protocol
+    )
+    toast.success(`已切换到：${current?.name || station.name}`)
+  } catch (err) {
+    toast.error(err.message || '切换中继失败')
+  } finally {
+    switchingRelay.value = ''
+  }
+}
 
 function formatGridAddress(data) {
   if (!data) return ''
@@ -380,6 +418,25 @@ function formatTimePart(dateTimeStr) {
 
 .relay-cell {
   text-align: center;
+}
+
+.relay-link {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+}
+
+.relay-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.relay-link:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .relay-admin {

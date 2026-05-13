@@ -45,10 +45,10 @@ export const MORE_ROUTES = [
   },
   {
     path: '/remote-control',
-    label: '远程控制',
+    label: 'FMO 控制',
     type: 'remoteControl',
     icon: 'remoteControl',
-    description: 'APRS 远程设备控制'
+    description: '切换中继与 APRS 控制'
   },
   {
     path: '/friend-links',

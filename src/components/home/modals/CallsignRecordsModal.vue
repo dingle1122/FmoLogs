@@ -2,7 +2,20 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-callsign-records">
       <div class="modal-header">
-        <h3>{{ callsign }} &#11088; {{ records ? records.total : 0 }}</h3>
+        <h3>
+          <a
+            v-if="callsign"
+            class="callsign-link"
+            :href="getQrzUrl(callsign)"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click.stop
+          >
+            {{ callsign }}
+          </a>
+          <template v-else>-</template>
+          &#11088; {{ records ? records.total : 0 }}
+        </h3>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
       <div ref="modalBodyRef" class="modal-body">
@@ -23,7 +36,20 @@
             </div>
             <div class="record-row">
               <span class="record-label">接收方：</span>
-              <span class="record-value">{{ record.toCallsign }} / {{ record.toGrid || '-' }}</span>
+              <span class="record-value">
+                <a
+                  v-if="record.toCallsign"
+                  class="callsign-link"
+                  :href="getQrzUrl(record.toCallsign)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  @click.stop
+                >
+                  {{ record.toCallsign }}
+                </a>
+                <template v-else>-</template>
+                / {{ record.toGrid || '-' }}
+              </span>
             </div>
             <div v-if="gridAddressMap[record.toGrid]" class="record-row">
               <span class="record-label"></span>
@@ -31,9 +57,20 @@
             </div>
             <div class="record-row">
               <span class="record-label">发送方：</span>
-              <span class="record-value"
-                >{{ record.fromCallsign }} / {{ record.fromGrid || '-' }}</span
-              >
+              <span class="record-value">
+                <a
+                  v-if="record.fromCallsign"
+                  class="callsign-link"
+                  :href="getQrzUrl(record.fromCallsign)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  @click.stop
+                >
+                  {{ record.fromCallsign }}
+                </a>
+                <template v-else>-</template>
+                / {{ record.fromGrid || '-' }}
+              </span>
             </div>
             <div v-if="gridAddressMap[record.fromGrid]" class="record-row">
               <span class="record-label"></span>
@@ -45,10 +82,31 @@
             </div>
             <div class="record-row">
               <span class="record-label">中继：</span>
-              <span class="record-value"
-                >{{ record.relayName || '-'
-                }}<template v-if="record.relayAdmin">（{{ record.relayAdmin }}）</template></span
-              >
+              <span class="record-value">
+                <button
+                  v-if="record.relayName"
+                  class="relay-link"
+                  :disabled="switchingRelay === record.relayName"
+                  :title="`切换到 ${record.relayName}`"
+                  @click.stop="handleRelaySwitch(record.relayName)"
+                >
+                  {{ record.relayName }}
+                </button>
+                <template v-else>-</template>
+                <template v-if="record.relayAdmin">
+                  （
+                  <a
+                    class="callsign-link"
+                    :href="getQrzUrl(record.relayAdmin)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.stop
+                  >
+                    {{ record.relayAdmin }}
+                  </a>
+                  ）
+                </template>
+              </span>
             </div>
             <div v-if="record.toComment" class="record-row">
               <span class="record-label">留言：</span>
@@ -66,6 +124,8 @@
 import { ref, watch, nextTick, reactive } from 'vue'
 import { formatTimestamp, formatFreqHz, isTodayContact } from '../constants'
 import { gridToAddress } from '../../../services/gridService'
+import { switchStationByRelayName } from '../../../services/stationControl'
+import toast from '../../../composables/useToast'
 
 const props = defineProps({
   visible: {
@@ -83,6 +143,14 @@ const props = defineProps({
   highlightTimestamp: {
     type: Number,
     default: null
+  },
+  fmoAddress: {
+    type: String,
+    default: ''
+  },
+  protocol: {
+    type: String,
+    default: 'ws'
   }
 })
 
@@ -90,8 +158,34 @@ const emit = defineEmits(['close'])
 
 const cardRefs = ref([])
 const modalBodyRef = ref(null)
+const switchingRelay = ref('')
 
 const gridAddressMap = reactive({})
+
+function getQrzUrl(callsign) {
+  const normalized = String(callsign || '')
+    .trim()
+    .toUpperCase()
+  return `https://www.qrz.com/db/${encodeURIComponent(normalized)}`
+}
+
+async function handleRelaySwitch(relayName) {
+  if (!relayName || switchingRelay.value) return
+  switchingRelay.value = relayName
+
+  try {
+    const { current, station } = await switchStationByRelayName(
+      relayName,
+      props.fmoAddress,
+      props.protocol
+    )
+    toast.success(`已切换到：${current?.name || station.name}`)
+  } catch (err) {
+    toast.error(err.message || '切换中继失败')
+  } finally {
+    switchingRelay.value = ''
+  }
+}
 
 function formatAddress(data) {
   if (!data) return ''
@@ -238,6 +332,36 @@ watch(
   flex: 1;
   min-width: 0;
   word-break: break-all;
+}
+
+.callsign-link {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.callsign-link:hover {
+  text-decoration: underline;
+}
+
+.relay-link {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+}
+
+.relay-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.relay-link:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .address-line {
