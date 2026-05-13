@@ -18,6 +18,17 @@
       <line x1="10" y1="9" x2="8" y2="9" />
     </template>
 
+    <!-- dashboard: 实时仪表盘图标 -->
+    <template v-else-if="name === 'dashboard'">
+      <path d="M3 13a9 9 0 1 1 18 0" />
+      <path d="M12 13l4-4" />
+      <path d="M5 19h14" />
+      <path d="M8 17h8" />
+      <path d="M12 3v2" />
+      <path d="M4.6 8.5l1.7 1" />
+      <path d="M19.4 8.5l-1.7 1" />
+    </template>
+
     <!-- top20: 奖杯图标 -->
     <template v-else-if="name === 'top20'">
       <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
@@ -104,6 +115,7 @@ defineProps({
     validator(value) {
       return [
         'logs',
+        'dashboard',
         'top20',
         'oldFriends',
         'messages',

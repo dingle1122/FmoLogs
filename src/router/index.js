@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../views/MainLayout.vue'
+import DashboardView from '../views/DashboardView.vue'
 import LogsView from '../views/LogsView.vue'
 import Top20View from '../views/Top20View.vue'
 import OldFriendsView from '../views/OldFriendsView.vue'
@@ -20,6 +21,11 @@ const children = [
     path: 'logs',
     name: 'logs',
     component: LogsView
+  },
+  {
+    path: 'dashboard',
+    name: 'dashboard',
+    component: DashboardView
   },
   {
     path: 'top20',

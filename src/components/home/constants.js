@@ -5,6 +5,7 @@ import { getPlatform } from '../../platform'
 // 主导航路由（桌面端 Header + 手机端底部 Tab）
 export const NAV_ROUTES = [
   { path: '/logs', label: '通联日志', type: 'logs', icon: 'logs' },
+  { path: '/dashboard', label: '仪表盘', type: 'dashboard', icon: 'dashboard' },
   { path: '/old-friends', label: '老朋友', type: 'oldFriends', icon: 'oldFriends' },
   { path: '/messages', label: '消息', type: 'messages', icon: 'messages' },
   { path: '/more', label: '更多', type: 'more', icon: 'more' }
