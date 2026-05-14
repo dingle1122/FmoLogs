@@ -7,6 +7,7 @@
       :unique-callsigns="uniqueCallsigns"
       :db-loaded="dbLoaded"
       :has-unread-messages="hasUnreadMessages"
+      :current-station-name="speakingStatus.primaryServerInfo.value?.name"
       @open-nav-menu="showQuickNav = true"
       @open-channel-list="handleOpenStationList"
     />

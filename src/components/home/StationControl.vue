@@ -66,9 +66,7 @@ async function checkOverflow() {
   const wrapper = nameWrapper.value
   const firstCopy = wrapper.querySelector('.station-name-copy')
   if (!firstCopy) return
-  // offsetWidth 包含 padding-right(40px)，减去后得到纯文字渲染宽度
-  const textWidth = firstCopy.offsetWidth - 40
-  needsScroll.value = textWidth > wrapper.clientWidth
+  needsScroll.value = firstCopy.offsetWidth > wrapper.clientWidth
 }
 
 onMounted(() => checkOverflow())
@@ -141,27 +139,33 @@ function handleOpenList() {
 
 /* 针对信道名称的长文本处理 - 无缝循环滚动方案 */
 .station-name-wrapper {
-  max-width: 100px;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
-  white-space: nowrap;
-  display: inline-flex;
+  display: flex;
+  justify-content: center;
 }
 
-/* 滚动轨道：两份 copy 并排 */
+/* 滚动轨道：不滚动时居中，滚动时左对齐 */
 .station-name-scroll {
   display: inline-flex;
   white-space: nowrap;
 }
 
-/* 每份文本副本，右侧带间距，使两份 copy 宽度相等，总宽 = 2 * 单份宽 */
+/* 每份文本副本 */
 .station-name-copy {
   display: inline-block;
   white-space: nowrap;
+}
+
+/* 滚动时两份 copy 之间需要间距，保证总宽 = 2 * 单份宽，-50% 才能精确无缝 */
+.station-name-scroll.is-scrolling .station-name-copy {
   padding-right: 40px;
 }
 
-/* 启动滚动：移动 50% 正好是一份内容（文字+间距）的距离，精确无缝循环 */
+/* 启动滚动：左对齐 + 动画，移动 50% 正好是一份内容（文字+间距）的距离，精确无缝循环 */
 .station-name-scroll.is-scrolling {
+  align-self: flex-start;
   animation: marquee-scroll 8s linear infinite;
 }
 

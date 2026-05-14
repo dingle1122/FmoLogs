@@ -12,6 +12,21 @@
         <img src="/radio-contact.svg" alt="Radio contact" class="callsign-icon" />
         <strong>{{ uniqueCallsigns }}</strong>
       </span>
+      <span v-if="currentStationName" class="station-tag" title="当前信道" @click="$emit('open-channel-list')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="station-icon">
+          <path d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
+        </svg>
+        <div ref="nameContainer" class="station-name-container">
+          <span class="station-name-track" :class="{ scrolling: isOverflow }">
+            <span ref="nameText" class="station-name-text">{{ currentStationName }}</span>
+            <template v-if="isOverflow">
+              <span class="station-name-sep" aria-hidden="true"></span>
+              <span class="station-name-text" aria-hidden="true">{{ currentStationName }}</span>
+              <span class="station-name-sep" aria-hidden="true"></span>
+            </template>
+          </span>
+        </div>
+      </span>
     </div>
     <nav class="header-nav">
       <router-link v-for="route in NAV_ROUTES" :key="route.path" :to="route.path" class="nav-tab">
@@ -20,13 +35,6 @@
       </router-link>
     </nav>
     <div class="header-actions">
-      <button class="icon-btn" title="信道列表" @click="$emit('open-channel-list')">
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-          <path
-            d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
-          />
-        </svg>
-      </button>
       <button class="icon-btn" title="设置" @click="router.push('/settings')">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
           <path
@@ -40,11 +48,33 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { NAV_ROUTES } from './constants'
 
 const router = useRouter()
 
-defineProps({
+const nameContainer = ref(null)
+const nameText = ref(null)
+const isOverflow = ref(false)
+
+let ro = null
+
+function checkOverflow() {
+  if (!nameContainer.value || !nameText.value) return
+  isOverflow.value = nameText.value.scrollWidth > nameContainer.value.clientWidth
+}
+
+onMounted(() => {
+  ro = new ResizeObserver(checkOverflow)
+  if (nameContainer.value) ro.observe(nameContainer.value)
+  nextTick(checkOverflow)
+})
+
+onBeforeUnmount(() => {
+  ro && ro.disconnect()
+})
+
+const props = defineProps({
   todayLogs: {
     type: Number,
     default: 0
@@ -64,10 +94,16 @@ defineProps({
   hasUnreadMessages: {
     type: Boolean,
     default: false
+  },
+  currentStationName: {
+    type: String,
+    default: ''
   }
 })
 
 defineEmits(['open-nav-menu', 'open-channel-list'])
+
+watch(() => props.currentStationName, () => nextTick(checkOverflow))
 </script>
 
 <style scoped>
@@ -142,6 +178,80 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 
 .star {
   font-size: 1.5rem;
+}
+
+.station-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  background: var(--bg-table-hover);
+  border-radius: 12px;
+  font-size: 0.85rem;
+  color: var(--color-success);
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 120px;
+  overflow: hidden;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.station-tag:hover {
+  background: var(--border-light);
+  border-color: var(--color-success);
+}
+
+.station-icon {
+  flex-shrink: 0;
+  opacity: 0.8;
+  z-index: 2;
+  background: inherit;
+  position: relative;
+  padding-right: 2px;
+}
+
+.station-name-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+/* 两份文字拼接成一条轨道，溢出时才启用滚动动画 */
+.station-name-track {
+  display: inline-flex;
+  white-space: nowrap;
+}
+
+.station-name-track.scrolling {
+  animation: scroll-text 10s linear infinite;
+  /* 滚动时必须左对齐，居中会导致动画起点偏移 */
+  margin: 0;
+  align-self: flex-start;
+}
+
+.station-name-text {
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* 两份文字之间的间隔，用空白字符实现，不影响宽度计算 */
+.station-name-sep {
+  display: inline-block;
+  width: 2em;
+  flex-shrink: 0;
+}
+
+@keyframes scroll-text {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    /* 两份文字宽度相同，滚动恰好 50% 时视觉无缝衔接 */
+    transform: translateX(-50%);
+  }
 }
 
 .callsign-icon {
