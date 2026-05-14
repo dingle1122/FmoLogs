@@ -8,6 +8,7 @@
       :db-loaded="dbLoaded"
       :has-unread-messages="hasUnreadMessages"
       @open-nav-menu="showQuickNav = true"
+      @open-channel-list="handleOpenStationList"
     />
 
     <!-- 发言状态条 -->
