@@ -167,8 +167,10 @@
       :current-station="speakingStatus.primaryServerInfo.value"
       :loading="stationListLoading"
       :show-primary-badge="settings.multiSelectMode.value"
+      :favorite-busy-uid="stationFavoriteBusyUid"
       @close="handleCloseStationList"
       @select="handleStationSelect"
+      @favorite="handleStationFavorite"
       @refresh="handleRefreshStationList"
     />
 
@@ -379,6 +381,7 @@ const cachedStations = getCachedStationList()
 const stationList = ref(cachedStations.list)
 const stationListLoading = ref(false)
 const stationListFetchedAt = ref(cachedStations.fetchedAt)
+const stationFavoriteBusyUid = ref('')
 
 // Station 状态
 const stationBusy = ref(false)
@@ -692,6 +695,38 @@ async function fetchAllStations() {
 
 function handleRefreshStationList() {
   fetchAllStations()
+}
+
+async function handleStationFavorite(station) {
+  if (!station?.uid || stationFavoriteBusyUid.value) return
+  const client = createStationClient()
+  if (!client) return
+
+  stationFavoriteBusyUid.value = station.uid
+  try {
+    await client.addPinnedStation(station.uid)
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    const pinnedList = await client.getAllPinnedStations()
+    const pinnedUids = new Set(pinnedList.map((item) => String(item.uid)))
+
+    if (pinnedUids.has(String(station.uid))) {
+      stationList.value = stationList.value.map((item) =>
+        String(item.uid) === String(station.uid) ? { ...item, isPinned: true } : item
+      )
+      toast.success(`已收藏：${station.name}`)
+    } else {
+      toast.error('当前 FMO 固件没有开放远程添加收藏接口')
+    }
+  } catch (err) {
+    toast.error(err.message || '添加 FMO 收藏失败')
+  } finally {
+    try {
+      client.close()
+    } catch (closeErr) {
+      console.error('关闭客户端连接失败:', closeErr)
+    }
+    stationFavoriteBusyUid.value = ''
+  }
 }
 
 async function handleStationSelect(uid) {

@@ -129,7 +129,7 @@ export class FmoApiClient {
     }
   }
 
-  async sendRequest(type, subType, data = {}) {
+  async sendRequest(type, subType, data = {}, options = {}) {
     await this.connect()
 
     return new Promise((resolve, reject) => {
@@ -153,10 +153,14 @@ export class FmoApiClient {
           this.timeoutTimers.delete(key)
           reject(new Error(`Request timeout: ${key}`))
         }
-      }, 15000)
+      }, options.timeoutMs || 15000)
 
       this.timeoutTimers.set(key, timeoutId)
     })
+  }
+
+  async trySendRequest(type, subType, data = {}, timeoutMs = 2500) {
+    return this.sendRequest(type, subType, data, { timeoutMs })
   }
 
   async getQsoList(page = 0, pageSize = 20, fromCallsign = '') {
@@ -206,6 +210,24 @@ export class FmoApiClient {
       await new Promise((resolve) => setTimeout(resolve, 5))
     }
     return all
+  }
+
+  async addPinnedStation(uid) {
+    const candidates = [
+      ['addPinned', { uid }],
+      ['setPinned', { uid, isPinned: true }]
+    ]
+
+    let lastError = null
+    for (const [subType, data] of candidates) {
+      try {
+        return await this.trySendRequest('station', subType, data, 2500)
+      } catch (err) {
+        lastError = err
+      }
+    }
+
+    throw lastError || new Error('FMO 未返回收藏接口响应')
   }
 
   async getCurrentStation() {

@@ -25,19 +25,32 @@
       </div>
       <div ref="modalBodyRef" class="modal-body">
         <div v-if="filteredStationList.length > 0" class="station-grid">
-          <button
+          <div
             v-for="station in filteredStationList"
             :key="station.uid"
             class="station-item"
             :class="{
-              active: currentStation && String(currentStation.uid) === String(station.uid)
+              active: currentStation && String(currentStation.uid) === String(station.uid),
+              disabled: loading
             }"
-            :disabled="loading"
+            role="button"
+            tabindex="0"
+            :aria-disabled="loading"
             :title="station.name"
             @click="handleSelect(station.uid)"
+            @keydown.enter.prevent="handleSelect(station.uid)"
+            @keydown.space.prevent="handleSelect(station.uid)"
           >
-            <span v-if="station.isPinned" class="pin-badge">收藏</span>
-            {{ station.name }}
+            <button
+              class="pin-action"
+              :class="{ pinned: station.isPinned }"
+              :disabled="true"
+              :title="station.isPinned ? '已在 FMO 收藏中' : '添加收藏（功能尚未开放）'"
+              @click.stop="handleFavorite(station)"
+            >
+              {{ station.isPinned ? '已收藏' : '☆' }}
+            </button>
+            <span class="station-name">{{ station.name }}</span>
             <span
               v-if="
                 showPrimaryBadge &&
@@ -47,7 +60,7 @@
               class="primary-badge"
               >主</span
             >
-          </button>
+          </div>
         </div>
         <div v-else-if="loading" class="station-loading">加载中...</div>
         <div v-else class="station-empty">暂无服务器</div>
@@ -79,10 +92,14 @@ const props = defineProps({
   showPrimaryBadge: {
     type: Boolean,
     default: false
+  },
+  favoriteBusyUid: {
+    type: [String, Number],
+    default: ''
   }
 })
 
-const emit = defineEmits(['close', 'select', 'refresh'])
+const emit = defineEmits(['close', 'select', 'refresh', 'favorite'])
 
 const searchQuery = ref('')
 const modalBodyRef = ref(null)
@@ -146,8 +163,14 @@ const filteredStationList = computed(() => {
 })
 
 function handleSelect(uid) {
+  if (props.loading) return
   emit('select', uid)
   emit('close')
+}
+
+function handleFavorite(station) {
+  if (props.loading || station.isPinned) return
+  emit('favorite', station)
 }
 </script>
 
@@ -287,7 +310,13 @@ function handleSelect(uid) {
   text-overflow: ellipsis;
 }
 
-.pin-badge {
+.station-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pin-action {
   position: absolute;
   top: 2px;
   right: 4px;
@@ -295,13 +324,24 @@ function handleSelect(uid) {
   font-weight: 400;
   color: var(--color-warning, #e6a23c);
   line-height: 1;
-  pointer-events: none;
   background: rgba(230, 162, 60, 0.22);
+  border: 0;
   border-radius: 3px;
   padding: 3px;
+  cursor: pointer;
 }
 
-.station-item:hover:not(:disabled) {
+.pin-action.pinned,
+.pin-action:disabled {
+  cursor: default;
+}
+
+.pin-action:not(.pinned) {
+  min-width: 1.35rem;
+  font-size: 0.95rem;
+}
+
+.station-item:hover:not(.disabled) {
   background: var(--bg-table-hover);
   color: var(--text-primary);
   border-color: var(--color-success);
@@ -313,7 +353,7 @@ function handleSelect(uid) {
   color: white;
 }
 
-.station-item.active .pin-badge {
+.station-item.active .pin-action {
   color: white;
   background: rgba(255, 255, 255, 0.35);
   font-weight: 300;
@@ -336,7 +376,7 @@ function handleSelect(uid) {
   min-height: 1rem;
 }
 
-.station-item:disabled {
+.station-item.disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

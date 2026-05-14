@@ -66,8 +66,10 @@
       :station-list="stationList"
       :current-station="currentStation"
       :loading="stationLoading"
+      :favorite-busy-uid="stationFavoriteBusyUid"
       @close="showStationList = false"
       @select="selectStation"
+      @favorite="favoriteStation"
       @refresh="loadStationList"
     />
   </div>
@@ -103,6 +105,7 @@ const currentStation = ref(null)
 const stationList = ref([])
 const stationLoading = ref(false)
 const stationBusy = ref(false)
+const stationFavoriteBusyUid = ref('')
 const showStationList = ref(false)
 const stationMessage = ref('')
 const stationError = ref(false)
@@ -232,6 +235,38 @@ async function selectStation(uid) {
     currentStation.value = station
   }
   await refreshStationAfterSwitch(`已切换到：${station?.name || uid}`)
+}
+
+async function favoriteStation(station) {
+  if (!station?.uid || stationFavoriteBusyUid.value) return
+  const client = createClient()
+  if (!client) {
+    setMessage('请先在设置中添加并选择 FMO 地址', true)
+    return
+  }
+
+  stationFavoriteBusyUid.value = station.uid
+  stationError.value = false
+  try {
+    await client.addPinnedStation(station.uid)
+    await wait(700)
+    const pinnedList = await client.getAllPinnedStations()
+    const pinnedUids = new Set((pinnedList || []).map((item) => String(item.uid)))
+
+    if (pinnedUids.has(String(station.uid))) {
+      stationList.value = stationList.value.map((item) =>
+        String(item.uid) === String(station.uid) ? { ...item, isPinned: true } : item
+      )
+      setMessage(`已收藏：${station.name}`)
+    } else {
+      setMessage('当前 FMO 固件没有开放远程添加收藏接口', true)
+    }
+  } catch {
+    setMessage('当前 FMO 固件没有开放远程添加收藏接口', true)
+  } finally {
+    client.close()
+    stationFavoriteBusyUid.value = ''
+  }
 }
 
 async function switchPrev() {
