@@ -169,9 +169,8 @@ const displayRecords = computed(() => {
       isSpeaking: false
     }))
 
-  return [...liveRows, ...qsoRows]
-    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-    .slice(0, 20)
+  const sortedRows = [...liveRows, ...qsoRows].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+  return dedupeLatestByCallsign(sortedRows).slice(0, 20)
 })
 
 function createClient() {
@@ -263,6 +262,17 @@ async function loadQthForGrid(grid) {
 
 function getCallsign(record) {
   return (record?.toCallsign || record?.callsign || '').toUpperCase()
+}
+
+function dedupeLatestByCallsign(rows) {
+  const seen = new Set()
+  return rows.filter((row) => {
+    const callsign = getCallsign(row)
+    if (!callsign) return true
+    if (seen.has(callsign)) return false
+    seen.add(callsign)
+    return true
+  })
 }
 
 function isSameContact(a, b) {
