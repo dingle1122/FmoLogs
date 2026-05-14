@@ -145,8 +145,8 @@ public class FmoLocationService extends Service {
     // ---- 点缓冲池 ----
     private final Deque<LocationSample> buffer = new ArrayDeque<>(BUFFER_CAPACITY);
 
-    // ---- 卡尔曼滤波器 ----
-    private final KalmanFilter kalmanFilter = new KalmanFilter();
+    // ---- 高级卡尔曼滤波器 ----
+    private final AdvancedKalmanFilter advancedKalmanFilter = new AdvancedKalmanFilter();
 
     // ---- 首次上报状态（Service 启动后的 GPS 收集窗口） ----
     /** 是否处于"首次上报等待中"状态 */
@@ -551,8 +551,12 @@ public class FmoLocationService extends Service {
             buffer.pollFirst();
         }
 
-        // ---- 卡尔曼滤波：平滑坐标 ----
-        loc = kalmanFilter.filter(loc);
+        // ---- 高级卡尔曼滤波：平滑坐标 ----
+        double[] smoothed = advancedKalmanFilter.process(loc);
+        if (smoothed != null) {
+            loc.setLatitude(smoothed[0]);
+            loc.setLongitude(smoothed[1]);
+        }
 
         buffer.offerLast(new LocationSample(loc, now));
 
