@@ -496,23 +496,29 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
 
   async function getServerInfo(
     addressId: string,
-    forceRefresh = false
+    forceRefresh = false,
+    useRetry = true
   ): Promise<ServerInfo | null> {
     if (forceRefresh) {
-      // 切换服务器/信道后，FMO 侧更新可能有延迟。
-      // 采用重试策略：每 500ms 获取一次，最多获取 5s (10次)，直到获取到有效数据或超时。
-      const maxRetries = 10
-      const retryInterval = 500
-      let lastUid = serverInfoMap.get(addressId)?.uid
+      if (useRetry) {
+        // 切换服务器/信道后，FMO 侧更新可能有延迟。
+        // 采用重试策略：每 500ms 获取一次，最多获取 5s (10次)，直到获取到有效数据或超时。
+        const maxRetries = 10
+        const retryInterval = 500
+        let lastUid = serverInfoMap.get(addressId)?.uid
 
-      for (let i = 0; i < maxRetries; i++) {
-        await getPlatform().events.refreshServerInfo(addressId)
-        const currentInfo = serverInfoMap.get(addressId)
-        // 如果获取到了新的 uid，说明 FMO 已经更新完成
-        if (currentInfo && currentInfo.uid && currentInfo.uid !== lastUid) {
-          break
+        for (let i = 0; i < maxRetries; i++) {
+          await getPlatform().events.refreshServerInfo(addressId)
+          const currentInfo = serverInfoMap.get(addressId)
+          // 如果获取到了新的 uid，说明 FMO 已经更新完成
+          if (currentInfo && currentInfo.uid && currentInfo.uid !== lastUid) {
+            break
+          }
+          await new Promise((resolve) => setTimeout(resolve, retryInterval))
         }
-        await new Promise((resolve) => setTimeout(resolve, retryInterval))
+      } else {
+        // 单次拉取，用于手动刷新
+        await getPlatform().events.refreshServerInfo(addressId)
       }
     }
     return serverInfoMap.get(addressId) || null

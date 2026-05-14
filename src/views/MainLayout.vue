@@ -155,6 +155,7 @@
       @show-callsign-records="handleShowCallsignRecords"
       @station-prev="handleStationPrev"
       @station-next="handleStationNext"
+      @station-refresh="handleStationRefresh"
       @station-open-list="handleOpenStationList"
     />
 
@@ -1382,6 +1383,23 @@ async function handleHardwareBack({ canGoBack }) {
     }
   } finally {
     exitConfirming = false
+  }
+}
+
+async function handleStationRefresh() {
+  if (stationBusy.value) return
+  const primaryId = speakingStatus.primaryAddressId.value
+  if (!primaryId) return
+
+  stationBusy.value = true
+  try {
+    // 手动刷新，仅拉取一次，不进行 5s 重试循环
+    await speakingStatus.getServerInfo(primaryId, true, false)
+    toast.success('信道信息已刷新')
+  } catch (err) {
+    console.error('刷新信道信息失败:', err)
+  } finally {
+    stationBusy.value = false
   }
 }
 

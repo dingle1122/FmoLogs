@@ -9,6 +9,7 @@
           :show-primary-badge="multiSelectMode"
           @prev="$emit('station-prev')"
           @next="$emit('station-next')"
+          @refresh="$emit('station-refresh')"
           @open-list="$emit('station-open-list')"
         />
         <button class="close-btn" @click="$emit('close')">&times;</button>
@@ -236,7 +237,7 @@ function formatServerInfo(uid, name) {
   return serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
 }
 
-defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-open-list'])
+defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-refresh', 'station-open-list'])
 </script>
 
 <style scoped>
