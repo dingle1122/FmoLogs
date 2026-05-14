@@ -5,21 +5,20 @@ import android.util.Log;
 
 /**
  * 高级卡尔曼滤波器 (CA模型 - Constant Acceleration)
- * 用于优化 Android GPS 轨迹。
+ * 深度整合 GPS 原生速度与位置数据。
  * 
- * 特性：
- * 1. 内部计算全部基于“米”单位。
- * 2. 6维状态向量：[x, y, vx, vy, ax, ay]。
- * 3. 动态 R (测量噪声)：根据 Location.getAccuracy() 调整。
- * 4. 动态 Q (过程噪声)：根据速度调整，抑制静止漂移。
- * 5. 跳点剔除：预测点与观测点距离异常时仅执行 Predict。
+ * 改进点：
+ * 1. 初始化阶段：利用 GPS 速度和航向初始化状态向量，避免初次定位速度为 0。
+ * 2. 观测扩展：将 GPS 原生速度 (vx, vy) 引入 update 阶段，不再纯依赖位置差分。
+ * 3. 动态 R 矩阵：使用 getSpeedAccuracyMetersPerSecond 动态决定速度权重。
+ * 4. 坐标系修正：航向角 (Bearing) 与经纬度偏移方向的三角函数映射。
  */
 public class AdvancedKalmanFilter {
     private static final String TAG = "AdvancedKF";
 
     // 状态向量: [x, y, vx, vy, ax, ay]^T
     private double[] X = new double[6];
-    // 协方差矩阵 (简化版，主要关注对角线和关键耦合项)
+    // 协方差矩阵
     private double[][] P = new double[6][6];
 
     private long lastTimestamp = 0;
@@ -29,7 +28,7 @@ public class AdvancedKalmanFilter {
 
     // 参数配置
     private static final double MAX_JUMP_DISTANCE = 50.0; // 米
-    private static final double MIN_ACCURACY_THRESHOLD = 30.0; // 米
+    private static final double DEFAULT_SPEED_ACCURACY = 1.5; // m/s 默认速度标准差
 
     public AdvancedKalmanFilter() {
         reset();
@@ -41,9 +40,10 @@ public class AdvancedKalmanFilter {
         for (int i = 0; i < 6; i++) {
             P[i][i] = 1.0; 
         }
-        // 位置初始不确定性较大
-        P[0][0] = 10.0;
-        P[1][1] = 10.0;
+        P[0][0] = 5.0; // 初始位置不确定性
+        P[1][1] = 5.0;
+        P[2][2] = 2.0; // 初始速度不确定性
+        P[3][3] = 2.0;
         isInitialized = false;
         lastTimestamp = 0;
     }
@@ -58,7 +58,6 @@ public class AdvancedKalmanFilter {
         double lat = location.getLatitude();
         double lng = location.getLongitude();
         double accuracy = location.getAccuracy();
-        double speed = location.getSpeed();
 
         if (!isInitialized) {
             init(location);
@@ -69,34 +68,40 @@ public class AdvancedKalmanFilter {
         
         // 处理时间断点
         if (dt <= 0) return new double[]{lat, lng};
-        if (dt > 15.0) { // 超过15秒没点，重新初始化防止惯性漂移过大
+        if (dt > 15.0) { 
             init(location);
             return new double[]{lat, lng};
         }
 
         // 1. 坐标转换: 将当前经纬度转换为相对于 origin 的偏移 (x, y) 单位：米
-        // 使用 distanceBetween 保证精度
-        float[] results = new float[2];
-        // 计算纬度方向偏移 (Y)
+        float[] results = new float[1];
         Location.distanceBetween(originLat, originLng, lat, originLng, results);
         double y = results[0] * (lat < originLat ? -1 : 1);
-        // 计算经度方向偏移 (X)
         Location.distanceBetween(lat, originLng, lat, lng, results);
         double x = results[0] * (lng < originLng ? -1 : 1);
 
+        // 提取 GPS 原生速度向量
+        double vX = 0, vY = 0;
+        boolean hasGpsSpeed = location.hasSpeed() && location.hasBearing();
+        if (hasGpsSpeed) {
+            double speed = location.getSpeed();
+            double bearingRad = Math.toRadians(location.getBearing()); // Bearing 为 0 是北
+            vX = speed * Math.sin(bearingRad); // 对应经度方向 (X)
+            vY = speed * Math.cos(bearingRad); // 对应纬度方向 (Y)
+        }
+
         // 2. 预测阶段 (Predict)
-        predict(dt, speed);
+        predict(dt, location.getSpeed());
 
         // 3. 异常点检测 (Outlier Rejection)
         double predictedDist = Math.sqrt(Math.pow(X[0] - x, 2) + Math.pow(X[1] - y, 2));
-        boolean isJump = (predictedDist > MAX_JUMP_DISTANCE && accuracy > 10.0);
+        boolean isJump = (predictedDist > MAX_JUMP_DISTANCE && accuracy > 15.0);
 
-        // 4. 更新阶段 (Update)
+        // 4. 更新阶段 (Update) - 同时输入位置和原生速度进行校正
         if (!isJump) {
-            update(x, y, accuracy);
+            update(x, y, vX, vY, accuracy, location);
         } else {
             Log.d(TAG, "Jump detected: " + predictedDist + "m. Dead reckoning used.");
-            // 不执行 update，即只保留 predict 的结果（盲推）
         }
 
         lastTimestamp = currentTimestamp;
@@ -108,38 +113,34 @@ public class AdvancedKalmanFilter {
     private void init(Location loc) {
         originLat = loc.getLatitude();
         originLng = loc.getLongitude();
-        X = new double[6]; // [0,0,0,0,0,0]
-        // 初始速度可尝试从 location 获取
-        X[2] = 0; 
-        X[3] = 0; 
+        X = new double[6];
+        if (loc.hasSpeed() && loc.hasBearing()) {
+            double s = loc.getSpeed();
+            double b = Math.toRadians(loc.getBearing());
+            X[2] = s * Math.sin(b);
+            X[3] = s * Math.cos(b);
+        }
         lastTimestamp = loc.getTime();
         isInitialized = true;
     }
 
     /**
-     * 状态预测: X = F*X, P = F*P*F' + Q
+     * 状态预测: 使用 CA 模型
      */
-    private void predict(double dt, double speed) {
+    private void predict(double dt, double currentSpeed) {
         double dt2 = dt * dt;
         double dt3 = dt2 * dt;
 
-        // --- X = F * X (恒定加速度模型推算) ---
-        double oldX = X[0], oldY = X[1];
-        double oldVX = X[2], oldVY = X[3];
-        double oldAX = X[4], oldAY = X[5];
+        // X = F * X
+        X[0] = X[0] + X[2] * dt + 0.5 * X[4] * dt2;
+        X[1] = X[1] + X[3] * dt + 0.5 * X[5] * dt2;
+        X[2] = X[2] + X[4] * dt;
+        X[3] = X[3] + X[5] * dt;
+        // ax, ay 保持恒定预测
 
-        X[0] = oldX + oldVX * dt + 0.5 * oldAX * dt2;
-        X[1] = oldY + oldVY * dt + 0.5 * oldAY * dt2;
-        X[2] = oldVX + oldAX * dt;
-        X[3] = oldVY + oldAY * dt;
-        // X[4], X[5] 保持不变
-
-        // --- P = F*P*F' + Q ---
-        // 自适应过程噪声 Q: 
-        // 静止时减小Q以滤除细微抖动；运动时增大Q以跟踪变化
-        double accelNoiseVariance = (speed < 0.3) ? 0.05 : 0.8; 
+        // 自适应过程噪声 Q
+        double accelNoiseVariance = (currentSpeed < 0.5) ? 0.01 : 0.6; 
         
-        // 简化 Q 矩阵对 P 的影响 (只对主对角线进行补偿)
         P[0][0] += 0.5 * dt3 * accelNoiseVariance; // x
         P[1][1] += 0.5 * dt3 * accelNoiseVariance; // y
         P[2][2] += dt2 * accelNoiseVariance;       // vx
@@ -149,46 +150,39 @@ public class AdvancedKalmanFilter {
     }
 
     /**
-     * 测量更新: K = P*H'/(H*P*H'+R), X = X+K*(z-H*X), P = (I-K*H)*P
+     * 测量更新: 整合位置和原生速度
      */
-    private void update(double zx, double zy, double accuracy) {
-        // 自适应测量噪声 R
-        double R = accuracy;
-        if (accuracy > MIN_ACCURACY_THRESHOLD) {
-            R = accuracy * accuracy * 0.1; // 非线性惩罚低精度点
-        }
+    private void update(double zx, double zy, double zvx, double zvy, double accuracy, Location loc) {
+        // 测量噪声 R
+        double R_pos = Math.max(accuracy, 3.0);
+        double R_vel = loc.hasSpeedAccuracy() ? loc.getSpeedAccuracyMetersPerSecond() : DEFAULT_SPEED_ACCURACY;
 
-        // 由于 H 是选择矩阵 [1 0 0 0 0 0; 0 1 0 0 0 0]
-        // 我们只需对 x, y 两个维度分别更新 (假设 x, y 独立)
-        for (int i = 0; i < 2; i++) {
-            double z = (i == 0) ? zx : zy;
-            double innovation = z - X[i];
-            double s = P[i][i] + R;
+        // 将 [x, y, vx, vy] 作为观测输入
+        double[] z = {zx, zy, zvx, zvy};
+        double[] r = {R_pos, R_pos, R_vel, R_vel};
+
+        for (int i = 0; i < 4; i++) {
+            // 如果 GPS 没有速度数据，跳过对 vx, vy 的更新
+            if (i >= 2 && !loc.hasSpeed()) continue;
+
+            double innovation = z[i] - X[i];
+            double s = P[i][i] + r[i];
             double k = P[i][i] / s;
 
             X[i] += k * innovation;
             P[i][i] *= (1.0 - k);
             
-            // 速度和加速度的联动更新 (通过协方差，这里使用经验系数简化实现)
-            // 在全矩阵运算中，这是由 P[v][x] 等非对角线项自动完成的
-            // 此处为了性能采用简化的一阶更新
-            if (i == 0) { // X direction
-                X[2] += (k / 2.0) * innovation; // 更新 vx
-                X[4] += (k / 4.0) * innovation; // 更新 ax
-            } else { // Y direction
-                X[3] += (k / 2.0) * innovation; // 更新 vy
-                X[5] += (k / 4.0) * innovation; // 更新 ay
+            // 联动更新更高阶状态（简化关联）
+            if (i < 2) { 
+                X[i + 2] += (k / 2.0) * innovation; // 位置更新影响速度
+            } else {
+                X[i + 2] += (k / 2.0) * innovation; // 速度更新影响加速度
             }
         }
     }
 
-    /**
-     * 米 -> 经纬度
-     */
     private double[] metersToLatLng(double mx, double my) {
-        // 纬度：1度约111,320米
         double resLat = originLat + (my / 111319.9);
-        // 经度：与纬度有关
         double resLng = originLng + (mx / (111319.9 * Math.cos(Math.toRadians(originLat))));
         return new double[]{resLat, resLng};
     }

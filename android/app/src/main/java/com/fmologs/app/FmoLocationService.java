@@ -88,10 +88,10 @@ public class FmoLocationService extends Service {
     /** 与上一次上报点的偏移 < 此值时跳过本次上报 */
     private static final float DRIFT_THRESHOLD = 1.0f;
     /** 缓冲池点的最大存活时间，超过自动过期 */
-    private static final long BUFFER_MAX_AGE_MS = 60_000L;
+    private static final long BUFFER_MAX_AGE_MS = 180_000L;
     /** 缓冲池容量 */
-    private static final int BUFFER_CAPACITY = 10;
-    /** 速度合理性上限：> 50 m/s (180 km/h) 的连续点视为漂移 */
+    private static final int BUFFER_CAPACITY = 180;
+    /** 速度合理性上限：> 50 m/s (180 km/h) 的连续 point 视为漂移 */
     private static final double MAX_REASONABLE_SPEED = 50.0;
     /** 持续监听最小间隔（GPS 采样频率） */
     private static final long CONTINUOUS_MIN_TIME_MS = 1000L;
@@ -102,7 +102,7 @@ public class FmoLocationService extends Service {
     /** 报告时等待新鲜点的最大时长（NETWORK 兜底前的窗口） */
     private static final long FRESH_FIX_TIMEOUT_MS = 30_000L;
     /** 静止检测：最近 N 个点都在 STATIONARY_RADIUS 内视为静止 */
-    private static final int STATIONARY_SAMPLE_COUNT = 5;
+    private static final int STATIONARY_SAMPLE_COUNT = 15;
     private static final float STATIONARY_RADIUS = 1.0f;
     /** 时钟有效性：GPS 上报时钟与系统时钟相差超过此值视为异常点 */
     private static final long MAX_CLOCK_SKEW_MS = 5L * 60L * 1000L;
@@ -593,7 +593,7 @@ public class FmoLocationService extends Service {
         double bestScore = -1;
         for (LocationSample s : buffer) {
             double accuracyScore = 100.0 / (s.loc.getAccuracy() + 5);
-            double freshnessScore = Math.max(0, 60.0 - (now - s.receivedAt) / 1000.0);
+            double freshnessScore = Math.max(0, 180.0 - (now - s.receivedAt) / 1000.0);
             double score = accuracyScore * 0.7 + freshnessScore * 0.3;
             if (score > bestScore) {
                 bestScore = score;
