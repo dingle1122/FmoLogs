@@ -101,11 +101,21 @@ public class FmoLocationService extends Service {
     private static final long WARMUP_BEFORE_REPORT_MS = 10_000L;
     /** 报告时等待新鲜点的最大时长（NETWORK 兜底前的窗口） */
     private static final long FRESH_FIX_TIMEOUT_MS = 30_000L;
-    /** 静止检测：最近 N 个点都在 STATIONARY_RADIUS 内视为静止 */
-    private static final int STATIONARY_SAMPLE_COUNT = 15;
-    private static final float STATIONARY_RADIUS = 1.0f;
+    /** 采样数 */
+    private static final int STATIONARY_SAMPLE_COUNT = 10;
     /** 时钟有效性：GPS 上报时钟与系统时钟相差超过此值视为异常点 */
     private static final long MAX_CLOCK_SKEW_MS = 5L * 60L * 1000L;
+
+    /** 根据当前 GPS 精度动态计算速度阈值，防止高噪声环境下误判运动 */
+    private float getDynamicSpeedThreshold(Location loc) {
+        float baseThreshold = 0.25f; // 基础阈值约 0.9km/h
+        if (loc != null && loc.hasAccuracy()) {
+            // 精度越差 (accuracy值越大)，阈值越高。
+            // 例如：精度 10m -> 0.35m/s; 精度 30m -> 0.55m/s
+            return baseThreshold + (loc.getAccuracy() / 100.0f);
+        }
+        return 0.4f;
+    }
 
     /**
      * Service 启动后首次上报的"GPS 收集窗口"时长：
@@ -603,21 +613,50 @@ public class FmoLocationService extends Service {
         return best;
     }
 
-    /** 静止检测：最近 N 个点两两距离都 < STATIONARY_RADIUS 视为静止 */
+    /** 静止检测：基于动态速度阈值和卡尔曼滤波后的坐标稳定性判断 */
     private synchronized boolean isStationary() {
         if (buffer.size() < STATIONARY_SAMPLE_COUNT) return false;
-        // 取最近 N 个
-        LocationSample[] arr = buffer.toArray(new LocationSample[0]);
-        int from = Math.max(0, arr.length - STATIONARY_SAMPLE_COUNT);
-        for (int i = from; i < arr.length; i++) {
-            for (int j = i + 1; j < arr.length; j++) {
-                float[] d = new float[1];
-                Location.distanceBetween(
-                        arr[i].loc.getLatitude(), arr[i].loc.getLongitude(),
-                        arr[j].loc.getLatitude(), arr[j].loc.getLongitude(), d);
-                if (d[0] >= STATIONARY_RADIUS) return false;
+
+        LocationSample latest = buffer.peekLast();
+        if (latest == null) return false;
+        
+        float dynamicThreshold = getDynamicSpeedThreshold(latest.loc);
+
+        // 1. 检查最近点的硬件速度
+        if (latest.loc.hasSpeed()) {
+            if (latest.loc.getSpeed() >= dynamicThreshold) {
+                return false;
             }
         }
+
+        // 2. 检查缓冲池内的平均速度
+        LocationSample first = null;
+        LocationSample last = null;
+        int count = 0;
+        Iterator<LocationSample> it = buffer.descendingIterator();
+        while (it.hasNext() && count < STATIONARY_SAMPLE_COUNT) {
+            LocationSample s = it.next();
+            if (last == null) last = s;
+            first = s;
+            count++;
+        }
+
+        if (first != null && last != null && first != last) {
+            float[] d = new float[1];
+            Location.distanceBetween(
+                    first.loc.getLatitude(), first.loc.getLongitude(),
+                    last.loc.getLatitude(), last.loc.getLongitude(), d);
+            long dtMs = last.receivedAt - first.receivedAt;
+            if (dtMs > 0) {
+                double avgSpeed = d[0] / (dtMs / 1000.0);
+                if (avgSpeed >= dynamicThreshold) return false;
+            }
+            
+            // 3. 动态位移判断：位移是否超过了当前精度的置信区间
+            float movementLimit = Math.max(3.0f, latest.loc.getAccuracy() * 0.5f);
+            if (d[0] > movementLimit) return false;
+        }
+
         return true;
     }
 
@@ -805,11 +844,11 @@ public class FmoLocationService extends Service {
                 }
             }
 
-            if (dist < DRIFT_THRESHOLD) {
-                Log.i(TAG, "processLocation: position unchanged (" + dist + "m), skip");
-                updateNotificationText("位置未变", checkTime, lat, lng);
-                notifyJs(true, lat, lng, checkTime,
-                        "位置未变化(偏移" + String.format(Locale.US, "%.1f", dist) + "m)，跳过上报");
+            // 3. 最终判定：如果是静止状态且位移极小，则跳过
+            if (isStationary() && dist < 2.0f) {
+                Log.i(TAG, "processLocation: stationary and minimal shift, skip");
+                updateNotificationText("设备静止", checkTime, lat, lng);
+                notifyJs(true, lat, lng, checkTime, "设备静止，跳过上报");
                 return;
             }
         }
