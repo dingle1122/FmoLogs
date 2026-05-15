@@ -75,7 +75,7 @@ function handleNavClick(_routeItem) {
 .modal-quick-nav {
   width: 320px;
   max-width: 90%;
-  max-height: 70vh;
+  max-height: calc(var(--vh, 1vh) * 70);
   display: flex;
   flex-direction: column;
 }

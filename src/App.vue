@@ -35,6 +35,7 @@ body {
 }
 
 #app {
-  height: 100%;
+  height: var(--app-height, 100vh);
+  min-height: var(--app-height, 100vh);
 }
 </style>

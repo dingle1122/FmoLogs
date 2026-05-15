@@ -72,6 +72,9 @@
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light dark;
+  --app-height: 100vh;
+  --app-width: 100vw;
+  --vh: 1vh;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -229,7 +232,7 @@ body {
   margin: 0;
   display: flex;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: var(--app-height, 100vh);
   /* background 由 ::before 伪元素提供，避免遮挡底纹 */
   color: var(--text-primary);
   text-shadow: 0 0 0.3px rgba(0, 0, 0, 0.3);
@@ -400,7 +403,8 @@ button:focus-visible {
   padding: 0;
   /* Android：由 FmoSystemUi 插件设置 CSS 变量；iOS/Web：使用 env(safe-area-inset-*) */
   padding-top: var(--safe-inset-top, env(safe-area-inset-top, 0px));
-  padding-bottom: var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px));
+  /* 底部安全区由底部导航和固定元素各自消费，根容器不再重复占位 */
+  padding-bottom: 0;
   padding-left: var(--safe-inset-left, env(safe-area-inset-left, 0px));
   padding-right: var(--safe-inset-right, env(safe-area-inset-right, 0px));
   text-align: left;

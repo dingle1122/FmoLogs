@@ -174,7 +174,7 @@ function handleSelect(uid) {
 .modal-station-list {
   width: 550px;
   max-width: 90%;
-  height: 70vh;
+  height: calc(var(--vh, 1vh) * 70);
   min-height: 320px;
   display: flex;
   flex-direction: column;

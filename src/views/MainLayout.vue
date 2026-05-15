@@ -1486,7 +1486,7 @@ provide('protocol', settings.protocol)
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
 }
 

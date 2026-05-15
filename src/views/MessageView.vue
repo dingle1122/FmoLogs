@@ -1162,7 +1162,7 @@ onUnmounted(() => {
   border-radius: 12px;
   width: 100%;
   max-width: 480px;
-  max-height: 90vh;
+  max-height: calc(var(--vh, 1vh) * 90);
   overflow: hidden;
   box-shadow: 0 20px 60px var(--shadow-modal);
 }
@@ -1309,7 +1309,7 @@ onUnmounted(() => {
   }
 
   .modal-content {
-    max-height: 100vh;
+    max-height: calc(var(--vh, 1vh) * 100);
     border-radius: 0;
   }
 

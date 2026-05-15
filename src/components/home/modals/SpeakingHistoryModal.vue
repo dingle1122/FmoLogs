@@ -270,7 +270,7 @@ defineEmits([
 .modal-speaking-history {
   width: 500px;
   max-width: 90%;
-  max-height: 80vh;
+  max-height: calc(var(--vh, 1vh) * 80);
   display: flex;
   flex-direction: column;
 }
@@ -547,7 +547,7 @@ defineEmits([
 @media (max-width: 768px) {
   .modal-speaking-history {
     width: 95%;
-    max-height: 85vh;
+    max-height: calc(var(--vh, 1vh) * 85);
   }
 }
 

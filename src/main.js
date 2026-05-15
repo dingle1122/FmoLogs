@@ -7,7 +7,12 @@ import pinia from './stores'
 import { useLocationStore } from './stores/locationStore'
 import { getPlatform } from './platform'
 import { applySafeAreaInsets } from './platform/native-capacitor/SystemUiService.native'
+import { applyViewportCssVars } from './utils/viewport'
 import './style.css'
+
+// 兼容旧版 Android Chrome：浏览器栏显隐时，100vh/100dvh 不稳定。
+// 统一写入 --app-height / --vh，供布局和弹框复用真实可视高度。
+applyViewportCssVars()
 
 //  Android 原生平台：env(safe-area-inset-*) 在许多厂商 ROM 上返回 0px，
 // 需要通过原生 WindowInsets API 动态获取真实值并写入 CSS 变量。

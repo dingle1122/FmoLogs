@@ -1567,8 +1567,8 @@ function handleVolumeChange(e) {
   border-radius: 12px;
   width: 420px;
   max-width: 92vw;
-  height: 75vh;
-  max-height: 85vh;
+  height: calc(var(--vh, 1vh) * 75);
+  max-height: calc(var(--vh, 1vh) * 85);
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 20px var(--shadow-modal);
@@ -1607,8 +1607,8 @@ function handleVolumeChange(e) {
   .fmo-preview-dialog {
     width: 92vw;
     max-width: 92vw;
-    height: 75vh;
-    max-height: 85vh;
+    height: calc(var(--vh, 1vh) * 75);
+    max-height: calc(var(--vh, 1vh) * 85);
   }
 }
 
