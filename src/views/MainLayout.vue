@@ -508,12 +508,7 @@ _syncStore.setContext({
       await executeQuery()
       // 更新顶部统计数据
       await updateStats()
-      if (showSpeakingHistory.value) {
-        await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
-      }
-      if (selectedFromCallsign.value) {
-        await settings.loadContactCounts(selectedFromCallsign.value)
-      }
+      await refreshContactIndicators()
       // 如果通联记录弹框正在打开，自动刷新数据
       if (callsignRecords.showCallsignModal.value) {
         await callsignRecords.loadCallsignRecords(selectedFromCallsign.value)
@@ -553,6 +548,13 @@ const currentQueryType = computed(() => {
   const routeName = route.name
   return routeToQueryType[routeName] || 'all'
 })
+
+async function refreshContactIndicators(callsign = selectedFromCallsign.value) {
+  await Promise.all([
+    settings.loadTodayContactedCallsigns(callsign),
+    settings.loadContactCounts(callsign)
+  ])
+}
 
 // 同步路由变化到 dataQuery
 watch(currentQueryType, (newType) => {
@@ -1144,20 +1146,14 @@ async function handleToggleAddressSelection(id) {
 // 监听
 watch(showSpeakingHistory, async (newValue) => {
   if (newValue) {
-    await settings.loadTodayContactedCallsigns(selectedFromCallsign.value)
-    await settings.loadContactCounts(selectedFromCallsign.value)
+    await refreshContactIndicators()
   }
 })
 
 watch(
   () => selectedFromCallsign.value,
   async (newVal) => {
-    if (newVal) {
-      await settings.loadContactCounts(newVal)
-    }
-    if (showSpeakingHistory.value && newVal) {
-      await settings.loadTodayContactedCallsigns(newVal)
-    }
+    await refreshContactIndicators(newVal)
   }
 )
 
