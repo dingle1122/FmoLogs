@@ -10,20 +10,18 @@
           <span class="unique-count">({{ uniqueCallsigns }})</span>
         </template>
       </span>
-      <span v-if="currentStationName" class="station-tag" title="当前信道" @click="$emit('open-channel-list')">
+      <span
+        v-if="currentStationName"
+        class="station-tag"
+        title="当前信道"
+        @click="$emit('open-channel-list')"
+      >
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="station-icon">
-          <path d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
+          <path
+            d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+          />
         </svg>
-        <div ref="nameContainer" class="station-name-container">
-          <span class="station-name-track" :class="{ scrolling: isOverflow }">
-            <span ref="nameText" class="station-name-text">{{ currentStationName }}</span>
-            <template v-if="isOverflow">
-              <span class="station-name-sep" aria-hidden="true"></span>
-              <span class="station-name-text" aria-hidden="true">{{ currentStationName }}</span>
-              <span class="station-name-sep" aria-hidden="true"></span>
-            </template>
-          </span>
-        </div>
+        <marquee-scroll :text="currentStationName" :speed="35" class="station-name-scroller" />
       </span>
     </div>
     <nav class="header-nav">
@@ -46,31 +44,10 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import MarqueeScroll from '../MarqueeScroll.vue'
 import { NAV_ROUTES } from './constants'
 
 const router = useRouter()
-
-const nameContainer = ref(null)
-const nameText = ref(null)
-const isOverflow = ref(false)
-
-let ro = null
-
-function checkOverflow() {
-  if (!nameContainer.value || !nameText.value) return
-  isOverflow.value = nameText.value.scrollWidth > nameContainer.value.clientWidth
-}
-
-onMounted(() => {
-  ro = new ResizeObserver(checkOverflow)
-  if (nameContainer.value) ro.observe(nameContainer.value)
-  nextTick(checkOverflow)
-})
-
-onBeforeUnmount(() => {
-  ro && ro.disconnect()
-})
 
 const props = defineProps({
   todayLogs: {
@@ -100,8 +77,6 @@ const props = defineProps({
 })
 
 defineEmits(['open-nav-menu', 'open-channel-list'])
-
-watch(() => props.currentStationName, () => nextTick(checkOverflow))
 </script>
 
 <style scoped>
@@ -203,46 +178,14 @@ watch(() => props.currentStationName, () => nextTick(checkOverflow))
   padding-right: 2px;
 }
 
-.station-name-container {
+/* 跑马灯滚动容器 */
+.station-name-scroller {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
+  min-width: 0;
 }
 
-/* 两份文字拼接成一条轨道，溢出时才启用滚动动画 */
-.station-name-track {
-  display: inline-flex;
-  white-space: nowrap;
-}
-
-.station-name-track.scrolling {
-  animation: scroll-text 10s linear infinite;
-  /* 滚动时必须左对齐，居中会导致动画起点偏移 */
-  margin: 0;
-  align-self: flex-start;
-}
-
-.station-name-text {
+:deep(.marquee-content) {
   font-weight: 500;
-  flex-shrink: 0;
-}
-
-/* 两份文字之间的间隔，用空白字符实现，不影响宽度计算 */
-.station-name-sep {
-  display: inline-block;
-  width: 2em;
-  flex-shrink: 0;
-}
-
-@keyframes scroll-text {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    /* 两份文字宽度相同，滚动恰好 50% 时视觉无缝衔接 */
-    transform: translateX(-50%);
-  }
 }
 
 .callsign-icon {

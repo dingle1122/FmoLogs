@@ -5,12 +5,7 @@
     </button>
     <div class="station-info" @click="handleOpenList">
       <span v-if="connected && currentStation" class="station-name clickable">
-        <span class="station-name-wrapper" ref="nameWrapper">
-          <span class="station-name-scroll" :class="{ 'is-scrolling': needsScroll }">
-            <span class="station-name-copy">{{ currentStation.name }}</span>
-            <span v-if="needsScroll" class="station-name-copy">{{ currentStation.name }}</span>
-          </span>
-        </span>
+        <marquee-scroll :text="currentStation.name" :speed="35" />
         <span v-if="showPrimaryBadge" class="primary-badge">主</span>
         <span class="dropdown-arrow">▼</span>
       </span>
@@ -33,7 +28,8 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue'
+import { ref } from 'vue'
+import MarqueeScroll from '../MarqueeScroll.vue'
 
 const props = defineProps({
   connected: {
@@ -55,26 +51,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['prev', 'next', 'refresh', 'open-list'])
-
-const nameWrapper = ref(null)
-const needsScroll = ref(false)
-
-// 检测文字是否超出容器宽度，超出才启动滚动动画
-async function checkOverflow() {
-  await nextTick()
-  if (!nameWrapper.value) return
-  const wrapper = nameWrapper.value
-  const firstCopy = wrapper.querySelector('.station-name-copy')
-  if (!firstCopy) return
-  needsScroll.value = firstCopy.offsetWidth > wrapper.clientWidth
-}
-
-onMounted(() => checkOverflow())
-
-watch(
-  () => props.currentStation?.name,
-  () => checkOverflow()
-)
 
 function handleOpenList() {
   if (!props.connected || !props.currentStation) return
@@ -116,7 +92,7 @@ function handleOpenList() {
 }
 
 .station-info {
-  width: 140px;
+  width: 120px;
   text-align: center;
   overflow: hidden;
 }
@@ -126,6 +102,9 @@ function handleOpenList() {
   font-size: 1.1rem;
   color: var(--text-primary);
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .station-name.clickable {
@@ -135,49 +114,10 @@ function handleOpenList() {
   gap: 0.3rem;
   width: 100%;
   justify-content: center;
-}
-
-/* 针对信道名称的长文本处理 - 无缝循环滚动方案 */
-.station-name-wrapper {
-  flex: 1;
   min-width: 0;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
 }
 
-/* 滚动轨道：不滚动时居中，滚动时左对齐 */
-.station-name-scroll {
-  display: inline-flex;
-  white-space: nowrap;
-}
 
-/* 每份文本副本 */
-.station-name-copy {
-  display: inline-block;
-  white-space: nowrap;
-}
-
-/* 滚动时两份 copy 之间需要间距，保证总宽 = 2 * 单份宽，-50% 才能精确无缝 */
-.station-name-scroll.is-scrolling .station-name-copy {
-  padding-right: 40px;
-}
-
-/* 启动滚动：左对齐 + 动画，移动 50% 正好是一份内容（文字+间距）的距离，精确无缝循环 */
-.station-name-scroll.is-scrolling {
-  align-self: flex-start;
-  animation: marquee-scroll 8s linear infinite;
-}
-
-@keyframes marquee-scroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    /* 两份 copy 宽度完全相同，-50% 精确等于一份内容宽度，无缝衔接 */
-    transform: translateX(-50%);
-  }
-}
 
 .refresh-btn {
   font-size: 0.8rem !important;
