@@ -100,23 +100,23 @@
           @update-audio-volume="handleUpdateAudioVolume"
         />
       </router-view>
-
-      <!-- 回到顶部按钮（仅移动端显示） -->
-      <transition name="fade">
-        <button v-show="showBackToTop" class="back-to-top-btn" @click="scrollToTop">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
-        </button>
-      </transition>
     </div>
+
+    <!-- 放在滚动容器外，避免受 content-area transform 影响 -->
+    <transition name="fade">
+      <button v-show="showBackToTop" class="back-to-top-btn" @click="scrollToTop">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="18 15 12 9 6 15" />
+        </svg>
+      </button>
+    </transition>
 
     <!-- 通联记录弹框 -->
     <CallsignRecordsModal
