@@ -44,13 +44,18 @@
                       <span v-if="record.callsign === selectedFromCallsign" class="self-tag"
                         >您</span
                       >
-                      <span v-if="todayContactedCallsigns.has(record.callsign)" class="today-star"
-                        >&#11088;</span
+                      <span
+                        v-else
+                        class="today-star"
+                        :class="
+                          todayContactedCallsigns.has(record.callsign)
+                            ? 'is-contacted'
+                            : 'is-uncontacted'
+                        "
+                        >{{ todayContactedCallsigns.has(record.callsign) ? '\u2605' : '\u2606' }}</span
                       >
                     </span>
-                    <span v-if="contactCounts.get(record.callsign)" class="contact-count"
-                      >&nbsp;x{{ contactCounts.get(record.callsign) }}</span
-                    >
+                    <span class="contact-count">&nbsp;x{{ contactCounts.get(record.callsign) || 0 }}</span>
                   </span>
                 </div>
                 <div class="history-time">
@@ -427,11 +432,19 @@ defineEmits([
 }
 
 .today-star {
-  font-size: 1.2rem;
-  line-height: 1.6rem;
+  font-size: 1em;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+}
+
+.today-star.is-contacted {
+  color: var(--color-today-contacted);
+}
+
+.today-star.is-uncontacted {
+  color: var(--color-today-uncontacted);
 }
 
 .contact-count {
@@ -571,10 +584,6 @@ defineEmits([
 
   .callsign-text {
     width: 4.5em;
-  }
-
-  .today-star {
-    font-size: 1rem;
   }
 
   .contact-count {

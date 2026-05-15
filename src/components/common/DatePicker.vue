@@ -12,11 +12,11 @@
         <div class="nav-title">
           <div class="nav-year">
             {{ currentYear }}年
-            <span v-if="yearStats > 0" class="stats-badge">⭐{{ yearStats }}</span>
+            <span v-if="yearStats > 0" class="stats-badge">&#9733; {{ yearStats }}</span>
           </div>
           <div class="nav-month">
             {{ currentMonth + 1 }}月
-            <span v-if="monthStats > 0" class="stats-badge">⭐{{ monthStats }}</span>
+            <span v-if="monthStats > 0" class="stats-badge">&#9733; {{ monthStats }}</span>
           </div>
         </div>
         <button class="nav-btn" @click="nextMonth">&gt;</button>
