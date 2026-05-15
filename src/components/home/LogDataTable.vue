@@ -401,7 +401,7 @@ function formatTimePart(dateTimeStr) {
 
 .callsign-text {
   display: inline-block;
-  width: 6.2ch;
+  width: 4.5em;
   text-align: left;
   white-space: nowrap;
   flex-shrink: 0;

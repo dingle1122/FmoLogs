@@ -362,7 +362,7 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
 
 .top20-item .count strong {
   display: inline-block;
-  min-width: 1.8ch;
+  min-width: 2.4em;
   text-align: center;
   font-size: 0.82rem;
   font-weight: 600;

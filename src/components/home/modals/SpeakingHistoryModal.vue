@@ -400,7 +400,7 @@ defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', '
   align-items: center;
   justify-content: flex-start;
   flex-shrink: 0;
-  width: 0.8em;
+  width: 1em;
   gap: 0.15em;
 }
 
