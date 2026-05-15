@@ -100,7 +100,7 @@
                   <div class="callsign-main">
                     <span class="callsign-text">{{ row.toCallsign }}</span>
                     <span v-if="contactCounts.get(row.toCallsign)" class="contact-count">
-                      x{{ contactCounts.get(row.toCallsign) }}
+                    &nbsp;x{{ contactCounts.get(row.toCallsign) }}
                     </span>
                   </div>
                   <div v-if="row.toGrid || gridAddressMap[row.toGrid]" class="callsign-grid">

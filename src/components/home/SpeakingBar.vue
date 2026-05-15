@@ -21,7 +21,7 @@
               <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span>
               <span v-if="todayContactedCallsigns.has(speaker.callsign)" class="today-star">★</span>
               <span v-if="contactCounts.get(speaker.callsign)" class="contact-count">
-                x{{ contactCounts.get(speaker.callsign) }}
+              &nbsp;x{{ contactCounts.get(speaker.callsign) }}
               </span>
               <span v-if="speaker.address" class="speaker-address">{{ speaker.address }}</span>
               <strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
@@ -33,7 +33,7 @@
             <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
             <span v-if="todayContactedCallsigns.has(currentSpeaker)" class="today-star">★</span>
             <span v-if="contactCounts.get(currentSpeaker)" class="contact-count">
-              x{{ contactCounts.get(currentSpeaker) }}
+            &nbsp;x{{ contactCounts.get(currentSpeaker) }}
             </span>
             <span v-if="currentSpeakerAddress" class="speaker-address">{{
               currentSpeakerAddress

@@ -2,7 +2,10 @@
   <div v-if="visible" class="modal-overlay" @click.self="$emit('close')">
     <div class="modal modal-callsign-records">
       <div class="modal-header">
-        <h3>{{ callsign }} &#11088; {{ records ? records.total : 0 }}</h3>
+        <div class="friend-callsign">
+              {{ callsign }}
+              <span class="contact-count">&nbsp;x{{ records ? records.total : 0 }}</span>
+            </div>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
       <div ref="modalBodyRef" class="modal-body">
@@ -186,8 +189,15 @@ watch(
   border-bottom: 1px solid var(--border-light);
 }
 
-.modal-header h3 {
-  margin: 0;
+.friend-callsign {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.contact-count {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
 }
 
 .modal-body {

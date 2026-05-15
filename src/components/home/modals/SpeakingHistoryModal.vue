@@ -49,7 +49,7 @@
                       >
                     </span>
                     <span v-if="contactCounts.get(record.callsign)" class="contact-count"
-                      >x{{ contactCounts.get(record.callsign) }}</span
+                      >&nbsp;x{{ contactCounts.get(record.callsign) }}</span
                     >
                   </span>
                 </div>
