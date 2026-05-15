@@ -443,7 +443,6 @@ defineEmits([
 }
 
 .today-star.is-contacted {
-  color: var(--color-today-contacted);
   font-size: 0.9em;
 }
 
