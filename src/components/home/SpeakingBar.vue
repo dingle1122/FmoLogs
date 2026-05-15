@@ -18,7 +18,7 @@
               class="speaker-item"
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong>
-              <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">您</span>
+              <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">&nbsp;您</span>
               <strong v-if="todayContactedCallsigns.has(speaker.callsign)">&nbsp;&#9733;</strong>
               <span v-if="contactCounts.get(speaker.callsign)" class="contact-count">
               &nbsp;x{{ contactCounts.get(speaker.callsign) }}
@@ -30,7 +30,7 @@
           <template v-else>
             <!-- 单选模式：只显示当前发言者，不加标记 -->
             正在发言: <strong>{{ currentSpeaker }}</strong>
-            <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">您</span>
+            <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">&nbsp;您</span>
             <strong v-if="todayContactedCallsigns.has(currentSpeaker)">&nbsp;&#9733;</strong>
             <span v-if="contactCounts.get(currentSpeaker)" class="contact-count">
             &nbsp;x{{ contactCounts.get(currentSpeaker) }}
@@ -249,7 +249,7 @@ defineEmits(['click', 'toggle-audio'])
 }
 
 /* 当前用户标签样式 */
-.self-tag {
+/* .self-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -265,8 +265,13 @@ defineEmits(['click', 'toggle-audio'])
   position: relative;
   top: -0.08em;
   margin-left: 0.2em;
-}
+} */
 
+.self-tag {
+    font-size: 0.85em;
+    color: var(--text-tertiary);
+    font-weight: 600;
+}
 
 /* 地址显示样式 */
 .speaker-address {

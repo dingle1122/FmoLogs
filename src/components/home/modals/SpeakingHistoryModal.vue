@@ -52,7 +52,7 @@
                             ? 'is-contacted'
                             : 'is-uncontacted'
                         "
-                        >{{ todayContactedCallsigns.has(record.callsign) ? '\u2605' : '\u2606' }}</span
+                        >{{ todayContactedCallsigns.has(record.callsign) ? '&#11088;' : '&#9733;' }}</span
                       >
                     </span>
                     <span
@@ -436,7 +436,6 @@ defineEmits([
 }
 
 .today-star {
-  font-size: 1em;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -445,10 +444,12 @@ defineEmits([
 
 .today-star.is-contacted {
   color: var(--color-today-contacted);
+  font-size: 0.9em;
 }
 
 .today-star.is-uncontacted {
   color: var(--color-today-uncontacted);
+  font-size: 0.95em;
 }
 
 .contact-count {
@@ -493,18 +494,10 @@ defineEmits([
 }
 
 .self-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25em;
-  border-radius: 2px;
-  font-size: 0.5em;
-  font-weight: 400;
-  background: rgba(212, 107, 8, 0.12);
-  color: var(--color-warning);
-  line-height: 1;
-  text-align: center;
-  flex-shrink: 0;
+    font-size: 0.7em;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    line-height: 1;
 }
 
 .speaking-history-item.is-speaking .history-callsign {
