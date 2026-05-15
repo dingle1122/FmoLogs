@@ -50,7 +50,6 @@
       >
         <span class="audio-icon">{{ isAudioPlaying ? '■' : '▶' }}</span>
       </button>
-      <span class="speaking-expand">点击展开</span>
     </div>
   </div>
 </template>
@@ -196,12 +195,6 @@ defineEmits(['click', 'toggle-audio'])
   font-size: 1.1rem;
 }
 
-.speaking-expand {
-  font-size: 1rem;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
 /* 音频播放按钮 */
 .audio-toggle-btn {
   display: flex;
@@ -212,15 +205,11 @@ defineEmits(['click', 'toggle-audio'])
   padding: 0;
   margin: 0;
   border: none;
-  background: transparent;
+  background: var(--bg-table-hover);
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 4px;
   transition: background-color 0.2s;
-}
-
-.audio-toggle-btn:hover {
-  background-color: var(--bg-table-hover);
 }
 
 .audio-toggle-btn .audio-icon {
@@ -240,6 +229,16 @@ defineEmits(['click', 'toggle-audio'])
 /* 静音状态 */
 .audio-toggle-btn.muted .audio-icon {
   color: var(--text-disabled);
+}
+
+@media (hover: hover) {
+  .audio-toggle-btn:hover {
+    background-color: var(--bg-table-hover);
+  }
+
+  .audio-toggle-btn:not(.playing):hover .audio-icon {
+    color: var(--color-speaking);
+  }
 }
 
 /* 发言者项样式 */
