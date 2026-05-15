@@ -5,7 +5,7 @@
       <span class="header-divider"></span>
       <h1 class="header-title" @click="$emit('open-nav-menu')">FMO 日志查看器</h1>
       <span class="total-logs">
-        <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
+        <strong>&#11088; {{ todayLogs }}/{{ totalLogs }}</strong>
         <template v-if="uniqueCallsigns > 0">
           <span class="unique-count">({{ uniqueCallsigns }})</span>
         </template>
