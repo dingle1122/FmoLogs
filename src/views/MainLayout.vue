@@ -1520,8 +1520,10 @@ provide('protocol', settings.protocol)
   text-decoration: none;
 }
 
-.mobile-nav .nav-tab:hover:not(.disabled) {
-  background: none;
+@media (hover: hover) {
+  .mobile-nav .nav-tab:hover:not(.disabled) {
+    background: none;
+  }
 }
 
 .mobile-nav .nav-tab.router-link-active {

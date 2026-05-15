@@ -249,8 +249,10 @@ function handleSelect(uid) {
   transition: color 0.2s;
 }
 
-.refresh-btn:hover:not(:disabled) {
-  color: var(--color-success);
+@media (hover: hover) {
+  .refresh-btn:hover:not(:disabled) {
+    color: var(--color-success);
+  }
 }
 
 .refresh-btn:disabled {
@@ -301,10 +303,12 @@ function handleSelect(uid) {
   padding: 3px;
 }
 
-.station-item:hover:not(:disabled) {
-  background: var(--bg-table-hover);
-  color: var(--text-primary);
-  border-color: var(--color-success);
+@media (hover: hover) {
+  .station-item:hover:not(:disabled) {
+    background: var(--bg-table-hover);
+    color: var(--text-primary);
+    border-color: var(--color-success);
+  }
 }
 
 .station-item.active {

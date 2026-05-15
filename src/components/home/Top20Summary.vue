@@ -202,8 +202,18 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
   transition: box-shadow 0.2s;
 }
 
-.top20-card:hover {
-  box-shadow: 0 4px 16px var(--shadow-card);
+@media (hover: hover) {
+  .top20-card:hover {
+    box-shadow: 0 4px 16px var(--shadow-card);
+  }
+
+  .top20-item:hover {
+    background: var(--bg-table-hover);
+  }
+
+  .top20-item:nth-child(even):hover {
+    background: var(--bg-table-hover);
+  }
 }
 
 .top20-card h3 {

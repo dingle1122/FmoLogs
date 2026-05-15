@@ -62,13 +62,6 @@ import SvgIcon from '../components/common/SvgIcon.vue'
   cursor: pointer;
 }
 
-.menu-item:hover {
-  border-color: var(--color-success);
-  background: var(--bg-table-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--shadow-card);
-}
-
 .menu-icon {
   width: 40px;
   height: 40px;
@@ -113,6 +106,15 @@ import SvgIcon from '../components/common/SvgIcon.vue'
 
 .menu-item:hover .menu-arrow {
   color: var(--color-success);
+}
+
+@media (hover: hover) {
+  .menu-item:hover {
+    border-color: var(--color-success);
+    background: var(--bg-table-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow-card);
+  }
 }
 
 /* 移动端适配 */

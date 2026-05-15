@@ -667,8 +667,10 @@ onUnmounted(() => {
   height: 14px;
 }
 
-.refresh-btn:hover:not(:disabled) {
-  color: var(--color-primary);
+@media (hover: hover) {
+  .refresh-btn:hover:not(:disabled) {
+    color: var(--color-primary);
+  }
 }
 
 .message-list-container {
@@ -758,9 +760,11 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.message-item:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 2px 8px var(--shadow-card);
+@media (hover: hover) {
+  .message-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px var(--shadow-card);
+  }
 }
 
 .message-item.active {
@@ -833,9 +837,11 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.load-more-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+@media (hover: hover) {
+  .load-more-btn:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
 }
 
 .load-more-btn:disabled {
@@ -881,8 +887,10 @@ onUnmounted(() => {
   transition: color 0.2s;
 }
 
-.back-btn:hover {
-  color: var(--color-primary);
+@media (hover: hover) {
+  .back-btn:hover {
+    color: var(--color-primary);
+  }
 }
 
 .back-btn svg {
@@ -964,8 +972,10 @@ onUnmounted(() => {
   transition: background-color 0.2s;
 }
 
-.email-sender-btn:hover {
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .email-sender-btn:hover {
+    background: var(--bg-table-hover);
+  }
 }
 
 .sender-name-highlight {
@@ -1090,9 +1100,11 @@ onUnmounted(() => {
   border-color: var(--color-primary);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+  }
 }
 
 .btn-secondary {
@@ -1101,9 +1113,11 @@ onUnmounted(() => {
   border-color: var(--border-primary);
 }
 
-.btn-secondary:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+@media (hover: hover) {
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
 }
 
 .btn-text {
@@ -1112,9 +1126,11 @@ onUnmounted(() => {
   padding: 0.5rem;
 }
 
-.btn-text:hover:not(:disabled) {
-  color: var(--color-primary);
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .btn-text:hover:not(:disabled) {
+    color: var(--color-primary);
+    background: var(--bg-table-hover);
+  }
 }
 
 .btn-danger {
@@ -1124,8 +1140,10 @@ onUnmounted(() => {
   padding: 0.5rem 0.75rem;
 }
 
-.btn-danger:hover:not(:disabled) {
-  background: var(--bg-error-light);
+@media (hover: hover) {
+  .btn-danger:hover:not(:disabled) {
+    background: var(--bg-error-light);
+  }
 }
 
 .btn-primary:disabled,

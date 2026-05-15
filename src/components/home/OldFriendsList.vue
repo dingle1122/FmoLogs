@@ -295,9 +295,11 @@ watch(
   min-width: 0;
 }
 
-.friend-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px var(--shadow-card);
+@media (hover: hover) {
+  .friend-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-card);
+  }
 }
 
 .friend-card.today-contact {

@@ -119,10 +119,12 @@ function handleNavClick(_routeItem) {
   border: 1px solid transparent;
 }
 
-.nav-item:hover:not(.disabled) {
-  background: var(--bg-table-hover);
-  color: var(--text-primary);
-  border-color: var(--color-success);
+@media (hover: hover) {
+  .nav-item:hover:not(.disabled) {
+    background: var(--bg-table-hover);
+    color: var(--text-primary);
+    border-color: var(--color-success);
+  }
 }
 
 .nav-item.active {

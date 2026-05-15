@@ -1075,9 +1075,11 @@ function handleVolumeChange(e) {
   transition: all 0.2s;
 }
 
-.btn-add:hover {
-  background: var(--color-primary);
-  color: var(--text-white);
+@media (hover: hover) {
+  .btn-add:hover {
+    background: var(--color-primary);
+    color: var(--text-white);
+  }
 }
 
 /* 地址列表 */
@@ -1099,9 +1101,11 @@ function handleVolumeChange(e) {
   transition: all 0.2s;
 }
 
-.address-card:hover {
-  border-color: var(--color-primary);
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .address-card:hover {
+    border-color: var(--color-primary);
+    background: var(--bg-table-hover);
+  }
 }
 
 .address-card.active {
@@ -1215,13 +1219,15 @@ function handleVolumeChange(e) {
   flex-shrink: 0;
 }
 
-.btn-icon:hover {
-  background: var(--bg-table-hover);
-  color: var(--color-primary);
-}
+@media (hover: hover) {
+  .btn-icon:hover {
+    background: var(--bg-table-hover);
+    color: var(--color-primary);
+  }
 
-.btn-icon-danger:hover {
-  color: var(--color-danger);
+  .btn-icon-danger:hover {
+    color: var(--color-danger);
+  }
 }
 
 .btn-icon:disabled {
@@ -1317,10 +1323,12 @@ function handleVolumeChange(e) {
   letter-spacing: 0.02em;
 }
 
-.btn-ghost:hover {
-  color: var(--text-primary);
-  border-color: var(--border-secondary);
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .btn-ghost:hover {
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+    background: var(--bg-table-hover);
+  }
 }
 
 .btn-ghost:disabled {
@@ -1360,8 +1368,10 @@ function handleVolumeChange(e) {
   cursor: pointer;
 }
 
-.btn-primary:hover {
-  background: var(--color-primary-hover);
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--color-primary-hover);
+  }
 }
 
 .btn-primary:disabled {
@@ -1379,8 +1389,10 @@ function handleVolumeChange(e) {
   cursor: pointer;
 }
 
-.btn-secondary:hover {
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .btn-secondary:hover {
+    background: var(--bg-table-hover);
+  }
 }
 
 .btn-secondary:disabled {
@@ -1398,8 +1410,10 @@ function handleVolumeChange(e) {
   cursor: pointer;
 }
 
-.btn-danger:hover {
-  background: var(--color-danger-hover);
+@media (hover: hover) {
+  .btn-danger:hover {
+    background: var(--color-danger-hover);
+  }
 }
 
 .btn-text-danger {
@@ -1412,9 +1426,11 @@ function handleVolumeChange(e) {
   transition: all 0.2s;
 }
 
-.btn-text-danger:hover {
-  color: var(--color-danger-hover);
-  text-decoration: underline;
+@media (hover: hover) {
+  .btn-text-danger:hover {
+    color: var(--color-danger-hover);
+    text-decoration: underline;
+  }
 }
 
 /* 地址编辑弹框 */

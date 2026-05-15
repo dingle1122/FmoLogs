@@ -149,10 +149,12 @@ function handleJump(event) {
   transition: all 0.15s;
 }
 
-.page-btn:hover:not(:disabled) {
-  background: var(--bg-table-hover);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+@media (hover: hover) {
+  .page-btn:hover:not(:disabled) {
+    background: var(--bg-table-hover);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
 }
 
 .page-btn:disabled {

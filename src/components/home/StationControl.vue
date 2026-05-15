@@ -81,9 +81,11 @@ function handleOpenList() {
   transition: all 0.2s;
 }
 
-.station-btn:hover:not(:disabled) {
-  background: var(--bg-table-hover);
-  color: var(--text-primary);
+@media (hover: hover) {
+  .station-btn:hover:not(:disabled) {
+    background: var(--bg-table-hover);
+    color: var(--text-primary);
+  }
 }
 
 .station-btn:disabled {
@@ -134,8 +136,10 @@ function handleOpenList() {
   display: block;
 }
 
-.station-name.clickable:hover {
-  color: var(--color-success);
+@media (hover: hover) {
+  .station-name.clickable:hover {
+    color: var(--color-success);
+  }
 }
 
 .dropdown-arrow {

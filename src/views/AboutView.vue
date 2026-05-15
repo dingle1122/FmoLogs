@@ -175,9 +175,11 @@ const showCoffee = ref(false)
   font-weight: 500;
 }
 
-.inline-link:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
+@media (hover: hover) {
+  .inline-link:hover {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
+  }
 }
 
 .about-thanks {

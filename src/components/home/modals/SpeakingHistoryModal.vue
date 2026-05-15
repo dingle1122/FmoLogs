@@ -312,20 +312,18 @@ defineEmits([
   cursor: pointer;
 }
 
-.speaking-history-item:hover {
-  background: var(--bg-table-hover);
-}
+@media (hover: hover) {
+  .speaking-history-item:hover {
+    background: var(--bg-table-hover);
+  }
 
-.speaking-history-item.is-self {
-  cursor: default;
-}
+  .speaking-history-item.is-self:hover {
+    background: var(--bg-card);
+  }
 
-.speaking-history-item.is-self:hover {
-  background: var(--bg-card);
-}
-
-.speaking-history-item.is-self.is-speaking:hover {
-  background: var(--bg-speaking-bar);
+  .speaking-history-item.is-self.is-speaking:hover {
+    background: var(--bg-speaking-bar);
+  }
 }
 
 .speaking-history-item.is-speaking {

@@ -281,18 +281,23 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-.date-picker-trigger:hover {
-  border-color: var(--color-primary);
-}
+@media (hover: hover) {
+  .date-picker-trigger:hover {
+    border-color: var(--color-primary);
+  }
 
-.clear-btn {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-  line-height: 1;
-}
+  .clear-btn:hover {
+    color: var(--color-danger);
+  }
 
-.clear-btn:hover {
-  color: var(--color-danger);
+  .nav-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+  }
+
+  .clear-btn:hover {
+    color: var(--color-danger);
+  }
 }
 
 .trigger-text.placeholder {
@@ -350,9 +355,11 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
-.nav-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--color-primary);
+@media (hover: hover) {
+  .nav-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--color-primary);
+  }
 }
 
 .nav-title {
@@ -411,40 +418,34 @@ onUnmounted(() => {
   transition: all 0.15s;
 }
 
-.day-cell:hover {
-  background: var(--bg-hover);
-}
+@media (hover: hover) {
+  .day-cell:hover {
+    background: var(--bg-hover);
+  }
 
-.day-cell.other-month {
-  color: var(--text-disabled);
-  cursor: default;
-}
+  .day-cell.other-month:hover {
+    background: transparent;
+  }
 
-.day-cell.other-month:hover {
-  background: transparent;
-}
+  .day-cell.has-data:hover {
+    background: var(--color-success-border);
+  }
 
-.day-cell.has-data {
-  background: var(--bg-success-light);
-  font-weight: 500;
-}
+  .day-cell.selected:hover {
+    background: var(--color-primary);
+  }
 
-.day-cell.has-data:hover {
-  background: var(--color-success-border);
-}
+  .day-cell.other-month:hover {
+    background: transparent;
+  }
 
-.day-cell.today {
-  border: 2px solid var(--color-primary);
-}
+  .day-cell.has-data:hover {
+    background: var(--color-success-border);
+  }
 
-.day-cell.selected {
-  background: var(--color-primary);
-  color: white;
-  font-weight: 500;
-}
-
-.day-cell.selected:hover {
-  background: var(--color-primary);
+  .day-cell.selected:hover {
+    background: var(--color-primary);
+  }
 }
 
 .day-cell.selected.today {

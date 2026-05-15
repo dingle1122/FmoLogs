@@ -91,17 +91,19 @@ const { visible, title, message, confirmText, cancelText, confirm, cancel } = co
   color: var(--text-secondary);
 }
 
-.btn-cancel:hover {
-  background: var(--border-primary);
-}
-
 .btn-confirm {
   background: var(--color-primary);
   color: var(--text-white);
 }
 
-.btn-confirm:hover {
-  background: var(--color-primary-hover);
+@media (hover: hover) {
+  .btn-cancel:hover {
+    background: var(--border-primary);
+  }
+
+  .btn-confirm:hover {
+    background: var(--color-primary-hover);
+  }
 }
 
 /* 过渡动画 */

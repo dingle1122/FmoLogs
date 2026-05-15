@@ -277,10 +277,18 @@ const hasFilters = computed(() => {
   line-height: 1.5;
 }
 
-.quick-filter-chip:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: var(--bg-primary-light);
+@media (hover: hover) {
+  .quick-filter-chip:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--bg-primary-light);
+  }
+
+  .prioritize-chip:hover:not(:disabled) {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: var(--bg-primary-light);
+  }
 }
 
 .quick-filter-chip.active {

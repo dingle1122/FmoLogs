@@ -501,22 +501,24 @@ function formatTimePart(dateTimeStr) {
 }
 
 /* 交互层：hover */
-.data-table tbody tr:hover:not(.empty-row) td {
-  background-color: var(--bg-table-hover);
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
+@media (hover: hover) {
+  .data-table tbody tr:hover:not(.empty-row) td {
+    background-color: var(--bg-table-hover);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
 
-.data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex[class*='rank-bg'],
-.data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex.today-index {
-  background-color: var(--bg-table-hover);
-}
+  .data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex[class*='rank-bg'],
+  .data-table tbody tr:hover:not(.empty-row) td.col-dailyIndex.today-index {
+    background-color: var(--bg-table-hover);
+  }
 
-.data-table tbody tr.row-today:hover td {
-  background-color: var(--bg-table-hover);
-}
-.data-table tbody tr.row-today:hover td.col-dailyIndex {
-  background-color: var(--bg-table-hover);
+  .data-table tbody tr.row-today:hover td {
+    background-color: var(--bg-table-hover);
+  }
+  .data-table tbody tr.row-today:hover td.col-dailyIndex {
+    background-color: var(--bg-table-hover);
+  }
 }
 
 .daily-index-cell {

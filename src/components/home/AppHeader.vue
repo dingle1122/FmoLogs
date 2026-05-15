@@ -105,8 +105,19 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   transition: color 0.2s;
 }
 
-.header-title:hover {
-  color: var(--color-success);
+@media (hover: hover) {
+  .header-title:hover {
+    color: var(--color-success);
+  }
+
+  .header-logo:hover {
+    opacity: 0.8;
+  }
+
+  .station-tag:hover {
+    background: var(--border-light);
+    border-color: var(--color-success);
+  }
 }
 
 .header-logo {
@@ -214,9 +225,11 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   display: inline-block;
 }
 
-.nav-tab:hover:not(.disabled) {
-  color: var(--color-success);
-  background: none;
+@media (hover: hover) {
+  .nav-tab:hover:not(.disabled) {
+    color: var(--color-success);
+    background: none;
+  }
 }
 
 .nav-tab.router-link-active {
@@ -272,9 +285,11 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   text-decoration: none;
 }
 
-.icon-btn:hover {
-  background: var(--bg-table-hover);
-  color: var(--color-success);
+@media (hover: hover) {
+  .icon-btn:hover {
+    background: var(--bg-table-hover);
+    color: var(--color-success);
+  }
 }
 
 @media (max-width: 768px) {

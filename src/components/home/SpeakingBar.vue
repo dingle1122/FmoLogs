@@ -140,8 +140,10 @@ defineEmits(['click', 'toggle-audio'])
   transition: background 0.2s;
 }
 
-.speaking-bar:hover {
-  background: var(--bg-today-card);
+@media (hover: hover) {
+  .speaking-bar:hover {
+    background: var(--bg-today-card);
+  }
 }
 
 .speaking-bar-content {

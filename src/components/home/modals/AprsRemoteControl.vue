@@ -738,9 +738,20 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.btn-add-server:hover {
-  background: var(--color-primary);
-  color: var(--text-white);
+@media (hover: hover) {
+  .btn-add-server:hover {
+    background: var(--color-primary);
+    color: var(--text-white);
+  }
+
+  .btn-icon:hover {
+    background: var(--bg-table-hover);
+    color: var(--color-primary);
+  }
+
+  .btn-icon-danger:hover {
+    color: var(--color-danger);
+  }
 }
 
 .server-selector {
@@ -875,8 +886,14 @@ onUnmounted(() => {
   accent-color: var(--color-primary);
 }
 
-.form-checkbox:hover {
-  color: var(--text-primary);
+@media (hover: hover) {
+  .form-checkbox:hover {
+    color: var(--text-primary);
+  }
+
+  .password-toggle:hover {
+    color: var(--color-primary);
+  }
 }
 
 .callsign-input {
@@ -988,22 +1005,24 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-.btn-control:not(:disabled):hover {
-  border-color: var(--color-primary);
-  background: var(--bg-table-hover);
-  color: var(--color-primary);
-}
+@media (hover: hover) {
+  .btn-control:not(:disabled):hover {
+    border-color: var(--color-primary);
+    background: var(--bg-table-hover);
+    color: var(--color-primary);
+  }
 
-/* 重启按钮保持危险色 */
-.btn-reboot {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-}
+  .btn-reboot:not(:disabled):hover {
+    background: var(--bg-error-light);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
 
-.btn-reboot:not(:disabled):hover {
-  background: var(--bg-error-light);
-  border-color: var(--color-danger);
-  color: var(--color-danger);
+  .btn-reboot:not(:disabled):hover {
+    background: var(--bg-error-light);
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+  }
 }
 
 /* 历史记录 */
@@ -1036,9 +1055,11 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.btn-text-danger:hover {
-  color: var(--color-danger-hover);
-  text-decoration: underline;
+@media (hover: hover) {
+  .btn-text-danger:hover {
+    color: var(--color-danger-hover);
+    text-decoration: underline;
+  }
 }
 
 /* 时间轴样式 */
@@ -1114,9 +1135,11 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.timeline-content:hover {
-  background: var(--bg-table-hover);
-  border-color: var(--border-primary);
+@media (hover: hover) {
+  .timeline-content:hover {
+    background: var(--bg-table-hover);
+    border-color: var(--border-primary);
+  }
 }
 
 .timeline-message {
@@ -1210,8 +1233,14 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 
-.btn-secondary:hover {
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .btn-secondary:hover {
+    background: var(--bg-table-hover);
+  }
+
+  .btn-primary:hover {
+    background: var(--color-primary-hover);
+  }
 }
 
 .btn-primary {

@@ -224,8 +224,10 @@ a {
   color: var(--color-primary);
   text-decoration: inherit;
 }
-a:hover {
-  color: var(--color-primary-hover);
+@media (hover: hover) {
+  a:hover {
+    color: var(--color-primary-hover);
+  }
 }
 
 body {
@@ -357,9 +359,11 @@ button {
     border-color 0.25s,
     background-color 0.25s;
 }
-button:hover {
-  border-color: var(--color-primary);
-  background-color: var(--bg-table-hover);
+@media (hover: hover) {
+  button:hover {
+    border-color: var(--color-primary);
+    background-color: var(--bg-table-hover);
+  }
 }
 button:focus,
 button:focus-visible {
@@ -386,10 +390,12 @@ button:focus-visible {
   transition: all 0.2s;
 }
 
-.close-btn:hover {
-  background: rgba(255, 95, 87, 0.12);
-  border-color: rgba(255, 95, 87, 0.8);
-  color: rgba(255, 95, 87, 0.9);
+@media (hover: hover) {
+  .close-btn:hover {
+    background: rgba(255, 95, 87, 0.12);
+    border-color: rgba(255, 95, 87, 0.8);
+    color: rgba(255, 95, 87, 0.9);
+  }
 }
 
 .card {

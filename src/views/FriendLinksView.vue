@@ -81,11 +81,13 @@ const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
   overflow: hidden;
 }
 
-.link-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--color-primary);
-  box-shadow: 0 8px 16px var(--shadow-card);
-  background: var(--bg-table-hover);
+@media (hover: hover) {
+  .link-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-primary);
+    box-shadow: 0 8px 16px var(--shadow-card);
+    background: var(--bg-table-hover);
+  }
 }
 
 .link-card.disabled {
@@ -179,9 +181,11 @@ const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
   opacity: 0.3;
 }
 
-.link-card:hover .link-arrow {
-  color: var(--color-primary);
-  transform: translateX(3px);
-  opacity: 1;
+@media (hover: hover) {
+  .link-card:hover .link-arrow {
+    color: var(--color-primary);
+    transform: translateX(3px);
+    opacity: 1;
+  }
 }
 </style>
