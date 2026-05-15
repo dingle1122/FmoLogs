@@ -7,7 +7,7 @@
       <span class="total-logs">
         <strong>&#11088; {{ todayLogs }}/{{ totalLogs }}</strong>
         <template v-if="uniqueCallsigns > 0">
-          <span class="unique-count">({{ uniqueCallsigns }})</span>
+          <span class="unique-count">({{ uniqueCallsigns }}人)</span>
         </template>
       </span>
       <span
