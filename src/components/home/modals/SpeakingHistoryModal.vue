@@ -55,7 +55,11 @@
                         >{{ todayContactedCallsigns.has(record.callsign) ? '\u2605' : '\u2606' }}</span
                       >
                     </span>
-                    <span class="contact-count">&nbsp;x{{ contactCounts.get(record.callsign) || 0 }}</span>
+                    <span
+                      v-if="record.callsign !== selectedFromCallsign"
+                      class="contact-count"
+                      >&nbsp;x{{ contactCounts.get(record.callsign) || 0 }}</span
+                    >
                   </span>
                 </div>
                 <div class="history-time">
