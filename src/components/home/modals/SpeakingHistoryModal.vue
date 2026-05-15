@@ -237,7 +237,14 @@ function formatServerInfo(uid, name) {
   return serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
 }
 
-defineEmits(['close', 'show-callsign-records', 'station-prev', 'station-next', 'station-refresh', 'station-open-list'])
+defineEmits([
+  'close',
+  'show-callsign-records',
+  'station-prev',
+  'station-next',
+  'station-refresh',
+  'station-open-list'
+])
 </script>
 
 <style scoped>

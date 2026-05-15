@@ -8,7 +8,12 @@
     }"
     :title="text"
   >
-    <span ref="track" class="marquee-track" :class="{ scrolling: shouldScroll }" :style="trackStyle">
+    <span
+      ref="track"
+      class="marquee-track"
+      :class="{ scrolling: shouldScroll }"
+      :style="trackStyle"
+    >
       <span ref="content" class="marquee-content">{{ text }}</span>
       <span v-if="shouldScroll" class="marquee-content marquee-content-copy" aria-hidden="true">
         {{ text }}

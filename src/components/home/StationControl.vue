@@ -117,8 +117,6 @@ function handleOpenList() {
   min-width: 0;
 }
 
-
-
 .refresh-btn {
   font-size: 0.8rem !important;
   width: 44px !important; /* 固定宽度，防止"刷新"变"..."时抖动 */
