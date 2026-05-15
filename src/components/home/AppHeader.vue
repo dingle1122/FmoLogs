@@ -5,12 +5,10 @@
       <span class="header-divider"></span>
       <h1 class="header-title" @click="$emit('open-nav-menu')">FMO 日志查看器</h1>
       <span class="total-logs">
-        <span class="star">&#11088;</span>
         <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
-      </span>
-      <span v-if="uniqueCallsigns > 0" class="total-logs">
-        <img src="/radio-contact.svg" alt="Radio contact" class="callsign-icon" />
-        <strong>{{ uniqueCallsigns }}</strong>
+        <template v-if="uniqueCallsigns > 0">
+          <span class="unique-count">({{ uniqueCallsigns }})</span>
+        </template>
       </span>
       <span v-if="currentStationName" class="station-tag" title="当前信道" @click="$emit('open-channel-list')">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="station-icon">
@@ -160,24 +158,17 @@ watch(() => props.currentStationName, () => nextTick(checkOverflow))
 .total-logs {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.15rem;
   font-size: 1.1rem;
   color: var(--text-secondary);
 }
 
-.total-logs svg {
-  width: 24px;
-  height: 36px;
+.total-logs strong {
+  font-weight: 600;
 }
 
-.callsign-icon {
-  width: 24px;
-  height: 36px;
-  display: block;
-}
-
-.star {
-  font-size: 1.5rem;
+.unique-count {
+  font-weight: 600;
 }
 
 .station-tag {
@@ -370,14 +361,6 @@ watch(() => props.currentStationName, () => nextTick(checkOverflow))
 
   .total-logs {
     font-size: 0.95rem;
-  }
-
-  .star {
-    font-size: 1.2rem;
-  }
-
-  .callsign-icon {
-    font-size: 1.1rem;
   }
 }
 
