@@ -369,9 +369,9 @@ function formatTimePart(dateTimeStr) {
   justify-content: center;
   font-size: 0.65rem;
   font-weight: 700;
-  color: #b45309;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
+  color: var(--brand-warning-deep);
+  background: var(--surface-yellow-100);
+  border: 1px solid var(--border-yellow-100);
   border-radius: 3px;
   padding: 0.05rem 0.25rem;
   line-height: 1.3;
@@ -442,19 +442,19 @@ function formatTimePart(dateTimeStr) {
 }
 
 .daily-index.rank-1 {
-  color: #c69500;
+  color: var(--brand-warning-muted);
   font-weight: 800;
   font-size: 1.1rem;
 }
 
 .daily-index.rank-2 {
-  color: #5c6b7f;
+  color: var(--neutral-650);
   font-weight: 800;
   font-size: 1.05rem;
 }
 
 .daily-index.rank-3 {
-  color: #a0522d;
+  color: var(--brand-bronze-muted);
   font-weight: 800;
   font-size: 1.05rem;
 }
@@ -597,9 +597,9 @@ function formatTimePart(dateTimeStr) {
 
 @media (prefers-color-scheme: dark) {
   .today-badge {
-    color: #fbbf24;
-    background: #422006;
-    border-color: #78350f;
+    color: var(--brand-warning-bright);
+    background: var(--rank-dark-bg);
+    border-color: var(--rank-dark-border);
   }
 
   /* 基础层：默认序号列 */

@@ -1,0 +1,7 @@
+/*
+  Reserved for late theme overrides.
+
+  Future custom themes can be appended or injected after `colors.css`
+  by overriding `--theme-*` or `--component-*` tokens here or via a
+  runtime stylesheet.
+*/

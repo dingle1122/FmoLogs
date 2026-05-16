@@ -731,7 +731,7 @@ onUnmounted(() => {
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid transparent;
+  border: 2px solid var(--color-transparent);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -1091,12 +1091,12 @@ onUnmounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-transparent);
 }
 
 .btn-primary {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-white);
   border-color: var(--color-primary);
 }
 

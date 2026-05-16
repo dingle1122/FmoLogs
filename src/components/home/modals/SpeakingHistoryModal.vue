@@ -427,7 +427,7 @@ defineEmits([
   border-radius: 2px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(128, 128, 128, 0.12);
+  background: var(--alpha-neutral-12);
   color: var(--text-primary);
   line-height: 1;
   flex-shrink: 0;
@@ -506,7 +506,7 @@ defineEmits([
 
 .speaking-history-item.is-speaking .history-callsign .server-tag {
   color: var(--color-speaking);
-  background: rgba(34, 197, 94, 0.12);
+  background: var(--alpha-success-strong-12);
 }
 
 .history-time {

@@ -149,7 +149,7 @@ function handleOpenList() {
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
 .primary-badge {
-  background: rgba(103, 194, 58, 0.15);
+  background: var(--alpha-success-15);
   color: var(--color-success);
   font-size: 0.7rem;
   padding: 0.1rem 0.1rem;

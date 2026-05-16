@@ -1097,20 +1097,20 @@ onUnmounted(() => {
 
 /* 发送操作 - 蓝色 */
 .timeline-dot-send {
-  background-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  background-color: var(--brand-primary-strong);
+  box-shadow: 0 0 0 3px var(--alpha-primary-strong-20);
 }
 
 /* 成功 - 绿色 */
 .timeline-dot-success {
-  background-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  background-color: var(--brand-success-emerald);
+  box-shadow: 0 0 0 3px var(--alpha-emerald-20);
 }
 
 /* 失败 - 红色 */
 .timeline-dot-fail {
-  background-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+  background-color: var(--brand-danger-strong);
+  box-shadow: 0 0 0 3px var(--alpha-danger-strong-20);
 }
 
 /* 时间轴连线 */

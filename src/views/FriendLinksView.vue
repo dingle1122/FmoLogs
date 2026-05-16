@@ -150,21 +150,21 @@ const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
 }
 
 .link-tag.tag-info {
-  background: rgba(64, 158, 255, 0.1);
+  background: var(--alpha-primary-10);
   color: var(--color-primary);
-  border-color: rgba(64, 158, 255, 0.3);
+  border-color: var(--alpha-primary-30);
 }
 
 .link-tag.tag-warn {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-  border-color: rgba(245, 158, 11, 0.3);
+  background: var(--alpha-warning-gold-10);
+  color: var(--brand-warning-gold);
+  border-color: var(--alpha-warning-gold-30);
 }
 
 .link-tag.tag-error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.3);
+  background: var(--alpha-danger-strong-10);
+  color: var(--brand-danger-strong);
+  border-color: var(--alpha-danger-strong-30);
 }
 
 .link-url {

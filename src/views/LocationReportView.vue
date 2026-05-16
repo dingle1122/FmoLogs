@@ -90,7 +90,7 @@
             :max="SLIDER_MAX"
             class="interval-slider"
             :style="{
-              background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) 100%)`
+              background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) 100%)`
             }"
             @change="handleSliderChange"
           />
@@ -371,7 +371,7 @@ onUnmounted(() => {
     color 0.2s,
     border-color 0.2s,
     opacity 0.2s;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: var(--tap-highlight-color);
   outline: none;
   white-space: nowrap;
   box-sizing: border-box;
@@ -489,7 +489,7 @@ onUnmounted(() => {
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--color-white);
   border-radius: 50%;
   transition: all 0.3s;
 }
@@ -530,19 +530,19 @@ onUnmounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--color-primary, #409eff);
+  background: var(--color-primary);
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px var(--alpha-black-20);
 }
 
 .interval-slider::-moz-range-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--color-primary, #409eff);
+  background: var(--color-primary);
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px var(--alpha-black-20);
 }
 
 .interval-current {
@@ -562,7 +562,7 @@ onUnmounted(() => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: var(--tap-highlight-color);
   outline: none;
 }
 
@@ -634,7 +634,7 @@ onUnmounted(() => {
   width: 14px;
   height: 14px;
   border: 2px solid currentColor;
-  border-right-color: transparent;
+  border-right-color: var(--color-transparent);
   border-radius: 50%;
   vertical-align: middle;
   animation: btn-spin 0.7s linear infinite;
@@ -647,8 +647,8 @@ onUnmounted(() => {
 }
 
 .btn-spinner-light {
-  border-color: white;
-  border-right-color: transparent;
+  border-color: var(--color-white);
+  border-right-color: var(--color-transparent);
 }
 
 @keyframes btn-spin {

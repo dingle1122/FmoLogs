@@ -68,7 +68,7 @@ import SvgIcon from '../components/common/SvgIcon.vue'
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(103, 194, 58, 0.12);
+  background: var(--alpha-success-12);
   color: var(--color-success);
   border-radius: 10px;
   flex-shrink: 0;

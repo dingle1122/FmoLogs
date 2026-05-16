@@ -259,7 +259,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   right: 0.25rem;
   width: 7px;
   height: 7px;
-  background: #ef4444;
+  background: var(--brand-danger-strong);
   border-radius: 50%;
   border: 1.5px solid var(--bg-header, var(--bg-page));
 }

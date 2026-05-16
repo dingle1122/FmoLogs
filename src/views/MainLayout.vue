@@ -1581,7 +1581,7 @@ provide('protocol', settings.protocol)
     right: calc(50% - 1.2rem);
     width: 7px;
     height: 7px;
-    background: #ef4444;
+    background: var(--brand-danger-strong);
     border-radius: 50%;
     border: 1.5px solid var(--bg-header, var(--bg-page));
   }

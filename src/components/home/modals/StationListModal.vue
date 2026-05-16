@@ -216,7 +216,7 @@ function handleSelect(uid) {
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
 .title-primary-badge {
-  background: rgba(103, 194, 58, 0.15);
+  background: var(--alpha-success-15);
   color: var(--color-success);
   font-size: 0.7rem;
   padding: 0.1rem 0.1rem;
@@ -275,7 +275,7 @@ function handleSelect(uid) {
 .station-item {
   position: relative;
   padding: 0.8rem 1.2rem;
-  border: 2px solid rgba(150, 150, 150, 0.3);
+  border: 2px solid var(--alpha-neutral-30);
   background: var(--bg-card);
   border-radius: 6px;
   cursor: pointer;
@@ -295,10 +295,10 @@ function handleSelect(uid) {
   right: 4px;
   font-size: 0.8rem;
   font-weight: 400;
-  color: var(--color-warning, #e6a23c);
+  color: var(--color-warning);
   line-height: 1;
   pointer-events: none;
-  background: rgba(230, 162, 60, 0.22);
+  background: var(--alpha-warning-22);
   border-radius: 3px;
   padding: 3px;
 }
@@ -314,19 +314,19 @@ function handleSelect(uid) {
 .station-item.active {
   background: var(--color-success);
   border-color: var(--color-success);
-  color: white;
+  color: var(--color-white);
 }
 
 .station-item.active .pin-badge {
-  color: white;
-  background: rgba(255, 255, 255, 0.35);
+  color: var(--color-white);
+  background: var(--alpha-white-35);
   font-weight: 300;
 }
 
 /* 信道按钮内的主标签样式 - 与 user-uid 同款绿色 */
 .primary-badge {
-  background: rgba(103, 194, 58, 0.25);
-  color: #67c23a;
+  background: var(--alpha-success-25);
+  color: var(--color-success);
   font-size: 0.7rem;
   padding: 0.1rem 0.1rem;
   border-radius: 2px;

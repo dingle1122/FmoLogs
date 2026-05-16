@@ -313,7 +313,7 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   z-index: 999;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--alpha-black-40);
 }
 
 .calendar-popup {
@@ -324,7 +324,7 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border-primary);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px var(--alpha-black-20);
   z-index: 1000;
   padding: 1.25rem;
   width: 340px;
@@ -424,7 +424,7 @@ onUnmounted(() => {
   }
 
   .day-cell.other-month:hover {
-    background: transparent;
+    background: var(--color-transparent);
   }
 
   .day-cell.has-data:hover {
@@ -436,7 +436,7 @@ onUnmounted(() => {
   }
 
   .day-cell.other-month:hover {
-    background: transparent;
+    background: var(--color-transparent);
   }
 
   .day-cell.has-data:hover {
@@ -468,12 +468,12 @@ onUnmounted(() => {
   font-weight: 600;
   line-height: 16px;
   text-align: center;
-  color: white;
+  color: var(--color-white);
   background: var(--color-success);
   border-radius: 8px;
 }
 
 .day-cell.selected .day-badge {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--alpha-white-30);
 }
 </style>

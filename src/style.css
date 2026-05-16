@@ -1,3 +1,6 @@
+@import './styles/colors.css';
+@import './styles/theme-overrides.css';
+
 /* 中文字体 - 思源黑体 Source Han Sans SC VF */
 @font-face {
   font-family: 'SourceHanSansSC';
@@ -81,144 +84,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* 背景色 */
-  --bg-page: #ffffff;
-  --bg-container: #ffffff;
-  --bg-header: #ffffff;
-  --bg-card: #ffffff;
-  --bg-input: #ffffff;
-  --bg-table-header: #f5f7fa;
-  --bg-table-hover: #f0f4ff;
-  --bg-table-stripe: #f8f9fb;
-  --bg-disabled: #f0f2f5;
-  --bg-success-light: #f0f9eb;
-  --bg-warning-light: #fff7ed;
-  --bg-error-light: #fef0f0;
-  --bg-https-hint: #fff7e6;
-  --bg-primary-light: #ecf5ff;
-
-  /* 文字色 */
-  --text-primary: #333333;
-  --text-secondary: #606266;
-  --text-tertiary: #909399;
-  --text-disabled: #c0c4cc;
-  --text-white: #ffffff;
-
-  /* 边框色 */
-  --border-primary: #dcdfe6;
-  --border-secondary: #ebeef5;
-  --border-light: #eeeeee;
-  --border-table: #dddddd;
-
-  /* 功能色 */
-  --color-primary: #409eff;
-  --color-primary-hover: #337ecc;
-  --color-success: #67c23a;
-  --color-success-border: #e1f3d8;
-  --color-warning: #d46b08;
-  --color-warning-border: #ffd591;
-  --color-danger: #f56c6c;
-  --color-danger-hover: #e64242;
-
-  /* 卡片特殊背景 */
-  --bg-friend-card: #fff7ed;
-  --border-friend-card: #fed7aa;
-  --bg-today-card: #f0fdf4;
-  --bg-today-row: #f6fef6;
-  --bg-today-index: #e8f8e8;
-  --bg-today-index-neutral: #f0fdf4;
-  --border-today-row: #c8e6c9;
-  --border-today-card: #a5d6a7;
-  --color-today-accent: #4caf50;
-  --color-today-uncontacted: #dddddd;
-  --bg-rank-1: #fef9e7;
-  --bg-rank-2: #e8ecf2;
-  --bg-rank-3: #fdf2e9;
-  --bg-record-card: #f9fafb;
-  --border-record-card: #e5e7eb;
-
-  /* 阴影和遮罩 */
-  --shadow-card: rgba(0, 0, 0, 0.1);
-  --shadow-modal: rgba(0, 0, 0, 0.15);
-  --shadow-primary: rgba(64, 158, 255, 0.2);
-  --shadow-primary-hover: rgba(64, 158, 255, 0.3);
-  --overlay-bg: rgba(0, 0, 0, 0.5);
-  --tooltip-bg: #333333;
-
-  /* 发言状态条 */
-  --color-speaking: #22c55e;
-  --bg-speaking-bar: #f0fdf4;
-  --border-speaking-bar: #86efac;
-
   /* 默认浅色模式颜色 */
   color: var(--text-primary);
   background-color: var(--bg-page);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* 背景色 - 分层设计 */
-    --bg-page: #1a1a1a;
-    --bg-container: #242424;
-    --bg-header: #2c2c2c;
-    --bg-card: #2c2c2c;
-    --bg-input: #3a3a3a;
-    --bg-table-header: #363636;
-    --bg-table-hover: #2a2a2a;
-    --bg-table-stripe: #2a2a2a;
-    --bg-disabled: #404040;
-    --bg-success-light: #1f3a1f;
-    --bg-warning-light: #3a2e1f;
-    --bg-error-light: #3a1f1f;
-    --bg-https-hint: #3a2e1f;
-    --bg-primary-light: #1a2a3a;
-
-    /* 文字色 - 高对比度 */
-    --text-primary: #e8e8e8;
-    --text-secondary: #b8b8b8;
-    --text-tertiary: #909399;
-    --text-disabled: #666666;
-
-    /* 边框色 */
-    --border-primary: #404040;
-    --border-secondary: #363636;
-    --border-light: #333333;
-    --border-table: #404040;
-
-    /* 功能色 - 略微调亮悬停色 */
-    --color-primary-hover: #66b1ff;
-    --color-success-border: #2d5a2d;
-    --color-warning-border: #5a4a2d;
-    --color-danger-hover: #f78989;
-
-    /* 卡片特殊背景 */
-    --bg-friend-card: #3a2e1f;
-    --border-friend-card: #5a4a2d;
-    --bg-today-card: #1f3a1f;
-    --bg-today-row: #1a241a;
-    --bg-today-index: #1e2e1e;
-    --bg-today-index-neutral: #1a281a;
-    --border-today-row: #263626;
-    --border-today-card: #2d5a2d;
-    --color-today-accent: #4caf50;
-    --color-today-uncontacted: #4a4a4a;
-    --bg-rank-1: #3d3520;
-    --bg-rank-2: #3a3d42;
-    --bg-rank-3: #3d2e20;
-    --bg-record-card: #333333;
-    --border-record-card: #404040;
-
-    /* 阴影和遮罩 */
-    --shadow-card: rgba(0, 0, 0, 0.3);
-    --shadow-modal: rgba(0, 0, 0, 0.5);
-    --overlay-bg: rgba(0, 0, 0, 0.7);
-    --tooltip-bg: #4a4a4a;
-
-    /* 发言状态条 */
-    --color-speaking: #4ade80;
-    --bg-speaking-bar: #1f3a1f;
-    --border-speaking-bar: #2d5a2d;
-  }
 }
 
 a {
@@ -239,7 +107,7 @@ body {
   min-height: var(--app-height, 100vh);
   /* background 由 ::before 伪元素提供，避免遮挡底纹 */
   color: var(--text-primary);
-  text-shadow: 0 0 0.3px rgba(0, 0, 0, 0.3);
+  text-shadow: var(--body-text-shadow);
 }
 
 /*
@@ -259,26 +127,26 @@ body::before {
     /* 渐变遮罩 - 两侧深中间淡（使用calc实现更精确的中间透明区域） */
     linear-gradient(
       to right,
-      rgba(0, 0, 0, 0.25) 0%,
-      transparent calc(50% - 800px),
-      transparent calc(50% + 800px),
-      rgba(0, 0, 0, 0.25) 100%
+      var(--texture-edge-fade) 0%,
+      var(--color-transparent) calc(50% - 800px),
+      var(--color-transparent) calc(50% + 800px),
+      var(--texture-edge-fade) 100%
     ),
     /* 右半屏：45° 向上斜线 */
     repeating-linear-gradient(
       45deg,
-      transparent,
-      transparent 8px,
-      rgba(0, 0, 0, 0.06) 8px,
-      rgba(0, 0, 0, 0.06) 12px
+      var(--color-transparent),
+      var(--color-transparent) 8px,
+      var(--texture-stripe) 8px,
+      var(--texture-stripe) 12px
     ),
     /* 左半屏：45° 向下斜线 */
     repeating-linear-gradient(
       -45deg,
-      transparent,
-      transparent 8px,
-      rgba(0, 0, 0, 0.06) 8px,
-      rgba(0, 0, 0, 0.06) 12px
+      var(--color-transparent),
+      var(--color-transparent) 8px,
+      var(--texture-stripe) 8px,
+      var(--texture-stripe) 12px
     );
   background-size:
     100% 100%,
@@ -292,17 +160,17 @@ body::before {
   /* 纹理可见区域：与渐变遮罩匹配，使用calc实现更精确的中间透明区域 */
   -webkit-mask-image: linear-gradient(
     to right,
-    black 0%,
-    transparent calc(50% - 800px),
-    transparent calc(50% + 800px),
-    black 100%
+    var(--texture-mask-solid) 0%,
+    var(--color-transparent) calc(50% - 800px),
+    var(--color-transparent) calc(50% + 800px),
+    var(--texture-mask-solid) 100%
   );
   mask-image: linear-gradient(
     to right,
-    black 0%,
-    transparent calc(50% - 800px),
-    transparent calc(50% + 800px),
-    black 100%
+    var(--texture-mask-solid) 0%,
+    var(--color-transparent) calc(50% - 800px),
+    var(--color-transparent) calc(50% + 800px),
+    var(--texture-mask-solid) 100%
   );
 }
 
@@ -313,33 +181,33 @@ body::before {
       /* 渐变遮罩 - 两侧深中间淡（使用calc实现更精确的中间透明区域） */
       linear-gradient(
         to right,
-        rgba(255, 255, 255, 0.15) 0%,
-        transparent calc(50% - 800px),
-        transparent calc(50% + 800px),
-        rgba(255, 255, 255, 0.15) 100%
+        var(--texture-edge-fade) 0%,
+        var(--color-transparent) calc(50% - 800px),
+        var(--color-transparent) calc(50% + 800px),
+        var(--texture-edge-fade) 100%
       ),
       /* 右半屏：45° 向上斜线 */
       repeating-linear-gradient(
         45deg,
-        transparent,
-        transparent 8px,
-        rgba(255, 255, 255, 0.06) 8px,
-        rgba(255, 255, 255, 0.06) 12px
+        var(--color-transparent),
+        var(--color-transparent) 8px,
+        var(--texture-stripe) 8px,
+        var(--texture-stripe) 12px
       ),
       /* 左半屏：45° 向下斜线 */
       repeating-linear-gradient(
         -45deg,
-        transparent,
-        transparent 8px,
-        rgba(255, 255, 255, 0.06) 8px,
-        rgba(255, 255, 255, 0.06) 12px
+        var(--color-transparent),
+        var(--color-transparent) 8px,
+        var(--texture-stripe) 8px,
+        var(--texture-stripe) 12px
       );
   }
 }
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: var(--tap-highlight-color);
 }
 
 h1 {
@@ -379,12 +247,12 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: 1px solid rgba(255, 95, 87, 0.55);
+  background: var(--color-transparent);
+  border: 1px solid var(--close-btn-border);
   border-radius: 4px;
   font-size: 14px;
   font-weight: 700;
-  color: rgba(255, 95, 87, 0.7);
+  color: var(--close-btn-color);
   cursor: pointer;
   line-height: 0;
   padding: 0;
@@ -394,9 +262,9 @@ button:focus-visible {
 
 @media (hover: hover) {
   .close-btn:hover {
-    background: rgba(255, 95, 87, 0.12);
-    border-color: rgba(255, 95, 87, 0.8);
-    color: rgba(255, 95, 87, 0.9);
+    background: var(--close-btn-hover-bg);
+    border-color: var(--close-btn-hover-border);
+    color: var(--close-btn-hover-color);
   }
 }
 
@@ -420,16 +288,16 @@ button:focus-visible {
   /* 宽屏下左右边缘阴影，勾勒内容区边界，与两侧留白形成层次 */
   /* 阴影范围与渐变遮罩边界对齐（calc(50% - 800px) 约等于内容区边缘） */
   box-shadow:
-    -24px 0 48px 0 rgba(0, 0, 0, 0.1),
-    24px 0 48px 0 rgba(0, 0, 0, 0.1);
+    -24px 0 48px 0 var(--app-edge-shadow),
+    24px 0 48px 0 var(--app-edge-shadow);
 }
 
 /* 暗色模式 #app 阴影覆盖（必须在基础 #app 之后） */
 @media (prefers-color-scheme: dark) {
   #app {
     box-shadow:
-      -24px 0 48px 0 rgba(255, 255, 255, 0.15),
-      24px 0 48px 0 rgba(255, 255, 255, 0.15);
+      -24px 0 48px 0 var(--app-edge-shadow),
+      24px 0 48px 0 var(--app-edge-shadow);
   }
 }
 

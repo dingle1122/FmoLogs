@@ -241,15 +241,15 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
 }
 
 .top20-card:nth-child(1) h3::before {
-  background: #6366f1;
+  background: var(--brand-indigo);
 }
 
 .top20-card:nth-child(2) h3::before {
-  background: #10b981;
+  background: var(--brand-success-emerald);
 }
 
 .top20-card:nth-child(3) h3::before {
-  background: #f59e0b;
+  background: var(--brand-warning-gold);
 }
 
 /* ===== 列表样式 ===== */
@@ -266,7 +266,7 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
   line-height: 1.5;
   gap: 0.75rem;
   transition: background 0.15s;
-  border-left: 3px solid transparent;
+  border-left: 3px solid var(--color-transparent);
 }
 
 .top20-item:hover {
@@ -275,15 +275,15 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
 
 /* 前三名左侧色条 */
 .top20-item:nth-child(1) {
-  border-left-color: #f59e0b;
+  border-left-color: var(--brand-warning-gold);
 }
 
 .top20-item:nth-child(2) {
-  border-left-color: #94a3b8;
+  border-left-color: var(--neutral-400);
 }
 
 .top20-item:nth-child(3) {
-  border-left-color: #d97706;
+  border-left-color: var(--brand-bronze);
 }
 
 /* 斑马纹 */
@@ -308,19 +308,19 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
 }
 
 .top20-item:nth-child(1) .rank {
-  color: #f59e0b;
+  color: var(--brand-warning-gold);
   font-size: 0.95rem;
   font-weight: 700;
 }
 
 .top20-item:nth-child(2) .rank {
-  color: #94a3b8;
+  color: var(--neutral-400);
   font-size: 0.9rem;
   font-weight: 700;
 }
 
 .top20-item:nth-child(3) .rank {
-  color: #d97706;
+  color: var(--brand-bronze);
   font-size: 0.9rem;
   font-weight: 700;
 }

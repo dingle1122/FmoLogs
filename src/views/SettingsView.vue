@@ -219,7 +219,7 @@
                 :value="audioVolume"
                 class="volume-slider"
                 :style="{
-                  background: `linear-gradient(to right, var(--color-primary, #409eff) 0%, var(--color-primary, #409eff) ${audioVolume / 2}%, var(--border-primary) ${audioVolume / 2}%, var(--border-primary) 100%)`
+                  background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${audioVolume / 2}%, var(--border-primary) ${audioVolume / 2}%, var(--border-primary) 100%)`
                 }"
                 @input="handleVolumeChange"
               />
@@ -912,7 +912,7 @@ function handleVolumeChange(e) {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-primary, #409eff);
+  background: var(--color-primary);
   cursor: pointer;
 }
 
@@ -920,7 +920,7 @@ function handleVolumeChange(e) {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-primary, #409eff);
+  background: var(--color-primary);
   border: none;
   cursor: pointer;
 }
@@ -1025,8 +1025,8 @@ function handleVolumeChange(e) {
   justify-content: space-between;
   width: 100%;
   padding: 0.75rem 1rem;
-  background: rgba(245, 108, 108, 0.08);
-  border: 1px solid rgba(245, 108, 108, 0.2);
+  background: var(--alpha-danger-08);
+  border: 1px solid var(--alpha-danger-20);
   border-radius: 6px;
   gap: 1rem;
 }
@@ -1041,15 +1041,15 @@ function handleVolumeChange(e) {
   justify-content: space-between;
   width: 100%;
   padding: 0.75rem 1rem;
-  background: rgba(230, 162, 60, 0.08);
-  border: 1px solid rgba(230, 162, 60, 0.25);
+  background: var(--alpha-warning-08);
+  border: 1px solid var(--alpha-warning-25);
   border-radius: 6px;
   gap: 1rem;
 }
 
 .grid-cache-desc {
   font-size: 0.85rem;
-  color: var(--color-warning, #e6a23c);
+  color: var(--color-warning);
   flex: 1;
 }
 
@@ -1110,7 +1110,7 @@ function handleVolumeChange(e) {
 
 .address-card.active {
   border-color: var(--color-primary);
-  background: rgba(64, 158, 255, 0.08);
+  background: var(--alpha-primary-08);
 }
 
 .address-card.connecting {
@@ -1192,12 +1192,12 @@ function handleVolumeChange(e) {
 }
 
 .user-callsign {
-  background: rgba(64, 158, 255, 0.15);
+  background: var(--alpha-primary-15);
   color: var(--color-primary);
 }
 
 .user-uid {
-  background: rgba(103, 194, 58, 0.15);
+  background: var(--alpha-success-15);
   color: var(--color-success);
 }
 
@@ -1259,20 +1259,20 @@ function handleVolumeChange(e) {
   margin-top: 0.5rem;
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background-color: #f0f9ff;
-  border: 1px solid #b3d8ff;
+  background-color: var(--panel-info-bg);
+  border: 1px solid var(--panel-info-border);
   border-radius: 4px;
   font-size: 0.9rem;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .setting-note code {
-  background-color: #e6f7ff;
+  background-color: var(--panel-info-bg-hover);
   padding: 0.2rem 0.4rem;
   border-radius: 3px;
   font-family: monospace;
-  color: #409eff;
-  border: 1px solid #d9ecff;
+  color: var(--color-primary);
+  border: 1px solid var(--panel-info-border-soft);
 }
 
 .setting-item-buttons {
@@ -1314,7 +1314,7 @@ function handleVolumeChange(e) {
 .btn-ghost {
   padding: 0.4rem 1rem;
   font-size: 0.82rem;
-  background: transparent;
+  background: var(--color-transparent);
   color: var(--text-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 4px;
@@ -1440,7 +1440,7 @@ function handleVolumeChange(e) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--alpha-black-50);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1543,27 +1543,27 @@ function handleVolumeChange(e) {
 .form-hint {
   margin-top: 0.75rem;
   padding: 0.6rem;
-  background-color: #f0f9ff;
-  border: 1px solid #b3d8ff;
+  background-color: var(--panel-info-bg);
+  border: 1px solid var(--panel-info-border);
   border-radius: 4px;
   font-size: 0.85rem;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .form-hint code {
-  background-color: #e6f7ff;
+  background-color: var(--panel-info-bg-hover);
   padding: 0.15rem 0.35rem;
   border-radius: 3px;
   font-family: monospace;
-  color: #409eff;
-  border: 1px solid #d9ecff;
+  color: var(--color-primary);
+  border: 1px solid var(--panel-info-border-soft);
 }
 
 .form-error {
   margin-top: 0.75rem;
   padding: 0.6rem;
-  background-color: #fef0f0;
-  border: 1px solid #fde2e2;
+  background-color: var(--panel-error-bg);
+  border: 1px solid var(--panel-error-border);
   border-radius: 4px;
   font-size: 0.85rem;
   color: var(--color-danger);
@@ -1616,7 +1616,7 @@ function handleVolumeChange(e) {
   flex: 1;
   width: 100%;
   border: none;
-  background: #fff;
+  background: var(--color-white);
 }
 
 @media (max-width: 768px) {
@@ -1751,7 +1751,7 @@ function handleVolumeChange(e) {
   width: 16px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--color-white);
   border-radius: 50%;
   transition: all 0.3s;
 }
@@ -1765,7 +1765,7 @@ function handleVolumeChange(e) {
 }
 
 .toggle-switch input:focus + .toggle-slider {
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+  box-shadow: 0 0 0 2px var(--alpha-primary-20);
 }
 
 /* ========== 地址卡片多选样式 ========== */
@@ -1794,7 +1794,7 @@ function handleVolumeChange(e) {
 
 .address-checkbox-round input[type='checkbox']:checked + .checkbox-circle {
   border-color: var(--color-primary);
-  background: transparent;
+  background: var(--color-transparent);
 }
 
 .address-checkbox-round input[type='checkbox']:checked + .checkbox-circle::after {
@@ -1811,7 +1811,7 @@ function handleVolumeChange(e) {
 
 .address-card.selected {
   border-color: var(--color-primary);
-  background: rgba(64, 158, 255, 0.12);
+  background: var(--alpha-primary-12);
   box-shadow: 0 0 0 1px var(--color-primary);
 }
 
@@ -1821,7 +1821,7 @@ function handleVolumeChange(e) {
   padding: 0.1rem 0.35rem;
   margin-left: 0.4rem;
   background: var(--color-primary);
-  color: white;
+  color: var(--color-white);
   border-radius: 3px;
   font-weight: 500;
   vertical-align: middle;
@@ -1836,7 +1836,7 @@ function handleVolumeChange(e) {
   border-radius: 2px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(103, 194, 58, 0.15);
+  background: var(--alpha-success-15);
   color: var(--color-success);
   line-height: 1;
   margin-right: 0.4rem;

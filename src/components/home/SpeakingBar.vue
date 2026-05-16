@@ -257,7 +257,7 @@ defineEmits(['click', 'toggle-audio'])
   border-radius: 2px;
   font-size: 0.6em;
   font-weight: 400;
-  background: rgba(212, 107, 8, 0.12);
+  background: var(--alpha-warning-brown-12);
   color: var(--color-warning);
   line-height: 1;
   text-align: center;

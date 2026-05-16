@@ -221,7 +221,7 @@ const showCoffee = ref(false)
   width: 100%;
   max-width: 500px;
   margin-bottom: 1.25rem;
-  background: transparent;
+  background: var(--color-transparent);
   border: 1px solid var(--border-light);
   border-radius: 12px;
   overflow: hidden;
@@ -269,12 +269,12 @@ const showCoffee = ref(false)
   width: 140px;
   height: 140px;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-white);
   padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px var(--alpha-black-12);
 }
 
 .coffee-qrcode {

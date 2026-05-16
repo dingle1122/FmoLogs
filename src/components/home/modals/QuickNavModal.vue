@@ -116,7 +116,7 @@ function handleNavClick(_routeItem) {
   color: var(--text-secondary);
   transition: all 0.2s;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-transparent);
 }
 
 @media (hover: hover) {
@@ -128,7 +128,7 @@ function handleNavClick(_routeItem) {
 }
 
 .nav-item.active {
-  background: rgba(103, 194, 58, 0.08);
+  background: var(--alpha-success-08);
   color: var(--color-success);
   border-color: var(--color-success);
   font-weight: 500;

@@ -293,7 +293,7 @@ const hasFilters = computed(() => {
 
 .quick-filter-chip.active {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-white);
   border-color: var(--color-primary);
 }
 
@@ -338,7 +338,7 @@ const hasFilters = computed(() => {
 
 .prioritize-chip.active {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-white);
   border-color: var(--color-primary);
 }
 
