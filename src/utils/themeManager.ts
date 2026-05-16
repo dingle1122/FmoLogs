@@ -15,15 +15,25 @@ export interface ThemeActionResult {
 
 export const DEFAULT_THEME_ID = 'default'
 
-export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
-   Recommended order:
-   1. Override semantic theme tokens (--theme-*)
-   2. Override component tokens (--component-*) for per-module tuning
-   3. Avoid editing component class selectors directly unless necessary
+export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
+   使用建议：
+   1. 先修改 --theme-* 这一层，它决定整套主题的整体气质。
+      例如页面背景、文字颜色、边框颜色、主色、成功色、危险色。
+   2. 如果你只想微调某个区域，再修改 --component-* 这一层。
+      例如顶部导航、筛选区、信道列表、主题页、远控页。
+   3. 不建议直接修改组件 class 选择器。
+      优先改变量，后续升级版本时更稳定，也更容易继续沿用你的主题。
+
+   推荐上手顺序：
+   1. 先改页面底色、文字色、主色
+   2. 再改“当前高亮 / 今日通联 / 选中态”
+   3. 最后按需要微调某个具体模块
 */
 
 :root {
-  /* Page and surface colors */
+  /* 页面和容器底色
+     这组变量决定整个应用“底子”的感觉。
+     如果你想做浅色、米色、粉色、深色主题，通常先从这里开始改。 */
   --theme-surface-page: #f6efe6;
   --theme-surface-container: #fffaf3;
   --theme-surface-header: #fff7ee;
@@ -31,16 +41,25 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --theme-surface-input: #fffaf4;
   --theme-surface-hover: #f7ead8;
 
-  /* Text colors */
+  /* 文字颜色
+     primary: 主要文字
+     secondary: 次要说明
+     muted: 更弱的辅助信息 */
   --theme-text-primary: #34261b;
   --theme-text-secondary: #715643;
   --theme-text-muted: #9c7f69;
 
-  /* Border colors */
+  /* 边框颜色
+     default: 输入框、按钮等常规边框
+     subtle: 卡片、容器等更轻的分隔线 */
   --theme-border-default: #e4cfba;
   --theme-border-subtle: #efe1d2;
 
-  /* Brand and status colors */
+  /* 全局主色和状态色
+     accent-primary: 主操作按钮、可点击强调项
+     success: 成功、已连接、正常状态
+     warning: 提醒
+     danger: 删除、失败、危险操作 */
   --theme-accent-primary: #c46a2d;
   --theme-accent-primary-hover: #a55520;
   --theme-success: #3d8b5a;
@@ -48,9 +67,10 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --theme-warning: #b57918;
   --theme-danger: #c55353;
 
-  /* Current/selected/today highlight colors
-     If you want the app's "current", "selected", and "today" areas to match your theme,
-     override this group first. */
+  /* 当前项 / 选中态 / 今日通联 高亮色
+     这是最推荐优先改的一组。
+     如果你发现“今日已通联”、“当前页面”、“当前信道”、“选中日期”
+     这些地方颜色不符合你的主题，优先改这里。 */
   --theme-current-highlight-bg: #f3e4d4;
   --theme-current-highlight-bg-alt: #faf1e7;
   --theme-current-highlight-bg-strong: #ead4bd;
@@ -59,13 +79,15 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --theme-current-highlight-accent: #8b5a2b;
   --theme-current-highlight-muted: #b59c88;
 
-  /* Speaking bar */
+  /* 发言条
+     影响正在发言的提示条，以及相关 hover 状态。 */
   --component-speaking-bar-bg: #efe3d0;
   --component-speaking-bar-border: #d6b796;
   --component-speaking-bar-text-accent: #8b5a2b;
   --component-speaking-bar-hover-bg: #f3e4d4;
 
-  /* Header and navigation */
+  /* 顶部标题和页面导航
+     影响顶部标题 hover、当前信道标签、顶部导航、底部导航。 */
   --component-header-title-hover: #b82b4e;
   --component-header-station-text: #b82b4e;
   --component-header-station-hover-border: #f29cb0;
@@ -75,7 +97,9 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-header-action-hover-text: #b82b4e;
   --component-mobile-nav-active-text: #b82b4e;
 
-  /* More page and page navigation */
+  /* “更多”页面、分页按钮、快捷页面导航
+     如果你希望“更多”页的图标底色、箭头、分页按钮、
+     快捷导航弹窗高亮更符合主题，可以改这里。 */
   --component-more-icon-bg: rgba(224, 82, 117, 0.12);
   --component-more-icon-text: #b82b4e;
   --component-more-item-hover-border: #f29cb0;
@@ -93,7 +117,9 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-quick-nav-item-active-border: #e05275;
   --component-quick-nav-item-active-icon: #b82b4e;
 
-  /* Station list and station control */
+  /* 信道列表和信道控制
+     影响信道名称 hover、主信道标签、搜索框 focus、
+     列表项 hover、当前选中的信道卡片。 */
   --component-station-name-hover-text: #b82b4e;
   --component-station-primary-badge-bg: rgba(224, 82, 117, 0.12);
   --component-station-primary-badge-text: #b82b4e;
@@ -106,7 +132,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-station-item-active-pin-bg: rgba(255, 255, 255, 0.35);
   --component-station-item-active-pin-text: #ffffff;
 
-  /* Settings */
+  /* 设置页
+     影响滑块、地址卡片、状态点、用户标签、复选框、多选模式等。 */
   --component-settings-slider-thumb: #e05275;
   --component-settings-info-text: #388e5b;
   --component-settings-focus-border: #e05275;
@@ -135,7 +162,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-settings-server-id-bg: rgba(56, 142, 91, 0.12);
   --component-settings-server-id-text: #388e5b;
 
-  /* Message view */
+  /* 消息页
+     影响消息卡片 hover/选中、发件人强调、加载更多、按钮、表单 focus。 */
   --component-message-accent-text: #b82b4e;
   --component-message-hover-text: #b82b4e;
   --component-message-hover-bg: #fff5f7;
@@ -157,7 +185,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-message-success-bg: rgba(56, 142, 91, 0.08);
   --component-message-success-text: #388e5b;
 
-  /* APRS remote control */
+  /* 远程控制
+     影响连接状态点、添加服务器按钮、输入框 focus、控制按钮、主按钮。 */
   --component-remote-connected-bg: #388e5b;
   --component-remote-connected-shadow: #388e5b;
   --component-remote-connecting-bg: #e05275;
@@ -174,7 +203,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-remote-primary-button-bg: #e05275;
   --component-remote-primary-button-hover-bg: #c43b5c;
 
-  /* Location report */
+  /* 自动定位
+     影响刷新按钮、开关、间隔滑块、立即上报按钮、成功状态文字。 */
   --component-location-refresh-text: #b82b4e;
   --component-location-refresh-border: #e05275;
   --component-location-refresh-hover-bg: #e05275;
@@ -185,7 +215,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-location-primary-button-hover-bg: #c43b5c;
   --component-location-status-success-text: #388e5b;
 
-  /* Filter panel and search controls */
+  /* 筛选区和搜索框
+     影响筛选面板、输入框、筛选按钮、快速筛选按钮。 */
   --component-filter-panel-bg: #fff8f0;
   --component-filter-panel-border: #efe1d2;
   --component-filter-control-bg: #fffdf8;
@@ -198,7 +229,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-filter-chip-active-bg: #8b5a2b;
   --component-filter-chip-active-text: #ffffff;
 
-  /* Date picker */
+  /* 日期选择器
+     影响日期弹层、翻月按钮、统计数字、日期 hover、选中日期、小徽章。 */
   --component-date-picker-clear-hover-text: #d95353;
   --component-date-picker-nav-hover-bg: #fff5f7;
   --component-date-picker-nav-hover-border: #f29cb0;
@@ -210,7 +242,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
   --component-date-picker-badge-bg: #b82b4e;
   --component-date-picker-badge-text: #ffffff;
 
-  /* Optional: if you want selected badges/cards to be tuned separately */
+  /* 可选：成功态面板和徽标
+     如果你不想动全局 success，只想单独调成功提示、成功背景层级，可以改这里。 */
   --component-status-success-bg-soft: rgba(61, 139, 90, 0.08);
   --component-status-success-bg-active: rgba(61, 139, 90, 0.15);
   --component-status-success-text: #3d8b5a;
@@ -218,7 +251,11 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs custom theme example
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Page and surface colors */
+    /* 深色模式
+       如果你希望浅色和深色使用不同配色，就改这里。
+       不需要单独适配深色的话，也可以整段删掉。 */
+
+    /* 页面和容器底色 */
     --theme-surface-page: #1a1512;
     --theme-surface-container: #221c18;
     --theme-surface-header: #2a211c;
