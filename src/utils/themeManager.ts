@@ -242,6 +242,11 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
   --component-date-picker-badge-bg: #b82b4e;
   --component-date-picker-badge-text: #ffffff;
 
+  /* 老朋友未通联卡片
+     影响“老朋友”里今天还没有通联过的卡片背景和边框。 */
+  --component-old-friend-card-bg: #fff6ed;
+  --component-old-friend-card-border: #f2d5b1;
+
   /* 可选：成功态面板和徽标
      如果你不想动全局 success，只想单独调成功提示、成功背景层级，可以改这里。 */
   --component-status-success-bg-soft: rgba(61, 139, 90, 0.08);
@@ -439,6 +444,10 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
     --component-date-picker-day-selected-border: #ff6b90;
     --component-date-picker-badge-bg: #ff8fa9;
     --component-date-picker-badge-text: #121212;
+
+    /* 老朋友未通联卡片 */
+    --component-old-friend-card-bg: #2d2621;
+    --component-old-friend-card-border: #5a4a3e;
 
     /* Optional selected badge/card tuning */
     --component-status-success-bg-soft: rgba(97, 196, 135, 0.12);

@@ -471,6 +471,9 @@
   --component-date-picker-badge-bg: var(--theme-current-highlight-accent);
   --component-date-picker-badge-text: var(--theme-text-inverse);
 
+  --component-old-friend-card-bg: var(--theme-warning-panel-bg);
+  --component-old-friend-card-border: var(--theme-warning-panel-border-strong);
+
   --component-info-panel-bg: var(--theme-info-panel-bg);
   --component-info-panel-bg-hover: var(--theme-info-panel-bg-strong);
   --component-info-panel-border: var(--theme-info-panel-border);
@@ -544,8 +547,8 @@
   --color-danger: var(--theme-danger);
   --color-danger-hover: var(--theme-danger-hover);
 
-  --bg-friend-card: var(--theme-warning-panel-bg);
-  --border-friend-card: var(--theme-warning-panel-border-strong);
+  --bg-friend-card: var(--component-old-friend-card-bg);
+  --border-friend-card: var(--component-old-friend-card-border);
   --bg-today-card: var(--theme-current-highlight-bg);
   --bg-today-row: var(--theme-current-highlight-bg-alt);
   --bg-today-index: var(--theme-current-highlight-bg-strong);

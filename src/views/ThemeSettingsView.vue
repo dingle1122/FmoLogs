@@ -18,6 +18,12 @@
       </div>
 
       <div class="theme-toolbar">
+        <input
+          v-model.trim="newThemeName"
+          type="text"
+          class="theme-name-input"
+          placeholder="输入主题名称"
+        />
         <button class="btn-ghost" @click="downloadSampleTheme">下载示例</button>
         <button class="btn-ghost" @click="copySampleTheme">
           {{ sampleCopied ? '已复制' : '复制示例' }}
@@ -53,7 +59,17 @@
           <div class="theme-card-main">
             <div class="theme-card-top">
               <div class="theme-title-wrap">
-                <h3 class="theme-card-title">{{ theme.name }}</h3>
+                <template v-if="theme.builtin">
+                  <h3 class="theme-card-title">{{ theme.name }}</h3>
+                </template>
+                <template v-else>
+                  <input
+                    v-model.trim="themeNameDrafts[theme.id]"
+                    type="text"
+                    class="theme-card-name-input"
+                    placeholder="主题名称"
+                  />
+                </template>
                 <span v-if="theme.builtin" class="theme-badge theme-badge-default">内置</span>
                 <span v-else class="theme-badge theme-badge-custom">自定义</span>
                 <span v-if="theme.id === activeThemeId" class="theme-badge theme-badge-active"
@@ -78,7 +94,14 @@
               :disabled="theme.id === activeThemeId"
               @click="handleActivateTheme(theme.id)"
             >
-              {{ theme.id === activeThemeId ? '已启用' : '启用主题' }}
+              {{ theme.id === activeThemeId ? '已启用' : '启用' }}
+            </button>
+            <button
+              v-if="!theme.builtin"
+              class="btn-ghost"
+              @click="handleRenameTheme(theme.id)"
+            >
+              保存名称
             </button>
             <button
               v-if="!theme.builtin"
@@ -111,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
+import { ref, reactive, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import confirmDialog from '../composables/useConfirm'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -130,7 +153,28 @@ const showThemeExample = ref(false)
 const themeStatusMessage = ref('')
 const themeStatusType = ref('info')
 const sampleCopied = ref(false)
+const newThemeName = ref('')
+const themeNameDrafts = reactive({})
 let sampleCopiedTimer = null
+
+watch(
+  themeList,
+  (themes) => {
+    const themeIds = new Set(themes.map((theme) => theme.id))
+    themes.forEach((theme) => {
+      if (!theme.builtin) {
+        themeNameDrafts[theme.id] = themeNameDrafts[theme.id] || theme.name
+      }
+    })
+
+    Object.keys(themeNameDrafts).forEach((themeId) => {
+      if (!themeIds.has(themeId)) {
+        delete themeNameDrafts[themeId]
+      }
+    })
+  },
+  { immediate: true }
+)
 
 function showThemeStatus(message, type = 'info') {
   themeStatusMessage.value = message
@@ -173,6 +217,18 @@ async function handleDeleteTheme(themeId, themeName) {
   showThemeStatus(result.message, result.success ? 'success' : 'error')
 }
 
+async function handleRenameTheme(themeId) {
+  const nextName = themeNameDrafts[themeId] || ''
+  const result = await settingsStore.renameCustomTheme(themeId, nextName)
+  showThemeStatus(result.message, result.success ? 'success' : 'error')
+  if (result.success) {
+    const currentTheme = themeList.value.find((theme) => theme.id === themeId)
+    if (currentTheme && !currentTheme.builtin) {
+      themeNameDrafts[themeId] = currentTheme.name
+    }
+  }
+}
+
 async function handleThemeFilesSelected(event) {
   const input = event.target
   const files = Array.from(input.files || [])
@@ -184,7 +240,9 @@ async function handleThemeFilesSelected(event) {
   for (const file of files) {
     try {
       const cssText = await file.text()
-      const result = await settingsStore.importCustomTheme(fileNameToThemeName(file.name), cssText)
+      const themeName =
+        files.length === 1 && newThemeName.value ? newThemeName.value : fileNameToThemeName(file.name)
+      const result = await settingsStore.importCustomTheme(themeName, cssText)
       results.push(result)
     } catch {
       results.push({
@@ -212,6 +270,9 @@ async function handleThemeFilesSelected(event) {
   }
 
   input.value = ''
+  if (succeeded.length) {
+    newThemeName.value = ''
+  }
 }
 
 function downloadSampleTheme() {
@@ -294,6 +355,33 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
+.theme-name-input,
+.theme-card-name-input {
+  height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.theme-name-input {
+  min-width: 180px;
+}
+
+.theme-card-name-input {
+  min-width: 140px;
+  flex: 1;
+}
+
+.theme-name-input:focus,
+.theme-card-name-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .theme-header-actions > button,
 .theme-toolbar > button,
 .theme-card-actions > button {
@@ -363,7 +451,7 @@ onUnmounted(() => {
 
 .theme-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -596,12 +684,17 @@ onUnmounted(() => {
   }
 
   .theme-toolbar .btn-ghost,
+  .theme-toolbar .theme-name-input,
   .theme-header-actions .btn-secondary,
   .theme-header-actions .btn-add,
   .theme-card-actions .btn-secondary,
   .theme-card-actions .btn-ghost,
   .theme-card-actions .btn-ghost-danger {
     flex: 1;
+  }
+
+  .theme-card-name-input {
+    width: 100%;
   }
 
   .theme-list {

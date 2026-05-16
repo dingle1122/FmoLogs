@@ -321,6 +321,31 @@ export const useSettingsStore = defineStore('settings', () => {
     return { success: true, message: `已删除主题：${removedTheme.name}` }
   }
 
+  async function renameCustomTheme(themeId: string, name: string): Promise<ThemeActionResult> {
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      return { success: false, message: '请输入主题名称' }
+    }
+
+    const targetTheme = customThemes.value.find((theme) => theme.id === themeId)
+    if (!targetTheme) {
+      return { success: false, message: '主题不存在' }
+    }
+
+    const duplicateTheme = customThemes.value.find(
+      (theme) => theme.id !== themeId && theme.name === trimmedName
+    )
+    if (duplicateTheme) {
+      return { success: false, message: '已存在同名主题' }
+    }
+
+    targetTheme.name = trimmedName
+    targetTheme.updatedAt = Date.now()
+    await persistThemeStorage()
+
+    return { success: true, message: `已重命名为：${trimmedName}` }
+  }
+
   // ========== 地址初始化与管理 ==========
   async function initFmoAddress(): Promise<boolean> {
     await initAudioVolume()
@@ -751,6 +776,7 @@ export const useSettingsStore = defineStore('settings', () => {
     setPrioritizeToday,
     importCustomTheme,
     setActiveTheme,
-    deleteCustomTheme
+    deleteCustomTheme,
+    renameCustomTheme
   }
 })
