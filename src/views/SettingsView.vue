@@ -912,7 +912,7 @@ function handleVolumeChange(e) {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--component-settings-slider-thumb);
   cursor: pointer;
 }
 
@@ -920,7 +920,7 @@ function handleVolumeChange(e) {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--component-settings-slider-thumb);
   border: none;
   cursor: pointer;
 }
@@ -939,7 +939,7 @@ function handleVolumeChange(e) {
 
 .setting-info {
   margin-top: 1rem;
-  color: var(--color-success);
+  color: var(--component-settings-info-text);
   font-size: 0.9rem;
 }
 
@@ -956,7 +956,7 @@ function handleVolumeChange(e) {
 
 .setting-select:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-settings-focus-border);
 }
 
 .setting-group {
@@ -1068,8 +1068,8 @@ function handleVolumeChange(e) {
   padding: 0.4rem 0.8rem;
   font-size: 0.85rem;
   background: var(--bg-container);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
+  color: var(--component-settings-add-button-text);
+  border: 1px solid var(--component-settings-add-button-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
@@ -1077,7 +1077,7 @@ function handleVolumeChange(e) {
 
 @media (hover: hover) {
   .btn-add:hover {
-    background: var(--color-primary);
+    background: var(--component-settings-add-button-hover-bg);
     color: var(--text-white);
   }
 }
@@ -1103,14 +1103,14 @@ function handleVolumeChange(e) {
 
 @media (hover: hover) {
   .address-card:hover {
-    border-color: var(--color-primary);
-    background: var(--bg-table-hover);
+    border-color: var(--component-settings-address-hover-border);
+    background: var(--component-settings-address-hover-bg);
   }
 }
 
 .address-card.active {
-  border-color: var(--color-primary);
-  background: var(--alpha-primary-08);
+  border-color: var(--component-settings-address-active-border);
+  background: var(--component-settings-address-active-bg);
 }
 
 .address-card.connecting {
@@ -1132,8 +1132,8 @@ function handleVolumeChange(e) {
 }
 
 .status-active {
-  background: var(--color-success);
-  box-shadow: 0 0 6px var(--color-success);
+  background: var(--component-settings-status-active-bg);
+  box-shadow: 0 0 6px var(--component-settings-status-active-shadow);
 }
 
 .status-inactive {
@@ -1141,7 +1141,7 @@ function handleVolumeChange(e) {
 }
 
 .status-connecting {
-  background: var(--color-primary);
+  background: var(--component-settings-status-connecting-bg);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -1192,13 +1192,13 @@ function handleVolumeChange(e) {
 }
 
 .user-callsign {
-  background: var(--alpha-primary-15);
-  color: var(--color-primary);
+  background: var(--component-settings-user-callsign-bg);
+  color: var(--component-settings-user-callsign-text);
 }
 
 .user-uid {
-  background: var(--alpha-success-15);
-  color: var(--color-success);
+  background: var(--component-settings-user-uid-bg);
+  color: var(--component-settings-user-uid-text);
 }
 
 .address-actions {
@@ -1222,7 +1222,7 @@ function handleVolumeChange(e) {
 @media (hover: hover) {
   .btn-icon:hover {
     background: var(--bg-table-hover);
-    color: var(--color-primary);
+    color: var(--component-settings-icon-hover-text);
   }
 
   .btn-icon-danger:hover {
@@ -1338,7 +1338,7 @@ function handleVolumeChange(e) {
 
 .sync-days-select:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-settings-focus-border);
 }
 
 .sync-days-select:disabled {
@@ -1349,7 +1349,7 @@ function handleVolumeChange(e) {
 .sync-status {
   margin-top: 0.8rem;
   font-size: 0.85rem;
-  color: var(--color-primary);
+  color: var(--component-settings-sync-status-text);
   text-align: center;
 }
 
@@ -1506,7 +1506,7 @@ function handleVolumeChange(e) {
 
 .form-input:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-settings-focus-border);
 }
 
 .form-input-flex {
@@ -1521,7 +1521,7 @@ function handleVolumeChange(e) {
 
 .form-input-flex:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-settings-focus-border);
 }
 
 .protocol-select {
@@ -1537,7 +1537,7 @@ function handleVolumeChange(e) {
 
 .protocol-select:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-settings-focus-border);
 }
 
 .form-hint {
@@ -1757,7 +1757,7 @@ function handleVolumeChange(e) {
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background-color: var(--color-primary);
+  background-color: var(--component-settings-toggle-checked-bg);
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
@@ -1765,7 +1765,7 @@ function handleVolumeChange(e) {
 }
 
 .toggle-switch input:focus + .toggle-slider {
-  box-shadow: 0 0 0 2px var(--alpha-primary-20);
+  box-shadow: 0 0 0 2px var(--component-settings-toggle-focus-ring);
 }
 
 /* ========== 地址卡片多选样式 ========== */
@@ -1793,7 +1793,7 @@ function handleVolumeChange(e) {
 }
 
 .address-checkbox-round input[type='checkbox']:checked + .checkbox-circle {
-  border-color: var(--color-primary);
+  border-color: var(--component-settings-checkbox-checked-border);
   background: var(--color-transparent);
 }
 
@@ -1805,14 +1805,14 @@ function handleVolumeChange(e) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--component-settings-checkbox-checked-fill);
   transform: translate(-50%, -50%);
 }
 
 .address-card.selected {
-  border-color: var(--color-primary);
-  background: var(--alpha-primary-12);
-  box-shadow: 0 0 0 1px var(--color-primary);
+  border-color: var(--component-settings-address-active-border);
+  background: var(--component-settings-address-active-bg);
+  box-shadow: 0 0 0 1px var(--component-settings-address-active-border);
 }
 
 .primary-badge {
@@ -1820,8 +1820,8 @@ function handleVolumeChange(e) {
   font-size: 0.65rem;
   padding: 0.1rem 0.35rem;
   margin-left: 0.4rem;
-  background: var(--color-primary);
-  color: var(--color-white);
+  background: var(--component-settings-primary-badge-bg);
+  color: var(--component-settings-primary-badge-text);
   border-radius: 3px;
   font-weight: 500;
   vertical-align: middle;
@@ -1836,8 +1836,8 @@ function handleVolumeChange(e) {
   border-radius: 2px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: var(--alpha-success-15);
-  color: var(--color-success);
+  background: var(--component-settings-server-id-bg);
+  color: var(--component-settings-server-id-text);
   line-height: 1;
   margin-right: 0.4rem;
   vertical-align: middle;

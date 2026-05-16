@@ -9,6 +9,7 @@ import RemoteControlView from '../views/RemoteControlView.vue'
 import FriendLinksView from '../views/FriendLinksView.vue'
 import AboutView from '../views/AboutView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import ThemeSettingsView from '../views/ThemeSettingsView.vue'
 import { getPlatform } from '../platform'
 
 const children = [
@@ -60,6 +61,11 @@ const children = [
     path: 'settings',
     name: 'settings',
     component: SettingsView
+  },
+  {
+    path: 'themes',
+    name: 'themes',
+    component: ThemeSettingsView
   }
 ]
 

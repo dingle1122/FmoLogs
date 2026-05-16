@@ -669,7 +669,7 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .refresh-btn:hover:not(:disabled) {
-    color: var(--color-primary);
+    color: var(--component-message-hover-text);
   }
 }
 
@@ -722,7 +722,7 @@ onUnmounted(() => {
   width: 32px;
   height: 32px;
   border: 3px solid var(--border-light);
-  border-top-color: var(--color-primary);
+  border-top-color: var(--component-message-spinner-top);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -762,14 +762,14 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .message-item:hover {
-    border-color: var(--color-primary);
+    border-color: var(--component-message-item-hover-border);
     box-shadow: 0 2px 8px var(--shadow-card);
   }
 }
 
 .message-item.active {
-  border-color: var(--color-primary);
-  background: var(--bg-primary-light);
+  border-color: var(--component-message-item-active-border);
+  background: var(--component-message-item-active-bg);
 }
 
 .message-item-header {
@@ -839,8 +839,8 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .load-more-btn:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+    border-color: var(--component-message-load-more-hover-border);
+    color: var(--component-message-load-more-hover-text);
   }
 }
 
@@ -889,7 +889,7 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .back-btn:hover {
-    color: var(--color-primary);
+    color: var(--component-message-hover-text);
   }
 }
 
@@ -981,7 +981,7 @@ onUnmounted(() => {
 .sender-name-highlight {
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--component-message-accent-text);
   font-family: 'IntelOneMono', monospace;
 }
 
@@ -1073,7 +1073,7 @@ onUnmounted(() => {
 .meta-value.callsign {
   font-family: 'IntelOneMono', monospace;
   font-weight: 600;
-  color: var(--color-primary);
+  color: var(--component-message-accent-text);
 }
 
 /* 按钮样式 */
@@ -1095,15 +1095,15 @@ onUnmounted(() => {
 }
 
 .btn-primary {
-  background: var(--color-primary);
+  background: var(--component-message-primary-button-bg);
   color: var(--color-white);
-  border-color: var(--color-primary);
+  border-color: var(--component-message-primary-button-border);
 }
 
 @media (hover: hover) {
   .btn-primary:hover:not(:disabled) {
-    background: var(--color-primary-hover);
-    border-color: var(--color-primary-hover);
+    background: var(--component-message-primary-button-hover-bg);
+    border-color: var(--component-message-primary-button-hover-border);
   }
 }
 
@@ -1115,8 +1115,8 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .btn-secondary:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+    border-color: var(--component-message-secondary-button-hover-border);
+    color: var(--component-message-secondary-button-hover-text);
   }
 }
 
@@ -1128,8 +1128,8 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .btn-text:hover:not(:disabled) {
-    color: var(--color-primary);
-    background: var(--bg-table-hover);
+    color: var(--component-message-text-button-hover-text);
+    background: var(--component-message-text-button-hover-bg);
   }
 }
 
@@ -1237,7 +1237,7 @@ onUnmounted(() => {
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-message-form-focus-border);
 }
 
 .form-group textarea {
@@ -1279,8 +1279,8 @@ onUnmounted(() => {
 }
 
 .send-result.success {
-  background: var(--bg-success-light);
-  color: var(--color-success);
+  background: var(--component-message-success-bg);
+  color: var(--component-message-success-text);
 }
 
 .send-result.error {

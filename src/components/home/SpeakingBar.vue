@@ -142,7 +142,7 @@ defineEmits(['click', 'toggle-audio'])
 
 @media (hover: hover) {
   .speaking-bar:hover {
-    background: var(--bg-today-card);
+    background: var(--bg-speaking-bar-hover);
   }
 }
 

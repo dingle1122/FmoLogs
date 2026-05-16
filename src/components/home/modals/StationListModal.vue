@@ -205,7 +205,7 @@ function handleSelect(uid) {
 }
 
 .search-input:focus {
-  border-color: var(--color-success);
+  border-color: var(--component-station-search-focus-border);
 }
 
 .search-area {
@@ -216,8 +216,8 @@ function handleSelect(uid) {
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
 .title-primary-badge {
-  background: var(--alpha-success-15);
-  color: var(--color-success);
+  background: var(--component-station-primary-badge-bg);
+  color: var(--component-station-primary-badge-text);
   font-size: 0.7rem;
   padding: 0.1rem 0.1rem;
   border-radius: 2px;
@@ -251,7 +251,7 @@ function handleSelect(uid) {
 
 @media (hover: hover) {
   .refresh-btn:hover:not(:disabled) {
-    color: var(--color-success);
+    color: var(--component-station-refresh-hover-text);
   }
 }
 
@@ -307,26 +307,26 @@ function handleSelect(uid) {
   .station-item:hover:not(:disabled) {
     background: var(--bg-table-hover);
     color: var(--text-primary);
-    border-color: var(--color-success);
+    border-color: var(--component-station-item-hover-border);
   }
 }
 
 .station-item.active {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: var(--color-white);
+  background: var(--component-station-item-active-bg);
+  border-color: var(--component-station-item-active-border);
+  color: var(--component-station-item-active-text);
 }
 
 .station-item.active .pin-badge {
-  color: var(--color-white);
-  background: var(--alpha-white-35);
+  color: var(--component-station-item-active-pin-text);
+  background: var(--component-station-item-active-pin-bg);
   font-weight: 300;
 }
 
 /* 信道按钮内的主标签样式 - 与 user-uid 同款绿色 */
 .primary-badge {
-  background: var(--alpha-success-25);
-  color: var(--color-success);
+  background: var(--component-station-primary-badge-bg);
+  color: var(--component-station-primary-badge-text);
   font-size: 0.7rem;
   padding: 0.1rem 0.1rem;
   border-radius: 2px;

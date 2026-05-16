@@ -269,10 +269,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--filter-control-border);
   border-radius: 4px;
   cursor: pointer;
-  background: var(--bg-input);
+  background: var(--filter-control-bg);
   color: var(--text-primary);
   font-size: 0.9rem;
   white-space: nowrap;
@@ -283,20 +283,17 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .date-picker-trigger:hover {
-    border-color: var(--color-primary);
+    border-color: var(--filter-control-hover-border);
+    background: var(--filter-chip-hover-bg);
   }
 
   .clear-btn:hover {
-    color: var(--color-danger);
+    color: var(--component-date-picker-clear-hover-text);
   }
 
   .nav-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--color-primary);
-  }
-
-  .clear-btn:hover {
-    color: var(--color-danger);
+    background: var(--component-date-picker-nav-hover-bg);
+    border-color: var(--component-date-picker-nav-hover-border);
   }
 }
 
@@ -321,8 +318,8 @@ onUnmounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--bg-card);
-  border: 1px solid var(--border-primary);
+  background: var(--filter-panel-bg);
+  border: 1px solid var(--filter-panel-border);
   border-radius: 12px;
   box-shadow: 0 8px 32px var(--alpha-black-20);
   z-index: 1000;
@@ -357,8 +354,8 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .nav-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--color-primary);
+    background: var(--component-date-picker-nav-hover-bg);
+    border-color: var(--component-date-picker-nav-hover-border);
   }
 }
 
@@ -381,7 +378,7 @@ onUnmounted(() => {
 .stats-badge {
   font-size: 1rem;
   font-weight: 500;
-  color: var(--color-success);
+  color: var(--component-date-picker-stats-text);
 }
 
 /* 星期栏 */
@@ -420,7 +417,7 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .day-cell:hover {
-    background: var(--bg-hover);
+    background: var(--component-date-picker-day-hover-bg);
   }
 
   .day-cell.other-month:hover {
@@ -428,11 +425,11 @@ onUnmounted(() => {
   }
 
   .day-cell.has-data:hover {
-    background: var(--color-success-border);
+    background: var(--component-date-picker-day-has-data-hover-bg);
   }
 
   .day-cell.selected:hover {
-    background: var(--color-primary);
+    background: var(--component-date-picker-day-selected-bg);
   }
 
   .day-cell.other-month:hover {
@@ -440,16 +437,16 @@ onUnmounted(() => {
   }
 
   .day-cell.has-data:hover {
-    background: var(--color-success-border);
+    background: var(--component-date-picker-day-has-data-hover-bg);
   }
 
   .day-cell.selected:hover {
-    background: var(--color-primary);
+    background: var(--component-date-picker-day-selected-bg);
   }
 }
 
 .day-cell.selected.today {
-  border-color: var(--color-primary);
+  border-color: var(--component-date-picker-day-selected-border);
 }
 
 .day-number {
@@ -468,8 +465,8 @@ onUnmounted(() => {
   font-weight: 600;
   line-height: 16px;
   text-align: center;
-  color: var(--color-white);
-  background: var(--color-success);
+  color: var(--component-date-picker-badge-text);
+  background: var(--component-date-picker-badge-bg);
   border-radius: 8px;
 }
 

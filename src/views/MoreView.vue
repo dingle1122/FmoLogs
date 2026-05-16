@@ -68,8 +68,8 @@ import SvgIcon from '../components/common/SvgIcon.vue'
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--alpha-success-12);
-  color: var(--color-success);
+  background: var(--component-more-icon-bg);
+  color: var(--component-more-icon-text);
   border-radius: 10px;
   flex-shrink: 0;
 }
@@ -105,13 +105,13 @@ import SvgIcon from '../components/common/SvgIcon.vue'
 }
 
 .menu-item:hover .menu-arrow {
-  color: var(--color-success);
+  color: var(--component-more-arrow-hover-text);
 }
 
 @media (hover: hover) {
   .menu-item:hover {
-    border-color: var(--color-success);
-    background: var(--bg-table-hover);
+    border-color: var(--component-more-item-hover-border);
+    background: var(--component-more-item-hover-bg);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px var(--shadow-card);
   }

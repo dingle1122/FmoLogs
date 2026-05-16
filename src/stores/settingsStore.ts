@@ -14,10 +14,20 @@ import { normalizeHost } from '../utils/urlUtils'
 // @ts-ignore - legacy JS
 import { downloadRemoteFile } from '../utils/exportFile'
 import { getPlatform } from '../platform'
+import {
+  DEFAULT_THEME_ID,
+  applyThemeCss,
+  clearAppliedThemeCss,
+  normalizeThemeCss,
+  type CustomThemePreset,
+  type ThemeActionResult
+} from '../utils/themeManager'
 
 const AUDIO_VOLUME_KEY = 'fmo_audio_volume'
 const AUDIO_PLAYING_KEY = 'fmo_audio_playing'
 const PRIORITIZE_TODAY_KEY = 'fmo_prioritize_today'
+const CUSTOM_THEMES_KEY = 'fmo_custom_themes'
+const ACTIVE_THEME_KEY = 'fmo_active_theme'
 
 interface UserInfo {
   callsign: string
@@ -48,6 +58,11 @@ interface ActionResult {
   id?: string
 }
 
+interface ThemeStorage {
+  themes: CustomThemePreset[]
+  activeId: string
+}
+
 /**
  * 设置/存储 store（替代 composables/useSettings.js）。
  *
@@ -73,6 +88,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const audioVolume = ref(100)
   const audioPlaying = ref(false)
   const prioritizeToday = ref(false)
+  const customThemes = ref<CustomThemePreset[]>([])
+  const activeThemeId = ref(DEFAULT_THEME_ID)
 
   const isHttps = window.location.protocol === 'https:'
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -99,6 +116,21 @@ export const useSettingsStore = defineStore('settings', () => {
     const host = normalizeHost(fmoAddress.value)
     return `http://${host}/remote.html`
   })
+
+  const themeList = computed(() => [
+    {
+      id: DEFAULT_THEME_ID,
+      name: '默认主题',
+      css: '',
+      createdAt: 0,
+      updatedAt: 0,
+      builtin: true
+    },
+    ...customThemes.value.map((theme) => ({
+      ...theme,
+      builtin: false
+    }))
+  ])
 
   // ========== 音量 / 播放状态（走 platform.storage） ==========
   async function initAudioVolume() {
@@ -138,11 +170,163 @@ export const useSettingsStore = defineStore('settings', () => {
     await getPlatform().storage.set(PRIORITIZE_TODAY_KEY, String(!!value))
   }
 
+  async function loadThemeStorage(): Promise<ThemeStorage> {
+    const savedThemes = await getPlatform().storage.get(CUSTOM_THEMES_KEY)
+    const savedActiveId = await getPlatform().storage.get(ACTIVE_THEME_KEY)
+
+    let themes: CustomThemePreset[] = []
+    if (savedThemes) {
+      try {
+        const parsed = JSON.parse(savedThemes)
+        if (Array.isArray(parsed)) {
+          themes = parsed
+            .filter(
+              (item) =>
+                item &&
+                typeof item.id === 'string' &&
+                typeof item.name === 'string' &&
+                typeof item.css === 'string'
+            )
+            .map((item) => ({
+              id: item.id,
+              name: item.name,
+              css: normalizeThemeCss(item.css),
+              createdAt: Number(item.createdAt) || Date.now(),
+              updatedAt: Number(item.updatedAt) || Date.now()
+            }))
+        }
+      } catch (error) {
+        console.error('解析主题配置失败:', error)
+      }
+    }
+
+    return {
+      themes,
+      activeId: savedActiveId || DEFAULT_THEME_ID
+    }
+  }
+
+  async function persistThemeStorage() {
+    await getPlatform().storage.set(CUSTOM_THEMES_KEY, JSON.stringify(customThemes.value))
+    await getPlatform().storage.set(ACTIVE_THEME_KEY, activeThemeId.value)
+  }
+
+  function applyActiveTheme() {
+    if (activeThemeId.value === DEFAULT_THEME_ID) {
+      clearAppliedThemeCss()
+      return
+    }
+
+    const activeTheme = customThemes.value.find((theme) => theme.id === activeThemeId.value)
+    if (!activeTheme) {
+      activeThemeId.value = DEFAULT_THEME_ID
+      clearAppliedThemeCss()
+      return
+    }
+
+    applyThemeCss(activeTheme.css)
+  }
+
+  async function initThemeSettings() {
+    const storage = await loadThemeStorage()
+    customThemes.value = storage.themes
+    activeThemeId.value = storage.activeId
+
+    if (
+      activeThemeId.value !== DEFAULT_THEME_ID &&
+      !customThemes.value.some((theme) => theme.id === activeThemeId.value)
+    ) {
+      activeThemeId.value = DEFAULT_THEME_ID
+    }
+
+    applyActiveTheme()
+    await persistThemeStorage()
+  }
+
+  async function importCustomTheme(name: string, cssText: string): Promise<ThemeActionResult> {
+    const normalizedCss = normalizeThemeCss(cssText)
+    const trimmedName = name.trim()
+
+    if (!trimmedName) {
+      return { success: false, message: '请输入主题名称' }
+    }
+
+    if (!normalizedCss) {
+      return { success: false, message: 'CSS 内容不能为空' }
+    }
+
+    if (normalizedCss.length > 200 * 1024) {
+      return { success: false, message: '主题文件过大，请控制在 200KB 内' }
+    }
+
+    const now = Date.now()
+    const existing = customThemes.value.find((theme) => theme.name === trimmedName)
+
+    if (existing) {
+      existing.css = normalizedCss
+      existing.updatedAt = now
+      activeThemeId.value = existing.id
+      applyActiveTheme()
+      await persistThemeStorage()
+      return { success: true, message: `已更新并启用主题：${trimmedName}` }
+    }
+
+    const theme: CustomThemePreset = {
+      id: `theme_${now.toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+      name: trimmedName,
+      css: normalizedCss,
+      createdAt: now,
+      updatedAt: now
+    }
+
+    customThemes.value.unshift(theme)
+    activeThemeId.value = theme.id
+    applyActiveTheme()
+    await persistThemeStorage()
+    return { success: true, message: `已导入并启用主题：${trimmedName}` }
+  }
+
+  async function setActiveTheme(themeId: string): Promise<ThemeActionResult> {
+    if (
+      themeId !== DEFAULT_THEME_ID &&
+      !customThemes.value.some((theme) => theme.id === themeId)
+    ) {
+      return { success: false, message: '主题不存在' }
+    }
+
+    activeThemeId.value = themeId
+    applyActiveTheme()
+    await persistThemeStorage()
+
+    return {
+      success: true,
+      message: themeId === DEFAULT_THEME_ID ? '已切换到默认主题' : '主题已切换'
+    }
+  }
+
+  async function deleteCustomTheme(themeId: string): Promise<ThemeActionResult> {
+    const index = customThemes.value.findIndex((theme) => theme.id === themeId)
+    if (index === -1) {
+      return { success: false, message: '主题不存在' }
+    }
+
+    const [removedTheme] = customThemes.value.splice(index, 1)
+    if (activeThemeId.value === themeId) {
+      activeThemeId.value = DEFAULT_THEME_ID
+      clearAppliedThemeCss()
+    }
+
+    await persistThemeStorage()
+
+    return { success: true, message: `已删除主题：${removedTheme.name}` }
+  }
+
   // ========== 地址初始化与管理 ==========
   async function initFmoAddress(): Promise<boolean> {
     await initAudioVolume()
     await initAudioPlaying()
     await initPrioritizeToday()
+    await initThemeSettings()
 
     const storage: AddressStorage = await getFmoAddresses()
     fmoAddressStorage.value = storage
@@ -543,6 +727,9 @@ export const useSettingsStore = defineStore('settings', () => {
     audioVolume,
     audioPlaying,
     prioritizeToday,
+    customThemes,
+    activeThemeId,
+    themeList,
     // actions
     initFmoAddress,
     validateAndSaveFmoAddress,
@@ -561,6 +748,9 @@ export const useSettingsStore = defineStore('settings', () => {
     setActiveAddressId,
     setAudioVolume,
     setAudioPlaying,
-    setPrioritizeToday
+    setPrioritizeToday,
+    importCustomTheme,
+    setActiveTheme,
+    deleteCustomTheme
   }
 })

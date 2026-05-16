@@ -181,8 +181,8 @@ const hasFilters = computed(() => {
 .query-section {
   margin-bottom: 0;
   flex-shrink: 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border-secondary);
+  background: var(--filter-panel-bg);
+  border: 1px solid var(--filter-panel-border);
   border-radius: 8px;
   padding: 0.65rem 0.9rem;
   margin-top: 0.5rem;
@@ -232,13 +232,13 @@ const hasFilters = computed(() => {
 
 .search-box :deep(input) {
   padding: 0.4rem 0.8rem 0.4rem 1.8rem;
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--filter-control-border);
   border-radius: 6px;
   font-size: 0.9rem;
   width: 135px;
   height: 32px;
   box-sizing: border-box;
-  background: var(--bg-input);
+  background: var(--filter-control-bg);
   color: var(--text-primary);
   transition:
     border-color 0.2s,
@@ -247,7 +247,7 @@ const hasFilters = computed(() => {
 
 .search-box :deep(input:focus) {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--filter-control-hover-border);
   box-shadow: 0 0 0 2px var(--shadow-primary);
 }
 
@@ -266,10 +266,10 @@ const hasFilters = computed(() => {
 .quick-filter-chip {
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--filter-control-border);
   border-radius: 14px;
-  background: var(--bg-container);
-  color: var(--text-secondary);
+  background: var(--filter-chip-bg);
+  color: var(--filter-chip-text);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
@@ -279,22 +279,22 @@ const hasFilters = computed(() => {
 
 @media (hover: hover) {
   .quick-filter-chip:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: var(--bg-primary-light);
+    border-color: var(--filter-control-hover-border);
+    color: var(--filter-chip-hover-text);
+    background: var(--filter-chip-hover-bg);
   }
 
   .prioritize-chip:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    color: var(--color-primary);
-    background: var(--bg-primary-light);
+    border-color: var(--filter-control-hover-border);
+    color: var(--filter-chip-hover-text);
+    background: var(--filter-chip-hover-bg);
   }
 }
 
 .quick-filter-chip.active {
-  background: var(--color-primary);
-  color: var(--color-white);
-  border-color: var(--color-primary);
+  background: var(--filter-chip-active-bg);
+  color: var(--filter-chip-active-text);
+  border-color: var(--filter-chip-active-bg);
 }
 
 .quick-filter-chip:disabled {
@@ -310,10 +310,10 @@ const hasFilters = computed(() => {
 .prioritize-chip {
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--filter-control-border);
   border-radius: 14px;
-  background: var(--bg-container);
-  color: var(--text-secondary);
+  background: var(--filter-chip-bg);
+  color: var(--filter-chip-text);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s;
@@ -330,16 +330,10 @@ const hasFilters = computed(() => {
   flex-shrink: 0;
 }
 
-.prioritize-chip:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  background: var(--bg-primary-light);
-}
-
 .prioritize-chip.active {
-  background: var(--color-primary);
-  color: var(--color-white);
-  border-color: var(--color-primary);
+  background: var(--filter-chip-active-bg);
+  color: var(--filter-chip-active-text);
+  border-color: var(--filter-chip-active-bg);
 }
 
 .prioritize-chip:disabled {

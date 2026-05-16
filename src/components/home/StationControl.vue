@@ -138,7 +138,7 @@ function handleOpenList() {
 
 @media (hover: hover) {
   .station-name.clickable:hover {
-    color: var(--color-success);
+    color: var(--component-station-name-hover-text);
   }
 }
 
@@ -149,8 +149,8 @@ function handleOpenList() {
 
 /* 主服务器标签样式 - 与 user-uid 同款绿色 */
 .primary-badge {
-  background: var(--alpha-success-15);
-  color: var(--color-success);
+  background: var(--component-station-primary-badge-bg);
+  color: var(--component-station-primary-badge-text);
   font-size: 0.7rem;
   padding: 0.1rem 0.1rem;
   border-radius: 2px;

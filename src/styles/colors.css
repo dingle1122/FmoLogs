@@ -246,6 +246,14 @@
   --theme-success-panel-border-strong: var(--border-green-300);
   --theme-success-panel-border-bright: var(--border-green-400);
 
+  --theme-current-highlight-bg: var(--theme-success-panel-bg);
+  --theme-current-highlight-bg-alt: var(--theme-success-panel-bg-alt);
+  --theme-current-highlight-bg-strong: var(--theme-success-panel-bg-strong);
+  --theme-current-highlight-border-soft: var(--theme-success-panel-border-soft);
+  --theme-current-highlight-border: var(--theme-success-panel-border-strong);
+  --theme-current-highlight-accent: var(--theme-success-accent);
+  --theme-current-highlight-muted: var(--neutral-175);
+
   --theme-warning-panel-bg: var(--surface-orange-100);
   --theme-warning-panel-border: var(--border-orange-100);
   --theme-warning-panel-border-strong: var(--border-orange-200);
@@ -325,6 +333,143 @@
   --component-speaking-bar-bg: var(--theme-success-panel-bg);
   --component-speaking-bar-border: var(--theme-success-panel-border-bright);
   --component-speaking-bar-text-accent: var(--theme-success-strong);
+  --component-speaking-bar-hover-bg: var(--theme-current-highlight-bg);
+
+  --component-header-title-hover: var(--theme-current-highlight-accent);
+  --component-header-station-text: var(--theme-current-highlight-accent);
+  --component-header-station-hover-border: var(--theme-current-highlight-border);
+  --component-header-nav-hover-text: var(--theme-current-highlight-accent);
+  --component-header-nav-active-text: var(--theme-current-highlight-accent);
+  --component-header-nav-active-indicator: var(--theme-current-highlight-accent);
+  --component-header-action-hover-text: var(--theme-current-highlight-accent);
+  --component-mobile-nav-active-text: var(--theme-current-highlight-accent);
+
+  --component-more-icon-bg: var(--status-success-bg-strong);
+  --component-more-icon-text: var(--theme-current-highlight-accent);
+  --component-more-item-hover-border: var(--theme-current-highlight-border);
+  --component-more-item-hover-bg: var(--bg-table-hover);
+  --component-more-arrow-hover-text: var(--theme-current-highlight-accent);
+
+  --component-page-nav-button-hover-border: var(--theme-current-highlight-border);
+  --component-page-nav-button-hover-text: var(--theme-current-highlight-accent);
+  --component-page-nav-button-hover-bg: var(--bg-table-hover);
+  --component-page-nav-input-focus-border: var(--theme-current-highlight-accent);
+
+  --component-quick-nav-item-hover-border: var(--theme-current-highlight-border);
+  --component-quick-nav-item-active-bg: var(--status-success-bg-soft);
+  --component-quick-nav-item-active-text: var(--theme-current-highlight-accent);
+  --component-quick-nav-item-active-border: var(--theme-current-highlight-accent);
+  --component-quick-nav-item-active-icon: var(--theme-current-highlight-accent);
+
+  --component-station-name-hover-text: var(--theme-current-highlight-accent);
+  --component-station-primary-badge-bg: var(--status-success-bg-active);
+  --component-station-primary-badge-text: var(--theme-current-highlight-accent);
+  --component-station-search-focus-border: var(--theme-current-highlight-accent);
+  --component-station-refresh-hover-text: var(--theme-current-highlight-accent);
+  --component-station-item-hover-border: var(--theme-current-highlight-border);
+  --component-station-item-active-bg: var(--theme-current-highlight-accent);
+  --component-station-item-active-border: var(--theme-current-highlight-accent);
+  --component-station-item-active-text: var(--theme-text-inverse);
+  --component-station-item-active-pin-bg: var(--alpha-white-35);
+  --component-station-item-active-pin-text: var(--theme-text-inverse);
+
+  --component-settings-slider-thumb: var(--theme-accent-primary);
+  --component-settings-info-text: var(--theme-success);
+  --component-settings-focus-border: var(--theme-accent-primary);
+  --component-settings-add-button-text: var(--theme-accent-primary);
+  --component-settings-add-button-border: var(--theme-accent-primary);
+  --component-settings-add-button-hover-bg: var(--theme-accent-primary);
+  --component-settings-address-hover-border: var(--theme-accent-primary);
+  --component-settings-address-hover-bg: var(--theme-surface-hover);
+  --component-settings-address-active-border: var(--theme-accent-primary);
+  --component-settings-address-active-bg: var(--alpha-primary-08);
+  --component-settings-status-active-bg: var(--theme-success);
+  --component-settings-status-active-shadow: var(--theme-success);
+  --component-settings-status-connecting-bg: var(--theme-accent-primary);
+  --component-settings-user-callsign-bg: var(--alpha-primary-15);
+  --component-settings-user-callsign-text: var(--theme-accent-primary);
+  --component-settings-user-uid-bg: var(--status-success-bg-active);
+  --component-settings-user-uid-text: var(--theme-success);
+  --component-settings-icon-hover-text: var(--theme-accent-primary);
+  --component-settings-sync-status-text: var(--theme-accent-primary);
+  --component-settings-toggle-checked-bg: var(--theme-accent-primary);
+  --component-settings-toggle-focus-ring: var(--alpha-primary-20);
+  --component-settings-checkbox-checked-border: var(--theme-accent-primary);
+  --component-settings-checkbox-checked-fill: var(--theme-accent-primary);
+  --component-settings-primary-badge-bg: var(--theme-accent-primary);
+  --component-settings-primary-badge-text: var(--theme-text-inverse);
+  --component-settings-server-id-bg: var(--status-success-bg-active);
+  --component-settings-server-id-text: var(--theme-success);
+
+  --component-message-accent-text: var(--theme-accent-primary);
+  --component-message-hover-text: var(--theme-accent-primary);
+  --component-message-hover-bg: var(--theme-surface-hover);
+  --component-message-spinner-top: var(--theme-accent-primary);
+  --component-message-item-hover-border: var(--theme-accent-primary);
+  --component-message-item-active-border: var(--theme-accent-primary);
+  --component-message-item-active-bg: var(--theme-surface-accent-soft);
+  --component-message-load-more-hover-border: var(--theme-accent-primary);
+  --component-message-load-more-hover-text: var(--theme-accent-primary);
+  --component-message-primary-button-bg: var(--theme-accent-primary);
+  --component-message-primary-button-border: var(--theme-accent-primary);
+  --component-message-primary-button-hover-bg: var(--theme-accent-primary-hover);
+  --component-message-primary-button-hover-border: var(--theme-accent-primary-hover);
+  --component-message-secondary-button-hover-border: var(--theme-accent-primary);
+  --component-message-secondary-button-hover-text: var(--theme-accent-primary);
+  --component-message-text-button-hover-text: var(--theme-accent-primary);
+  --component-message-text-button-hover-bg: var(--theme-surface-hover);
+  --component-message-form-focus-border: var(--theme-accent-primary);
+  --component-message-success-bg: var(--theme-surface-success-soft);
+  --component-message-success-text: var(--theme-success);
+
+  --component-remote-connected-bg: var(--theme-success);
+  --component-remote-connected-shadow: var(--theme-success);
+  --component-remote-connecting-bg: var(--theme-accent-primary);
+  --component-remote-add-button-text: var(--theme-accent-primary);
+  --component-remote-add-button-border: var(--theme-accent-primary);
+  --component-remote-add-button-hover-bg: var(--theme-accent-primary);
+  --component-remote-icon-hover-text: var(--theme-accent-primary);
+  --component-remote-select-focus-border: var(--theme-accent-primary);
+  --component-remote-checkbox-accent: var(--theme-accent-primary);
+  --component-remote-password-hover-text: var(--theme-accent-primary);
+  --component-remote-input-focus-border: var(--theme-accent-primary);
+  --component-remote-control-hover-border: var(--theme-accent-primary);
+  --component-remote-control-hover-text: var(--theme-accent-primary);
+  --component-remote-primary-button-bg: var(--theme-accent-primary);
+  --component-remote-primary-button-hover-bg: var(--theme-accent-primary-hover);
+
+  --component-location-refresh-text: var(--theme-accent-primary);
+  --component-location-refresh-border: var(--theme-accent-primary);
+  --component-location-refresh-hover-bg: var(--theme-accent-primary);
+  --component-location-toggle-checked-bg: var(--theme-success);
+  --component-location-slider-thumb: var(--theme-accent-primary);
+  --component-location-slider-value: var(--theme-accent-primary);
+  --component-location-primary-button-bg: var(--theme-accent-primary);
+  --component-location-primary-button-hover-bg: var(--theme-accent-primary-hover);
+  --component-location-status-success-text: var(--theme-success);
+
+  --component-filter-panel-bg: var(--theme-surface-card);
+  --component-filter-panel-border: var(--theme-border-subtle);
+  --component-filter-control-bg: var(--theme-surface-input);
+  --component-filter-control-border: var(--theme-border-default);
+  --component-filter-control-hover-border: var(--theme-current-highlight-border);
+  --component-filter-chip-bg: var(--theme-surface-container);
+  --component-filter-chip-text: var(--theme-text-secondary);
+  --component-filter-chip-hover-bg: var(--theme-current-highlight-bg);
+  --component-filter-chip-hover-text: var(--theme-current-highlight-accent);
+  --component-filter-chip-active-bg: var(--theme-current-highlight-accent);
+  --component-filter-chip-active-text: var(--theme-text-inverse);
+
+  --component-date-picker-clear-hover-text: var(--theme-danger);
+  --component-date-picker-nav-hover-bg: var(--theme-surface-hover);
+  --component-date-picker-nav-hover-border: var(--theme-current-highlight-border);
+  --component-date-picker-stats-text: var(--theme-current-highlight-accent);
+  --component-date-picker-day-hover-bg: var(--theme-surface-hover);
+  --component-date-picker-day-has-data-hover-bg: var(--status-success-bg-soft);
+  --component-date-picker-day-selected-bg: var(--theme-current-highlight-accent);
+  --component-date-picker-day-selected-border: var(--theme-current-highlight-accent);
+  --component-date-picker-badge-bg: var(--theme-current-highlight-accent);
+  --component-date-picker-badge-text: var(--theme-text-inverse);
 
   --component-info-panel-bg: var(--theme-info-panel-bg);
   --component-info-panel-bg-hover: var(--theme-info-panel-bg-strong);
@@ -401,14 +546,14 @@
 
   --bg-friend-card: var(--theme-warning-panel-bg);
   --border-friend-card: var(--theme-warning-panel-border-strong);
-  --bg-today-card: var(--theme-success-panel-bg);
-  --bg-today-row: var(--theme-success-panel-bg-alt);
-  --bg-today-index: var(--theme-success-panel-bg-strong);
-  --bg-today-index-neutral: var(--theme-success-panel-bg);
-  --border-today-row: var(--theme-success-panel-border-soft);
-  --border-today-card: var(--theme-success-panel-border-strong);
-  --color-today-accent: var(--theme-success-accent);
-  --color-today-uncontacted: var(--neutral-175);
+  --bg-today-card: var(--theme-current-highlight-bg);
+  --bg-today-row: var(--theme-current-highlight-bg-alt);
+  --bg-today-index: var(--theme-current-highlight-bg-strong);
+  --bg-today-index-neutral: var(--theme-current-highlight-bg);
+  --border-today-row: var(--theme-current-highlight-border-soft);
+  --border-today-card: var(--theme-current-highlight-border);
+  --color-today-accent: var(--theme-current-highlight-accent);
+  --color-today-uncontacted: var(--theme-current-highlight-muted);
   --bg-rank-1: var(--theme-rank-gold-bg);
   --bg-rank-2: var(--theme-rank-silver-bg);
   --bg-rank-3: var(--theme-rank-bronze-bg);
@@ -453,6 +598,7 @@
   --color-speaking: var(--component-speaking-bar-text-accent);
   --bg-speaking-bar: var(--component-speaking-bar-bg);
   --border-speaking-bar: var(--component-speaking-bar-border);
+  --bg-speaking-bar-hover: var(--component-speaking-bar-hover-bg);
 
   --status-warning-bg: var(--component-status-warning-bg);
   --status-warning-bg-soft: var(--component-status-warning-bg-soft);
@@ -483,6 +629,18 @@
 
   --panel-error-bg: var(--component-error-panel-bg);
   --panel-error-border: var(--component-error-panel-border);
+
+  --filter-panel-bg: var(--component-filter-panel-bg);
+  --filter-panel-border: var(--component-filter-panel-border);
+  --filter-control-bg: var(--component-filter-control-bg);
+  --filter-control-border: var(--component-filter-control-border);
+  --filter-control-hover-border: var(--component-filter-control-hover-border);
+  --filter-chip-bg: var(--component-filter-chip-bg);
+  --filter-chip-text: var(--component-filter-chip-text);
+  --filter-chip-hover-bg: var(--component-filter-chip-hover-bg);
+  --filter-chip-hover-text: var(--component-filter-chip-hover-text);
+  --filter-chip-active-bg: var(--component-filter-chip-active-bg);
+  --filter-chip-active-text: var(--component-filter-chip-active-text);
 
   --modal-backdrop-soft: var(--component-modal-backdrop-soft);
   --modal-surface-shadow: var(--component-modal-shadow);
@@ -551,6 +709,12 @@
     --theme-success-panel-border-strong: var(--dark-660);
     --theme-success-panel-border-bright: var(--dark-660);
 
+    --theme-current-highlight-bg: var(--theme-success-panel-bg);
+    --theme-current-highlight-bg-alt: var(--theme-success-panel-bg-alt);
+    --theme-current-highlight-bg-strong: var(--theme-success-panel-bg-strong);
+    --theme-current-highlight-border-soft: var(--theme-success-panel-border-soft);
+    --theme-current-highlight-border: var(--theme-success-panel-border-strong);
+
     --theme-rank-gold-bg: var(--dark-540);
     --theme-rank-silver-bg: var(--dark-580);
     --theme-rank-bronze-bg: var(--dark-560);
@@ -575,5 +739,6 @@
     --component-speaking-bar-bg: var(--theme-success-panel-bg);
     --component-speaking-bar-border: var(--theme-success-panel-border-bright);
     --component-speaking-bar-text-accent: var(--theme-success-soft);
+    --component-speaking-bar-hover-bg: var(--theme-current-highlight-bg);
   }
 }

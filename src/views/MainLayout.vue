@@ -1523,7 +1523,7 @@ provide('protocol', settings.protocol)
 }
 
 .mobile-nav .nav-tab.router-link-active {
-  color: var(--color-success);
+  color: var(--component-mobile-nav-active-text);
 }
 
 .mobile-nav .nav-tab.disabled {

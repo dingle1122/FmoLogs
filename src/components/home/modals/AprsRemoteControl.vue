@@ -704,8 +704,8 @@ onUnmounted(() => {
 }
 
 .connection-status.status-connected {
-  background: var(--color-success);
-  box-shadow: 0 0 6px var(--color-success);
+  background: var(--component-remote-connected-bg);
+  box-shadow: 0 0 6px var(--component-remote-connected-shadow);
 }
 
 .connection-status.status-disconnected {
@@ -713,7 +713,7 @@ onUnmounted(() => {
 }
 
 .connection-status.status-connecting {
-  background: var(--color-primary);
+  background: var(--component-remote-connecting-bg);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
@@ -731,8 +731,8 @@ onUnmounted(() => {
   padding: 0.4rem 0.8rem;
   font-size: 0.85rem;
   background: var(--bg-container);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
+  color: var(--component-remote-add-button-text);
+  border: 1px solid var(--component-remote-add-button-border);
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
@@ -740,13 +740,13 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .btn-add-server:hover {
-    background: var(--color-primary);
+    background: var(--component-remote-add-button-hover-bg);
     color: var(--text-white);
   }
 
   .btn-icon:hover {
     background: var(--bg-table-hover);
-    color: var(--color-primary);
+    color: var(--component-remote-icon-hover-text);
   }
 
   .btn-icon-danger:hover {
@@ -780,7 +780,7 @@ onUnmounted(() => {
 
 .server-select:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-remote-select-focus-border);
 }
 
 .server-actions {
@@ -801,7 +801,7 @@ onUnmounted(() => {
 
 .btn-icon:hover {
   background: var(--bg-table-hover);
-  color: var(--color-primary);
+  color: var(--component-remote-icon-hover-text);
 }
 
 .btn-icon-danger:hover {
@@ -883,7 +883,7 @@ onUnmounted(() => {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--color-primary);
+  accent-color: var(--component-remote-checkbox-accent);
 }
 
 @media (hover: hover) {
@@ -892,7 +892,7 @@ onUnmounted(() => {
   }
 
   .password-toggle:hover {
-    color: var(--color-primary);
+    color: var(--component-remote-password-hover-text);
   }
 }
 
@@ -936,7 +936,7 @@ onUnmounted(() => {
 }
 
 .password-toggle:hover {
-  color: var(--color-primary);
+  color: var(--component-remote-password-hover-text);
 }
 
 .form-input {
@@ -953,7 +953,7 @@ onUnmounted(() => {
 
 .form-input:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-remote-input-focus-border);
 }
 
 .form-input:disabled {
@@ -1007,9 +1007,9 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .btn-control:not(:disabled):hover {
-    border-color: var(--color-primary);
+    border-color: var(--component-remote-control-hover-border);
     background: var(--bg-table-hover);
-    color: var(--color-primary);
+    color: var(--component-remote-control-hover-text);
   }
 
   .btn-reboot:not(:disabled):hover {
@@ -1097,20 +1097,20 @@ onUnmounted(() => {
 
 /* 发送操作 - 蓝色 */
 .timeline-dot-send {
-  background-color: var(--brand-primary-strong);
-  box-shadow: 0 0 0 3px var(--alpha-primary-strong-20);
+  background-color: var(--component-control-primary-bg);
+  box-shadow: 0 0 0 3px var(--component-control-primary-ring);
 }
 
 /* 成功 - 绿色 */
 .timeline-dot-success {
-  background-color: var(--brand-success-emerald);
-  box-shadow: 0 0 0 3px var(--alpha-emerald-20);
+  background-color: var(--component-control-success-bg);
+  box-shadow: 0 0 0 3px var(--component-control-success-ring);
 }
 
 /* 失败 - 红色 */
 .timeline-dot-fail {
-  background-color: var(--brand-danger-strong);
-  box-shadow: 0 0 0 3px var(--alpha-danger-strong-20);
+  background-color: var(--component-control-danger-bg);
+  box-shadow: 0 0 0 3px var(--component-control-danger-ring);
 }
 
 /* 时间轴连线 */
@@ -1239,14 +1239,14 @@ onUnmounted(() => {
   }
 
   .btn-primary:hover {
-    background: var(--color-primary-hover);
+    background: var(--component-remote-primary-button-hover-bg);
   }
 }
 
 .btn-primary {
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
-  background: var(--color-primary);
+  background: var(--component-remote-primary-button-bg);
   color: var(--text-white);
   border: none;
   border-radius: 4px;
@@ -1255,6 +1255,6 @@ onUnmounted(() => {
 }
 
 .btn-primary:hover {
-  background: var(--color-primary-hover);
+  background: var(--component-remote-primary-button-hover-bg);
 }
 </style>

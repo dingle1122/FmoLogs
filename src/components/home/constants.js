@@ -44,6 +44,13 @@ export const MORE_ROUTES = [
     description: 'FMO地址、播放与数据管理'
   },
   {
+    path: '/themes',
+    label: '主题',
+    type: 'themes',
+    icon: 'themes',
+    description: '上传、切换与管理自定义主题'
+  },
+  {
     path: '/remote-control',
     label: '远程控制',
     type: 'remoteControl',

@@ -107,7 +107,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 
 @media (hover: hover) {
   .header-title:hover {
-    color: var(--color-success);
+    color: var(--component-header-title-hover);
   }
 
   .header-logo:hover {
@@ -116,7 +116,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 
   .station-tag:hover {
     background: var(--border-light);
-    border-color: var(--color-success);
+    border-color: var(--component-header-station-hover-border);
   }
 }
 
@@ -165,7 +165,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   background: var(--bg-table-hover);
   border-radius: 12px;
   font-size: 0.85rem;
-  color: var(--color-success);
+  color: var(--component-header-station-text);
   border: 1px solid var(--border-light);
   cursor: pointer;
   transition: all 0.2s;
@@ -177,7 +177,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 
 .station-tag:hover {
   background: var(--border-light);
-  border-color: var(--color-success);
+  border-color: var(--component-header-station-hover-border);
 }
 
 .station-icon {
@@ -227,13 +227,13 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 
 @media (hover: hover) {
   .nav-tab:hover:not(.disabled) {
-    color: var(--color-success);
+    color: var(--component-header-nav-hover-text);
     background: none;
   }
 }
 
 .nav-tab.router-link-active {
-  color: var(--color-success);
+  color: var(--component-header-nav-active-text);
 }
 
 .nav-tab.router-link-active::after {
@@ -243,7 +243,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   left: 0.5rem;
   right: 0.5rem;
   height: 2px;
-  background: var(--color-success);
+  background: var(--component-header-nav-active-indicator);
   border-radius: 1px 1px 0 0;
 }
 
@@ -288,7 +288,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 @media (hover: hover) {
   .icon-btn:hover {
     background: var(--bg-table-hover);
-    color: var(--color-success);
+    color: var(--component-header-action-hover-text);
   }
 }
 

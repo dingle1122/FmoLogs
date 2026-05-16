@@ -151,9 +151,9 @@ function handleJump(event) {
 
 @media (hover: hover) {
   .page-btn:hover:not(:disabled) {
-    background: var(--bg-table-hover);
-    border-color: var(--color-primary);
-    color: var(--color-primary);
+    background: var(--component-page-nav-button-hover-bg);
+    border-color: var(--component-page-nav-button-hover-border);
+    color: var(--component-page-nav-button-hover-text);
   }
 }
 
@@ -196,7 +196,7 @@ function handleJump(event) {
 
 .page-jump-input:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--component-page-nav-input-focus-border);
   box-shadow: 0 0 0 2px var(--shadow-primary);
 }
 

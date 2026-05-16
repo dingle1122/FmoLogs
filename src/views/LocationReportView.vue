@@ -90,7 +90,7 @@
             :max="SLIDER_MAX"
             class="interval-slider"
             :style="{
-              background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) 100%)`
+              background: `linear-gradient(to right, var(--component-location-slider-thumb) 0%, var(--component-location-slider-thumb) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) ${(sliderValue / SLIDER_MAX) * 100}%, var(--border-primary) 100%)`
             }"
             @change="handleSliderChange"
           />
@@ -362,8 +362,8 @@ onUnmounted(() => {
   padding: 0.3rem 0.6rem;
   font-size: 0.8rem;
   background: none;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
+  color: var(--component-location-refresh-text);
+  border: 1px solid var(--component-location-refresh-border);
   border-radius: 4px;
   cursor: pointer;
   transition:
@@ -389,14 +389,14 @@ onUnmounted(() => {
    触屏设备 hover: none，避免点击后样式粘住 */
 @media (hover: hover) {
   .btn-refresh:hover:not(:disabled) {
-    background: var(--color-primary);
+    background: var(--component-location-refresh-hover-bg);
     color: var(--text-white);
   }
 }
 
 /* 按下时的视觉反馈（替代触屏的 hover） */
 .btn-refresh:active:not(:disabled) {
-  background: var(--color-primary);
+  background: var(--component-location-refresh-hover-bg);
   color: var(--text-white);
   opacity: 0.85;
 }
@@ -495,7 +495,7 @@ onUnmounted(() => {
 }
 
 .toggle-switch input:checked + .toggle-slider {
-  background-color: var(--color-success);
+  background-color: var(--component-location-toggle-checked-bg);
 }
 
 .toggle-switch input:checked + .toggle-slider::before {
@@ -530,7 +530,7 @@ onUnmounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--component-location-slider-thumb);
   cursor: pointer;
   box-shadow: 0 2px 4px var(--alpha-black-20);
 }
@@ -539,7 +539,7 @@ onUnmounted(() => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--component-location-slider-thumb);
   border: none;
   cursor: pointer;
   box-shadow: 0 2px 4px var(--alpha-black-20);
@@ -548,7 +548,7 @@ onUnmounted(() => {
 .interval-current {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--color-primary);
+  color: var(--component-location-slider-value);
 }
 
 /* 按钮 */
@@ -556,7 +556,7 @@ onUnmounted(() => {
   width: 100%;
   padding: 0.6rem 1rem;
   font-size: 0.9rem;
-  background: var(--color-primary);
+  background: var(--component-location-primary-button-bg);
   color: var(--text-white);
   border: none;
   border-radius: 6px;
@@ -568,12 +568,12 @@ onUnmounted(() => {
 
 @media (hover: hover) {
   .btn-primary:hover:not(:disabled) {
-    background: var(--color-primary-hover);
+    background: var(--component-location-primary-button-hover-bg);
   }
 }
 
 .btn-primary:active:not(:disabled) {
-  background: var(--color-primary-hover);
+  background: var(--component-location-primary-button-hover-bg);
   opacity: 0.9;
 }
 
@@ -608,7 +608,7 @@ onUnmounted(() => {
 }
 
 .text-success {
-  color: var(--color-success);
+  color: var(--component-location-status-success-text);
 }
 
 .text-danger {

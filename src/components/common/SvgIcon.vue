@@ -88,6 +88,17 @@
       />
     </template>
 
+    <!-- themes: 调色板图标 -->
+    <template v-else-if="name === 'themes'">
+      <path
+        d="M12 3a9 9 0 0 0 0 18h1a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h1a5 5 0 0 0 0-10Z"
+      />
+      <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="12.5" r="1" fill="currentColor" stroke="none" />
+    </template>
+
     <!-- locationReport: 地图定位图标 -->
     <template v-else-if="name === 'locationReport'">
       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
@@ -112,6 +123,7 @@ defineProps({
         'friendLinks',
         'about',
         'settings',
+        'themes',
         'locationReport'
       ].includes(value)
     }

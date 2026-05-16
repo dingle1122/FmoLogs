@@ -506,7 +506,7 @@ defineEmits([
 
 .speaking-history-item.is-speaking .history-callsign .server-tag {
   color: var(--color-speaking);
-  background: var(--alpha-success-strong-12);
+  background: var(--status-success-bg-soft);
 }
 
 .history-time {

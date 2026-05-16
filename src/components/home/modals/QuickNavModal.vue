@@ -123,14 +123,14 @@ function handleNavClick(_routeItem) {
   .nav-item:hover:not(.disabled) {
     background: var(--bg-table-hover);
     color: var(--text-primary);
-    border-color: var(--color-success);
+    border-color: var(--component-quick-nav-item-hover-border);
   }
 }
 
 .nav-item.active {
-  background: var(--alpha-success-08);
-  color: var(--color-success);
-  border-color: var(--color-success);
+  background: var(--component-quick-nav-item-active-bg);
+  color: var(--component-quick-nav-item-active-text);
+  border-color: var(--component-quick-nav-item-active-border);
   font-weight: 500;
 }
 
@@ -147,7 +147,7 @@ function handleNavClick(_routeItem) {
 }
 
 .nav-item.active .nav-icon {
-  color: var(--color-success);
+  color: var(--component-quick-nav-item-active-icon);
 }
 
 .nav-label {
