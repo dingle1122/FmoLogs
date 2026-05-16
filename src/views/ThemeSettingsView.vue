@@ -63,12 +63,48 @@
                   <h3 class="theme-card-title">{{ theme.name }}</h3>
                 </template>
                 <template v-else>
-                  <input
-                    v-model.trim="themeNameDrafts[theme.id]"
-                    type="text"
-                    class="theme-card-name-input"
-                    placeholder="主题名称"
-                  />
+                  <div class="theme-name-editor">
+                    <h3
+                      class="theme-card-title"
+                      :class="{ 'theme-card-title-editing': editingThemeId === theme.id }"
+                      :contenteditable="editingThemeId === theme.id"
+                      :data-theme-rename-id="theme.id"
+                      spellcheck="false"
+                      @input="handleThemeNameInput(theme.id, $event)"
+                      @keydown.enter.prevent="handleRenameTheme(theme.id)"
+                    >
+                      {{ editingThemeId === theme.id ? themeNameDrafts[theme.id] : theme.name }}
+                    </h3>
+                    <button
+                      class="theme-inline-icon"
+                      type="button"
+                      :title="editingThemeId === theme.id ? '保存名称' : '重命名'"
+                      @click="
+                        editingThemeId === theme.id
+                          ? handleRenameTheme(theme.id)
+                          : startRenameTheme(theme)
+                      "
+                    >
+                      <svg
+                        v-if="editingThemeId === theme.id"
+                        viewBox="0 0 24 24"
+                        width="16"
+                        height="16"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                      <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path
+                          d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </template>
                 <span v-if="theme.builtin" class="theme-badge theme-badge-default">内置</span>
                 <span v-else class="theme-badge theme-badge-custom">自定义</span>
@@ -95,13 +131,6 @@
               @click="handleActivateTheme(theme.id)"
             >
               {{ theme.id === activeThemeId ? '已启用' : '启用' }}
-            </button>
-            <button
-              v-if="!theme.builtin"
-              class="btn-ghost"
-              @click="handleRenameTheme(theme.id)"
-            >
-              保存名称
             </button>
             <button
               v-if="!theme.builtin"
@@ -134,7 +163,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onUnmounted, watch } from 'vue'
+import { ref, reactive, onUnmounted, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import confirmDialog from '../composables/useConfirm'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -155,6 +184,7 @@ const themeStatusType = ref('info')
 const sampleCopied = ref(false)
 const newThemeName = ref('')
 const themeNameDrafts = reactive({})
+const editingThemeId = ref('')
 let sampleCopiedTimer = null
 
 watch(
@@ -204,6 +234,26 @@ function formatThemeTime(timestamp) {
   }).format(new Date(timestamp))
 }
 
+async function startRenameTheme(theme) {
+  themeNameDrafts[theme.id] = theme.name
+  editingThemeId.value = theme.id
+
+  await nextTick()
+  const title = document.querySelector(`[data-theme-rename-id="${theme.id}"]`)
+  if (title instanceof HTMLElement) {
+    title.focus()
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.selectNodeContents(title)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }
+}
+
+function handleThemeNameInput(themeId, event) {
+  themeNameDrafts[themeId] = event.target?.textContent || ''
+}
+
 async function handleActivateTheme(themeId) {
   const result = await settingsStore.setActiveTheme(themeId)
   showThemeStatus(result.message, result.success ? 'success' : 'error')
@@ -222,6 +272,7 @@ async function handleRenameTheme(themeId) {
   const result = await settingsStore.renameCustomTheme(themeId, nextName)
   showThemeStatus(result.message, result.success ? 'success' : 'error')
   if (result.success) {
+    editingThemeId.value = ''
     const currentTheme = themeList.value.find((theme) => theme.id === themeId)
     if (currentTheme && !currentTheme.builtin) {
       themeNameDrafts[themeId] = currentTheme.name
@@ -315,6 +366,7 @@ onUnmounted(() => {
 .theme-settings-content {
   max-width: 920px;
   margin: 0 auto;
+  min-width: 0;
 }
 
 .theme-page-header {
@@ -355,8 +407,7 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
-.theme-name-input,
-.theme-card-name-input {
+.theme-name-input {
   height: 36px;
   padding: 0 0.75rem;
   border: 1px solid var(--border-primary);
@@ -369,15 +420,10 @@ onUnmounted(() => {
 
 .theme-name-input {
   min-width: 180px;
+  flex: 1 1 220px;
 }
 
-.theme-card-name-input {
-  min-width: 140px;
-  flex: 1;
-}
-
-.theme-name-input:focus,
-.theme-card-name-input:focus {
+.theme-name-input:focus {
   outline: none;
   border-color: var(--color-primary);
 }
@@ -389,7 +435,7 @@ onUnmounted(() => {
 }
 
 .theme-card-actions > button {
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .theme-status {
@@ -453,6 +499,7 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  min-width: 0;
 }
 
 .theme-card {
@@ -495,10 +542,49 @@ onUnmounted(() => {
   align-items: flex-start;
 }
 
+.theme-card-main,
+.theme-title-wrap {
+  min-width: 0;
+}
+
+.theme-name-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+}
+
+.theme-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  line-height: 1;
+  flex: 0 0 auto;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
 .theme-card-title {
   margin: 0;
   font-size: 1rem;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.theme-card-title-editing {
+  outline: none;
+  border-bottom: 1px dashed var(--color-primary);
 }
 
 .theme-card-time {
@@ -548,7 +634,8 @@ onUnmounted(() => {
 .btn-secondary,
 .btn-danger,
 .btn-ghost,
-.btn-text-danger {
+.btn-text-danger,
+.btn-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -609,6 +696,15 @@ onUnmounted(() => {
   border: none;
 }
 
+.btn-icon {
+  width: 36px;
+  padding: 0;
+  background: var(--color-transparent);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  flex: 0 0 36px;
+}
+
 .btn-ghost-danger {
   color: var(--color-danger);
   border-color: var(--color-danger);
@@ -639,6 +735,17 @@ onUnmounted(() => {
     background: var(--bg-table-hover);
   }
 
+  .btn-icon:hover {
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+    background: var(--bg-table-hover);
+  }
+
+  .theme-inline-icon:hover {
+    color: var(--text-primary);
+    transform: translateY(-1px);
+  }
+
   .btn-ghost-danger:hover {
     color: var(--color-danger-hover);
     border-color: var(--color-danger-hover);
@@ -653,10 +760,17 @@ onUnmounted(() => {
 
 .btn-secondary:disabled,
 .btn-ghost:disabled,
+.btn-icon:disabled,
 .btn-primary:disabled,
 .btn-danger:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.theme-inline-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .hidden-input {
@@ -669,7 +783,7 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .theme-settings-view {
-    padding: 1rem;
+    padding: 0.875rem;
   }
 
   .theme-page-header,
@@ -683,8 +797,24 @@ onUnmounted(() => {
     width: 100%;
   }
 
+  .theme-header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .theme-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .theme-toolbar .theme-name-input {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
   .theme-toolbar .btn-ghost,
-  .theme-toolbar .theme-name-input,
   .theme-header-actions .btn-secondary,
   .theme-header-actions .btn-add,
   .theme-card-actions .btn-secondary,
@@ -693,7 +823,15 @@ onUnmounted(() => {
     flex: 1;
   }
 
-  .theme-card-name-input {
+  .theme-card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .theme-card-actions .btn-secondary,
+  .theme-card-actions .btn-ghost,
+  .theme-card-actions .btn-ghost-danger {
     width: 100%;
   }
 
@@ -707,6 +845,27 @@ onUnmounted(() => {
 
   .text-mobile {
     display: inline;
+  }
+}
+
+@media (max-width: 520px) {
+  .theme-settings-view {
+    padding: 0.75rem;
+  }
+
+  .theme-header-actions,
+  .theme-toolbar,
+  .theme-card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-example-panel,
+  .theme-card {
+    padding: 0.875rem;
+  }
+
+  .theme-card-time {
+    white-space: normal;
   }
 }
 </style>
