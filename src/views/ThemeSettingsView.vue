@@ -4,7 +4,9 @@
       <div class="theme-page-header">
         <div>
           <h1 class="theme-page-title">主题设置</h1>
-          <p class="theme-page-subtitle">上传主题后可以随时切换，也可以先下载示例改一改再上传。</p>
+          <p class="theme-page-subtitle">
+            上传主题后可以随时切换，也可以先下载示例改一改再上传。主色建议只用于按钮、强调和选中态，日志正文等内容请保持黑白中性色。
+          </p>
         </div>
         <div class="theme-header-actions">
           <button class="btn-secondary" @click="toggleThemeExample">
@@ -44,7 +46,7 @@
       <div v-if="showThemeExample" class="theme-example-panel">
         <div class="theme-example-header">
           <span class="theme-example-title">示例主题</span>
-          <span class="theme-example-caption">下载后改一改，再上传就能用</span>
+          <span class="theme-example-caption">下载后改一改，再上传就能用。不要把日志正文文字批量改成主色。</span>
         </div>
         <pre class="theme-example-code"><code>{{ THEME_SAMPLE_CSS }}</code></pre>
       </div>

@@ -24,6 +24,10 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
       例如顶部导航、筛选区、信道列表、主题页、远控页。
    4. 不建议直接修改组件 class 选择器。
       优先改变量，后续升级版本时更稳定，也更容易继续沿用你的主题。
+   5. 如果项目主色是绿色，也不要把整页所有文字都改成绿色。
+      主色更适合用在按钮、链接、hover、选中态、描边、高亮块和状态点缀。
+      日志记录、表格正文、卡片正文这类“阅读内容”请保持白色/黑色或接近黑白的中性色。
+      尤其是通联日志页面，正文可读性优先，避免整片文字跟着主色跑。
 
    推荐上手顺序：
    1. 先改“快速套色”
@@ -63,7 +67,10 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
   /* 文字颜色
      primary: 主要文字
      secondary: 次要说明
-     muted: 更弱的辅助信息 */
+     muted: 更弱的辅助信息
+     重要：这里主要控制正文阅读颜色。
+     即使主题主色是绿色，这里也建议保持深灰/黑或浅灰/白，
+     不要把日志正文、表格正文、记录详情正文直接改成大面积绿色。 */
   --theme-text-primary: #34261b;
   --theme-text-secondary: #715643;
   --theme-text-muted: #9c7f69;
@@ -119,7 +126,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
   --component-mobile-nav-active-text: #b82b4e;
 
   /* 通联日志表格表头
-     影响通联日志页面表头的背景色、文字色、上边框。 */
+     这里只建议调整表头、标题栏、分隔层级，不建议借此影响正文阅读区。
+     日志数据本身的正文文字应继续保持中性色，避免整表都变成主色。 */
   --component-logs-table-header-bg: #f7efe7;
   --component-logs-table-header-text: #7a5633;
   --component-logs-table-header-border: #d6b796;
@@ -134,7 +142,8 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
   --component-logs-index-rank-3-bg: #f3e1d4;
 
   /* 通联记录弹框卡片
-     如果你想单独调整通联记录弹框里的卡片背景、说明文字、选中描边，改这里。 */
+     如果你想单独调整通联记录弹框里的卡片背景、说明文字、选中描边，改这里。
+     其中 value-text 属于正文信息，推荐保持白色/黑色体系，主色只用于描边或强调。 */
   --component-record-card-bg: #fffdf8;
   --component-record-card-border: #efe1d2;
   --component-record-card-label-text: #9c7f69;
