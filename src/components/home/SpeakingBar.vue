@@ -326,6 +326,36 @@ defineEmits(['click', 'toggle-audio'])
   }
 }
 
+@media (min-width: 481px) and (max-width: 768px) {
+  .speaking-bar {
+    padding: 0.45rem 0.75rem;
+  }
+
+  .speaking-bar-content {
+    gap: 0.6rem;
+    min-height: 1.85rem;
+  }
+
+  .speaking-indicator {
+    width: 15px;
+    height: 15px;
+  }
+
+  .speaking-text {
+    font-size: 1rem;
+    line-height: 1.25rem;
+  }
+
+  .speaking-text strong {
+    font-size: 1.15rem;
+  }
+
+  .audio-toggle-btn {
+    width: 30px;
+    height: 30px;
+  }
+}
+
 @media (max-width: 480px) {
   .speaking-bar {
     padding: 0.35rem 0.5rem;

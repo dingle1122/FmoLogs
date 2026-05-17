@@ -89,6 +89,12 @@
   background-color: var(--bg-page);
 }
 
+html,
+body {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 a {
   font-weight: 500;
   color: var(--color-primary);

@@ -63,6 +63,8 @@ function handleOpenList() {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .station-btn {
@@ -94,7 +96,9 @@ function handleOpenList() {
 }
 
 .station-info {
+  flex: 1 1 auto;
   width: 120px;
+  min-width: 0;
   text-align: center;
   overflow: hidden;
 }
@@ -186,6 +190,31 @@ function handleOpenList() {
 
   .station-name {
     font-size: 1rem;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .station-control {
+    gap: 0.4rem;
+  }
+
+  .station-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 0.95rem;
+  }
+
+  .station-info {
+    width: auto;
+  }
+
+  .station-name {
+    font-size: 1rem;
+  }
+
+  .refresh-btn {
+    width: 40px !important;
+    font-size: 0.75rem !important;
   }
 }
 </style>

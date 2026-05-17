@@ -1,6 +1,7 @@
 package com.fmologs.app;
 
 import android.os.Bundle;
+import android.webkit.WebSettings;
 
 import com.getcapacitor.BridgeActivity;
 
@@ -14,5 +15,11 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FmoSystemUiPlugin.class);
         registerPlugin(FmoLocationPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Keep H5 text metrics stable across OEM WebView variants such as foldables.
+        if (getBridge() != null && getBridge().getWebView() != null) {
+            WebSettings webSettings = getBridge().getWebView().getSettings();
+            webSettings.setTextZoom(100);
+        }
     }
 }

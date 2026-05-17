@@ -288,6 +288,7 @@ defineEmits([
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
   padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
 }
@@ -384,6 +385,8 @@ defineEmits([
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .history-callsign {
@@ -393,7 +396,8 @@ defineEmits([
   display: flex;
   align-items: center;
   gap: 0.2rem;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* 呼号文字：固定 4.5em 宽度（em 单位跨浏览器一致性好），保证后续徽章/通联次数位置一致 */
@@ -513,6 +517,7 @@ defineEmits([
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  flex: 0 0 auto;
   gap: 0;
   line-height: 1.2;
 }
@@ -555,6 +560,45 @@ defineEmits([
   .modal-speaking-history {
     width: 95%;
     max-height: calc(var(--vh, 1vh) * 85);
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .modal-speaking-history {
+    width: min(92vw, 560px);
+    max-width: 92vw;
+  }
+
+  .modal-header {
+    padding: 0.85rem 0.9rem;
+  }
+
+  .modal-body {
+    padding: 0.85rem;
+  }
+
+  .speaking-history-item {
+    padding: 0.6rem 0.85rem;
+  }
+
+  .history-callsign {
+    font-size: 1.4rem;
+  }
+
+  .history-callsign .server-tag {
+    font-size: 0.7rem;
+  }
+
+  .contact-count {
+    font-size: 0.9rem;
+  }
+
+  .speaking-time {
+    font-size: 1rem;
+  }
+
+  .duration-time {
+    font-size: 0.9rem;
   }
 }
 
