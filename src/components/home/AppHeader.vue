@@ -115,7 +115,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   }
 
   .station-tag:hover {
-    background: var(--border-light);
+    background: var(--component-header-station-hover-bg);
     border-color: var(--component-header-station-hover-border);
   }
 }
@@ -162,7 +162,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   align-items: center;
   gap: 0.4rem;
   padding: 0.2rem 0.6rem;
-  background: var(--bg-table-hover);
+  background: var(--component-header-station-bg);
   border-radius: 12px;
   font-size: 0.85rem;
   color: var(--component-header-station-text);
@@ -176,7 +176,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 }
 
 .station-tag:hover {
-  background: var(--border-light);
+  background: var(--component-header-station-hover-bg);
   border-color: var(--component-header-station-hover-border);
 }
 

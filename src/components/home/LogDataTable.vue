@@ -306,15 +306,15 @@ function formatTimePart(dateTimeStr) {
 }
 
 .data-table th {
-  background: var(--bg-table-header);
+  background: var(--component-logs-table-header-bg);
   font-weight: 600;
   font-size: 0.85rem;
   position: sticky;
   top: 0;
   z-index: 1;
   text-align: center;
-  border-top: 1px solid var(--border-primary);
-  color: var(--text-secondary);
+  border-top: 1px solid var(--component-logs-table-header-border);
+  color: var(--component-logs-table-header-text);
   letter-spacing: 0.02em;
 }
 
@@ -463,7 +463,7 @@ function formatTimePart(dateTimeStr) {
 
 /* 基础层：默认序号列 */
 .data-table tbody td.col-dailyIndex {
-  background-color: var(--bg-table-stripe);
+  background-color: var(--component-logs-index-bg);
 }
 
 /* 状态层：今日通联行 - 左侧强调线 + 极淡底色 */
@@ -483,21 +483,21 @@ function formatTimePart(dateTimeStr) {
 
 .data-table tbody tr.row-today td.col-dailyIndex,
 .data-table tbody tr.row-today td.col-dailyIndex.today-index {
-  background-color: var(--bg-today-index);
+  background-color: var(--component-logs-index-today-bg);
 }
 
 /* 特殊层：排名（覆盖所有状态） */
 .data-table tbody tr td.col-dailyIndex.rank-bg-1 {
-  background-color: var(--bg-rank-1);
+  background-color: var(--component-logs-index-rank-1-bg);
 }
 .data-table tbody tr td.col-dailyIndex.rank-bg-2 {
-  background-color: var(--bg-rank-2);
+  background-color: var(--component-logs-index-rank-2-bg);
 }
 .data-table tbody tr td.col-dailyIndex.rank-bg-3 {
-  background-color: var(--bg-rank-3);
+  background-color: var(--component-logs-index-rank-3-bg);
 }
 .data-table tbody tr td.col-dailyIndex.today-index {
-  background-color: var(--bg-today-index-neutral);
+  background-color: var(--component-logs-index-today-neutral-bg);
 }
 
 /* 交互层：hover */
@@ -604,7 +604,7 @@ function formatTimePart(dateTimeStr) {
 
   /* 基础层：默认序号列 */
   .data-table tbody td.col-dailyIndex {
-    background-color: var(--bg-table-stripe);
+    background-color: var(--component-logs-index-bg);
   }
 
   /* 状态层：今日通联行 - 左侧强调线 */
@@ -615,21 +615,21 @@ function formatTimePart(dateTimeStr) {
 
   .data-table tbody tr.row-today td.col-dailyIndex,
   .data-table tbody tr.row-today td.col-dailyIndex.today-index {
-    background-color: var(--bg-today-index);
+    background-color: var(--component-logs-index-today-bg);
   }
 
   /* 特殊层：排名 & today-index */
   .data-table tbody tr td.col-dailyIndex.rank-bg-1 {
-    background-color: var(--bg-rank-1);
+    background-color: var(--component-logs-index-rank-1-bg);
   }
   .data-table tbody tr td.col-dailyIndex.rank-bg-2 {
-    background-color: var(--bg-rank-2);
+    background-color: var(--component-logs-index-rank-2-bg);
   }
   .data-table tbody tr td.col-dailyIndex.rank-bg-3 {
-    background-color: var(--bg-rank-3);
+    background-color: var(--component-logs-index-rank-3-bg);
   }
   .data-table tbody tr td.col-dailyIndex.today-index {
-    background-color: var(--bg-today-index-neutral);
+    background-color: var(--component-logs-index-today-neutral-bg);
   }
 }
 

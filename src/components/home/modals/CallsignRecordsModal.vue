@@ -196,7 +196,7 @@ watch(
 
 .contact-count {
   font-size: 0.85rem;
-  color: var(--text-tertiary);
+  color: var(--component-record-card-count-text);
   font-weight: 400;
 }
 
@@ -220,8 +220,8 @@ watch(
 }
 
 .record-card {
-  background: var(--bg-record-card);
-  border: 1px solid var(--border-record-card);
+  background: var(--component-record-card-bg);
+  border: 1px solid var(--component-record-card-border);
   border-radius: 8px;
   padding: 0.75rem;
 }
@@ -238,20 +238,20 @@ watch(
 }
 
 .record-label {
-  color: var(--text-tertiary);
+  color: var(--component-record-card-label-text);
   flex-shrink: 0;
   width: 60px;
 }
 
 .record-value {
-  color: var(--text-primary);
+  color: var(--component-record-card-value-text);
   flex: 1;
   min-width: 0;
   word-break: break-all;
 }
 
 .address-line {
-  color: var(--text-tertiary);
+  color: var(--component-record-card-address-text);
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -259,12 +259,12 @@ watch(
 }
 
 .record-card.today-record {
-  background: var(--bg-today-card);
-  border-color: var(--border-today-card);
+  background: var(--component-record-card-today-bg);
+  border-color: var(--component-record-card-today-border);
 }
 
 .record-card.highlighted-record {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--component-record-card-highlight-outline);
   outline-offset: -2px;
 }
 

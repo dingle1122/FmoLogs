@@ -17,20 +17,39 @@ export const DEFAULT_THEME_ID = 'default'
 
 export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
    使用建议：
-   1. 先修改 --theme-* 这一层，它决定整套主题的整体气质。
+   1. 最省事的方式：先改“快速套色”这几项，大多数界面会自动跟着变化。
+   2. 再改 --theme-* 这一层，它决定整套主题的整体气质。
       例如页面背景、文字颜色、边框颜色、主色、成功色、危险色。
-   2. 如果你只想微调某个区域，再修改 --component-* 这一层。
+   3. 如果你只想微调某个区域，再修改 --component-* 这一层。
       例如顶部导航、筛选区、信道列表、主题页、远控页。
-   3. 不建议直接修改组件 class 选择器。
+   4. 不建议直接修改组件 class 选择器。
       优先改变量，后续升级版本时更稳定，也更容易继续沿用你的主题。
 
    推荐上手顺序：
-   1. 先改页面底色、文字色、主色
-   2. 再改“当前高亮 / 今日通联 / 选中态”
+   1. 先改“快速套色”
+   2. 再改页面底色、文字色
    3. 最后按需要微调某个具体模块
 */
 
 :root {
+  /* 快速套色
+     如果你不想一个个填颜色，先改这一组。
+     大多数按钮、当前选中、hover、高亮卡片都会自动跟着变化。 */
+  --theme-quick-primary: #c46a2d;
+  --theme-quick-primary-hover: #a55520;
+  --theme-quick-success: #3d8b5a;
+  --theme-quick-warning: #b57918;
+  --theme-quick-danger: #c55353;
+  --theme-quick-highlight-accent: #8b5a2b;
+  --theme-quick-highlight-bg: #f3e4d4;
+  --theme-quick-highlight-bg-alt: #faf1e7;
+  --theme-quick-highlight-bg-strong: #ead4bd;
+  --theme-quick-highlight-border: #d6b796;
+  --theme-quick-highlight-border-soft: #e6ceb4;
+  --theme-quick-highlight-muted: #b59c88;
+  --theme-quick-surface-hover: #f7ead8;
+  --theme-quick-surface-accent-soft: #f8ebe2;
+
   /* 页面和容器底色
      这组变量决定整个应用“底子”的感觉。
      如果你想做浅色、米色、粉色、深色主题，通常先从这里开始改。 */
@@ -89,13 +108,46 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
   /* 顶部标题和页面导航
      影响顶部标题 hover、当前信道标签、顶部导航、底部导航。 */
   --component-header-title-hover: #b82b4e;
+  --component-header-station-bg: #f3e4d4;
   --component-header-station-text: #b82b4e;
+  --component-header-station-hover-bg: #ead4bd;
   --component-header-station-hover-border: #f29cb0;
   --component-header-nav-hover-text: #b82b4e;
   --component-header-nav-active-text: #b82b4e;
   --component-header-nav-active-indicator: #b82b4e;
   --component-header-action-hover-text: #b82b4e;
   --component-mobile-nav-active-text: #b82b4e;
+
+  /* 通联日志表格表头
+     影响通联日志页面表头的背景色、文字色、上边框。 */
+  --component-logs-table-header-bg: #f7efe7;
+  --component-logs-table-header-text: #7a5633;
+  --component-logs-table-header-border: #d6b796;
+
+  /* 通联日志序号列
+     影响序号列的默认底色、今日高亮、以及前三名的底色。 */
+  --component-logs-index-bg: #f8f1e8;
+  --component-logs-index-today-bg: #ead4bd;
+  --component-logs-index-today-neutral-bg: #f3e4d4;
+  --component-logs-index-rank-1-bg: #fff4d9;
+  --component-logs-index-rank-2-bg: #eef2f7;
+  --component-logs-index-rank-3-bg: #f3e1d4;
+
+  /* 通联记录弹框卡片
+     如果你想单独调整通联记录弹框里的卡片背景、说明文字、选中描边，改这里。 */
+  --component-record-card-bg: #fffdf8;
+  --component-record-card-border: #efe1d2;
+  --component-record-card-label-text: #9c7f69;
+  --component-record-card-value-text: #34261b;
+  --component-record-card-address-text: #9c7f69;
+  --component-record-card-count-text: #9c7f69;
+  --component-record-card-today-bg: #f3e4d4;
+  --component-record-card-today-border: #d6b796;
+  --component-record-card-highlight-outline: #c46a2d;
+
+  /* 发言历史弹框
+     未通联星标默认保持项目原始中性灰，不跟随高亮主色自动变化。 */
+  --component-speaking-history-uncontacted-text: #dddddd;
 
   /* “更多”页面、分页按钮、快捷页面导航
      如果你希望“更多”页的图标底色、箭头、分页按钮、
@@ -254,11 +306,27 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
   --component-status-success-text: #3d8b5a;
 }
 
-@media (prefers-color-scheme: dark) {
+  @media (prefers-color-scheme: dark) {
   :root {
     /* 深色模式
        如果你希望浅色和深色使用不同配色，就改这里。
        不需要单独适配深色的话，也可以整段删掉。 */
+
+    /* Quick tuning */
+    --theme-quick-primary: #f29a57;
+    --theme-quick-primary-hover: #ffb27a;
+    --theme-quick-success: #61c487;
+    --theme-quick-warning: #f0b04d;
+    --theme-quick-danger: #ef7e7e;
+    --theme-quick-highlight-accent: #f0b27b;
+    --theme-quick-highlight-bg: #2f251f;
+    --theme-quick-highlight-bg-alt: #281f1a;
+    --theme-quick-highlight-bg-strong: #3a2c23;
+    --theme-quick-highlight-border: #6b4e37;
+    --theme-quick-highlight-border-soft: #5a4536;
+    --theme-quick-highlight-muted: #9f846c;
+    --theme-quick-surface-hover: #3a2c23;
+    --theme-quick-surface-accent-soft: #31201f;
 
     /* 页面和容器底色 */
     --theme-surface-page: #1a1512;
@@ -302,13 +370,42 @@ export const THEME_SAMPLE_CSS = `/* FmoLogs 主题示例
 
     /* Header and navigation */
     --component-header-title-hover: #ff8fa9;
+    --component-header-station-bg: #2f251f;
     --component-header-station-text: #ff8fa9;
+    --component-header-station-hover-bg: #3a2c23;
     --component-header-station-hover-border: #803f4d;
     --component-header-nav-hover-text: #ff8fa9;
     --component-header-nav-active-text: #ff8fa9;
     --component-header-nav-active-indicator: #ff8fa9;
     --component-header-action-hover-text: #ff8fa9;
     --component-mobile-nav-active-text: #ff8fa9;
+
+    /* Logs table header */
+    --component-logs-table-header-bg: #241417;
+    --component-logs-table-header-text: #d8b4bf;
+    --component-logs-table-header-border: #5a4536;
+
+    /* Logs index column */
+    --component-logs-index-bg: #221a16;
+    --component-logs-index-today-bg: #3a2c23;
+    --component-logs-index-today-neutral-bg: #2f251f;
+    --component-logs-index-rank-1-bg: #3a2f16;
+    --component-logs-index-rank-2-bg: #252932;
+    --component-logs-index-rank-3-bg: #36261f;
+
+    /* Callsign record cards */
+    --component-record-card-bg: #2a211c;
+    --component-record-card-border: #3c2f27;
+    --component-record-card-label-text: #a88e77;
+    --component-record-card-value-text: #f2e6da;
+    --component-record-card-address-text: #a88e77;
+    --component-record-card-count-text: #a88e77;
+    --component-record-card-today-bg: #2f251f;
+    --component-record-card-today-border: #6b4e37;
+    --component-record-card-highlight-outline: #f29a57;
+
+    /* Speaking history */
+    --component-speaking-history-uncontacted-text: #5a4536;
 
     /* More page and page navigation */
     --component-more-icon-bg: rgba(255, 107, 144, 0.18);

@@ -175,20 +175,45 @@
   --alpha-neutral-12: rgba(128, 128, 128, 0.12);
   --alpha-neutral-30: rgba(150, 150, 150, 0.3);
 
-  /* Theme tokens: surfaces */
+  /* Theme tokens: surfaces
+     Shortcut layer:
+     - --theme-quick-primary
+     - --theme-quick-primary-hover
+     - --theme-quick-success
+     - --theme-quick-warning
+     - --theme-quick-danger
+     - --theme-quick-highlight-accent
+     - --theme-quick-highlight-bg / -alt / -strong
+     - --theme-quick-highlight-border / -soft / -muted
+     - --theme-quick-surface-hover / -accent-soft */
   --theme-surface-page: var(--color-white);
   --theme-surface-container: var(--color-white);
   --theme-surface-header: var(--color-white);
   --theme-surface-card: var(--color-white);
   --theme-surface-input: var(--color-white);
   --theme-surface-subtle: var(--neutral-040);
-  --theme-surface-hover: var(--surface-blue-200);
+  --theme-surface-hover: var(
+    --theme-quick-surface-hover,
+    color-mix(in srgb, var(--theme-accent-primary) 10%, var(--theme-surface-container))
+  );
   --theme-surface-striped: var(--neutral-030);
   --theme-surface-disabled: var(--neutral-050);
-  --theme-surface-accent-soft: var(--surface-blue-050);
-  --theme-surface-success-soft: var(--surface-green-050);
-  --theme-surface-warning-soft: var(--surface-orange-100);
-  --theme-surface-danger-soft: var(--surface-red-050);
+  --theme-surface-accent-soft: var(
+    --theme-quick-surface-accent-soft,
+    color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-surface-container))
+  );
+  --theme-surface-success-soft: var(
+    --theme-quick-surface-success-soft,
+    color-mix(in srgb, var(--theme-success) 12%, var(--theme-surface-container))
+  );
+  --theme-surface-warning-soft: var(
+    --theme-quick-surface-warning-soft,
+    color-mix(in srgb, var(--theme-warning) 12%, var(--theme-surface-container))
+  );
+  --theme-surface-danger-soft: var(
+    --theme-quick-surface-danger-soft,
+    color-mix(in srgb, var(--theme-danger) 12%, var(--theme-surface-container))
+  );
   --theme-surface-hint-soft: var(--surface-orange-050);
 
   /* Theme tokens: text */
@@ -205,19 +230,19 @@
   --theme-border-strong: var(--neutral-175);
 
   /* Theme tokens: interactive and feedback */
-  --theme-accent-primary: var(--brand-primary);
-  --theme-accent-primary-hover: var(--brand-primary-hover);
+  --theme-accent-primary: var(--theme-quick-primary, var(--brand-primary));
+  --theme-accent-primary-hover: var(--theme-quick-primary-hover, var(--brand-primary-hover));
   --theme-accent-primary-soft: var(--brand-primary-soft);
   --theme-accent-primary-strong: var(--brand-primary-strong);
   --theme-accent-secondary: var(--brand-indigo);
 
-  --theme-success: var(--brand-success);
+  --theme-success: var(--theme-quick-success, var(--brand-success));
   --theme-success-strong: var(--brand-success-strong);
   --theme-success-emerald: var(--brand-success-emerald);
   --theme-success-soft: var(--brand-success-soft);
-  --theme-success-accent: var(--brand-success-accent);
+  --theme-success-accent: var(--theme-quick-success, var(--brand-success-accent));
 
-  --theme-warning: var(--brand-warning);
+  --theme-warning: var(--theme-quick-warning, var(--brand-warning));
   --theme-warning-soft: var(--brand-warning-soft);
   --theme-warning-gold: var(--brand-warning-gold);
   --theme-warning-deep: var(--brand-warning-deep);
@@ -226,7 +251,7 @@
   --theme-bronze: var(--brand-bronze);
   --theme-bronze-muted: var(--brand-bronze-muted);
 
-  --theme-danger: var(--brand-danger);
+  --theme-danger: var(--theme-quick-danger, var(--brand-danger));
   --theme-danger-hover: var(--brand-danger-hover);
   --theme-danger-strong: var(--brand-danger-strong);
   --theme-danger-soft: var(--brand-danger-soft);
@@ -246,13 +271,34 @@
   --theme-success-panel-border-strong: var(--border-green-300);
   --theme-success-panel-border-bright: var(--border-green-400);
 
-  --theme-current-highlight-bg: var(--theme-success-panel-bg);
-  --theme-current-highlight-bg-alt: var(--theme-success-panel-bg-alt);
-  --theme-current-highlight-bg-strong: var(--theme-success-panel-bg-strong);
-  --theme-current-highlight-border-soft: var(--theme-success-panel-border-soft);
-  --theme-current-highlight-border: var(--theme-success-panel-border-strong);
-  --theme-current-highlight-accent: var(--theme-success-accent);
-  --theme-current-highlight-muted: var(--neutral-175);
+  --theme-current-highlight-accent: var(
+    --theme-quick-highlight-accent,
+    var(--theme-success-accent)
+  );
+  --theme-current-highlight-bg: var(
+    --theme-quick-highlight-bg,
+    color-mix(in srgb, var(--theme-current-highlight-accent) 12%, var(--theme-surface-card))
+  );
+  --theme-current-highlight-bg-alt: var(
+    --theme-quick-highlight-bg-alt,
+    color-mix(in srgb, var(--theme-current-highlight-accent) 7%, var(--theme-surface-container))
+  );
+  --theme-current-highlight-bg-strong: var(
+    --theme-quick-highlight-bg-strong,
+    color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-surface-card))
+  );
+  --theme-current-highlight-border-soft: var(
+    --theme-quick-highlight-border-soft,
+    color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-border-subtle))
+  );
+  --theme-current-highlight-border: var(
+    --theme-quick-highlight-border,
+    color-mix(in srgb, var(--theme-current-highlight-accent) 30%, var(--theme-border-default))
+  );
+  --theme-current-highlight-muted: var(
+    --theme-quick-highlight-muted,
+    color-mix(in srgb, var(--theme-current-highlight-accent) 45%, var(--theme-text-muted))
+  );
 
   --theme-warning-panel-bg: var(--surface-orange-100);
   --theme-warning-panel-border: var(--border-orange-100);
@@ -336,13 +382,36 @@
   --component-speaking-bar-hover-bg: var(--theme-current-highlight-bg);
 
   --component-header-title-hover: var(--theme-current-highlight-accent);
+  --component-header-station-bg: var(--theme-current-highlight-bg);
   --component-header-station-text: var(--theme-current-highlight-accent);
+  --component-header-station-hover-bg: var(--theme-current-highlight-bg-strong);
   --component-header-station-hover-border: var(--theme-current-highlight-border);
   --component-header-nav-hover-text: var(--theme-current-highlight-accent);
   --component-header-nav-active-text: var(--theme-current-highlight-accent);
   --component-header-nav-active-indicator: var(--theme-current-highlight-accent);
   --component-header-action-hover-text: var(--theme-current-highlight-accent);
   --component-mobile-nav-active-text: var(--theme-current-highlight-accent);
+
+  --component-logs-table-header-bg: var(--theme-surface-subtle);
+  --component-logs-table-header-text: var(--theme-text-secondary);
+  --component-logs-table-header-border: var(--theme-border-default);
+  --component-logs-index-bg: var(--theme-surface-striped);
+  --component-logs-index-today-bg: var(--theme-current-highlight-bg-strong);
+  --component-logs-index-today-neutral-bg: var(--theme-current-highlight-bg);
+  --component-logs-index-rank-1-bg: var(--theme-rank-gold-bg);
+  --component-logs-index-rank-2-bg: var(--theme-rank-silver-bg);
+  --component-logs-index-rank-3-bg: var(--theme-rank-bronze-bg);
+
+  --component-record-card-bg: var(--theme-surface-subtle);
+  --component-record-card-border: var(--theme-border-subtle);
+  --component-record-card-label-text: var(--theme-text-muted);
+  --component-record-card-value-text: var(--theme-text-primary);
+  --component-record-card-address-text: var(--theme-text-muted);
+  --component-record-card-count-text: var(--theme-text-muted);
+  --component-record-card-today-bg: var(--theme-current-highlight-bg);
+  --component-record-card-today-border: var(--theme-current-highlight-border);
+  --component-record-card-highlight-outline: var(--theme-accent-primary);
+  --component-speaking-history-uncontacted-text: var(--neutral-175);
 
   --component-more-icon-bg: var(--status-success-bg-strong);
   --component-more-icon-text: var(--theme-current-highlight-accent);
@@ -556,12 +625,12 @@
   --border-today-row: var(--theme-current-highlight-border-soft);
   --border-today-card: var(--theme-current-highlight-border);
   --color-today-accent: var(--theme-current-highlight-accent);
-  --color-today-uncontacted: var(--theme-current-highlight-muted);
+  --color-today-uncontacted: var(--component-speaking-history-uncontacted-text);
   --bg-rank-1: var(--theme-rank-gold-bg);
   --bg-rank-2: var(--theme-rank-silver-bg);
   --bg-rank-3: var(--theme-rank-bronze-bg);
-  --bg-record-card: var(--neutral-020);
-  --border-record-card: var(--neutral-150);
+  --bg-record-card: var(--component-record-card-bg);
+  --border-record-card: var(--component-record-card-border);
 
   --shadow-card: var(--theme-shadow-card);
   --shadow-modal: var(--theme-shadow-modal);
