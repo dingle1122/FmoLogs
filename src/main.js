@@ -8,6 +8,7 @@ import { useLocationStore } from './stores/locationStore'
 import { getPlatform } from './platform'
 import { applySafeAreaInsets } from './platform/native-capacitor/SystemUiService.native'
 import { applyViewportCssVars } from './utils/viewport'
+import { checkAndroidUpdateDaily } from './services/updateService'
 import './style.css'
 
 // 兼容旧版 Android Chrome：浏览器栏显隐时，100vh/100dvh 不稳定。
@@ -48,3 +49,4 @@ app.mount('#app')
 // 冷启动自动恢复定位上报（如果之前已开启）
 const locationStore = useLocationStore()
 locationStore.init()
+checkAndroidUpdateDaily()

@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FmoGridPlugin.class);
         registerPlugin(FmoSystemUiPlugin.class);
         registerPlugin(FmoLocationPlugin.class);
+        registerPlugin(FmoUpdaterPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Keep H5 text metrics stable across OEM WebView variants such as foldables.

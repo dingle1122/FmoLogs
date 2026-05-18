@@ -2,7 +2,7 @@
   "name": "fmologs",
   "private": true,
   "license": "MIT",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,7 +17,7 @@
     "tauri:build": "tauri build",
     "cap:sync": "cap sync",
     "cap:android": "cap open android",
-    "cap:build": "npm run build && cap sync",
+    "cap:build": "bash scripts/build-web-with-update-env.sh && cap sync",
     "android:deploy": "bash scripts/android-deploy.sh",
     "android:deploy:log": "bash scripts/android-deploy.sh --logcat",
     "typecheck": "vue-tsc --noEmit"

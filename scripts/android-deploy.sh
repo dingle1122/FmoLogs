@@ -87,7 +87,7 @@ fi
 
 # ---- Step 2: 构建前端 ----
 step "构建 web 前端 (vite build)"
-npm run build || fail "前端构建失败"
+bash scripts/build-web-with-update-env.sh || fail "前端构建失败"
 ok "前端构建完成 → dist/"
 
 # ---- Step 3: 同步到 Android ----

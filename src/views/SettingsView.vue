@@ -228,6 +228,16 @@
           </div>
         </div>
 
+        <!-- 应用更新 -->
+        <div v-if="androidUpdateEnabled" class="setting-group-update">
+          <div class="setting-group-title">应用更新</div>
+          <div class="setting-item-data-row">
+            <button class="btn-secondary" :disabled="checkingUpdate" @click="handleCheckUpdate">
+              {{ checkingUpdate ? '正在检查...' : '检查更新' }}
+            </button>
+          </div>
+        </div>
+
         <!-- 数据管理 -->
         <div class="setting-group-data">
           <div class="setting-item-data-header">
@@ -352,6 +362,7 @@ import { normalizeHost } from '../utils/urlUtils'
 import confirmDialog from '../composables/useConfirm'
 import { clearGridCache } from '../services/gridService'
 import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
+import { checkForAndroidUpdate, isAndroidUpdateEnabled } from '../services/updateService'
 
 const props = defineProps({
   dbLoaded: {
@@ -424,6 +435,8 @@ const emit = defineEmits([
 
 const connectingId = ref(null)
 const refreshingId = ref(null)
+const checkingUpdate = ref(false)
+const androidUpdateEnabled = isAndroidUpdateEnabled()
 
 // 同步天数选择
 const syncDays = ref(1)
@@ -774,6 +787,16 @@ async function handleClearGridCache() {
   }
 }
 
+async function handleCheckUpdate() {
+  if (checkingUpdate.value) return
+  checkingUpdate.value = true
+  try {
+    await checkForAndroidUpdate()
+  } finally {
+    checkingUpdate.value = false
+  }
+}
+
 async function handleRefreshUserInfo(id) {
   refreshingId.value = id
   emit('refresh-user-info', id, () => {
@@ -965,6 +988,12 @@ function handleVolumeChange(e) {
 }
 
 .setting-group-audio {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-light);
+}
+
+.setting-group-update {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-light);

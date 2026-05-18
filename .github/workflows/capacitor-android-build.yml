@@ -50,6 +50,8 @@ jobs:
         run: npm install
 
       - name: Build frontend
+        env:
+          VITE_ANDROID_UPDATE_MANIFEST_URL: ${{ vars.VITE_ANDROID_UPDATE_MANIFEST_URL || format('{0}/{1}/latest.json', vars.QINIU_PUBLIC_BASE_URL, vars.QINIU_RELEASE_PREFIX) }}
         run: npm run build
 
       - name: Sync Capacitor Android
