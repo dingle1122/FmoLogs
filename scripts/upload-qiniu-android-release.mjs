@@ -120,9 +120,10 @@ async function main() {
   const versionName = process.env.VERSION_NAME?.trim() || packageJson.version
   const versionCode = Number(process.env.VERSION_CODE || getVersionCode(versionName))
   const apkFileName = path.basename(apkPath)
-  const apkKey = `${releasePrefix}/${apkFileName}`
+  const versionDir = `v${versionName}`
+  const apkKey = `${releasePrefix}/${versionDir}/${apkFileName}`
   const manifestKey = `${releasePrefix}/latest.json`
-  const versionManifestKey = `${releasePrefix}/v${versionName}.json`
+  const versionManifestKey = `${releasePrefix}/${versionDir}/latest.json`
   const sha256 = getSha256(apkPath)
   const apkUrl = joinUrl(publicBaseUrl, apkKey)
 
