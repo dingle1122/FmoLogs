@@ -10,7 +10,7 @@ on:
   push:
     branches:
       - main
-      # - develop
+      - develop
     tags:
       - 'v*'
 
@@ -106,16 +106,41 @@ jobs:
           fi
 
       - name: Rename APK with version
+        id: apk
         run: |
           VERSION=$(node -p "require('./package.json').version")
+          VERSION_CODE=$(node -e "const v=require('./package.json').version.replace(/[^0-9.].*$/,'').split('.').map(Number); console.log((v[0]||0)*10000+(v[1]||0)*100+(v[2]||0))")
           mkdir -p apk-output
-          if [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
-            cp "android/app/build/outputs/apk/release/app-release-unsigned.apk" "apk-output/FmoLogs-v${VERSION}-android.apk"
-          elif [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
+          if [ -f "android/app/build/outputs/apk/release/app-release.apk" ]; then
             cp "android/app/build/outputs/apk/release/app-release.apk" "apk-output/FmoLogs-v${VERSION}-android.apk"
+            APK_PATH="apk-output/FmoLogs-v${VERSION}-android.apk"
+          elif [ -f "android/app/build/outputs/apk/release/app-release-unsigned.apk" ]; then
+            cp "android/app/build/outputs/apk/release/app-release-unsigned.apk" "apk-output/FmoLogs-v${VERSION}-android.apk"
+            APK_PATH="apk-output/FmoLogs-v${VERSION}-android.apk"
           elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp "android/app/build/outputs/apk/debug/app-debug.apk" "apk-output/FmoLogs-v${VERSION}-android-debug.apk"
+            APK_PATH="apk-output/FmoLogs-v${VERSION}-android-debug.apk"
+          else
+            echo "No APK found"
+            exit 1
           fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          echo "apk_path=${APK_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK and update manifest to Qiniu
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
+          QINIU_BUCKET: ${{ vars.QINIU_BUCKET }}
+          QINIU_REGION: ${{ vars.QINIU_REGION }}
+          QINIU_PUBLIC_BASE_URL: ${{ vars.QINIU_PUBLIC_BASE_URL }}
+          QINIU_RELEASE_PREFIX: ${{ vars.QINIU_RELEASE_PREFIX }}
+          APK_PATH: ${{ steps.apk.outputs.apk_path }}
+          VERSION_NAME: ${{ steps.apk.outputs.version }}
+          VERSION_CODE: ${{ steps.apk.outputs.version_code }}
+        run: node scripts/upload-qiniu-android-release.mjs
 
       - name: Upload APK to GitHub Release
         uses: softprops/action-gh-release@v2
