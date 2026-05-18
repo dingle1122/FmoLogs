@@ -208,7 +208,7 @@ async function main() {
   const versionDir = `v${versionName}`
   const apkKey = `${releasePrefix}/${versionDir}/${apkFileName}`
   const manifestKey = `${releasePrefix}/latest.json`
-  const versionManifestKey = `${releasePrefix}/${versionDir}/latest.json`
+  const versionManifestKey = `${releasePrefix}/${versionDir}/version.json`
   const sha256 = getSha256(apkPath)
   const apkUrl = joinUrl(publicBaseUrl, apkKey)
 
@@ -237,6 +237,7 @@ async function main() {
   }
 
   console.log(`Android update manifest: ${joinUrl(publicBaseUrl, manifestKey)}`)
+  console.log(`Android version manifest: ${joinUrl(publicBaseUrl, versionManifestKey)}`)
   console.log(`Android APK: ${apkUrl}`)
 }
 
