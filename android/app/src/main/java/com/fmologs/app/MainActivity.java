@@ -23,4 +23,5 @@ public class MainActivity extends BridgeActivity {
             webSettings.setTextZoom(100);
         }
     }
+
 }

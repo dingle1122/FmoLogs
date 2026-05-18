@@ -76,9 +76,19 @@ function getSha256(filePath) {
   return hash.digest('hex')
 }
 
-function getMultipartMeta({ uploadToken, key, filePath, boundary }) {
+function getMultipartMeta({ uploadToken, key, filePath, boundary, extraFields = {} }) {
   const fileName = path.basename(filePath)
   const fileSize = fs.statSync(filePath).size
+  const extraFieldsText = Object.entries(extraFields)
+    .filter(([, value]) => value != null && value !== '')
+    .map(
+      ([name, value]) =>
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="${name}"\r\n\r\n` +
+        `${value}\r\n`
+    )
+    .join('')
+
   const header = Buffer.from(
     `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="token"\r\n\r\n` +
@@ -86,6 +96,7 @@ function getMultipartMeta({ uploadToken, key, filePath, boundary }) {
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="key"\r\n\r\n` +
       `${key}\r\n` +
+      extraFieldsText +
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
       `Content-Type: application/octet-stream\r\n\r\n`
@@ -99,7 +110,7 @@ function getMultipartMeta({ uploadToken, key, filePath, boundary }) {
   }
 }
 
-function uploadFileOnce({ uploadHost, uploadToken, key, filePath }) {
+function uploadFileOnce({ uploadHost, uploadToken, key, filePath, extraFields }) {
   return new Promise((resolve, reject) => {
     const url = new URL(uploadHost)
     const boundary = `----FmoLogsQiniu${crypto.randomBytes(12).toString('hex')}`
@@ -107,7 +118,8 @@ function uploadFileOnce({ uploadHost, uploadToken, key, filePath }) {
       uploadToken,
       key,
       filePath,
-      boundary
+      boundary,
+      extraFields
     })
     const client = url.protocol === 'http:' ? http : https
 
@@ -156,7 +168,7 @@ function uploadFileOnce({ uploadHost, uploadToken, key, filePath }) {
   })
 }
 
-async function uploadFile({ uploadHost, uploadToken, key, filePath }) {
+async function uploadFile({ uploadHost, uploadToken, key, filePath, extraFields }) {
   let lastError
 
   for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt += 1) {
@@ -164,7 +176,7 @@ async function uploadFile({ uploadHost, uploadToken, key, filePath }) {
       if (attempt > 1) {
         console.log(`Retry upload ${key} (${attempt}/${UPLOAD_RETRIES})`)
       }
-      return await uploadFileOnce({ uploadHost, uploadToken, key, filePath })
+      return await uploadFileOnce({ uploadHost, uploadToken, key, filePath, extraFields })
     } catch (err) {
       lastError = err
       if (attempt === UPLOAD_RETRIES) break
@@ -226,13 +238,22 @@ async function main() {
   const manifestPath = path.join(path.dirname(apkPath), 'latest.json')
   fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 
-  for (const [key, filePath] of [
-    [apkKey, apkPath],
-    [manifestKey, manifestPath],
-    [versionManifestKey, manifestPath]
+  for (const item of [
+    { key: apkKey, filePath: apkPath, extraFields: {} },
+    {
+      key: manifestKey,
+      filePath: manifestPath,
+      extraFields: { cacheControl: 'no-cache, no-store, max-age=0, must-revalidate' }
+    },
+    {
+      key: versionManifestKey,
+      filePath: manifestPath,
+      extraFields: { cacheControl: 'no-cache, no-store, max-age=0, must-revalidate' }
+    }
   ]) {
+    const { key, filePath, extraFields } = item
     const uploadToken = getUploadToken({ accessKey, secretKey, bucket, key })
-    await uploadFile({ uploadHost, uploadToken, key, filePath })
+    await uploadFile({ uploadHost, uploadToken, key, filePath, extraFields })
     console.log(`Uploaded ${key}`)
   }
 

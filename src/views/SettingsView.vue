@@ -231,9 +231,27 @@
         <!-- 应用更新 -->
         <div v-if="androidUpdateEnabled" class="setting-group-update">
           <div class="setting-group-title">应用更新</div>
+          <div v-if="updateVisible" class="update-progress-card">
+            <div class="update-progress-header">
+              <div class="update-progress-title">{{ updateTitle }}</div>
+              <div class="update-progress-status">{{ updateStatusText }}</div>
+            </div>
+            <div class="update-progress-subtitle">{{ updateMessage }}</div>
+            <div class="update-progress-bar">
+              <div class="update-progress-bar-fill" :style="{ width: `${updatePercent}%` }"></div>
+            </div>
+            <div class="update-progress-meta">
+              <span>{{ updatePercent }}%</span>
+              <span>{{ updateBytesText }}</span>
+            </div>
+          </div>
           <div class="setting-item-data-row">
-            <button class="btn-secondary" :disabled="checkingUpdate" @click="handleCheckUpdate">
-              {{ checkingUpdate ? '正在检查...' : '检查更新' }}
+            <button
+              class="btn-secondary"
+              :disabled="checkingUpdate && !isUpdateDownloading()"
+              @click="handleCheckUpdate"
+            >
+              {{ updateButtonText }}
             </button>
           </div>
         </div>
@@ -362,7 +380,16 @@ import { normalizeHost } from '../utils/urlUtils'
 import confirmDialog from '../composables/useConfirm'
 import { clearGridCache } from '../services/gridService'
 import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
-import { checkForAndroidUpdate, isAndroidUpdateEnabled } from '../services/updateService'
+import {
+  cancelAndroidUpdate,
+  checkForAndroidUpdate,
+  getUpdateProgressText,
+  isAndroidUpdateEnabled,
+  isUpdateDownloading,
+  installDownloadedAndroidUpdate,
+  resetUpdateState,
+  updateState
+} from '../services/updateService'
 
 const props = defineProps({
   dbLoaded: {
@@ -437,6 +464,26 @@ const connectingId = ref(null)
 const refreshingId = ref(null)
 const checkingUpdate = ref(false)
 const androidUpdateEnabled = isAndroidUpdateEnabled()
+const updateButtonText = computed(() =>
+  isUpdateDownloading()
+    ? '停止更新'
+    : updateState.downloadable
+      ? '点击更新'
+      : checkingUpdate.value
+        ? '正在检查...'
+        : '检查更新'
+)
+const updateVisible = computed(() => updateState.visible)
+const updateTitle = computed(() => updateState.title || '应用更新')
+const updateMessage = computed(() => updateState.message || '')
+const updatePercent = computed(() => updateState.percent || 0)
+const updateStatusText = computed(() => {
+  if (updateState.downloadable) return '已下载'
+  if (updateState.phase === 'installing') return '正在安装'
+  if (updateState.phase === 'downloading') return '正在下载'
+  return '待开始'
+})
+const updateBytesText = computed(() => getUpdateProgressText())
 
 // 同步天数选择
 const syncDays = ref(1)
@@ -788,9 +835,19 @@ async function handleClearGridCache() {
 }
 
 async function handleCheckUpdate() {
+  if (isUpdateDownloading()) {
+    await cancelAndroidUpdate()
+    checkingUpdate.value = false
+    return
+  }
+  if (updateState.downloadable) {
+    await installDownloadedAndroidUpdate()
+    return
+  }
   if (checkingUpdate.value) return
   checkingUpdate.value = true
   try {
+    resetUpdateState()
     await checkForAndroidUpdate()
   } finally {
     checkingUpdate.value = false
@@ -997,6 +1054,61 @@ function handleVolumeChange(e) {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-light);
+}
+
+.update-progress-card {
+  margin-bottom: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-container);
+}
+
+.update-progress-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.update-progress-title {
+  font-weight: 600;
+}
+
+.update-progress-status {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.update-progress-subtitle {
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.update-progress-bar {
+  margin-top: 0.75rem;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border-light);
+  overflow: hidden;
+}
+
+.update-progress-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-primary-hover));
+  transition: width 0.2s ease;
+}
+
+.update-progress-meta {
+  margin-top: 0.45rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
 }
 
 .setting-group-title {

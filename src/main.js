@@ -8,7 +8,7 @@ import { useLocationStore } from './stores/locationStore'
 import { getPlatform } from './platform'
 import { applySafeAreaInsets } from './platform/native-capacitor/SystemUiService.native'
 import { applyViewportCssVars } from './utils/viewport'
-import { checkAndroidUpdateDaily } from './services/updateService'
+import { checkAndroidUpdateDaily, installDownloadedAndroidUpdate } from './services/updateService'
 import './style.css'
 
 // 兼容旧版 Android Chrome：浏览器栏显隐时，100vh/100dvh 不稳定。
@@ -37,6 +37,8 @@ if (Capacitor.isNativePlatform()) {
       const url = new URL(data.url)
       if (url.host === 'location-report') {
         router.push('/location-report')
+      } else if (url.host === 'update-install') {
+        installDownloadedAndroidUpdate()
       }
     } catch {
       /* ignore invalid URL */
