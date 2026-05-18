@@ -52,8 +52,15 @@
                             ? 'is-contacted'
                             : 'is-uncontacted'
                         "
-                        >{{ todayContactedCallsigns.has(record.callsign) ? '&#11088;' : '&#9733;' }}</span
                       >
+                        <img
+                          v-if="todayContactedCallsigns.has(record.callsign)"
+                          class="today-star-icon"
+                          src="/img/star_2b50.png"
+                          alt="今日已通联"
+                        />
+                        <template v-else>&#9733;</template>
+                      </span>
                     </span>
                     <span
                       v-if="record.callsign !== selectedFromCallsign"
@@ -412,7 +419,7 @@ defineEmits([
   text-overflow: ellipsis;
 }
 
-/* 徽章区域：固定宽度 0.8em（≈1.28rem），保证"您"/⭐徽章位置一致，防止后续元素偏移 */
+/* 徽章区域：固定宽度 0.8em（≈1.28rem），保证"您"/星标徽章位置一致，防止后续元素偏移 */
 .callsign-badge {
   display: inline-flex;
   align-items: center;
@@ -443,11 +450,20 @@ defineEmits([
   line-height: 1;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
 .today-star.is-contacted {
-  font-size: 0.9em;
+  width: 1em;
+  height: 1em;
+}
+
+.today-star-icon {
+  display: block;
+  width: 0.95em;
+  height: 0.95em;
+  object-fit: contain;
 }
 
 .today-star.is-uncontacted {

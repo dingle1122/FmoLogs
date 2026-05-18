@@ -5,7 +5,10 @@
       <span class="header-divider"></span>
       <h1 class="header-title" @click="$emit('open-nav-menu')">FMO 日志查看器</h1>
       <span class="total-logs">
-        <strong>&#11088; {{ todayLogs }}/{{ totalLogs }}</strong>
+        <strong>
+          <img class="total-logs-star" src="/img/star_2b50.png" alt="今日日志" />
+          {{ todayLogs }}/{{ totalLogs }}
+        </strong>
         <template v-if="uniqueCallsigns > 0">
           <span class="unique-count">({{ uniqueCallsigns }}人)</span>
         </template>
@@ -150,7 +153,17 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 }
 
 .total-logs strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
   font-weight: 600;
+}
+
+.total-logs-star {
+  display: block;
+  width: 1.3em;
+  height: 1.3em;
+  object-fit: contain;
 }
 
 .unique-count {
