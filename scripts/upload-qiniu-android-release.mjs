@@ -1,5 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
+import http from 'node:http'
+import https from 'node:https'
 import path from 'node:path'
 
 const REQUIRED_ENV = [
@@ -20,6 +22,9 @@ const UPLOAD_HOSTS = {
   as0: 'https://upload-as0.qiniup.com',
   'cn-east-2': 'https://upload-cn-east-2.qiniup.com'
 }
+
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000
+const UPLOAD_RETRIES = 3
 
 function requireEnv(name) {
   const value = process.env[name]?.trim()
@@ -71,23 +76,103 @@ function getSha256(filePath) {
   return hash.digest('hex')
 }
 
-async function uploadFile({ uploadHost, uploadToken, key, filePath }) {
-  const form = new FormData()
-  form.set('token', uploadToken)
-  form.set('key', key)
-  form.set('file', new Blob([fs.readFileSync(filePath)]), path.basename(filePath))
+function getMultipartMeta({ uploadToken, key, filePath, boundary }) {
+  const fileName = path.basename(filePath)
+  const fileSize = fs.statSync(filePath).size
+  const header = Buffer.from(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="token"\r\n\r\n` +
+      `${uploadToken}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="key"\r\n\r\n` +
+      `${key}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${fileName}"\r\n` +
+      `Content-Type: application/octet-stream\r\n\r\n`
+  )
+  const footer = Buffer.from(`\r\n--${boundary}--\r\n`)
 
-  const response = await fetch(uploadHost, {
-    method: 'POST',
-    body: form
+  return {
+    header,
+    footer,
+    contentLength: header.length + fileSize + footer.length
+  }
+}
+
+function uploadFileOnce({ uploadHost, uploadToken, key, filePath }) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(uploadHost)
+    const boundary = `----FmoLogsQiniu${crypto.randomBytes(12).toString('hex')}`
+    const { header, footer, contentLength } = getMultipartMeta({
+      uploadToken,
+      key,
+      filePath,
+      boundary
+    })
+    const client = url.protocol === 'http:' ? http : https
+
+    const req = client.request(
+      {
+        method: 'POST',
+        protocol: url.protocol,
+        hostname: url.hostname,
+        port: url.port || undefined,
+        path: `${url.pathname}${url.search}`,
+        headers: {
+          'Content-Type': `multipart/form-data; boundary=${boundary}`,
+          'Content-Length': contentLength
+        },
+        timeout: UPLOAD_TIMEOUT_MS
+      },
+      (res) => {
+        const chunks = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8')
+          if (res.statusCode < 200 || res.statusCode >= 300) {
+            reject(new Error(`Qiniu upload failed for ${key}: ${res.statusCode} ${text}`))
+            return
+          }
+
+          try {
+            resolve(text ? JSON.parse(text) : {})
+          } catch (err) {
+            reject(new Error(`Qiniu upload returned invalid JSON for ${key}: ${text}`))
+          }
+        })
+      }
+    )
+
+    req.on('timeout', () => {
+      req.destroy(new Error(`Qiniu upload timeout for ${key}`))
+    })
+    req.on('error', reject)
+
+    req.write(header)
+    const fileStream = fs.createReadStream(filePath)
+    fileStream.on('error', (err) => req.destroy(err))
+    fileStream.on('end', () => req.end(footer))
+    fileStream.pipe(req, { end: false })
   })
+}
 
-  const text = await response.text()
-  if (!response.ok) {
-    throw new Error(`Qiniu upload failed for ${key}: ${response.status} ${text}`)
+async function uploadFile({ uploadHost, uploadToken, key, filePath }) {
+  let lastError
+
+  for (let attempt = 1; attempt <= UPLOAD_RETRIES; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        console.log(`Retry upload ${key} (${attempt}/${UPLOAD_RETRIES})`)
+      }
+      return await uploadFileOnce({ uploadHost, uploadToken, key, filePath })
+    } catch (err) {
+      lastError = err
+      if (attempt === UPLOAD_RETRIES) break
+      await new Promise((resolve) => setTimeout(resolve, attempt * 3000))
+    }
   }
 
-  return text ? JSON.parse(text) : {}
+  throw lastError
 }
 
 async function main() {
