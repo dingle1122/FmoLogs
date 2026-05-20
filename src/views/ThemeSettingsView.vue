@@ -11,10 +11,7 @@
       </div>
 
       <div class="theme-toolbar">
-        <button class="btn-add" @click="triggerThemeUpload">
-          <span class="text-desktop">+ 上传主题</span>
-          <span class="text-mobile">上传</span>
-        </button>
+        <button class="btn-add" @click="triggerThemeUpload">+ 上传主题</button>
         <button class="btn-secondary" @click="toggleThemeExample">
           {{ showThemeExample ? '隐藏示例' : '查看示例' }}
         </button>
@@ -913,10 +910,6 @@ onUnmounted(() => {
   display: none;
 }
 
-.text-mobile {
-  display: none;
-}
-
 @media (max-width: 768px) {
   .theme-settings-view {
     padding: 0.875rem;
@@ -962,13 +955,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .text-desktop {
-    display: none;
-  }
-
-  .text-mobile {
-    display: inline;
-  }
 }
 
 @media (max-width: 520px) {
