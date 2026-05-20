@@ -208,10 +208,6 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   min-width: 0;
 }
 
-:deep(.marquee-content) {
-  font-weight: 500;
-}
-
 .callsign-icon {
   font-size: 1.2rem;
 }

@@ -104,7 +104,6 @@ function handleOpenList() {
 }
 
 .station-name {
-  font-weight: 600;
   font-size: 1.1rem;
   color: var(--text-primary);
   white-space: nowrap;

@@ -8,24 +8,16 @@
             上传主题后可以随时切换，也可以先下载示例改一改再上传。主色建议只用于按钮、强调和选中态，日志正文等内容请保持黑白中性色。
           </p>
         </div>
-        <div class="theme-header-actions">
-          <button class="btn-secondary" @click="toggleThemeExample">
-            {{ showThemeExample ? '隐藏示例' : '看示例' }}
-          </button>
-          <button class="btn-add" @click="triggerThemeUpload">
-            <span class="text-desktop">+ 上传主题</span>
-            <span class="text-mobile">上传</span>
-          </button>
-        </div>
       </div>
 
       <div class="theme-toolbar">
-        <input
-          v-model.trim="newThemeName"
-          type="text"
-          class="theme-name-input"
-          placeholder="输入主题名称"
-        />
+        <button class="btn-add" @click="triggerThemeUpload">
+          <span class="text-desktop">+ 上传主题</span>
+          <span class="text-mobile">上传</span>
+        </button>
+        <button class="btn-secondary" @click="toggleThemeExample">
+          {{ showThemeExample ? '隐藏示例' : '查看示例' }}
+        </button>
         <button class="btn-ghost" @click="downloadSampleTheme">下载示例</button>
         <button class="btn-ghost" @click="copySampleTheme">
           {{ sampleCopied ? '已复制' : '复制示例' }}
@@ -46,7 +38,7 @@
       <div v-if="showThemeExample" class="theme-example-panel">
         <div class="theme-example-header">
           <span class="theme-example-title">示例主题</span>
-          <span class="theme-example-caption">下载后改一改，再上传就能用。不要把日志正文文字批量改成主色。</span>
+          <span class="theme-example-caption">下载后改一改，再上传就能用。</span>
         </div>
         <pre class="theme-example-code"><code>{{ THEME_SAMPLE_CSS }}</code></pre>
       </div>
@@ -108,8 +100,6 @@
                     </button>
                   </div>
                 </template>
-                <span v-if="theme.builtin" class="theme-badge theme-badge-default">内置</span>
-                <span v-else class="theme-badge theme-badge-custom">自定义</span>
                 <span v-if="theme.id === activeThemeId" class="theme-badge theme-badge-active"
                   >当前使用</span
                 >
@@ -119,11 +109,13 @@
               </div>
             </div>
 
-            <p class="theme-card-desc">
-              {{
-                theme.builtin ? '使用默认主题。' : '这是你上传的自定义主题。'
-              }}
-            </p>
+            <iframe
+              class="theme-preview"
+              :srcdoc="buildThemePreviewSrcdoc(theme)"
+              title="主题预览"
+              tabindex="-1"
+              aria-hidden="true"
+            ></iframe>
           </div>
 
           <div class="theme-card-actions">
@@ -169,6 +161,7 @@ import { ref, reactive, onUnmounted, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import confirmDialog from '../composables/useConfirm'
 import { useSettingsStore } from '../stores/settingsStore'
+import themeBaseCss from '../styles/colors.css?raw'
 import {
   DEFAULT_THEME_ID,
   THEME_SAMPLE_CSS,
@@ -184,10 +177,179 @@ const showThemeExample = ref(false)
 const themeStatusMessage = ref('')
 const themeStatusType = ref('info')
 const sampleCopied = ref(false)
-const newThemeName = ref('')
 const themeNameDrafts = reactive({})
 const editingThemeId = ref('')
 let sampleCopiedTimer = null
+
+const THEME_PREVIEW_MARKUP = `
+  <div class="preview-shell">
+    <div class="preview-header">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+    <div class="preview-body">
+      <div class="preview-sidebar">
+        <span class="active"></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="preview-panel">
+        <div class="preview-title"></div>
+        <div class="preview-row strong"></div>
+        <div class="preview-row"></div>
+        <div class="preview-controls">
+          <span class="preview-input"></span>
+          <span class="preview-button"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+`
+
+const THEME_PREVIEW_CSS = `
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: var(--bg-page);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  .preview-shell {
+    overflow: hidden;
+    width: 100%;
+    min-height: 100vh;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-page);
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.28rem;
+    height: 1.55rem;
+    padding: 0 0.55rem;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .preview-header span {
+    width: 0.36rem;
+    height: 0.36rem;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    opacity: 0.55;
+  }
+
+  .preview-body {
+    display: grid;
+    grid-template-columns: 3.4rem minmax(0, 1fr);
+    gap: 0.55rem;
+    padding: 0.55rem;
+    min-height: 6.25rem;
+  }
+
+  .preview-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.38rem;
+    padding: 0.45rem;
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    background: var(--bg-container);
+  }
+
+  .preview-sidebar span {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--text-tertiary);
+    opacity: 0.38;
+  }
+
+  .preview-sidebar span.active {
+    background: var(--color-today-accent);
+    opacity: 1;
+  }
+
+  .preview-panel {
+    padding: 0.55rem;
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    background: var(--bg-card);
+  }
+
+  .preview-title {
+    width: 42%;
+    height: 0.6rem;
+    margin-bottom: 0.55rem;
+    border-radius: 999px;
+    background: var(--text-primary);
+    opacity: 0.82;
+  }
+
+  .preview-row {
+    height: 0.48rem;
+    margin-bottom: 0.38rem;
+    border-radius: 999px;
+    background: var(--text-secondary);
+    opacity: 0.32;
+  }
+
+  .preview-row.strong {
+    width: 82%;
+    background: var(--bg-table-hover);
+    border: 1px solid var(--border-secondary);
+    opacity: 1;
+  }
+
+  .preview-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.8rem;
+    gap: 0.45rem;
+    margin-top: 0.6rem;
+  }
+
+  .preview-input,
+  .preview-button {
+    height: 1.25rem;
+    border-radius: 4px;
+  }
+
+  .preview-input {
+    border: 1px solid var(--border-primary);
+    background: var(--bg-input);
+  }
+
+  .preview-button {
+    background: var(--color-primary);
+    box-shadow: inset 0 -1px 0 var(--color-primary-hover);
+  }
+`
+
+function escapeStyleForSrcdoc(cssText = '') {
+  return cssText.replace(/<\/style/gi, '<\\/style')
+}
+
+function buildThemePreviewSrcdoc(theme) {
+  const customThemeCss = theme.builtin ? '' : theme.css
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>${escapeStyleForSrcdoc(themeBaseCss)}</style>
+    <style>${escapeStyleForSrcdoc(customThemeCss)}</style>
+    <style>${THEME_PREVIEW_CSS}</style>
+  </head>
+  <body>${THEME_PREVIEW_MARKUP}</body>
+</html>`
+}
 
 watch(
   themeList,
@@ -293,8 +455,7 @@ async function handleThemeFilesSelected(event) {
   for (const file of files) {
     try {
       const cssText = await file.text()
-      const themeName =
-        files.length === 1 && newThemeName.value ? newThemeName.value : fileNameToThemeName(file.name)
+      const themeName = fileNameToThemeName(file.name)
       const result = await settingsStore.importCustomTheme(themeName, cssText)
       results.push(result)
     } catch {
@@ -323,9 +484,6 @@ async function handleThemeFilesSelected(event) {
   }
 
   input.value = ''
-  if (succeeded.length) {
-    newThemeName.value = ''
-  }
 }
 
 function downloadSampleTheme() {
@@ -393,7 +551,6 @@ onUnmounted(() => {
   line-height: 1.65;
 }
 
-.theme-header-actions,
 .theme-toolbar,
 .theme-card-actions,
 .theme-title-wrap,
@@ -405,32 +562,16 @@ onUnmounted(() => {
 }
 
 .theme-toolbar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 1rem;
   gap: 0.5rem;
 }
 
-.theme-name-input {
-  height: 36px;
-  padding: 0 0.75rem;
-  border: 1px solid var(--border-primary);
-  border-radius: 4px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-  box-sizing: border-box;
+.theme-toolbar > button {
+  width: 100%;
 }
 
-.theme-name-input {
-  min-width: 180px;
-  flex: 1 1 220px;
-}
-
-.theme-name-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.theme-header-actions > button,
 .theme-toolbar > button,
 .theme-card-actions > button {
   min-height: 36px;
@@ -523,7 +664,6 @@ onUnmounted(() => {
   .theme-card:hover {
     transform: translateY(-1px);
     border-color: var(--border-primary);
-    background: var(--bg-table-hover);
   }
 }
 
@@ -572,7 +712,10 @@ onUnmounted(() => {
   cursor: pointer;
   line-height: 1;
   flex: 0 0 auto;
-  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    color 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .theme-card-title {
@@ -595,11 +738,15 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-.theme-card-desc {
-  margin: 0.55rem 0 0;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  font-size: 0.88rem;
+.theme-preview {
+  margin-top: 0.85rem;
+  width: 100%;
+  height: 7.4rem;
+  display: block;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-page);
+  pointer-events: none;
 }
 
 .theme-badge {
@@ -610,19 +757,6 @@ onUnmounted(() => {
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   font-size: 0.72rem;
-  font-weight: 600;
-}
-
-.theme-badge-default {
-  background: var(--status-neutral-bg);
-  color: var(--status-neutral-text);
-  border: 1px solid var(--status-neutral-border);
-}
-
-.theme-badge-custom {
-  background: var(--status-warning-bg);
-  color: var(--status-warning-text-deep);
-  border: 1px solid var(--status-warning-border);
 }
 
 .theme-badge-active {
@@ -793,32 +927,19 @@ onUnmounted(() => {
     flex-direction: column;
   }
 
-  .theme-header-actions,
   .theme-toolbar,
   .theme-card-actions {
     width: 100%;
   }
 
-  .theme-header-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .theme-toolbar {
-    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
   }
 
-  .theme-toolbar .theme-name-input {
-    grid-column: 1 / -1;
-    width: 100%;
-    min-width: 0;
-  }
-
+  .theme-toolbar .btn-secondary,
+  .theme-toolbar .btn-add,
   .theme-toolbar .btn-ghost,
-  .theme-header-actions .btn-secondary,
-  .theme-header-actions .btn-add,
   .theme-card-actions .btn-secondary,
   .theme-card-actions .btn-ghost,
   .theme-card-actions .btn-ghost-danger {
@@ -855,7 +976,6 @@ onUnmounted(() => {
     padding: 0.75rem;
   }
 
-  .theme-header-actions,
   .theme-toolbar,
   .theme-card-actions {
     grid-template-columns: 1fr;
