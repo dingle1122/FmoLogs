@@ -11,7 +11,7 @@
       </div>
 
       <div class="theme-toolbar">
-        <button class="btn-add" @click="triggerThemeUpload">+ 上传主题</button>
+        <button class="btn-add" @click="triggerThemeUpload">上传主题</button>
         <button class="btn-secondary" @click="toggleThemeExample">
           {{ showThemeExample ? '隐藏示例' : '查看示例' }}
         </button>
