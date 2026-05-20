@@ -104,6 +104,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 .header-title {
   margin: 0;
   font-size: 1.1rem;
+  font-weight: 450;
   cursor: pointer;
   transition: color 0.2s;
 }

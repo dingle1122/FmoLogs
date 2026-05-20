@@ -1,11 +1,11 @@
 @import './styles/colors.css';
 @import './styles/theme-overrides.css';
 
-/* 中文字体 - 思源黑体 Source Han Sans SC VF */
+/* 中文字体 - MiSans VF */
 @font-face {
   font-family: 'SourceHanSansSC';
-  src: url('/fonts/SourceHanSansSC-VF.otf.woff2') format('woff2');
-  font-weight: 100 900;
+  src: url('/fonts/MiSansVF-3500.woff2') format('woff2');
+  font-weight: 100 700;
   font-style: normal;
   font-display: swap;
 }

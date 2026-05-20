@@ -1,15 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../views/MainLayout.vue'
-import LogsView from '../views/LogsView.vue'
-import Top20View from '../views/Top20View.vue'
-import OldFriendsView from '../views/OldFriendsView.vue'
-import MessageView from '../views/MessageView.vue'
-import MoreView from '../views/MoreView.vue'
-import RemoteControlView from '../views/RemoteControlView.vue'
-import FriendLinksView from '../views/FriendLinksView.vue'
-import AboutView from '../views/AboutView.vue'
-import SettingsView from '../views/SettingsView.vue'
-import ThemeSettingsView from '../views/ThemeSettingsView.vue'
 import { getPlatform } from '../platform'
 
 const children = [
@@ -20,52 +10,52 @@ const children = [
   {
     path: 'logs',
     name: 'logs',
-    component: LogsView
+    component: () => import('../views/LogsView.vue')
   },
   {
     path: 'top20',
     name: 'top20',
-    component: Top20View
+    component: () => import('../views/Top20View.vue')
   },
   {
     path: 'old-friends',
     name: 'oldFriends',
-    component: OldFriendsView
+    component: () => import('../views/OldFriendsView.vue')
   },
   {
     path: 'messages',
     name: 'messages',
-    component: MessageView
+    component: () => import('../views/MessageView.vue')
   },
   {
     path: 'more',
     name: 'more',
-    component: MoreView
+    component: () => import('../views/MoreView.vue')
   },
   {
     path: 'remote-control',
     name: 'remoteControl',
-    component: RemoteControlView
+    component: () => import('../views/RemoteControlView.vue')
   },
   {
     path: 'friend-links',
     name: 'friendLinks',
-    component: FriendLinksView
+    component: () => import('../views/FriendLinksView.vue')
   },
   {
     path: 'about',
     name: 'about',
-    component: AboutView
+    component: () => import('../views/AboutView.vue')
   },
   {
     path: 'settings',
     name: 'settings',
-    component: SettingsView
+    component: () => import('../views/SettingsView.vue')
   },
   {
     path: 'themes',
     name: 'themes',
-    component: ThemeSettingsView
+    component: () => import('../views/ThemeSettingsView.vue')
   }
 ]
 
