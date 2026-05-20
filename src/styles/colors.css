@@ -38,11 +38,11 @@
   --neutral-020: #f9fafb;
 
   /* Brand palette */
-  --brand-primary: #409eff;
-  --brand-primary-hover: #337ecc;
-  --brand-primary-soft: #66b1ff;
-  --brand-primary-strong: #3b82f6;
-  --brand-indigo: #6366f1;
+  --brand-primary: #4caf50;
+  --brand-primary-hover: #3d8b40;
+  --brand-primary-soft: #81c784;
+  --brand-primary-strong: #2e7d32;
+  --brand-indigo: #2f9e89;
 
   --brand-success: #67c23a;
   --brand-success-strong: #22c55e;
@@ -194,7 +194,7 @@
   --theme-surface-subtle: var(--neutral-040);
   --theme-surface-hover: var(
     --theme-quick-surface-hover,
-    color-mix(in srgb, var(--theme-accent-primary) 10%, var(--theme-surface-container))
+    var(--neutral-040)
   );
   --theme-surface-striped: var(--neutral-030);
   --theme-surface-disabled: var(--neutral-050);
@@ -420,9 +420,12 @@
   --component-more-arrow-hover-text: var(--theme-current-highlight-accent);
 
   --component-page-nav-button-hover-border: var(--theme-current-highlight-border);
-  --component-page-nav-button-hover-text: var(--theme-current-highlight-accent);
   --component-page-nav-button-hover-bg: var(--bg-table-hover);
   --component-page-nav-input-focus-border: var(--theme-current-highlight-accent);
+
+  --component-button-hover-bg: var(--theme-surface-accent-soft);
+  --component-button-hover-border: var(--theme-accent-primary);
+  --component-button-hover-text: var(--theme-accent-primary);
 
   --component-quick-nav-item-hover-border: var(--theme-current-highlight-border);
   --component-quick-nav-item-active-bg: var(--status-success-bg-soft);
@@ -436,11 +439,11 @@
   --component-station-search-focus-border: var(--theme-current-highlight-accent);
   --component-station-refresh-hover-text: var(--theme-current-highlight-accent);
   --component-station-item-hover-border: var(--theme-current-highlight-border);
-  --component-station-item-active-bg: var(--theme-current-highlight-accent);
+  --component-station-item-active-bg: var(--theme-current-highlight-bg);
   --component-station-item-active-border: var(--theme-current-highlight-accent);
-  --component-station-item-active-text: var(--theme-text-inverse);
-  --component-station-item-active-pin-bg: var(--alpha-white-35);
-  --component-station-item-active-pin-text: var(--theme-text-inverse);
+  --component-station-item-active-text: var(--theme-current-highlight-accent);
+  --component-station-item-active-pin-bg: var(--theme-current-highlight-bg-strong);
+  --component-station-item-active-pin-text: var(--theme-current-highlight-accent);
 
   --component-settings-slider-thumb: var(--theme-accent-primary);
   --component-settings-info-text: var(--theme-success);
@@ -589,6 +592,8 @@
   --bg-table-hover: var(--theme-surface-hover);
   --bg-table-stripe: var(--theme-surface-striped);
   --bg-hover: var(--theme-surface-hover);
+  --bg-button-hover: var(--component-button-hover-bg);
+  --text-button-hover: var(--component-button-hover-text);
   --bg-disabled: var(--theme-surface-disabled);
   --bg-success-light: var(--theme-surface-success-soft);
   --bg-warning-light: var(--theme-surface-warning-soft);

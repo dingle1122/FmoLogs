@@ -216,6 +216,16 @@ body::before {
   -webkit-tap-highlight-color: var(--tap-highlight-color);
 }
 
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 500;
+  line-height: 1.2;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -237,8 +247,9 @@ button {
 }
 @media (hover: hover) {
   button:hover {
-    border-color: var(--color-primary);
-    background-color: var(--bg-table-hover);
+    border-color: var(--component-button-hover-border);
+    background-color: var(--bg-button-hover);
+    color: var(--text-button-hover);
   }
 }
 button:focus,

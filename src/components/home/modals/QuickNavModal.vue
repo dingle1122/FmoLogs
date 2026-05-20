@@ -122,7 +122,6 @@ function handleNavClick(_routeItem) {
 @media (hover: hover) {
   .nav-item:hover:not(.disabled) {
     background: var(--bg-table-hover);
-    color: var(--text-primary);
     border-color: var(--component-quick-nav-item-hover-border);
   }
 }

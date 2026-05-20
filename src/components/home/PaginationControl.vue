@@ -153,7 +153,6 @@ function handleJump(event) {
   .page-btn:hover:not(:disabled) {
     background: var(--component-page-nav-button-hover-bg);
     border-color: var(--component-page-nav-button-hover-border);
-    color: var(--component-page-nav-button-hover-text);
   }
 }
 

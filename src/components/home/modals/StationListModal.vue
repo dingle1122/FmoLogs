@@ -280,7 +280,7 @@ function handleSelect(uid) {
   border-radius: 6px;
   cursor: pointer;
   font-size: 1.1rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-secondary);
   transition: all 0.2s;
   text-align: center;
@@ -306,7 +306,6 @@ function handleSelect(uid) {
 @media (hover: hover) {
   .station-item:hover:not(:disabled) {
     background: var(--bg-table-hover);
-    color: var(--text-primary);
     border-color: var(--component-station-item-hover-border);
   }
 }
@@ -320,7 +319,6 @@ function handleSelect(uid) {
 .station-item.active .pin-badge {
   color: var(--component-station-item-active-pin-text);
   background: var(--component-station-item-active-pin-bg);
-  font-weight: 300;
 }
 
 /* 信道按钮内的主标签样式 - 与 user-uid 同款绿色 */

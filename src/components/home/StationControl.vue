@@ -138,6 +138,7 @@ function handleOpenList() {
 
 .refresh-text {
   display: block;
+  font-weight: 400;
 }
 
 @media (hover: hover) {
