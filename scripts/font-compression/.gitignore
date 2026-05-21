@@ -1,0 +1,22 @@
+# System files
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+*.py[oc]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build and packaging outputs
+build/
+wheels/
+*.egg-info
+
+# Generated font outputs
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/

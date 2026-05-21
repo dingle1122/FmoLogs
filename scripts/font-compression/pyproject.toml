@@ -1,0 +1,12 @@
+[project]
+name = "fontcompression"
+version = "0.1.0"
+description = "Batch subset TTF fonts into WOFF2 files."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fonttools[woff]>=4.63.0",
+]
+
+[project.scripts]
+fontcompression = "main:main"
