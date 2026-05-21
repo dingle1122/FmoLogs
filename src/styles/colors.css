@@ -582,6 +582,13 @@
   --component-control-danger-bg: var(--theme-danger-strong);
   --component-control-danger-ring: var(--alpha-danger-strong-20);
 
+  --component-timeline-dot-send-bg: #409eff;
+  --component-timeline-dot-send-ring: rgba(64, 158, 255, 0.2);
+  --component-timeline-dot-success-bg: #22c55e;
+  --component-timeline-dot-success-ring: rgba(34, 197, 94, 0.2);
+  --component-timeline-dot-fail-bg: #ef4444;
+  --component-timeline-dot-fail-ring: rgba(239, 68, 68, 0.2);
+
   /* Compatibility aliases */
   --bg-page: var(--theme-surface-page);
   --bg-container: var(--theme-surface-container);

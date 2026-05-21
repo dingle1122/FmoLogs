@@ -231,6 +231,10 @@
         <!-- 应用更新 -->
         <div v-if="androidUpdateEnabled" class="setting-group-update">
           <div class="setting-group-title">应用更新</div>
+          <div class="update-version-row">
+            <span class="update-version-label">当前版本</span>
+            <span class="update-version-value">{{ currentAppVersion }}</span>
+          </div>
           <div v-if="updateVisible" class="update-progress-card">
             <div class="update-progress-header">
               <div class="update-progress-title">{{ updateTitle }}</div>
@@ -376,6 +380,7 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
+import packageInfo from '../../package.json'
 import { normalizeHost } from '../utils/urlUtils'
 import confirmDialog from '../composables/useConfirm'
 import { clearGridCache } from '../services/gridService'
@@ -477,6 +482,7 @@ const updateVisible = computed(() => updateState.visible)
 const updateTitle = computed(() => updateState.title || '应用更新')
 const updateMessage = computed(() => updateState.message || '')
 const updatePercent = computed(() => updateState.percent || 0)
+const currentAppVersion = computed(() => `v${packageInfo.version}`)
 const updateStatusText = computed(() => {
   if (updateState.downloadable) return '已下载'
   if (updateState.phase === 'installing') return '正在安装'
@@ -1054,6 +1060,20 @@ function handleVolumeChange(e) {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--border-light);
+}
+
+.update-version-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.update-version-value {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .update-progress-card {

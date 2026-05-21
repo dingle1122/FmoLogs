@@ -1097,20 +1097,20 @@ onUnmounted(() => {
 
 /* 发送操作 - 蓝色 */
 .timeline-dot-send {
-  background-color: var(--component-control-primary-bg);
-  box-shadow: 0 0 0 3px var(--component-control-primary-ring);
+  background-color: var(--component-timeline-dot-send-bg);
+  box-shadow: 0 0 0 3px var(--component-timeline-dot-send-ring);
 }
 
 /* 成功 - 绿色 */
 .timeline-dot-success {
-  background-color: var(--component-control-success-bg);
-  box-shadow: 0 0 0 3px var(--component-control-success-ring);
+  background-color: var(--component-timeline-dot-success-bg);
+  box-shadow: 0 0 0 3px var(--component-timeline-dot-success-ring);
 }
 
 /* 失败 - 红色 */
 .timeline-dot-fail {
-  background-color: var(--component-control-danger-bg);
-  box-shadow: 0 0 0 3px var(--component-control-danger-ring);
+  background-color: var(--component-timeline-dot-fail-bg);
+  box-shadow: 0 0 0 3px var(--component-timeline-dot-fail-ring);
 }
 
 /* 时间轴连线 */
