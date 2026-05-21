@@ -377,9 +377,9 @@ watch(
 )
 
 // 组件初始化时加载参数并测试服务器连接
-onMounted(() => {
+onMounted(async () => {
   // 初始化（加载保存的参数和服务器列表）
-  const params = init()
+  const params = await init()
 
   // 先从保存的数据中恢复尾缀（如果有的话）
   if (params && mycall.value) {
@@ -479,7 +479,7 @@ function updateCallsigns() {
   }
 
   // 保存到 localStorage
-  saveCurrentParams()
+  void saveCurrentParams()
 }
 
 // 呼号或尾缀变化时，更新 composable 中的值

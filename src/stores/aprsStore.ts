@@ -17,6 +17,7 @@ const STORAGE_KEY = {
   SERVER_LIST: 'fmo_aprs_server_list',
   ACTIVE_SERVER_ID: 'fmo_aprs_active_server_id'
 }
+const PARAMS_PREFIX = 'gz1:'
 
 const DEFAULT_SERVER = 'wss://fmoac.srv.ink/api/ws'
 const DEFAULT_SERVER_ITEM = {
@@ -48,18 +49,33 @@ interface ServerItem {
   isDefault: boolean
 }
 
-// ========== 本地存储辅助 ==========
-function saveParams(p: any) {
-  localStorage.setItem(STORAGE_KEY.PARAMS, JSON.stringify(p))
+interface AprsParams {
+  mycall: string
+  passcode: string
+  secret: string
+  tocall: string
 }
-function loadParams() {
-  const data = localStorage.getItem(STORAGE_KEY.PARAMS)
+
+// ========== 本地存储辅助 ==========
+async function saveParams(p: AprsParams) {
+  const packed = serializeParams(p)
+  const encoded = bytesToBase64(await compressGzip(packed))
+  const platform = getPlatform()
+  await platform.storage.set(STORAGE_KEY.PARAMS, `${PARAMS_PREFIX}${encoded}`)
+}
+async function loadParams(): Promise<AprsParams | null> {
+  const platform = getPlatform()
+  const data = await platform.storage.get(STORAGE_KEY.PARAMS)
   if (!data) return null
   try {
-    return JSON.parse(data)
+    if (data.startsWith(PARAMS_PREFIX)) {
+      const bytes = await decompressGzip(base64ToBytes(data.slice(PARAMS_PREFIX.length)))
+      return deserializeParams(bytes)
+    }
   } catch {
     return null
   }
+  return null
 }
 function saveHistoryRecord(record: HistoryRecord) {
   let history: HistoryRecord[] = JSON.parse(
@@ -117,6 +133,114 @@ function saveActiveServerId(id: string) {
 }
 function loadActiveServerId(): string {
   return localStorage.getItem(STORAGE_KEY.ACTIVE_SERVER_ID) || 'default'
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte)
+  }
+  return btoa(binary)
+}
+
+function base64ToBytes(text: string): Uint8Array {
+  const binary = atob(text)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
+function serializeParams(p: AprsParams): Uint8Array {
+  const fields = [p.mycall, p.passcode, p.secret, p.tocall]
+  const parts = fields.map((value) => new TextEncoder().encode(String(value)))
+  let size = 1
+  for (const part of parts) {
+    size += 4 + part.byteLength
+  }
+  const bytes = new Uint8Array(size)
+  const view = new DataView(bytes.buffer)
+  bytes[0] = 1
+  let offset = 1
+  for (const part of parts) {
+    view.setUint32(offset, part.byteLength)
+    offset += 4
+    bytes.set(part, offset)
+    offset += part.byteLength
+  }
+  return bytes
+}
+
+function deserializeParams(bytes: Uint8Array): AprsParams {
+  if (bytes.length === 0 || bytes[0] !== 1) {
+    throw new Error('无效的参数数据')
+  }
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const decoder = new TextDecoder()
+  let offset = 1
+  const fields: string[] = []
+  for (let i = 0; i < 4; i++) {
+    if (offset + 4 > bytes.byteLength) {
+      throw new Error('无效的参数数据')
+    }
+    const len = view.getUint32(offset)
+    offset += 4
+    if (offset + len > bytes.byteLength) {
+      throw new Error('无效的参数数据')
+    }
+    fields.push(decoder.decode(bytes.slice(offset, offset + len)))
+    offset += len
+  }
+  return {
+    mycall: fields[0] || '',
+    passcode: fields[1] || '',
+    secret: fields[2] || '',
+    tocall: fields[3] || ''
+  }
+}
+
+async function compressGzip(bytes: Uint8Array): Promise<Uint8Array> {
+  if (typeof CompressionStream === 'undefined') {
+    throw new Error('当前环境不支持 gzip 压缩')
+  }
+  const stream = bytesToBlob(bytes).stream().pipeThrough(new CompressionStream('gzip'))
+  return await streamToUint8Array(stream)
+}
+
+async function decompressGzip(bytes: Uint8Array): Promise<Uint8Array> {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('当前环境不支持 gzip 解压')
+  }
+  const stream = bytesToBlob(bytes).stream().pipeThrough(new DecompressionStream('gzip'))
+  return await streamToUint8Array(stream)
+}
+
+function bytesToBlob(bytes: Uint8Array): Blob {
+  const copy = new Uint8Array(bytes.length)
+  copy.set(bytes)
+  return new Blob([copy.buffer])
+}
+
+async function streamToUint8Array(stream: ReadableStream<Uint8Array>): Promise<Uint8Array> {
+  const reader = stream.getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    if (value) {
+      chunks.push(value)
+      length += value.length
+    }
+  }
+  const result = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    result.set(chunk, offset)
+    offset += chunk.length
+  }
+  return result
 }
 
 /**
@@ -337,7 +461,7 @@ export const useAprsStore = defineStore('aprs', () => {
       if (!validateAPRS(myCall, passcodeInput)) {
         throw new Error('APRS 密钥与呼号不匹配')
       }
-      saveParams({
+      await saveParams({
         mycall: mycallInput,
         passcode: passcodeInput,
         secret: secretInput,
@@ -428,8 +552,8 @@ export const useAprsStore = defineStore('aprs', () => {
   }
 
   // ========== 初始化 ==========
-  function init() {
-    const params = loadParams()
+  async function init() {
+    const params = await loadParams()
     if (params) {
       mycall.value = params.mycall || ''
       passcode.value = params.passcode || ''
@@ -442,8 +566,8 @@ export const useAprsStore = defineStore('aprs', () => {
     return params
   }
 
-  function saveCurrentParams() {
-    saveParams({
+  async function saveCurrentParams() {
+    await saveParams({
       mycall: mycall.value,
       passcode: passcode.value,
       secret: secret.value,
