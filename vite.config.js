@@ -5,7 +5,18 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  esbuild: {
+    target: 'chrome64'
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'chrome64'
+    }
+  },
   build: {
+    // 兼容旧版 Android System WebView，避免保留过新的 JS/CSS 语法。
+    target: ['chrome64', 'safari12'],
+    cssTarget: ['chrome64', 'safari12'],
     rollupOptions: {
       output: {
         manualChunks(id) {
