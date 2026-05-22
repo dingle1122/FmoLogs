@@ -132,7 +132,7 @@
       id="db-file-input"
       ref="fileInputRef"
       type="file"
-      accept=".db,.adi,.adif"
+      :accept="fileInputAccept"
       multiple
       class="hidden-input"
       @change="handleFileSelect"
@@ -236,6 +236,7 @@ const router = useRouter()
 // UI 状态
 const showSpeakingHistory = ref(false)
 const fileInputRef = ref(null)
+const fileInputAccept = Capacitor.getPlatform() === 'android' ? '*/*' : '.db,.adi,.adif'
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
 let scrollTimer = null

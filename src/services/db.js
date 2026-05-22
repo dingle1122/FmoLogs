@@ -1,15 +1,35 @@
-import initSqlJs from 'sql.js'
+import initSqlJsWasm from 'sql.js'
 import { AdifFormatter, AdifParser } from '../adif/index.js'
 import { exportFile } from '../utils/exportFile.js'
 
 let SQL = null
 
+async function smokeTestSQL(sql) {
+  const db = new sql.Database()
+  try {
+    db.exec('SELECT 1')
+  } finally {
+    db.close()
+  }
+}
+
 // 初始化sql.js（使用本地wasm文件）
 async function initSQL() {
   if (!SQL) {
-    SQL = await initSqlJs({
-      locateFile: (file) => `/${file}`
-    })
+    try {
+      const wasmSQL = await initSqlJsWasm({
+        locateFile: (file) => `/${file}`
+      })
+      await smokeTestSQL(wasmSQL)
+      SQL = wasmSQL
+    } catch (err) {
+      console.warn('[sql.js] wasm 初始化失败，回退到 asm.js:', err)
+      const asmModule = await import('sql.js/dist/sql-asm.js')
+      const initSqlJsAsm = asmModule.default || asmModule
+      const asmSQL = await initSqlJsAsm()
+      await smokeTestSQL(asmSQL)
+      SQL = asmSQL
+    }
   }
   return SQL
 }
