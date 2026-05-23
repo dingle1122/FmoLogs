@@ -131,7 +131,7 @@ export async function syncRecentData(
   while (hasMoreInRange && !isAborted()) {
     statusCallback(`获取第 ${page + 1} 页列表...`)
 
-    const response = await client.getQsoList(page, 20, currentFromCallsign)
+    const response = await client.getQsoList(page, 20)
     const list = response.list
 
     if (!list || list.length === 0) break
@@ -179,7 +179,7 @@ export async function syncIncrementalForAddress(
 
     let response: any
     try {
-      response = await client.getQsoList(page, 20, currentFromCallsign)
+      response = await client.getQsoList(page, 20)
     } catch (err: any) {
       throw new Error(`获取日志列表失败: ${err?.message || String(err)}`)
     }
@@ -272,7 +272,7 @@ export async function syncFullForAddress(
 
     let response: any
     try {
-      response = await client.getQsoList(page, 20, currentFromCallsign)
+      response = await client.getQsoList(page, 20)
     } catch (err: any) {
       throw new Error(`获取日志列表失败: ${err?.message || String(err)}`)
     }
@@ -327,4 +327,3 @@ export async function syncFullForAddress(
 
   return { totalSynced, totalProcessed }
 }
-

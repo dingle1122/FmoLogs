@@ -181,8 +181,7 @@ export const useSyncStore = defineStore('sync', () => {
       if (isAborted) return
       const wasEmpty = !ctx.getDbLoaded?.() || (ctx.getTotalLogs?.() || 0) === 0
       const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
-      const currentFromCallsign = getCurrentFromCallsign()
-      const response = await client.getQsoList(0, 10, currentFromCallsign)
+      const response = await client.getQsoList(0, 10)
       const list = response.list || []
       const newCallsigns: string[] = []
 
