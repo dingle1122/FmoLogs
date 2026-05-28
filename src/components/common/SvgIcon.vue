@@ -90,9 +90,7 @@
 
     <!-- themes: 调色板图标 -->
     <template v-else-if="name === 'themes'">
-      <path
-        d="M12 3a9 9 0 0 0 0 18h1a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h1a5 5 0 0 0 0-10Z"
-      />
+      <path d="M12 3a9 9 0 0 0 0 18h1a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h1a5 5 0 0 0 0-10Z" />
       <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" />
       <circle cx="10.5" cy="7" r="1" fill="currentColor" stroke="none" />
       <circle cx="15.5" cy="7.5" r="1" fill="currentColor" stroke="none" />
@@ -103,6 +101,11 @@
     <template v-else-if="name === 'locationReport'">
       <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
       <circle cx="12" cy="10" r="3" />
+    </template>
+
+    <!-- dashboard: 仪表盘/活动监控图标 -->
+    <template v-else-if="name === 'dashboard'">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </template>
   </svg>
 </template>
@@ -124,7 +127,8 @@ defineProps({
         'about',
         'settings',
         'themes',
-        'locationReport'
+        'locationReport',
+        'dashboard'
       ].includes(value)
     }
   },

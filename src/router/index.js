@@ -13,6 +13,11 @@ const children = [
     component: () => import('../views/LogsView.vue')
   },
   {
+    path: 'dashboard',
+    name: 'dashboard',
+    component: () => import('../views/DashboardView.vue')
+  },
+  {
     path: 'top20',
     name: 'top20',
     component: () => import('../views/Top20View.vue')

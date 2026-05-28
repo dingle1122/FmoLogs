@@ -19,8 +19,18 @@ interface SpeakingRecord {
   serverUid?: string
 }
 
+interface HistoryEvent {
+  callsign: string
+  utcTime: number
+  addressId: string
+}
+
 function getStorageKey(addressId: string) {
   return `fmo_speaking_history_${addressId}`
+}
+
+function getEventsStorageKey(addressId: string) {
+  return `fmo_history_events_${addressId}`
 }
 
 function loadFromStorage(addressId: string): SpeakingRecord[] {
@@ -39,12 +49,33 @@ function loadFromStorage(addressId: string): SpeakingRecord[] {
   }
 }
 
+function loadEventsFromStorage(addressId: string): HistoryEvent[] {
+  try {
+    const raw = localStorage.getItem(getEventsStorageKey(addressId))
+    if (!raw) return []
+    const list: HistoryEvent[] = JSON.parse(raw)
+    const oneHourAgo = Math.floor(Date.now() / 1000) - 60 * 60
+    return list.filter((event) => event.utcTime > oneHourAgo)
+  } catch (err) {
+    console.error(`[${addressId}] 加载发言事件失败:`, err)
+    return []
+  }
+}
+
 function saveToStorage(addressId: string, list: SpeakingRecord[]) {
   if (hasNativeEvents) return
   try {
     localStorage.setItem(getStorageKey(addressId), JSON.stringify(list))
   } catch (err) {
     console.error(`[${addressId}] 保存发言历史失败:`, err)
+  }
+}
+
+function saveEventsToStorage(addressId: string, list: HistoryEvent[]) {
+  try {
+    localStorage.setItem(getEventsStorageKey(addressId), JSON.stringify(list))
+  } catch (err) {
+    console.error(`[${addressId}] 保存发言事件失败:`, err)
   }
 }
 
@@ -69,6 +100,8 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
   const speakerAddressMap = reactive(new Map<string, string>())
   const isHostSpeakingMap = reactive(new Map<string, boolean>())
   const serverInfoMap = reactive(new Map<string, ServerInfo>())
+  // history 事件数据（不去重）
+  const historyEventsMap = reactive(new Map<string, HistoryEvent[]>())
 
   const connectionConfigs = new Map<
     string,
@@ -152,6 +185,15 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     return out
   })
 
+  const allHistoryEvents = computed(() => {
+    changeCounter.value
+    const all: HistoryEvent[] = []
+    for (const [, events] of historyEventsMap.entries()) {
+      all.push(...events)
+    }
+    return all.sort((a, b) => b.utcTime - a.utcTime)
+  })
+
   // ========== 内部：处理 events 原始消息 ==========
   function handleRawMessage(addressId: string, data: string) {
     const cfg = connectionConfigs.get(addressId)
@@ -232,6 +274,16 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
             changed = true
             saveToStorage(addressId, history)
           }
+        } else if (msg.type === 'qso' && msg.subType === 'history' && Array.isArray(msg.data)) {
+          // 处理 history 事件（全量替换）
+          const newEvents: HistoryEvent[] = msg.data.map((item: any) => ({
+            callsign: item.callsign,
+            utcTime: item.utcTime,
+            addressId
+          }))
+          historyEventsMap.set(addressId, newEvents)
+          saveEventsToStorage(addressId, newEvents)
+          changed = true
         } else if (msg.type === 'message' && msg.subType === 'summary') {
           if (isPrimary && onMessageCallback) {
             onMessageCallback(msg.data)
@@ -365,13 +417,31 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
   // ========== 清理定时器 ==========
   function cleanupHistory(addressId: string) {
     const hist = speakingHistoryMap.get(addressId)
-    if (!hist) return
     const oneHourAgo = Date.now() - 60 * 60 * 1000
-    const oldLen = hist.length
-    const filtered = hist.filter((h) => (h.endTime || h.startTime) > oneHourAgo)
-    if (oldLen !== filtered.length) {
-      speakingHistoryMap.set(addressId, filtered)
-      saveToStorage(addressId, filtered)
+    let changed = false
+
+    if (hist) {
+      const oldLen = hist.length
+      const filtered = hist.filter((h) => (h.endTime || h.startTime) > oneHourAgo)
+      if (oldLen !== filtered.length) {
+        speakingHistoryMap.set(addressId, filtered)
+        saveToStorage(addressId, filtered)
+        changed = true
+      }
+    }
+
+    const events = historyEventsMap.get(addressId)
+    if (events) {
+      const oneHourAgoSec = Math.floor(oneHourAgo / 1000)
+      const filteredEvents = events.filter((event) => event.utcTime > oneHourAgoSec)
+      if (filteredEvents.length !== events.length) {
+        historyEventsMap.set(addressId, filteredEvents)
+        saveEventsToStorage(addressId, filteredEvents)
+        changed = true
+      }
+    }
+
+    if (changed) {
       changeCounter.value++
     }
   }
@@ -408,20 +478,26 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     primaryAddressId.value = addressId
     connectionConfigs.set(addressId, { host, protocol, isPrimary: true })
     speakingHistoryMap.set(addressId, loadFromStorage(addressId))
+    historyEventsMap.set(addressId, loadEventsFromStorage(addressId))
+    changeCounter.value++
 
     if (hasNativeEvents) {
       pushCachedServerNameIfAny(addressId)
       getPlatform().events.setPrimary(addressId)
     }
     const { wsUrl, apiUrl } = buildWsUrl(host, protocol)
-    getPlatform().events.connect({ addressId, url: wsUrl, apiUrl }).catch((err) => {
-      console.warn(`[${addressId}] connect failed`, err)
-    })
+    getPlatform()
+      .events.connect({ addressId, url: wsUrl, apiUrl })
+      .catch((err) => {
+        console.warn(`[${addressId}] connect failed`, err)
+      })
   }
 
   function disconnectEventWs(addressId: string) {
     connectionConfigs.delete(addressId)
-    getPlatform().events.disconnect(addressId).catch(() => {})
+    getPlatform()
+      .events.disconnect(addressId)
+      .catch(() => {})
     stopHistoryCleanup(addressId)
 
     currentSpeakerMap.delete(addressId)
@@ -430,6 +506,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     isHostSpeakingMap.delete(addressId)
     serverInfoMap.delete(addressId)
     statusMap.delete(addressId)
+    historyEventsMap.delete(addressId)
 
     if (addressId === primaryAddressId.value) {
       primaryConnected.value = false
@@ -459,6 +536,8 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
       const isPrimary = addr.id === primaryId
       connectionConfigs.set(addr.id, { host: addr.host, protocol: addr.protocol, isPrimary })
       speakingHistoryMap.set(addr.id, loadFromStorage(addr.id))
+      historyEventsMap.set(addr.id, loadEventsFromStorage(addr.id))
+      changeCounter.value++
       const { wsUrl, apiUrl } = buildWsUrl(addr.host, addr.protocol)
       getPlatform()
         .events.connect({ addressId: addr.id, url: wsUrl, apiUrl })
@@ -467,7 +546,9 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
   }
 
   function disconnectAllEventWs() {
-    getPlatform().events.disconnectAll().catch(() => {})
+    getPlatform()
+      .events.disconnectAll()
+      .catch(() => {})
 
     for (const addressId of Array.from(cleanupTimers.keys())) stopHistoryCleanup(addressId)
     cleanupTimers.clear()
@@ -479,6 +560,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     isHostSpeakingMap.clear()
     serverInfoMap.clear()
     statusMap.clear()
+    historyEventsMap.clear()
 
     primaryConnected.value = false
     primaryAddressId.value = null
@@ -559,6 +641,7 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
     primaryServerInfo,
     allSpeakingHistories,
     allCurrentSpeakers,
+    allHistoryEvents,
 
     // actions
     connectEventWs,

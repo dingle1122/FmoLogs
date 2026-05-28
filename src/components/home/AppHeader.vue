@@ -34,6 +34,20 @@
       </router-link>
     </nav>
     <div class="header-actions">
+      <button class="icon-btn" title="仪表盘" @click="router.push('/dashboard')">
+        <svg
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      </button>
       <button class="icon-btn" title="设置" @click="router.push('/settings')">
         <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
           <path

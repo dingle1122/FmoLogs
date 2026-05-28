@@ -30,6 +30,13 @@ const aboutRoute = {
 // 更多页面内的子路由（"自动定位"位于"关于"之前，仅 Android 端有此项）
 export const MORE_ROUTES = [
   {
+    path: '/dashboard',
+    label: '仪表盘',
+    type: 'dashboard',
+    icon: 'dashboard',
+    description: '查看实时发言、事件流与历史发言'
+  },
+  {
     path: '/top20',
     label: '排行榜',
     type: 'top20',
@@ -70,7 +77,9 @@ export const MORE_ROUTES = [
 ]
 
 // 所有可导航页面（供快捷导航弹框使用）
-export const ALL_PAGE_ROUTES = [...NAV_ROUTES, ...MORE_ROUTES]
+export const ALL_PAGE_ROUTES = Array.from(
+  new Map([...NAV_ROUTES, ...MORE_ROUTES].map((route) => [route.path, route])).values()
+)
 
 // 默认列（查看所有模式）
 export const DEFAULT_COLUMNS = [
