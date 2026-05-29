@@ -102,10 +102,11 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 .header {
   flex-shrink: 0;
   z-index: 100;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
+  column-gap: 1.5rem;
   padding: 0.75rem 1rem;
-  gap: 1.5rem;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border-light);
 }
@@ -116,7 +117,6 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   flex-wrap: wrap;
   gap: 0.75rem;
   row-gap: 0.25rem;
-  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -250,7 +250,8 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   display: flex;
   gap: 0;
   align-items: center;
-  flex: 0 0 auto;
+  justify-self: center;
+  min-width: 0;
 }
 
 .nav-tab {
@@ -313,7 +314,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
-  margin-left: auto;
+  justify-self: end;
 }
 
 .icon-btn {
@@ -339,7 +340,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 @media (max-width: 768px) {
   .header {
     padding: 0.5rem 0.75rem;
-    gap: 0.75rem;
+    column-gap: 0.75rem;
   }
 
   .header-title {
