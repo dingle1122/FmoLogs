@@ -52,9 +52,8 @@
       </div>
 
       <div v-else class="hero-empty">
-        <div class="empty-radar"></div>
         <div>
-          <strong>{{ hasAnySpeakingHistory ? '暂无对方发言事件' : '暂无发言事件' }}</strong>
+          <strong>{{ hasAnySpeakingHistory ? '暂时没有对方发言' : '暂时没人发言' }}</strong>
           <span>{{ heroEmptyText }}</span>
         </div>
       </div>
@@ -63,7 +62,12 @@
     <section class="event-strip-wrap">
       <h3>最近发言</h3>
 
-      <div v-if="displayHistoryEvents.length === 0" class="event-empty">暂无历史发言事件</div>
+      <div v-if="displayHistoryEvents.length === 0" class="empty-state">
+        <div class="empty-state-copy">
+          <strong>暂无最近发言</strong>
+          <span>有新发言时会显示在这里</span>
+        </div>
+      </div>
       <div v-else class="event-strip">
         <div
           v-for="(event, index) in displayHistoryEvents"
@@ -98,8 +102,11 @@
       <h3>历史发言记录</h3>
 
       <div class="history-list">
-        <div v-if="displayHistory.length === 0" class="panel-empty">
-          <span>暂无发言记录</span>
+        <div v-if="displayHistory.length === 0" class="empty-state">
+          <div class="empty-state-copy">
+            <strong>暂无历史发言记录</strong>
+            <span>有发言记录时会显示在这里</span>
+          </div>
         </div>
 
         <div
@@ -189,8 +196,6 @@ const myLng = ref(null)
 
 const historyAddressMap = reactive({})
 const gridAddressCache = reactive({})
-const EVENT_STORAGE_KEY = 'dashboard_history_events'
-const cachedHistoryEvents = ref(loadCachedHistoryEvents())
 
 // ========== 计算属性 ==========
 
@@ -222,12 +227,7 @@ const isDisplaySpeakerActive = computed(() => {
 
 const hasAnySpeakingHistory = computed(() => speakingStore.speakingHistory.length > 0)
 
-const heroEmptyText = computed(() => {
-  if (hasAnySpeakingHistory.value) {
-    return '有对方发言后，这里会显示最近一位对方台站。'
-  }
-  return '连接到 FMO 后，这里会显示当前频道的实时状态。'
-})
+const heroEmptyText = computed(() => '有新发言时会显示在这里。')
 
 const displaySpeakerAddress = ref('')
 
@@ -271,30 +271,9 @@ const displayHistory = computed(() => {
 const todayContactedCallsigns = computed(() => settingsStore.todayContactedCallsigns)
 const contactCounts = computed(() => settingsStore.contactCounts)
 const allHistoryEvents = computed(() => speakingStore.allHistoryEvents)
-const displayHistoryEvents = computed(() => {
-  return allHistoryEvents.value.length > 0 ? allHistoryEvents.value : cachedHistoryEvents.value
-})
+const displayHistoryEvents = computed(() => allHistoryEvents.value)
 
 // ========== 方法 ==========
-
-function loadCachedHistoryEvents() {
-  try {
-    const raw = localStorage.getItem(EVENT_STORAGE_KEY)
-    if (!raw) return []
-    const oneHourAgo = Math.floor(Date.now() / 1000) - 60 * 60
-    return JSON.parse(raw).filter((event) => event?.callsign && event?.utcTime > oneHourAgo)
-  } catch {
-    return []
-  }
-}
-
-function saveCachedHistoryEvents(events) {
-  try {
-    localStorage.setItem(EVENT_STORAGE_KEY, JSON.stringify(events))
-  } catch {
-    // ignore storage errors
-  }
-}
 
 function formatEventTime(utcTime) {
   if (!utcTime) return ''
@@ -450,16 +429,6 @@ watch(
 watch(displaySpeaker, () => updateDisplaySpeakerAddress(), { immediate: true })
 
 watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
-
-watch(
-  allHistoryEvents,
-  (events) => {
-    if (events.length === 0) return
-    cachedHistoryEvents.value = events
-    saveCachedHistoryEvents(events)
-  },
-  { immediate: true }
-)
 </script>
 
 <style scoped>
@@ -762,11 +731,11 @@ watch(
 
 .hero-empty {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  min-height: 5rem;
+  display: grid;
+  place-items: center;
+  min-height: 6.7rem;
   color: var(--text-secondary);
+  text-align: center;
   z-index: 1;
 }
 
@@ -776,18 +745,15 @@ watch(
 }
 
 .hero-empty span {
-  margin-top: 0.2rem;
+  margin-top: 0.24rem;
   color: var(--text-tertiary);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
-.empty-radar {
-  width: 2.4rem;
-  height: 2.4rem;
-  border: 2px solid var(--border-secondary);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 8px var(--bg-table-stripe);
-  flex-shrink: 0;
+.hero-empty strong {
+  color: var(--text-primary);
+  font-size: 1.12rem;
+  font-weight: 500;
 }
 
 .history-panel {
@@ -808,27 +774,47 @@ watch(
   letter-spacing: 0;
 }
 
-.panel-empty {
-  display: grid;
-  place-items: center;
-  flex: 1;
-  min-height: 8rem;
-  padding: 1rem;
-  color: var(--text-tertiary);
-  font-size: 0.95rem;
-  text-align: center;
-}
-
 .event-strip-wrap {
   min-width: 0;
   overflow: visible;
 }
 
-.event-empty {
-  padding: 0.7rem 1rem;
+.event-strip-wrap > .empty-state {
+  margin: 0.55rem 0.65rem;
+}
+
+.empty-state {
+  display: grid;
+  grid-column: 1 / -1;
+  place-items: center;
+  min-height: 6.8rem;
+  padding: 1.1rem;
+  border: 1px dashed var(--border-light);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
   color: var(--text-tertiary);
-  font-size: 0.92rem;
   text-align: center;
+}
+
+.empty-state-copy {
+  min-width: 0;
+}
+
+.empty-state-copy strong,
+.empty-state-copy span {
+  display: block;
+}
+
+.empty-state-copy strong {
+  color: var(--text-secondary);
+  font-size: 0.96rem;
+  font-weight: 500;
+}
+
+.empty-state-copy span {
+  margin-top: 0.16rem;
+  color: var(--text-tertiary);
+  font-size: 0.86rem;
 }
 
 .event-strip {
@@ -1202,6 +1188,10 @@ watch(
 
   .history-topline {
     flex-wrap: wrap;
+  }
+
+  .empty-state {
+    min-height: 6.6rem;
   }
 }
 </style>
