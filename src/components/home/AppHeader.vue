@@ -4,28 +4,30 @@
       <img src="/vite.svg" alt="FMO Logs" class="header-logo" @click="$emit('open-nav-menu')" />
       <span class="header-divider"></span>
       <h1 class="header-title" @click="$emit('open-nav-menu')">FMO 日志查看器</h1>
-      <span class="total-logs">
-        <strong>
-          <img class="total-logs-star" src="/img/star_2b50.png" alt="今日日志" />
-          {{ todayLogs }}/{{ totalLogs }}
-        </strong>
-        <template v-if="uniqueCallsigns > 0">
-          <span class="unique-count">({{ uniqueCallsigns }}人)</span>
-        </template>
-      </span>
-      <span
-        v-if="currentStationName"
-        class="station-tag"
-        title="当前信道"
-        @click="$emit('open-channel-list')"
-      >
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="station-icon">
-          <path
-            d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
-          />
-        </svg>
-        <marquee-scroll :text="currentStationName" :speed="35" class="station-name-scroller" />
-      </span>
+      <div class="header-meta">
+        <span class="total-logs">
+          <strong>
+            <img class="total-logs-star" src="/img/star_2b50.png" alt="今日日志" />
+            {{ todayLogs }}/{{ totalLogs }}
+          </strong>
+          <template v-if="uniqueCallsigns > 0">
+            <span class="unique-count">({{ uniqueCallsigns }}人)</span>
+          </template>
+        </span>
+        <span
+          v-if="currentStationName"
+          class="station-tag"
+          title="当前信道"
+          @click="$emit('open-channel-list')"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="station-icon">
+            <path
+              d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+            />
+          </svg>
+          <marquee-scroll :text="currentStationName" :speed="35" class="station-name-scroller" />
+        </span>
+      </div>
     </div>
     <nav class="header-nav">
       <router-link v-for="route in NAV_ROUTES" :key="route.path" :to="route.path" class="nav-tab">
@@ -111,12 +113,15 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
 .header-left {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  row-gap: 0.25rem;
+  flex: 1 1 0;
   min-width: 0;
 }
 
 .header-title {
+  flex: 0 0 auto;
   margin: 0;
   font-size: 1.1rem;
   cursor: pointer;
@@ -159,14 +164,23 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   flex-shrink: 0;
 }
 
+.header-meta {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .total-logs {
   display: inline-flex;
   align-items: center;
   gap: 0.15rem;
   font-size: 1.1rem;
   color: var(--text-secondary);
-  max-width: 100%;
-  overflow: hidden;
+  min-width: max-content;
   white-space: nowrap;
 }
 
@@ -200,9 +214,11 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   border: 1px solid var(--border-light);
   cursor: pointer;
   transition: all 0.2s;
-  width: 120px;
+  flex: 0 1 clamp(7.5rem, 16vw, 14rem);
+  width: clamp(7.5rem, 16vw, 14rem);
+  min-width: 7.5rem;
+  max-width: 14rem;
   overflow: hidden;
-  flex-shrink: 0;
   position: relative;
 }
 
@@ -234,6 +250,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   display: flex;
   gap: 0;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .nav-tab {
@@ -350,14 +367,64 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
     font-size: 0.95rem;
   }
 
+  .header-meta {
+    flex: 0 1 auto;
+    gap: 0.4rem;
+  }
+
   .station-tag {
-    width: clamp(86px, 28vw, 120px);
+    flex-basis: clamp(7rem, 28vw, 10rem);
+    width: clamp(7rem, 28vw, 10rem);
+    min-width: 7rem;
+    max-width: 10rem;
+    justify-self: start;
+    padding-inline: 0.5rem;
   }
 }
 
 @media (max-width: 480px) {
   .header-title {
     display: none;
+  }
+
+  .header-left {
+    display: grid;
+    grid-template-columns: 28px 1px minmax(0, 1fr);
+    column-gap: 0.5rem;
+    align-items: center;
+  }
+
+  .header-logo {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    align-self: center;
+  }
+
+  .header-divider {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: stretch;
+    height: auto;
+    min-height: 2.4rem;
+  }
+
+  .header-meta {
+    display: grid;
+    grid-column: 3;
+    grid-row: 1 / 3;
+    grid-template-columns: minmax(0, max-content);
+    grid-template-rows: auto auto;
+    row-gap: 0.18rem;
+    min-width: 0;
+  }
+
+  .station-tag {
+    width: min(100%, 10rem);
+    min-width: 0;
+    max-width: 10rem;
+    justify-self: start;
+    padding-block: 0.12rem;
+    font-size: 0.78rem;
   }
 }
 
@@ -366,41 +433,9 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
     align-items: center;
   }
 
-  .header-left {
-    display: grid;
-    grid-template-columns: 28px 1px minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    column-gap: 0.5rem;
-    row-gap: 0.2rem;
-    align-items: center;
-  }
-
-  .header-logo {
-    grid-column: 1;
-    grid-row: 1 / 3;
-  }
-
-  .header-divider {
-    grid-column: 2;
-    grid-row: 1 / 3;
-    height: 100%;
-    min-height: 20px;
-  }
-
   .total-logs {
-    grid-column: 3;
-    grid-row: 1;
     min-width: 0;
     font-size: 0.88rem;
-  }
-
-  .station-tag {
-    grid-column: 3;
-    grid-row: 2;
-    width: 100%;
-    max-width: 120px;
-    padding-block: 0.1rem;
-    font-size: 0.78rem;
   }
 }
 </style>
