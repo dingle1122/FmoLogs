@@ -11,8 +11,8 @@
               <span class="speaker-callsign" :class="{ idle: !isDisplaySpeakerActive }">
                 {{ displaySpeaker.callsign }}
               </span>
-              <span v-if="displaySpeaker.callsign === selectedFromCallsign" class="pill muted"
-                >您</span
+              <span class="speaker-contact-count"
+                >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
               >
             </div>
           </div>
@@ -84,7 +84,10 @@
             <strong>{{ event.callsign }}</strong>
             <span>{{ formatEventTime(event.utcTime) }}</span>
           </div>
-          <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
+          <span class="event-count">
+            <template v-if="event.callsign === selectedFromCallsign">您</template>
+            <template v-else>x{{ contactCounts.get(event.callsign) || 0 }}</template>
+          </span>
           <span
             v-if="
               event.callsign !== selectedFromCallsign &&
@@ -128,12 +131,10 @@
               <strong :class="{ on: !record.endTime }">
                 {{ record.callsign }}
               </strong>
-              <span v-if="record.callsign === selectedFromCallsign" class="pill muted tiny"
-                >您</span
-              >
-              <span v-if="record.callsign !== selectedFromCallsign" class="contact-count"
-                >x{{ contactCounts.get(record.callsign) || 0 }}</span
-              >
+              <span class="contact-count">
+                <template v-if="record.callsign === selectedFromCallsign">您</template>
+                <template v-else>x{{ contactCounts.get(record.callsign) || 0 }}</template>
+              </span>
             </div>
 
             <div class="history-meta">
@@ -227,7 +228,7 @@ const isDisplaySpeakerActive = computed(() => {
 
 const hasAnySpeakingHistory = computed(() => speakingStore.speakingHistory.length > 0)
 
-const heroEmptyText = computed(() => '有新发言时会显示在这里。')
+const heroEmptyText = computed(() => '有新发言时会显示在这里')
 
 const displaySpeakerAddress = ref('')
 
@@ -563,31 +564,13 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   color: var(--text-secondary);
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.35rem;
-  padding: 0.12rem 0.48rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.pill.live {
-  color: var(--text-primary);
-  background: var(--status-success-bg-soft);
-}
-
-.pill.muted {
+.speaker-contact-count {
   color: var(--text-tertiary);
-  background: var(--alpha-neutral-12);
-}
-
-.pill.tiny {
-  min-height: 1.12rem;
-  padding: 0.08rem 0.32rem;
-  font-size: 0.7rem;
+  font-family: 'IntelOneMono', monospace;
+  font-size: clamp(2.1rem, 5.4vw, 3.8rem);
+  font-weight: 800;
+  line-height: 0.95;
+  white-space: nowrap;
 }
 
 .speaker-details,
@@ -901,10 +884,11 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .event-main strong {
+  flex: 0 1 auto;
   font-size: 1.15rem;
 }
 
-.event-main span {
+.event-main > span {
   display: block;
   margin-top: 0.12rem;
   color: var(--text-tertiary);
@@ -1024,11 +1008,9 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   color: var(--color-speaking);
 }
 
-.history-topline .pill,
 .history-topline .contact-count {
   flex-shrink: 0;
   margin-top: 0;
-  background: transparent;
 }
 
 .history-topline .contact-count {
