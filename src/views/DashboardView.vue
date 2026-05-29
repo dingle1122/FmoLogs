@@ -1,6 +1,9 @@
 <template>
   <div class="dashboard-view">
     <section class="dashboard-hero" :class="{ active: isDisplaySpeakerActive }">
+      <span v-if="displaySpeaker" class="hero-watermark" aria-hidden="true">
+        {{ displaySpeaker.callsign }} x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}
+      </span>
       <div v-if="displaySpeaker" class="hero-content">
         <div class="hero-station">
           <div class="speaker-title">
@@ -51,26 +54,42 @@
       <div v-else class="hero-empty">
         <div class="empty-radar"></div>
         <div>
-          <strong>暂无发言事件</strong>
-          <span>连接到 FMO 后，这里会显示当前频道的实时状态。</span>
+          <strong>{{ hasAnySpeakingHistory ? '暂无对方发言事件' : '暂无发言事件' }}</strong>
+          <span>{{ heroEmptyText }}</span>
         </div>
-      </div>
-
-      <div v-if="isSelfSpeaking" class="self-bar">
-        <span class="self-dot"></span>
-        <span>{{ selectedFromCallsign }} 正在发言，主视图显示上一位对方台站。</span>
       </div>
     </section>
 
     <section class="event-strip-wrap">
+      <h3>最近发言</h3>
+
       <div v-if="displayHistoryEvents.length === 0" class="event-empty">暂无历史发言事件</div>
       <div v-else class="event-strip">
-        <div v-for="(event, index) in displayHistoryEvents" :key="index" class="event-chip">
+        <div
+          v-for="(event, index) in displayHistoryEvents"
+          :key="index"
+          class="event-chip"
+          :class="{ self: event.callsign === selectedFromCallsign }"
+          @click="
+            event.callsign !== selectedFromCallsign &&
+            $emit('show-callsign-records', event.callsign)
+          "
+        >
+          <span class="event-index-bg" aria-hidden="true">{{ index + 1 }}</span>
           <div class="event-main">
             <strong>{{ event.callsign }}</strong>
             <span>{{ formatEventTime(event.utcTime) }}</span>
           </div>
-          <span class="event-count">x{{ getEventCount(event.callsign) }}</span>
+          <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
+          <span
+            v-if="
+              event.callsign !== selectedFromCallsign &&
+              todayContactedCallsigns.has(event.callsign)
+            "
+            class="event-contact-star"
+          >
+            <img src="/img/star_2b50.png" alt="" />
+          </span>
         </div>
       </div>
     </section>
@@ -96,6 +115,7 @@
             $emit('show-callsign-records', record.callsign)
           "
         >
+          <span class="history-index-bg" aria-hidden="true">{{ index + 1 }}</span>
           <div class="history-name">
             <div class="history-topline">
               <strong :class="{ on: !record.endTime }">
@@ -104,19 +124,6 @@
               <span v-if="record.callsign === selectedFromCallsign" class="pill muted tiny"
                 >您</span
               >
-              <span
-                v-else
-                class="contact-star"
-                :class="todayContactedCallsigns.has(record.callsign) ? 'star-on' : 'star-off'"
-              >
-                <img
-                  v-if="todayContactedCallsigns.has(record.callsign)"
-                  class="star-img"
-                  src="/img/star_2b50.png"
-                  alt=""
-                />
-                <template v-else>&#9733;</template>
-              </span>
               <span v-if="record.callsign !== selectedFromCallsign" class="contact-count"
                 >x{{ contactCounts.get(record.callsign) || 0 }}</span
               >
@@ -124,7 +131,7 @@
 
             <div class="history-meta">
               <span v-if="record.serverName" class="detail-tag">{{ record.serverName }}</span>
-              <span v-if="historyAddressMap[record.callsign]">{{
+              <span v-if="historyAddressMap[record.callsign]" class="history-address">{{
                 historyAddressMap[record.callsign]
               }}</span>
             </div>
@@ -140,6 +147,16 @@
               formatDurationMmSs((record.endTime || now) - record.startTime)
             }}</span>
           </div>
+
+          <span
+            v-if="
+              record.callsign !== selectedFromCallsign &&
+              todayContactedCallsigns.has(record.callsign)
+            "
+            class="contact-star"
+          >
+            <img class="star-img" src="/img/star_2b50.png" alt="" />
+          </span>
         </div>
       </div>
     </section>
@@ -183,20 +200,16 @@ const currentSpeakerRecord = computed(() => {
 
 const isAnyoneSpeaking = computed(() => !!currentSpeakerRecord.value)
 
-const isSelfSpeaking = computed(() => {
-  return currentSpeakerRecord.value?.callsign === selectedFromCallsign.value
-})
-
 const displaySpeaker = computed(() => {
   const history = speakingStore.speakingHistory
-  if (isSelfSpeaking.value) {
-    const prev = history.find((h) => h.endTime && h.callsign !== selectedFromCallsign.value)
-    if (prev) return prev
-    const anyPrev = history.find((h) => h.endTime)
-    return anyPrev || currentSpeakerRecord.value || null
+  const ownCallsign = selectedFromCallsign.value
+  const isOwnRecord = (record) => ownCallsign && record?.callsign === ownCallsign
+
+  if (currentSpeakerRecord.value && !isOwnRecord(currentSpeakerRecord.value)) {
+    return currentSpeakerRecord.value
   }
-  if (currentSpeakerRecord.value) return currentSpeakerRecord.value
-  return history[0] || null
+
+  return history.find((h) => !isOwnRecord(h)) || null
 })
 
 // 展示的发言者是否正在发言（只有当 displaySpeaker 就是当前发言者时才算）
@@ -205,6 +218,15 @@ const isDisplaySpeakerActive = computed(() => {
     isAnyoneSpeaking.value &&
     currentSpeakerRecord.value?.callsign === displaySpeaker.value?.callsign
   )
+})
+
+const hasAnySpeakingHistory = computed(() => speakingStore.speakingHistory.length > 0)
+
+const heroEmptyText = computed(() => {
+  if (hasAnySpeakingHistory.value) {
+    return '有对方发言后，这里会显示最近一位对方台站。'
+  }
+  return '连接到 FMO 后，这里会显示当前频道的实时状态。'
 })
 
 const displaySpeakerAddress = ref('')
@@ -254,14 +276,6 @@ const displayHistoryEvents = computed(() => {
 })
 
 // ========== 方法 ==========
-
-function getEventCount(callsign) {
-  let count = 0
-  for (const event of displayHistoryEvents.value) {
-    if (event.callsign === callsign) count++
-  }
-  return count
-}
 
 function loadCachedHistoryEvents() {
   try {
@@ -462,15 +476,26 @@ watch(
 .event-strip-wrap,
 .history-panel {
   flex-shrink: 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border-secondary);
   border-radius: 10px;
+}
+
+.event-strip-wrap,
+.history-panel {
+  background: transparent;
 }
 
 .dashboard-hero {
   position: relative;
   overflow: hidden;
   padding: 0.9rem 1.1rem;
+  border: 1px solid var(--border-secondary);
+  background:
+    linear-gradient(135deg, var(--bg-card), var(--bg-table-stripe));
+}
+
+.dashboard-hero.active {
+  background:
+    linear-gradient(135deg, var(--bg-speaking-bar), var(--bg-card));
 }
 
 .dashboard-hero::before {
@@ -479,13 +504,13 @@ watch(
   width: 4px;
   background: var(--text-disabled);
   content: '';
+  z-index: 2;
 }
 
 .dashboard-hero.active::before {
   background: var(--color-speaking);
 }
 
-.self-dot,
 .history-marker span {
   display: inline-block;
   width: 9px;
@@ -495,17 +520,42 @@ watch(
   flex-shrink: 0;
 }
 
-.self-dot,
 .history-marker span.on {
   background: var(--color-speaking);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+.hero-watermark {
+  position: absolute;
+  inset: 0 0.45rem 0 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--text-primary);
+  font-family: 'IntelOneMono', monospace;
+  font-size: clamp(3.8rem, 15vw, 8.8rem);
+  font-weight: 800;
+  line-height: 0.9;
+  opacity: 0.045;
+  overflow: hidden;
+  pointer-events: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  z-index: 0;
+}
+
+.dashboard-hero.active .hero-watermark {
+  color: var(--color-speaking);
+  opacity: 0.075;
+}
+
 .hero-content {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 1rem;
+  z-index: 1;
 }
 
 .hero-station {
@@ -596,9 +646,10 @@ watch(
   justify-content: center;
   width: 1.45rem;
   height: 1.45rem;
-  border: 2px solid var(--text-primary);
+  border: 2px solid var(--text-disabled);
   border-radius: 50%;
-  color: var(--text-primary);
+  background: var(--alpha-neutral-12);
+  color: var(--text-tertiary);
   transform-origin: center;
 }
 
@@ -606,8 +657,14 @@ watch(
   display: block;
   width: 1.12rem;
   height: 1.12rem;
-  fill: var(--text-primary);
+  fill: currentColor;
   transform: translateY(-0.08rem);
+}
+
+.dashboard-hero.active .geo-icon {
+  border-color: var(--color-speaking);
+  background: var(--alpha-success-12);
+  color: var(--color-speaking);
 }
 
 .geo-item strong {
@@ -676,8 +733,13 @@ watch(
 
 .geo-block strong {
   margin-top: 0;
-  color: var(--text-primary);
+  color: var(--text-tertiary);
   font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.dashboard-hero.active .geo-block strong {
+  color: var(--color-speaking);
 }
 
 .duration-block .idle-duration {
@@ -699,11 +761,13 @@ watch(
 }
 
 .hero-empty {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.85rem;
   min-height: 5rem;
   color: var(--text-secondary);
+  z-index: 1;
 }
 
 .hero-empty strong,
@@ -726,25 +790,11 @@ watch(
   flex-shrink: 0;
 }
 
-.self-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-top: 0.8rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid var(--border-light);
-  color: var(--text-tertiary);
-  font-size: 0.88rem;
-}
-
 .history-panel {
   overflow: visible;
 }
 
-.history-panel {
-  box-shadow: 0 1px 3px var(--shadow-card);
-}
-
+.event-strip-wrap h3,
 .history-panel h3 {
   display: flex;
   align-items: center;
@@ -752,20 +802,10 @@ watch(
   flex-shrink: 0;
   margin: 0;
   padding: 0.8rem 1rem;
-  border-bottom: 1px solid var(--border-light);
   color: var(--text-primary);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0;
-}
-
-.history-panel h3::before {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--brand-indigo);
-  content: '';
-  flex-shrink: 0;
 }
 
 .panel-empty {
@@ -781,7 +821,7 @@ watch(
 
 .event-strip-wrap {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .event-empty {
@@ -791,38 +831,74 @@ watch(
   text-align: center;
 }
 
-.history-list {
+.event-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
   overflow: visible;
 }
 
-.event-strip {
-  display: flex;
-  gap: 0.45rem;
-  padding: 0.55rem 0.65rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.event-strip::-webkit-scrollbar {
-  display: none;
-}
-
 .event-chip {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 0.45rem;
-  flex: 0 0 auto;
-  width: 9rem;
-  min-height: 2.85rem;
-  padding: 0.45rem 0.6rem;
+  min-width: 9rem;
+  height: 4.5rem;
+  padding: 0.7rem 0.6rem;
+  padding-right: 2.65rem;
   border-radius: 6px;
-  background: var(--bg-table-stripe);
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  cursor: pointer;
+  overflow: hidden;
   transition: background 0.15s;
 }
 
+.event-chip.self {
+  cursor: default;
+}
+
+.event-index-bg {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  color: var(--text-primary);
+  font-family: 'IntelOneMono', monospace;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.065;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.event-contact-star {
+  position: absolute;
+  right: 0.48rem;
+  bottom: 0.42rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.08rem;
+  height: 1.08rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.event-contact-star img {
+  display: block;
+  width: 1.08rem;
+  height: 1.08rem;
+  object-fit: contain;
+}
+
 .event-main {
+  position: relative;
+  align-self: center;
   min-width: 0;
+  z-index: 1;
 }
 
 .event-main strong,
@@ -839,7 +915,7 @@ watch(
 }
 
 .event-main strong {
-  font-size: 0.98rem;
+  font-size: 1.15rem;
 }
 
 .event-main span {
@@ -859,39 +935,61 @@ watch(
 }
 
 .event-count {
-  padding: 0.08rem 0.35rem;
-  border-radius: 999px;
-  background: var(--bg-table-stripe);
+  position: absolute;
+  top: 0.48rem;
+  right: 0.55rem;
   font-weight: 700;
+  z-index: 1;
 }
 
 .history-list {
-  padding: 0.35rem 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 0.65rem;
+  padding: 0.65rem;
+  overflow: visible;
 }
 
 .history-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.68rem 1rem;
-  border-left: 3px solid var(--color-transparent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 6.1rem;
+  padding: 0.72rem 0.8rem 0.78rem;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
   cursor: pointer;
-  line-height: 1.45;
-  transition: background 0.15s;
+  line-height: 1.35;
+  overflow: hidden;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.history-index-bg {
+  position: absolute;
+  top: -1rem;
+  right: -0.2rem;
+  color: var(--text-primary);
+  font-family: 'IntelOneMono', monospace;
+  font-size: 4.45rem;
+  font-weight: 800;
+  line-height: 1;
+  opacity: 0.065;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.history-row.active .history-index-bg {
+  color: var(--color-speaking);
+  opacity: 0.095;
 }
 
 .history-row.active {
   border-left-color: var(--color-speaking);
-  background: var(--bg-speaking-bar);
-}
-
-.history-row:nth-child(even) {
-  background: var(--bg-table-stripe);
-}
-
-.history-row.active {
-  background: var(--bg-speaking-bar);
+  background: var(--alpha-success-08);
 }
 
 .history-row.self {
@@ -901,84 +999,140 @@ watch(
 @media (hover: hover) {
   .event-chip:hover,
   .history-row:hover {
-    background: var(--bg-table-hover);
+    background: color-mix(in srgb, var(--text-primary) 7%, transparent);
   }
 
   .history-row.active:hover {
-    background: var(--bg-speaking-bar);
-  }
-
-  .history-row:nth-child(even):hover {
-    background: var(--bg-table-hover);
+    background: var(--alpha-success-08);
   }
 }
 
 .history-name {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.38rem;
   min-width: 0;
+  z-index: 1;
 }
 
 .history-topline {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.36rem;
   min-width: 0;
 }
 
 .history-topline strong {
   flex: 0 1 auto;
-  font-size: 1.08rem;
+  font-size: 1.36rem;
+  font-weight: 800;
+  line-height: 1.05;
 }
 
 .history-topline strong.on,
-.history-state.on {
+.history-state.on,
+.history-row.active .contact-count,
+.history-row.active .history-duration {
   color: var(--color-speaking);
 }
 
-.contact-star {
-  display: inline-flex;
-  align-items: center;
+.history-topline .pill,
+.history-topline .contact-count {
   flex-shrink: 0;
-  color: var(--color-today-uncontacted);
-  font-size: 0.9rem;
-  line-height: 1;
+  margin-top: 0;
+  background: transparent;
 }
 
-.contact-star.star-on {
-  width: 1rem;
-  height: 1rem;
+.history-topline .contact-count {
+  color: var(--text-tertiary);
+  font-family: 'IntelOneMono', monospace;
+  font-size: 1.36rem;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.contact-star {
+  position: absolute;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.28rem;
+  height: 1.28rem;
+  line-height: 1;
+  z-index: 1;
 }
 
 .star-img {
   display: block;
-  width: 1rem;
-  height: 1rem;
+  width: 1.28rem;
+  height: 1.28rem;
   object-fit: contain;
 }
 
 .history-times {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.12rem;
-  min-width: max-content;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.38rem;
+  min-width: 0;
+  margin-top: auto;
   white-space: nowrap;
+  z-index: 1;
 }
 
 .history-state {
   color: var(--text-tertiary);
-  font-size: 0.92rem;
+  font-size: 0.78rem;
   font-weight: 500;
   flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.history-state.on {
+  background: transparent;
 }
 
 .history-meta {
-  margin-top: 0.22rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+  min-height: 1.28rem;
+  margin-top: 0;
+  font-size: 0.8rem;
+  line-height: 1.28;
+  overflow: hidden;
+}
+
+.history-meta .detail-tag {
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.history-address {
+  display: block;
+  max-width: 100%;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-duration {
   font-family: 'IntelOneMono', monospace;
-  font-size: 0.92rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
   text-align: right;
 }
 
@@ -1022,7 +1176,7 @@ watch(
   }
 
   .history-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 6rem;
   }
 }
 
@@ -1041,9 +1195,9 @@ watch(
   }
 
   .history-row {
-    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.5rem;
-    padding: 0.62rem 0.8rem;
+    min-height: 5.9rem;
+    padding: 0.72rem 0.75rem 0.65rem;
   }
 
   .history-topline {
