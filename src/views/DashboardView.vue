@@ -1,8 +1,14 @@
 <template>
   <div class="dashboard-view">
-    <section class="dashboard-hero" :class="{ active: isDisplaySpeakerActive }">
+    <section
+      class="dashboard-hero"
+      :class="{ active: isDisplaySpeakerActive, 'self-speaking': isOwnSpeaking }"
+    >
       <span v-if="displaySpeaker" class="hero-watermark" aria-hidden="true">
-        {{ displaySpeaker.callsign }} x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}
+        {{ displaySpeaker.callsign }}
+        <span class="hero-watermark-count"
+          >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
+        >
       </span>
       <div v-if="displaySpeaker" class="hero-content">
         <div class="hero-station">
@@ -14,6 +20,15 @@
               <span class="speaker-contact-count"
                 >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
               >
+              <span
+                v-if="
+                  displaySpeaker.callsign !== selectedFromCallsign &&
+                  todayContactedCallsigns.has(displaySpeaker.callsign)
+                "
+                class="speaker-contact-star"
+              >
+                <img src="/img/star_2b50.png" alt="" />
+              </span>
             </div>
           </div>
 
@@ -40,9 +55,18 @@
 
         <div class="hero-metrics">
           <div class="metric-block duration-block">
-            <span>{{ isDisplaySpeakerActive ? '持续时间' : '发言时长' }}</span>
+            <span>{{
+              isOwnSpeaking && !isDisplaySpeakerActive
+                ? '您正在发言'
+                : isDisplaySpeakerActive
+                  ? '持续时间'
+                  : '发言时长'
+            }}</span>
             <strong v-if="isDisplaySpeakerActive">
               {{ speakingDuration }}
+            </strong>
+            <strong v-else-if="isOwnSpeaking" class="self-speaking-duration">
+              {{ ownSpeakingDuration }}
             </strong>
             <strong v-else-if="displaySpeaker.endTime" class="idle-duration">
               {{ formatDurationMmSs(displaySpeaker.endTime - displaySpeaker.startTime) }}
@@ -53,7 +77,13 @@
 
       <div v-else class="hero-empty">
         <div>
-          <strong>{{ hasAnySpeakingHistory ? '暂时没有对方发言' : '暂时没人发言' }}</strong>
+          <strong>{{
+            isOwnSpeaking
+              ? '您正在发言'
+              : hasAnySpeakingHistory
+                ? '暂时没有对方发言'
+                : '暂时没人发言'
+          }}</strong>
           <span>{{ heroEmptyText }}</span>
         </div>
       </div>
@@ -81,19 +111,21 @@
         >
           <span class="event-index-bg" aria-hidden="true">{{ index + 1 }}</span>
           <div class="event-main">
-            <strong>{{ event.callsign }}</strong>
+            <div class="event-callsign-line">
+              <strong>{{ event.callsign }}</strong>
+              <span
+                v-if="
+                  event.callsign !== selectedFromCallsign &&
+                  todayContactedCallsigns.has(event.callsign)
+                "
+                class="event-contact-star"
+              >
+                <img src="/img/star_2b50.png" alt="" />
+              </span>
+            </div>
             <span>{{ formatEventTime(event.utcTime) }}</span>
           </div>
           <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
-          <span
-            v-if="
-              event.callsign !== selectedFromCallsign &&
-              todayContactedCallsigns.has(event.callsign)
-            "
-            class="event-contact-star"
-          >
-            <img src="/img/star_2b50.png" alt="" />
-          </span>
         </div>
       </div>
     </section>
@@ -132,6 +164,15 @@
                 <span v-if="record.callsign === selectedFromCallsign" class="self-label">您</span>
                 <template v-else>x{{ contactCounts.get(record.callsign) || 0 }}</template>
               </span>
+              <span
+                v-if="
+                  record.callsign !== selectedFromCallsign &&
+                  todayContactedCallsigns.has(record.callsign)
+                "
+                class="history-contact-star"
+              >
+                <img class="star-img" src="/img/star_2b50.png" alt="" />
+              </span>
             </div>
 
             <div class="history-meta">
@@ -152,16 +193,6 @@
               formatDurationMmSs((record.endTime || now) - record.startTime)
             }}</span>
           </div>
-
-          <span
-            v-if="
-              record.callsign !== selectedFromCallsign &&
-              todayContactedCallsigns.has(record.callsign)
-            "
-            class="contact-star"
-          >
-            <img class="star-img" src="/img/star_2b50.png" alt="" />
-          </span>
         </div>
       </div>
     </section>
@@ -201,7 +232,14 @@ const currentSpeakerRecord = computed(() => {
   return speakingStore.speakingHistory.find((h) => !h.endTime) || null
 })
 
+const currentOwnSpeakerRecord = computed(() => {
+  const ownCallsign = selectedFromCallsign.value
+  if (!ownCallsign) return null
+  return currentSpeakerRecord.value?.callsign === ownCallsign ? currentSpeakerRecord.value : null
+})
+
 const isAnyoneSpeaking = computed(() => !!currentSpeakerRecord.value)
+const isOwnSpeaking = computed(() => !!currentOwnSpeakerRecord.value)
 
 const displaySpeaker = computed(() => {
   const history = speakingStore.speakingHistory
@@ -225,7 +263,9 @@ const isDisplaySpeakerActive = computed(() => {
 
 const hasAnySpeakingHistory = computed(() => speakingStore.speakingHistory.length > 0)
 
-const heroEmptyText = computed(() => '有新发言时会显示在这里')
+const heroEmptyText = computed(() =>
+  isOwnSpeaking.value ? '等待对方回应时会保留在这里' : '有新发言时会显示在这里'
+)
 
 const displaySpeakerAddress = ref('')
 
@@ -257,6 +297,7 @@ const displaySpeakerGeoText = computed(() => {
 })
 
 const speakingDuration = ref('00:00')
+const ownSpeakingDuration = ref('00:00')
 let durationTimer = null
 
 const displayHistory = computed(() => {
@@ -392,6 +433,13 @@ function updateSpeakingDuration() {
   if (currentSpeakerRecord.value && !currentSpeakerRecord.value.endTime) {
     speakingDuration.value = formatDurationMmSs(Date.now() - currentSpeakerRecord.value.startTime)
   }
+  if (currentOwnSpeakerRecord.value && !currentOwnSpeakerRecord.value.endTime) {
+    ownSpeakingDuration.value = formatDurationMmSs(
+      Date.now() - currentOwnSpeakerRecord.value.startTime
+    )
+  } else {
+    ownSpeakingDuration.value = '00:00'
+  }
 }
 
 async function updateDisplaySpeakerAddress() {
@@ -408,6 +456,7 @@ onMounted(() => {
   nowTimer = setInterval(() => {
     now.value = Date.now()
   }, 1000)
+  updateSpeakingDuration()
   durationTimer = setInterval(updateSpeakingDuration, 1000)
 })
 
@@ -465,6 +514,16 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
     linear-gradient(135deg, var(--bg-speaking-bar), var(--bg-card));
 }
 
+.dashboard-hero.self-speaking:not(.active) {
+  border-color: var(--color-speaking);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-speaking) 10%, transparent),
+      var(--bg-card)
+    );
+}
+
 .dashboard-hero::before {
   position: absolute;
   inset: 0 auto 0 0;
@@ -476,6 +535,11 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .dashboard-hero.active::before {
   background: var(--color-speaking);
+}
+
+.dashboard-hero.self-speaking:not(.active)::before {
+  background: var(--color-speaking);
+  opacity: 0.65;
 }
 
 .history-marker span {
@@ -508,6 +572,11 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   text-transform: uppercase;
   white-space: nowrap;
   z-index: 0;
+}
+
+.hero-watermark-count {
+  margin-left: 0.28em;
+  text-transform: none;
 }
 
 .dashboard-hero.active .hero-watermark {
@@ -565,6 +634,22 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   font-weight: 800;
   line-height: 0.95;
   white-space: nowrap;
+}
+
+.speaker-contact-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(1.65rem, 4.1vw, 2.7rem);
+  height: clamp(1.65rem, 4.1vw, 2.7rem);
+  line-height: 1;
+}
+
+.speaker-contact-star img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .speaker-details,
@@ -690,6 +775,10 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   color: var(--text-secondary);
 }
 
+.duration-block .self-speaking-duration {
+  color: var(--color-speaking);
+}
+
 .duration-block {
   min-width: 6.5rem;
   align-items: flex-end;
@@ -794,7 +883,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .event-strip {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
   gap: 0.45rem;
   padding: 0.55rem 0.65rem;
   overflow: visible;
@@ -806,7 +895,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 0.45rem;
-  min-width: 9rem;
+  min-width: 11.5rem;
   height: 4.5rem;
   padding: 0.7rem 0.6rem;
   padding-right: 2.65rem;
@@ -834,17 +923,25 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   z-index: 0;
 }
 
+.event-callsign-line {
+  display: flex;
+  align-items: center;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.event-callsign-line strong {
+  min-width: 0;
+}
+
 .event-contact-star {
-  position: absolute;
-  right: 0.48rem;
-  bottom: 0.42rem;
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   width: 1.08rem;
   height: 1.08rem;
   pointer-events: none;
-  z-index: 1;
 }
 
 .event-contact-star img {
@@ -1015,23 +1112,20 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   line-height: 1;
 }
 
-.contact-star {
-  position: absolute;
-  right: 0.55rem;
-  bottom: 0.55rem;
+.history-contact-star {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 1.28rem;
-  height: 1.28rem;
+  width: 1.18rem;
+  height: 1.18rem;
   line-height: 1;
-  z-index: 1;
 }
 
 .star-img {
   display: block;
-  width: 1.28rem;
-  height: 1.28rem;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
