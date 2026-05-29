@@ -789,7 +789,6 @@ onUnmounted(() => {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'IntelOneMono', monospace;
 }
 
 .unread-indicator {
@@ -982,7 +981,6 @@ onUnmounted(() => {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--component-message-accent-text);
-  font-family: 'IntelOneMono', monospace;
 }
 
 .reply-hint {
@@ -1001,7 +999,6 @@ onUnmounted(() => {
 .email-recipient {
   font-size: 0.875rem;
   color: var(--text-secondary);
-  font-family: 'IntelOneMono', monospace;
 }
 
 /* 邮件正文 */
@@ -1071,7 +1068,6 @@ onUnmounted(() => {
 }
 
 .meta-value.callsign {
-  font-family: 'IntelOneMono', monospace;
   font-weight: 600;
   color: var(--component-message-accent-text);
 }

@@ -84,10 +84,7 @@
             <strong>{{ event.callsign }}</strong>
             <span>{{ formatEventTime(event.utcTime) }}</span>
           </div>
-          <span class="event-count">
-            <template v-if="event.callsign === selectedFromCallsign">您</template>
-            <template v-else>x{{ contactCounts.get(event.callsign) || 0 }}</template>
-          </span>
+          <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
           <span
             v-if="
               event.callsign !== selectedFromCallsign &&
@@ -132,7 +129,7 @@
                 {{ record.callsign }}
               </strong>
               <span class="contact-count">
-                <template v-if="record.callsign === selectedFromCallsign">您</template>
+                <span v-if="record.callsign === selectedFromCallsign" class="self-label">您</span>
                 <template v-else>x{{ contactCounts.get(record.callsign) || 0 }}</template>
               </span>
             </div>
@@ -502,7 +499,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   align-items: center;
   justify-content: flex-end;
   color: var(--text-primary);
-  font-family: 'IntelOneMono', monospace;
   font-size: clamp(3.8rem, 15vw, 8.8rem);
   font-weight: 800;
   line-height: 0.9;
@@ -552,7 +548,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .speaker-callsign {
   color: var(--color-speaking);
-  font-family: 'IntelOneMono', monospace;
   font-size: clamp(2.1rem, 5.4vw, 3.8rem);
   font-weight: 800;
   letter-spacing: 0;
@@ -566,7 +561,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .speaker-contact-count {
   color: var(--text-tertiary);
-  font-family: 'IntelOneMono', monospace;
   font-size: clamp(2.1rem, 5.4vw, 3.8rem);
   font-weight: 800;
   line-height: 0.95;
@@ -621,7 +615,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .geo-item strong {
   color: var(--text-primary);
-  font-family: 'IntelOneMono', monospace;
   font-size: 1.02rem;
   font-weight: 800;
 }
@@ -664,7 +657,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .metric-block strong {
   color: var(--color-speaking);
-  font-family: 'IntelOneMono', monospace;
   font-size: 1.35rem;
   font-weight: 800;
   line-height: 1.1;
@@ -831,10 +823,9 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .event-index-bg {
   position: absolute;
-  right: 0;
-  bottom: 0;
+  right: -0.14rem;
+  bottom: -0.3rem;
   color: var(--text-primary);
-  font-family: 'IntelOneMono', monospace;
   font-size: 2.6rem;
   font-weight: 800;
   line-height: 1;
@@ -876,7 +867,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   min-width: 0;
   overflow: hidden;
   color: var(--text-primary);
-  font-family: 'IntelOneMono', monospace;
   font-weight: 800;
   letter-spacing: 0;
   text-overflow: ellipsis;
@@ -892,7 +882,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   display: block;
   margin-top: 0.12rem;
   color: var(--text-tertiary);
-  font-family: 'IntelOneMono', monospace;
   font-size: 0.82rem;
 }
 
@@ -940,10 +929,9 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .history-index-bg {
   position: absolute;
-  top: -1rem;
+  top: -0.3rem;
   right: -0.2rem;
   color: var(--text-primary);
-  font-family: 'IntelOneMono', monospace;
   font-size: 4.45rem;
   font-weight: 800;
   line-height: 1;
@@ -1015,10 +1003,16 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .history-topline .contact-count {
   color: var(--text-tertiary);
-  font-family: 'IntelOneMono', monospace;
   font-size: 1.36rem;
   font-weight: 800;
   line-height: 1.05;
+}
+
+.history-topline .self-label {
+  display: inline-block;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .contact-star {
@@ -1098,7 +1092,6 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .history-duration {
-  font-family: 'IntelOneMono', monospace;
   font-size: 0.9rem;
   font-weight: 600;
   text-align: right;

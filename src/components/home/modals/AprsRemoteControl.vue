@@ -1153,7 +1153,6 @@ onUnmounted(() => {
 .timeline-time {
   font-size: 0.75rem;
   color: var(--text-tertiary);
-  font-family: 'Intel One Mono', monospace;
 }
 
 /* 弹窗样式 */

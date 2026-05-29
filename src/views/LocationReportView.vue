@@ -428,7 +428,6 @@ onUnmounted(() => {
 }
 
 .coord-value {
-  font-family: 'IntelOneMono', monospace;
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -440,10 +439,6 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0.6rem 0;
-}
-
-.setting-row + .setting-row {
-  /* interval-row 已同行，无需分隔线 */
 }
 
 .setting-label {
