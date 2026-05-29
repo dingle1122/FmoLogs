@@ -7,7 +7,6 @@ import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
-import android.view.WindowInsets;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -50,24 +49,8 @@ public class FmoSystemUiPlugin extends Plugin {
 
             View decor = getActivity().getWindow().getDecorView();
             ViewCompat.setOnApplyWindowInsetsListener(decor, (v, insets) -> {
-                JSObject data = new JSObject();
-                int statusBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.statusBars()).top);
-                int navBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom);
-                int left = pxToDp(Math.max(
-                    insets.getInsets(WindowInsetsCompat.Type.systemBars()).left,
-                    insets.getInsets(WindowInsetsCompat.Type.displayCutout()).left
-                ));
-                int right = pxToDp(Math.max(
-                    insets.getInsets(WindowInsetsCompat.Type.systemBars()).right,
-                    insets.getInsets(WindowInsetsCompat.Type.displayCutout()).right
-                ));
-                data.put("top", statusBarDp);
-                data.put("bottom", navBarDp);
-                data.put("left", left);
-                data.put("right", right);
-                Log.i(TAG, "safeAreaChanged top=" + statusBarDp + " bottom=" + navBarDp
-                    + " (navBar=" + navBarDp + ")"
-                    + " left=" + left + " right=" + right);
+                JSObject data = buildInsetsResult(insets);
+                Log.i(TAG, "safeAreaChanged " + data);
                 notifyListeners("safeAreaChanged", data);
                 return insets;
             });
@@ -88,20 +71,9 @@ public class FmoSystemUiPlugin extends Plugin {
         JSObject result = new JSObject();
         try {
             View decor = getActivity().getWindow().getDecorView();
-            WindowInsets insets = decor.getRootWindowInsets();
+            WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(decor);
             if (insets != null) {
-                int statusBarDp = pxToDp(insets.getInsets(WindowInsets.Type.statusBars()).top);
-                int navBarDp = pxToDp(insets.getInsets(WindowInsets.Type.navigationBars()).bottom);
-                result.put("top", statusBarDp);
-                result.put("bottom", navBarDp);
-                result.put("left", pxToDp(Math.max(
-                    insets.getInsets(WindowInsets.Type.systemBars()).left,
-                    insets.getInsets(WindowInsets.Type.displayCutout()).left
-                )));
-                result.put("right", pxToDp(Math.max(
-                    insets.getInsets(WindowInsets.Type.systemBars()).right,
-                    insets.getInsets(WindowInsets.Type.displayCutout()).right
-                )));
+                result = buildInsetsResult(insets);
             } else {
                 // 尚未完成 layout 时的估算值（dp）
                 result.put("top", 36);
@@ -118,6 +90,26 @@ public class FmoSystemUiPlugin extends Plugin {
         }
         Log.i(TAG, "getSafeAreaInsets → " + result);
         call.resolve(result);
+    }
+
+    /** Build a JS result from compat insets. */
+    private JSObject buildInsetsResult(WindowInsetsCompat insets) {
+        JSObject result = new JSObject();
+        int statusBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.statusBars()).top);
+        int navBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom);
+        int left = pxToDp(Math.max(
+            insets.getInsets(WindowInsetsCompat.Type.systemBars()).left,
+            insets.getInsets(WindowInsetsCompat.Type.displayCutout()).left
+        ));
+        int right = pxToDp(Math.max(
+            insets.getInsets(WindowInsetsCompat.Type.systemBars()).right,
+            insets.getInsets(WindowInsetsCompat.Type.displayCutout()).right
+        ));
+        result.put("top", statusBarDp);
+        result.put("bottom", navBarDp);
+        result.put("left", left);
+        result.put("right", right);
+        return result;
     }
 
     /** 将原始物理像素转换为 dp（与 WebView CSS px 一致）。 */
