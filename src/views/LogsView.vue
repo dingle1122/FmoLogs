@@ -213,7 +213,7 @@ onUnmounted(() => {
   height: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .logs-view {
     height: auto;
     min-height: 0;

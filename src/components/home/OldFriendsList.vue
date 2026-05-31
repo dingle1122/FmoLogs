@@ -384,7 +384,7 @@ watch(
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .old-friends-container {
     margin-top: 0.5rem;
     overflow: visible;

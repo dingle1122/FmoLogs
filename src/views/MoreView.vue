@@ -118,7 +118,7 @@ import SvgIcon from '../components/common/SvgIcon.vue'
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .more-view {
     padding: 1rem;
   }

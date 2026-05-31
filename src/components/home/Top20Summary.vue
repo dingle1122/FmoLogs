@@ -398,7 +398,7 @@ watch(() => props.top20Result, loadGridAddresses, { immediate: true, deep: true 
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .top20-container {
     grid-template-columns: 1fr;
     margin-top: 0.5rem;

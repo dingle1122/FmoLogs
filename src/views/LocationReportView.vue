@@ -658,7 +658,7 @@ onUnmounted(() => {
 }
 
 /* 移动端 */
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .location-view {
     padding: 1rem;
   }

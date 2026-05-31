@@ -1204,7 +1204,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .dashboard-view {
     height: auto;
     margin-top: 0.5rem;

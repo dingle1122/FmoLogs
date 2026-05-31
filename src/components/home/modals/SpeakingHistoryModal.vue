@@ -572,14 +572,14 @@ defineEmits([
   font-size: 0.9rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .modal-speaking-history {
     width: 95%;
     max-height: calc(var(--vh, 1vh) * 85);
   }
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
+@media (min-width: 481px) and (max-width: 760px) {
   .modal-speaking-history {
     width: min(92vw, 560px);
     max-width: 92vw;

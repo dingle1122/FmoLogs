@@ -358,7 +358,7 @@ function closeDetail(manual = false) {
 let detailPushedState = false
 
 function isMobileLayout() {
-  return window.innerWidth <= 768
+  return window.innerWidth <= 760
 }
 
 function openDetailState() {
@@ -1285,7 +1285,7 @@ onUnmounted(() => {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .message-list-section {
     width: 100%;
     min-width: auto;

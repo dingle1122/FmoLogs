@@ -295,7 +295,7 @@ defineEmits(['click', 'toggle-audio'])
   line-height: 1;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .speaking-bar {
     padding: 0.4rem 0.75rem;
   }
@@ -326,7 +326,7 @@ defineEmits(['click', 'toggle-audio'])
   }
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
+@media (min-width: 481px) and (max-width: 760px) {
   .speaking-bar {
     padding: 0.45rem 0.75rem;
   }

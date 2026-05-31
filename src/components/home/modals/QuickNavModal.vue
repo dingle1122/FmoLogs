@@ -163,7 +163,7 @@ function handleNavClick(_routeItem) {
   font-weight: 500;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .modal-quick-nav {
     width: 280px;
   }

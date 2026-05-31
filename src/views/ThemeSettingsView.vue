@@ -910,7 +910,7 @@ onUnmounted(() => {
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .theme-settings-view {
     padding: 0.875rem;
   }

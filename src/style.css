@@ -319,7 +319,7 @@ button:focus-visible {
 }
 
 /* Capacitor 移动端优化：禁止文本选择和长按菜单，提升 App 体验 */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 760px) {
   body {
     -webkit-user-select: none;
     user-select: none;

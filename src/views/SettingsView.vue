@@ -1780,7 +1780,7 @@ function handleVolumeChange(e) {
   background: var(--color-white);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .fmo-preview-dialog {
     width: 92vw;
     max-width: 92vw;
@@ -1795,7 +1795,7 @@ function handleVolumeChange(e) {
 }
 
 /* 移动端优化 */
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .text-desktop {
     display: none;
   }
@@ -2007,7 +2007,7 @@ function handleVolumeChange(e) {
 }
 
 /* 移动端适配 */
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .multi-select-toggle {
     gap: 0.3rem;
   }

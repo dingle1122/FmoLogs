@@ -221,7 +221,7 @@ function handleJump(event) {
   margin-left: 0.35rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .pagination {
     display: none;
   }

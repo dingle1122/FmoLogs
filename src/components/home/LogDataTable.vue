@@ -205,7 +205,7 @@ const loadMoreRef = ref(null)
 let observer = null
 
 function isMobile() {
-  return window.innerWidth <= 768
+  return window.innerWidth <= 760
 }
 
 function setupObserver() {
@@ -641,7 +641,7 @@ function formatTimePart(dateTimeStr) {
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .result-section {
     margin-top: 0.5rem;
     overflow: visible;

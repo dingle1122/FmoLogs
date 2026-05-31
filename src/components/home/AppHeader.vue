@@ -250,7 +250,7 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   display: flex;
   gap: 0;
   align-items: center;
-  justify-self: center;
+  justify-self: flex-start;
   min-width: 0;
 }
 
@@ -337,7 +337,25 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 920px) {
+  .header-title {
+    display: none;
+  }
+
+  .header-logo {
+    display: block;
+  }
+
+  .header-divider {
+    display: block;
+  }
+
+  .total-logs {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 760px) {
   .header {
     padding: 0.5rem 0.75rem;
     column-gap: 0.75rem;

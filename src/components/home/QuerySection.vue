@@ -341,7 +341,7 @@ const hasFilters = computed(() => {
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .query-section {
     border-radius: 6px;
     padding: 0.5rem 0.65rem;
@@ -401,8 +401,8 @@ const hasFilters = computed(() => {
 </style>
 
 <style>
-/* 移动端（≤768px）：强制日期选择器撑满 .date-filter 宽度 */
-@media (max-width: 768px) {
+/* 移动端（≤760px）：强制日期选择器撑满 .date-filter 宽度 */
+@media (max-width: 760px) {
   .query-section .date-filter .date-picker {
     display: flex;
     width: 100%;

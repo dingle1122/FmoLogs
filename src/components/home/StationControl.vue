@@ -193,7 +193,7 @@ function handleOpenList() {
   }
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
+@media (min-width: 481px) and (max-width: 760px) {
   .station-control {
     gap: 0.4rem;
   }

@@ -274,7 +274,7 @@ watch(
   padding: 3rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .record-cards-grid {
     grid-template-columns: minmax(0, 1fr);
   }

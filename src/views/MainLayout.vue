@@ -1566,7 +1566,7 @@ provide('protocol', settings.protocol)
   display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 760px) {
   .content-area {
     padding: 0 0.5rem 0.5rem;
     overflow-y: auto;
