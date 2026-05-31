@@ -177,21 +177,55 @@
 
             <div class="history-meta">
               <span v-if="record.serverName" class="detail-tag">{{ record.serverName }}</span>
-              <span v-if="historyAddressMap[record.callsign]" class="history-address">{{
-                historyAddressMap[record.callsign]
-              }}</span>
+              <span class="history-address">{{ historyAddressMap[record.callsign] || '' }}</span>
             </div>
           </div>
 
           <div class="history-times">
-            <span class="history-state" :class="{ on: !record.endTime }">
+            <span class="history-time-summary" :class="{ on: !record.endTime }">
               <template v-if="!record.endTime">发言中</template>
               <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
+              {{ formatDurationMmSs((record.endTime || now) - record.startTime) }}
             </span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-            <span class="history-duration">{{
-              formatDurationMmSs((record.endTime || now) - record.startTime)
-            }}</span>
+    <section class="today-contact-panel">
+      <h3>今日通联记录</h3>
+
+      <div class="contact-list">
+        <div v-if="todayContactRecords.length === 0" class="empty-state">
+          <div class="empty-state-copy">
+            <strong>暂无今日通联记录</strong>
+            <span>同步到今日通联后会显示在这里</span>
+          </div>
+        </div>
+
+        <div
+          v-for="(record, index) in todayContactRecords"
+          :key="`${record.timestamp}-${record.toCallsign}-${index}`"
+          class="contact-row"
+          @click="$emit('show-callsign-records', record.toCallsign)"
+        >
+          <span class="contact-index-bg" aria-hidden="true">{{ index + 1 }}</span>
+          <div class="contact-name">
+            <div class="contact-topline">
+              <strong>{{ record.toCallsign }}</strong>
+              <span class="contact-record-count">
+                x{{ contactCounts.get(record.toCallsign) || 0 }}
+              </span>
+            </div>
+
+            <div class="contact-meta">
+              <span class="contact-service">{{ record.relayName || '未知服务' }}</span>
+              <span class="contact-address">{{ getTodayContactAddress(record) }}</span>
+            </div>
+          </div>
+
+          <div class="contact-times">
+            <span class="contact-time-summary">{{ formatContactTime(record.timestamp) }}</span>
           </div>
         </div>
       </div>
@@ -204,6 +238,7 @@ import { ref, computed, onMounted, onUnmounted, watch, inject, reactive } from '
 import { useSpeakingStatusStore } from '../stores/speakingStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { formatTimeAgo, formatDurationMmSs } from '../components/home/constants'
+import { getAllRecordsFromIndexedDB } from '../services/db'
 import { gridToAddress } from '../services/gridService'
 import { normalizeHost } from '../utils/urlUtils'
 import { FmoApiClient } from '../services/fmoApi'
@@ -224,7 +259,9 @@ const myLat = ref(null)
 const myLng = ref(null)
 
 const historyAddressMap = reactive({})
+const todayContactAddressMap = reactive({})
 const gridAddressCache = reactive({})
+const todayContactRecords = ref([])
 
 // ========== 计算属性 ==========
 
@@ -323,6 +360,17 @@ function formatEventTime(utcTime) {
   return `${h}:${m}:${s}`
 }
 
+function formatContactTime(timestamp) {
+  if (!timestamp) return ''
+  const date = new Date(timestamp * 1000)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  const seconds = String(date.getSeconds()).padStart(2, '0')
+  return `${month}-${day} ${hours}:${minutes}:${seconds}`
+}
+
 function gridToLatLng(grid) {
   if (!grid || grid.length < 4) return null
   grid = grid.toUpperCase()
@@ -409,6 +457,58 @@ async function loadHistoryAddresses(records) {
   }
 }
 
+function getTodayUtcDate() {
+  const today = new Date()
+  const year = today.getUTCFullYear()
+  const month = String(today.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(today.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getTodayContactAddress(record) {
+  if (!record?.toGrid) return ''
+  return todayContactAddressMap[record.toGrid] || record.toGrid
+}
+
+async function loadTodayContactAddresses(records) {
+  for (const record of records) {
+    if (record.toGrid && todayContactAddressMap[record.toGrid] === undefined) {
+      todayContactAddressMap[record.toGrid] = await loadGridAddress(record.toGrid)
+    }
+  }
+}
+
+async function loadTodayContactRecords() {
+  if (!selectedFromCallsign.value) {
+    todayContactRecords.value = []
+    return
+  }
+
+  try {
+    const result = await getAllRecordsFromIndexedDB(
+      1,
+      999999,
+      '',
+      selectedFromCallsign.value,
+      getTodayUtcDate()
+    )
+    const todayUtcDate = getTodayUtcDate()
+    todayContactRecords.value = (result.data || []).filter((record) => {
+      if (!record.timestamp) return false
+      const date = new Date(record.timestamp * 1000)
+      const recordUtcDate = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(
+        2,
+        '0'
+      )}-${String(date.getUTCDate()).padStart(2, '0')}`
+      return recordUtcDate === todayUtcDate
+    })
+    await loadTodayContactAddresses(todayContactRecords.value)
+  } catch (error) {
+    console.error('加载今日通联记录失败:', error)
+    todayContactRecords.value = []
+  }
+}
+
 async function fetchMyCoordinate() {
   if (!fmoAddress.value) return
   try {
@@ -473,6 +573,21 @@ watch(
   { immediate: true, deep: true }
 )
 
+watch(
+  selectedFromCallsign,
+  () => {
+    loadTodayContactRecords()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => settingsStore.contactCounts,
+  () => {
+    loadTodayContactRecords()
+  }
+)
+
 watch(displaySpeaker, () => updateDisplaySpeakerAddress(), { immediate: true })
 
 watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
@@ -490,12 +605,14 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .dashboard-hero,
 .event-strip-wrap,
+.today-contact-panel,
 .history-panel {
   flex-shrink: 0;
   border-radius: 10px;
 }
 
 .event-strip-wrap,
+.today-contact-panel,
 .history-panel {
   background: transparent;
 }
@@ -820,11 +937,13 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   font-weight: 500;
 }
 
+.today-contact-panel,
 .history-panel {
   overflow: visible;
 }
 
 .event-strip-wrap h3,
+.today-contact-panel h3,
 .history-panel h3 {
   display: flex;
   align-items: center;
@@ -959,6 +1078,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .event-main strong,
+.contact-topline strong,
 .history-topline strong {
   display: block;
   min-width: 0;
@@ -984,8 +1104,9 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .event-count,
 .contact-count,
-.history-state,
-.history-duration {
+.contact-record-count,
+.contact-time-summary,
+.history-time-summary {
   color: var(--text-tertiary);
   white-space: nowrap;
 }
@@ -998,21 +1119,25 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   z-index: 1;
 }
 
+.contact-list,
 .history-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
-  gap: 0.65rem;
-  padding: 0.65rem;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
   overflow: visible;
 }
 
+.contact-row,
 .history-row {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 11.5rem;
   min-height: 6.1rem;
   padding: 0.72rem 0.8rem 0.78rem;
+  padding-right: 2.65rem;
   border-left: 3px solid transparent;
   border-radius: 6px;
   background: color-mix(in srgb, var(--text-primary) 5%, transparent);
@@ -1024,17 +1149,22 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
     border-color 0.15s;
 }
 
+.contact-index-bg,
 .history-index-bg {
   position: absolute;
-  top: -0.3rem;
-  right: -0.2rem;
+  right: -0.14rem;
+  bottom: -0.3rem;
   color: var(--text-primary);
-  font-size: 4.45rem;
+  font-size: 2.6rem;
   font-weight: 800;
   line-height: 1;
   opacity: 0.065;
   pointer-events: none;
   z-index: 0;
+}
+
+.contact-row {
+  border-left: 0;
 }
 
 .history-row.active .history-index-bg {
@@ -1053,6 +1183,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 @media (hover: hover) {
   .event-chip:hover,
+  .contact-row:hover,
   .history-row:hover {
     background: color-mix(in srgb, var(--text-primary) 7%, transparent);
   }
@@ -1062,6 +1193,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   }
 }
 
+.contact-name,
 .history-name {
   position: relative;
   display: flex;
@@ -1072,6 +1204,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   z-index: 1;
 }
 
+.contact-topline,
 .history-topline {
   display: flex;
   align-items: center;
@@ -1079,36 +1212,38 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   min-width: 0;
 }
 
+.contact-topline strong,
 .history-topline strong {
   flex: 0 1 auto;
-  font-size: 1.36rem;
+  font-size: 1.15rem;
   font-weight: 800;
-  line-height: 1.05;
+  line-height: 1.15;
+}
+
+.contact-record-count,
+.history-topline .contact-count {
+  position: absolute;
+  top: -0.24rem;
+  right: -2.1rem;
+  flex-shrink: 0;
+  margin-top: 0;
+  color: var(--text-tertiary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.15;
+  z-index: 1;
 }
 
 .history-topline strong.on,
-.history-state.on,
-.history-row.active .contact-count,
-.history-row.active .history-duration {
+.history-time-summary.on,
+.history-row.active .contact-count {
   color: var(--color-speaking);
-}
-
-.history-topline .contact-count {
-  flex-shrink: 0;
-  margin-top: 0;
-}
-
-.history-topline .contact-count {
-  color: var(--text-tertiary);
-  font-size: 1.36rem;
-  font-weight: 800;
-  line-height: 1.05;
 }
 
 .history-topline .self-label {
   display: inline-block;
-  font-size: 1.1rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -1129,66 +1264,74 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   object-fit: contain;
 }
 
+.contact-times,
 .history-times {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.38rem;
+  display: block;
+  width: 100%;
   min-width: 0;
   margin-top: auto;
   white-space: nowrap;
   z-index: 1;
 }
 
-.history-state {
+.contact-time-summary,
+.history-time-summary {
+  display: block;
+  width: 100%;
+  overflow: hidden;
   color: var(--text-tertiary);
   font-size: 0.78rem;
-  font-weight: 500;
-  flex-shrink: 0;
-  line-height: 1.2;
+  font-weight: 400;
+  line-height: 1.25;
+  text-overflow: ellipsis;
 }
 
-.history-state.on {
+.history-time-summary.on {
   background: transparent;
 }
 
+.contact-meta,
 .history-meta {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.08rem;
-  min-height: 1.28rem;
+  gap: 0.1rem;
+  width: 100%;
+  min-height: calc(0.78rem * 1.25 * 3 + 0.2rem);
   margin-top: 0;
-  font-size: 0.8rem;
-  line-height: 1.28;
+  font-size: 0.78rem;
+  line-height: 1.25;
   overflow: hidden;
 }
 
+.contact-service,
 .history-meta .detail-tag {
+  display: block;
+  width: 100%;
   max-width: 100%;
   padding: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.25;
 }
 
+.contact-address,
 .history-address {
-  display: block;
+  display: -webkit-box;
+  width: 100%;
+  min-height: calc(0.78rem * 1.25 * 2);
   max-width: 100%;
   color: var(--text-tertiary);
   font-size: 0.78rem;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-duration {
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-align: right;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 @keyframes pulse {
@@ -1249,14 +1392,12 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
     justify-self: end;
   }
 
+  .contact-row,
   .history-row {
     gap: 0.5rem;
     min-height: 5.9rem;
     padding: 0.72rem 0.75rem 0.65rem;
-  }
-
-  .history-topline {
-    flex-wrap: wrap;
+    padding-right: 2.65rem;
   }
 
   .empty-state {
