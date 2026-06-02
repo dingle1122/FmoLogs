@@ -1386,6 +1386,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   text-overflow: ellipsis;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 @keyframes pulse {
