@@ -55,6 +55,12 @@
 
         <div class="hero-metrics">
           <div class="metric-block duration-block">
+            <span
+              class="duration-own-callsign"
+              :class="{ visible: isOwnSpeaking && !isDisplaySpeakerActive }"
+            >
+              {{ heroOwnCallsign }}
+            </span>
             <span>{{
               isOwnSpeaking && !isDisplaySpeakerActive
                 ? '您正在发言'
@@ -77,6 +83,9 @@
 
       <div v-else class="hero-empty">
         <div>
+          <span class="hero-own-callsign" :class="{ visible: isOwnSpeaking }">
+            {{ heroOwnCallsign }}
+          </span>
           <strong>{{
             isOwnSpeaking
               ? '您正在发言'
@@ -302,6 +311,10 @@ const hasAnySpeakingHistory = computed(() => speakingStore.speakingHistory.lengt
 
 const heroEmptyText = computed(() =>
   isOwnSpeaking.value ? '等待对方回应时会保留在这里' : '有新发言时会显示在这里'
+)
+
+const heroOwnCallsign = computed(
+  () => currentOwnSpeakerRecord.value?.callsign || selectedFromCallsign.value
 )
 
 const displaySpeakerAddress = ref('')
@@ -632,10 +645,9 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .dashboard-hero.self-speaking:not(.active) {
-  border-color: var(--color-speaking);
   background:
     linear-gradient(
-      135deg,
+      270deg,
       color-mix(in srgb, var(--color-speaking) 10%, transparent),
       var(--bg-card)
     );
@@ -655,8 +667,11 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .dashboard-hero.self-speaking:not(.active)::before {
+  inset: 0 0 0 auto;
+  width: 4px;
   background: var(--color-speaking);
-  opacity: 0.65;
+  box-shadow: -5px 0 16px color-mix(in srgb, var(--color-speaking) 32%, transparent);
+  opacity: 1;
 }
 
 .history-marker span {
@@ -734,7 +749,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .speaker-callsign {
   color: var(--color-speaking);
-  font-size: clamp(2.1rem, 5.4vw, 3.8rem);
+  font-size: clamp(2.45rem, 5.8vw, 4.1rem);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 0.95;
@@ -747,7 +762,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 .speaker-contact-count {
   color: var(--text-tertiary);
-  font-size: clamp(2.1rem, 5.4vw, 3.8rem);
+  font-size: clamp(2.45rem, 5.8vw, 4.1rem);
   font-weight: 800;
   line-height: 0.95;
   white-space: nowrap;
@@ -757,8 +772,8 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: clamp(1.65rem, 4.1vw, 2.7rem);
-  height: clamp(1.65rem, 4.1vw, 2.7rem);
+  width: clamp(1.9rem, 4.4vw, 2.95rem);
+  height: clamp(1.9rem, 4.4vw, 2.95rem);
   line-height: 1;
 }
 
@@ -906,6 +921,24 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   text-align: right;
 }
 
+.duration-block .duration-own-callsign {
+  min-height: 1.75rem;
+  max-width: 10rem;
+  color: var(--color-speaking);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.duration-block .duration-own-callsign.visible {
+  visibility: visible;
+}
+
 .duration-block strong {
   font-size: 1.65rem;
 }
@@ -925,10 +958,31 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   display: block;
 }
 
+.hero-own-callsign {
+  min-height: 2.45rem;
+  color: var(--color-speaking);
+  font-size: 1.82rem;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+  visibility: hidden;
+}
+
+.hero-own-callsign.visible {
+  visibility: visible;
+}
+
 .hero-empty span {
   margin-top: 0.24rem;
   color: var(--text-tertiary);
   font-size: 0.92rem;
+}
+
+.hero-empty .hero-own-callsign {
+  margin-top: 0;
+  color: var(--color-speaking);
+  font-size: 1.82rem;
 }
 
 .hero-empty strong {
@@ -1371,6 +1425,16 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
   .metric-block strong {
     font-size: 1.25rem;
+  }
+
+  .speaker-callsign,
+  .speaker-contact-count {
+    font-size: clamp(2.45rem, 12vw, 3.2rem);
+  }
+
+  .speaker-contact-star {
+    width: clamp(1.9rem, 8vw, 2.35rem);
+    height: clamp(1.9rem, 8vw, 2.35rem);
   }
 
   .history-row {
