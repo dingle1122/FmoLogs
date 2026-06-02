@@ -1,0 +1,293 @@
+/*
+  FmoLogs 主题示例
+
+  用法：
+  1. 想快速换一套颜色，只改第一部分“调色版”。
+  2. 想精细调整某个区域，再看第二部分“具体样式名称说明”。
+  3. 取消某一行变量前后的注释，再把颜色改成你想要的值。
+
+  说明：
+  - 变量名前缀 theme 表示全局主题变量，影响页面大范围颜色。
+  - 变量名前缀 component 表示组件变量，只影响某类控件或区域。
+  - surface 表示背景面，text 表示文字，border 表示边框，accent 表示强调色。
+  - 建议优先改 CSS 变量，不建议直接写组件 class 选择器，这样后续升级更稳定。
+*/
+
+/* ========================================================================
+   第一部分：调色版
+
+   这里放“基础颜色”。建议把常用颜色先写成 palette 变量，后面再引用。
+   这样换主题时只需要集中修改这一段。
+   ======================================================================== */
+
+:root {
+  /*
+    品牌主色：最重要的强调色。
+    常用于按钮、链接、当前选中项、焦点边框。
+  */
+  /* --palette-brand: #4caf50; */
+
+  /*
+    品牌主色悬停：鼠标移到按钮或可点击元素上时使用。
+    一般比品牌主色更深一点。
+  */
+  /* --palette-brand-hover: #3d8b40; */
+
+  /*
+    成功色：表示成功、在线、启用、正向状态。
+  */
+  /* --palette-success: #67c23a; */
+
+  /*
+    警告色：表示提醒、等待、需要注意但不是错误的状态。
+  */
+  /* --palette-warning: #d46b08; */
+
+  /*
+    危险色：表示删除、失败、错误、断开等高风险状态。
+  */
+  /* --palette-danger: #f56c6c; */
+
+  /*
+    页面底色：整个应用最底层的背景色。
+  */
+  /* --palette-page: #ffffff; */
+
+  /*
+    容器底色：列表、页面内容区、普通容器的背景色。
+  */
+  /* --palette-container: #ffffff; */
+
+  /*
+    卡片底色：主题卡片、信息卡片、弹窗内容等较独立区域的背景色。
+  */
+  /* --palette-card: #ffffff; */
+
+  /*
+    输入框底色：输入框、选择框等表单控件的背景色。
+  */
+  /* --palette-input: #ffffff; */
+
+  /*
+    悬停底色：鼠标移到列表行、按钮或菜单项上时的浅色背景。
+  */
+  /* --palette-hover: #f5f7fa; */
+
+  /*
+    主文字：正文、标题、重要数字等最主要文字颜色。
+  */
+  /* --palette-text-main: #333333; */
+
+  /*
+    次要文字：说明文字、辅助信息、表格副内容。
+  */
+  /* --palette-text-subtle: #606266; */
+
+  /*
+    弱文字：时间、提示、占位、低优先级信息。
+  */
+  /* --palette-text-muted: #909399; */
+
+  /*
+    主要边框：输入框、卡片、按钮等常规边界。
+  */
+  /* --palette-border: #dcdfe6; */
+
+  /*
+    浅边框：分割线、弱边界、内部辅助线。
+  */
+  /* --palette-border-soft: #ebeef5; */
+
+  /*
+    当前项高亮：今日通联、当前电台、选中状态等“当前正在关注”的颜色。
+  */
+  /* --palette-current: var(--palette-brand); */
+}
+
+/* ========================================================================
+   第二部分：具体样式名称说明
+
+   下面这些变量会真正被 FmoLogs 读取。
+   每一行都带有中文含义说明。需要生效时，取消注释即可。
+   ======================================================================== */
+
+:root {
+  /* 快速套色：主按钮、链接、选中态的主色。 */
+  /* --theme-quick-primary: var(--palette-brand); */
+
+  /* 快速套色：主按钮和重点可点击元素的悬停颜色。 */
+  /* --theme-quick-primary-hover: var(--palette-brand-hover); */
+
+  /* 快速套色：成功、在线、启用等正向状态颜色。 */
+  /* --theme-quick-success: var(--palette-success); */
+
+  /* 快速套色：提醒、等待、警告状态颜色。 */
+  /* --theme-quick-warning: var(--palette-warning); */
+
+  /* 快速套色：错误、失败、删除、危险操作颜色。 */
+  /* --theme-quick-danger: var(--palette-danger); */
+
+  /* 快速套色：当前项、选中项、今日通联的强调颜色。 */
+  /* --theme-quick-highlight-accent: var(--palette-current); */
+
+  /* 快速套色：列表行、菜单项、次要按钮悬停时的背景。 */
+  /* --theme-quick-surface-hover: var(--palette-hover); */
+
+  /* 页面底色：应用最外层背景。 */
+  /* --theme-surface-page: var(--palette-page); */
+
+  /* 容器底色：主要内容区、列表容器、页面块背景。 */
+  /* --theme-surface-container: var(--palette-container); */
+
+  /* 顶栏底色：顶部导航、页面头部区域背景。 */
+  /* --theme-surface-header: var(--palette-container); */
+
+  /* 卡片底色：卡片、弹窗主体、独立信息面板背景。 */
+  /* --theme-surface-card: var(--palette-card); */
+
+  /* 输入框底色：搜索框、文本框、表单控件背景。 */
+  /* --theme-surface-input: var(--palette-input); */
+
+  /* 悬停底色：鼠标移入可点击区域时的背景。 */
+  /* --theme-surface-hover: var(--palette-hover); */
+
+  /* 主文字：标题、正文、表格主要内容。 */
+  /* --theme-text-primary: var(--palette-text-main); */
+
+  /* 次要文字：说明、副标题、辅助字段。 */
+  /* --theme-text-secondary: var(--palette-text-subtle); */
+
+  /* 弱文字：时间、占位、低优先级提示。 */
+  /* --theme-text-muted: var(--palette-text-muted); */
+
+  /* 默认边框：卡片、输入框、按钮的常规边界。 */
+  /* --theme-border-default: var(--palette-border); */
+
+  /* 浅边框：分隔线和弱边界。 */
+  /* --theme-border-subtle: var(--palette-border-soft); */
+
+  /* 全局强调色：按钮、链接、焦点、主要操作。 */
+  /* --theme-accent-primary: var(--palette-brand); */
+
+  /* 全局强调色悬停：主要操作的悬停颜色。 */
+  /* --theme-accent-primary-hover: var(--palette-brand-hover); */
+
+  /* 全局成功色：成功提示和启用状态。 */
+  /* --theme-success: var(--palette-success); */
+
+  /* 全局警告色：警告提示和注意状态。 */
+  /* --theme-warning: var(--palette-warning); */
+
+  /* 全局危险色：错误提示、删除按钮、失败状态。 */
+  /* --theme-danger: var(--palette-danger); */
+
+  /* 当前项强调色：当前电台、今日通联、选中项的核心颜色。 */
+  /* --theme-current-highlight-accent: var(--palette-current); */
+
+  /* 当前项浅背景：当前项、今日通联的轻量背景。 */
+  /* --theme-current-highlight-bg: color-mix(in srgb, var(--theme-current-highlight-accent) 12%, var(--theme-surface-card)); */
+
+  /* 当前项备用浅背景：用于列表或容器里的弱高亮。 */
+  /* --theme-current-highlight-bg-alt: color-mix(in srgb, var(--theme-current-highlight-accent) 7%, var(--theme-surface-container)); */
+
+  /* 当前项强背景：用于更醒目的当前状态背景。 */
+  /* --theme-current-highlight-bg-strong: color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-surface-card)); */
+
+  /* 当前项边框：当前项、选中项、今日通联的边界颜色。 */
+  /* --theme-current-highlight-border: color-mix(in srgb, var(--theme-current-highlight-accent) 30%, var(--theme-border-default)); */
+
+  /* 顶部标题悬停文字：鼠标移到应用标题时的颜色。 */
+  /* --component-header-title-hover: var(--theme-current-highlight-accent); */
+
+  /* 当前电台标签背景：顶部当前电台标识的背景。 */
+  /* --component-header-station-bg: var(--theme-current-highlight-bg); */
+
+  /* 当前电台标签文字：顶部当前电台标识的文字颜色。 */
+  /* --component-header-station-text: var(--theme-current-highlight-accent); */
+
+  /* 普通按钮悬停背景：次要按钮或工具按钮悬停时的背景。 */
+  /* --component-button-hover-bg: color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-surface-container)); */
+
+  /* 普通按钮悬停边框：次要按钮或工具按钮悬停时的边框。 */
+  /* --component-button-hover-border: var(--theme-accent-primary); */
+
+  /* 普通按钮悬停文字：次要按钮或工具按钮悬停时的文字颜色。 */
+  /* --component-button-hover-text: var(--theme-accent-primary); */
+
+  /* 日志表头背景：日志表格标题行的背景。 */
+  /* --component-logs-table-header-bg: var(--palette-hover); */
+
+  /* 日志表头文字：日志表格标题行的文字颜色。 */
+  /* --component-logs-table-header-text: var(--theme-text-secondary); */
+
+  /* 电台条目悬停边框：电台列表项鼠标移入时的边框。 */
+  /* --component-station-item-hover-border: var(--theme-current-highlight-border); */
+
+  /* 电台条目选中背景：当前选中电台列表项的背景。 */
+  /* --component-station-item-active-bg: var(--theme-current-highlight-bg); */
+
+  /* 电台条目选中边框：当前选中电台列表项的边框。 */
+  /* --component-station-item-active-border: var(--theme-current-highlight-accent); */
+
+  /* 电台条目选中文字：当前选中电台列表项的文字颜色。 */
+  /* --component-station-item-active-text: var(--theme-current-highlight-accent); */
+
+  /* 筛选标签选中背景：日志筛选、状态筛选等标签被选中时的背景。 */
+  /* --component-filter-chip-active-bg: var(--theme-current-highlight-accent); */
+}
+
+/*
+  深色模式可选覆盖
+
+  如果你的主题需要同时适配系统深色模式，可以取消下面变量的注释。
+  这些值只会在浏览器或系统处于深色模式时生效。
+*/
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 深色页面底色：深色模式下应用最外层背景。 */
+    /* --theme-surface-page: #1a1a1a; */
+
+    /* 深色容器底色：深色模式下主要内容区背景。 */
+    /* --theme-surface-container: #242424; */
+
+    /* 深色顶栏底色：深色模式下顶部导航背景。 */
+    /* --theme-surface-header: #2c2c2c; */
+
+    /* 深色卡片底色：深色模式下卡片和弹窗背景。 */
+    /* --theme-surface-card: #2c2c2c; */
+
+    /* 深色输入框底色：深色模式下输入框背景。 */
+    /* --theme-surface-input: #3a3a3a; */
+
+    /* 深色悬停底色：深色模式下鼠标移入背景。 */
+    /* --theme-surface-hover: #2a2a2a; */
+
+    /* 深色主文字：深色模式下标题和正文颜色。 */
+    /* --theme-text-primary: #e8e8e8; */
+
+    /* 深色次要文字：深色模式下说明和辅助文字颜色。 */
+    /* --theme-text-secondary: #b8b8b8; */
+
+    /* 深色弱文字：深色模式下时间、占位和提示文字颜色。 */
+    /* --theme-text-muted: #909399; */
+
+    /* 深色默认边框：深色模式下常规边界颜色。 */
+    /* --theme-border-default: #404040; */
+
+    /* 深色浅边框：深色模式下分割线和弱边界。 */
+    /* --theme-border-subtle: #363636; */
+
+    /* 深色当前项浅背景：深色模式下当前项、今日通联背景。 */
+    /* --theme-current-highlight-bg: #1f3a1f; */
+
+    /* 深色当前项备用背景：深色模式下列表里的弱高亮背景。 */
+    /* --theme-current-highlight-bg-alt: #1a241a; */
+
+    /* 深色当前项强背景：深色模式下更醒目的当前状态背景。 */
+    /* --theme-current-highlight-bg-strong: #1e2e1e; */
+
+    /* 深色当前项边框：深色模式下选中项和当前项边框。 */
+    /* --theme-current-highlight-border: #2d5a2d; */
+  }
+}

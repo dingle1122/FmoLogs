@@ -10,7 +10,7 @@
             <p>{{ message }}</p>
           </div>
           <div class="confirm-footer">
-            <button class="btn btn-cancel" @click="cancel">{{ cancelText }}</button>
+            <button v-if="showCancel" class="btn btn-cancel" @click="cancel">{{ cancelText }}</button>
             <button class="btn btn-confirm" @click="confirm">{{ confirmText }}</button>
           </div>
         </div>
@@ -22,7 +22,8 @@
 <script setup>
 import confirmDialog from '../../composables/useConfirm'
 
-const { visible, title, message, confirmText, cancelText, confirm, cancel } = confirmDialog
+const { visible, title, message, confirmText, cancelText, showCancel, confirm, cancel } =
+  confirmDialog
 </script>
 
 <style scoped>

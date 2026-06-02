@@ -5,6 +5,7 @@ const title = ref('')
 const message = ref('')
 const confirmText = ref('确定')
 const cancelText = ref('取消')
+const showCancel = ref(true)
 let resolvePromise = null
 
 export function useConfirm() {
@@ -13,11 +14,15 @@ export function useConfirm() {
       if (typeof options === 'string') {
         message.value = options
         title.value = '确认'
+        confirmText.value = '确定'
+        cancelText.value = '取消'
+        showCancel.value = true
       } else {
         message.value = options.message || ''
         title.value = options.title || '确认'
         confirmText.value = options.confirmText || '确定'
         cancelText.value = options.cancelText || '取消'
+        showCancel.value = options.showCancel !== false
       }
 
       visible.value = true
@@ -47,6 +52,7 @@ export function useConfirm() {
     message,
     confirmText,
     cancelText,
+    showCancel,
     show,
     confirm,
     cancel

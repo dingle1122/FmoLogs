@@ -5,7 +5,7 @@
         <div>
           <h1 class="theme-page-title">主题设置</h1>
           <p class="theme-page-subtitle">
-            上传主题后可以随时切换，也可以先下载示例改一改再上传。主色建议只用于按钮、强调和选中态，日志正文等内容请保持黑白中性色。
+            你可以上传主题文件，也可以粘贴主题链接导入。导入后的主题会保存在这里，想换哪一个就点“启用”。
           </p>
         </div>
       </div>
@@ -28,6 +28,27 @@
         </button>
       </div>
 
+      <form class="theme-url-import" @submit.prevent="handleImportThemeUrl">
+        <input
+          v-model.trim="themeUrl"
+          class="theme-url-input"
+          type="url"
+          inputmode="url"
+          placeholder="https://example.com/theme"
+          autocomplete="off"
+        />
+        <input
+          v-model.trim="themeUrlName"
+          class="theme-url-name-input"
+          type="text"
+          placeholder="主题名称（可选）"
+          autocomplete="off"
+        />
+        <button class="btn-secondary" type="submit" :disabled="isImportingThemeUrl">
+          {{ isImportingThemeUrl ? '导入中' : '导入链接' }}
+        </button>
+      </form>
+
       <div v-if="themeStatusMessage" class="theme-status" :class="themeStatusType">
         {{ themeStatusMessage }}
       </div>
@@ -35,7 +56,7 @@
       <div v-if="showThemeExample" class="theme-example-panel">
         <div class="theme-example-header">
           <span class="theme-example-title">示例主题</span>
-          <span class="theme-example-caption">下载后改一改，再上传就能用。</span>
+          <span class="theme-example-caption">可以先下载一份示例，改好后再上传使用。</span>
         </div>
         <pre class="theme-example-code"><code>{{ THEME_SAMPLE_CSS }}</code></pre>
       </div>
@@ -159,9 +180,9 @@ import { storeToRefs } from 'pinia'
 import confirmDialog from '../composables/useConfirm'
 import { useSettingsStore } from '../stores/settingsStore'
 import themeBaseCss from '../styles/colors.css?raw'
+import THEME_SAMPLE_CSS from '../styles/theme-sample.css?raw'
 import {
   DEFAULT_THEME_ID,
-  THEME_SAMPLE_CSS,
   downloadThemeCss,
   fileNameToThemeName
 } from '../utils/themeManager'
@@ -176,6 +197,9 @@ const themeStatusType = ref('info')
 const sampleCopied = ref(false)
 const themeNameDrafts = reactive({})
 const editingThemeId = ref('')
+const themeUrl = ref('')
+const themeUrlName = ref('')
+const isImportingThemeUrl = ref(false)
 let sampleCopiedTimer = null
 
 const THEME_PREVIEW_MARKUP = `
@@ -385,6 +409,16 @@ function triggerThemeUpload() {
   themeUploadInput.value?.click()
 }
 
+function themeUrlToName(urlText) {
+  try {
+    const url = new URL(urlText)
+    const pathName = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '')
+    return fileNameToThemeName(pathName || url.hostname)
+  } catch {
+    return '链接主题'
+  }
+}
+
 function formatThemeTime(timestamp) {
   if (!timestamp) return ''
   return new Intl.DateTimeFormat('zh-CN', {
@@ -483,9 +517,81 @@ async function handleThemeFilesSelected(event) {
   input.value = ''
 }
 
-function downloadSampleTheme() {
-  downloadThemeCss('fmo-theme-example', THEME_SAMPLE_CSS)
-  showThemeStatus('示例已下载', 'success')
+async function handleImportThemeUrl() {
+  clearThemeStatus()
+
+  if (!themeUrl.value) {
+    showThemeStatus('请输入主题地址', 'error')
+    return
+  }
+
+  let url
+  try {
+    url = new URL(themeUrl.value)
+  } catch {
+    showThemeStatus('请输入有效的主题地址', 'error')
+    return
+  }
+
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    showThemeStatus('主题地址仅支持 http 或 https', 'error')
+    return
+  }
+
+  isImportingThemeUrl.value = true
+  try {
+    const response = await fetch(url.toString(), { cache: 'no-store' })
+    if (!response.ok) {
+      showThemeStatus(`主题下载失败：HTTP ${response.status}`, 'error')
+      return
+    }
+
+    const cssText = await response.text()
+    const themeName = themeUrlName.value || themeUrlToName(url.toString())
+    const result = await settingsStore.importCustomTheme(themeName, cssText)
+    showThemeStatus(result.message, result.success ? 'success' : 'error')
+    if (result.success) {
+      themeUrl.value = ''
+      themeUrlName.value = ''
+    }
+  } catch {
+    showThemeStatus('主题下载失败，请确认主题地址可以正常打开后再试', 'error')
+  } finally {
+    isImportingThemeUrl.value = false
+  }
+}
+
+function formatDownloadResultMessage(result, fallbackMessage) {
+  if (result?.displayPath) {
+    return `已保存到 ${result.displayPath}`
+  }
+  return fallbackMessage
+}
+
+function showDownloadCompleted(message) {
+  return confirmDialog.show({
+    title: '下载完成',
+    message,
+    confirmText: '知道了',
+    showCancel: false
+  })
+}
+
+async function showNativeDownloadCompleted(result, message) {
+  if (result?.platform && result.platform !== 'web') {
+    await showDownloadCompleted(message)
+  }
+}
+
+async function downloadSampleTheme() {
+  try {
+    const result = await downloadThemeCss('fmo-theme-example', THEME_SAMPLE_CSS)
+    const message = formatDownloadResultMessage(result, '示例已下载')
+    showThemeStatus(message, 'success')
+    await showNativeDownloadCompleted(result, message)
+  } catch {
+    showThemeStatus('示例下载失败，请稍后重试', 'error')
+  }
 }
 
 async function copySampleTheme() {
@@ -502,8 +608,15 @@ async function copySampleTheme() {
   }
 }
 
-function downloadTheme(name, css) {
-  downloadThemeCss(name, css)
+async function downloadTheme(name, css) {
+  try {
+    const result = await downloadThemeCss(name, css)
+    const message = formatDownloadResultMessage(result, '主题已下载')
+    showThemeStatus(message, 'success')
+    await showNativeDownloadCompleted(result, message)
+  } catch {
+    showThemeStatus('主题下载失败，请稍后重试', 'error')
+  }
 }
 
 onUnmounted(() => {
@@ -576,6 +689,37 @@ onUnmounted(() => {
 
 .theme-card-actions > button {
   flex: 0 0 auto;
+}
+
+.theme-url-import {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.theme-url-input,
+.theme-url-name-input {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-primary);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.theme-url-input:focus,
+.theme-url-name-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--shadow-focus-primary);
 }
 
 .theme-status {
@@ -928,6 +1072,10 @@ onUnmounted(() => {
   .theme-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
+  }
+
+  .theme-url-import {
+    grid-template-columns: 1fr;
   }
 
   .theme-toolbar .btn-secondary,
