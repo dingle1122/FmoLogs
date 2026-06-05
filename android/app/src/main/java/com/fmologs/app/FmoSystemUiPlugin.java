@@ -1,12 +1,12 @@
 package com.fmologs.app;
 
-
-
-
 import android.content.res.Resources;
+import android.content.pm.PackageInfo;
+import android.os.Build;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
+import android.webkit.WebView;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -34,9 +34,13 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class FmoSystemUiPlugin extends Plugin {
 
     private static final String TAG = "FmoSystemUiPlugin";
+    private static final int WEBVIEW_VERSION_WITH_SAFE_AREA_FIX = 140;
 
-    /** 屏幕密度，用于 px → dp 转换。1dp = 1px on mdpi, 3dp = 1px on xxhdpi。 */
+    /**
+     * 屏幕密度，用于 px → dp 转换。1dp = 1px on mdpi, 3dp = 1px on xxhdpi。
+     */
     private float density = 1.0f;
+    private int webViewMajorVersion = 0;
 
     @Override
     public void load() {
@@ -44,8 +48,9 @@ public class FmoSystemUiPlugin extends Plugin {
             Resources res = getActivity().getResources();
             DisplayMetrics metrics = res.getDisplayMetrics();
             density = metrics.density;
+            webViewMajorVersion = getWebViewMajorVersion();
             Log.i(TAG, "density=" + density + " (width=" + metrics.widthPixels
-                + "px, dpi=" + metrics.densityDpi + ")");
+                    + "px, dpi=" + metrics.densityDpi + ", webViewMajor=" + webViewMajorVersion + ")");
 
             View decor = getActivity().getWindow().getDecorView();
             ViewCompat.setOnApplyWindowInsetsListener(decor, (v, insets) -> {
@@ -75,35 +80,34 @@ public class FmoSystemUiPlugin extends Plugin {
             if (insets != null) {
                 result = buildInsetsResult(insets);
             } else {
-                // 尚未完成 layout 时的估算值（dp）
-                result.put("top", 36);
-                result.put("bottom", 48);
-                result.put("left", 0);
-                result.put("right", 0);
+                result = buildFallbackResult();
             }
         } catch (Exception e) {
             Log.w(TAG, "getSafeAreaInsets failed: " + e.getMessage());
-            result.put("top", 36);
-            result.put("bottom", 48);
-            result.put("left", 0);
-            result.put("right", 0);
+            result = buildFallbackResult();
         }
         Log.i(TAG, "getSafeAreaInsets → " + result);
         call.resolve(result);
     }
 
-    /** Build a JS result from compat insets. */
+    /**
+     * Build a JS result from compat insets.
+     */
     private JSObject buildInsetsResult(WindowInsetsCompat insets) {
         JSObject result = new JSObject();
-        int statusBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.statusBars()).top);
-        int navBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom);
+        int statusBarDp = 0;
+        int navBarDp = 0;
+        if (shouldApplyVerticalInsets()) {
+            statusBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.statusBars()).top);
+            navBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom);
+        }
         int left = pxToDp(Math.max(
-            insets.getInsets(WindowInsetsCompat.Type.systemBars()).left,
-            insets.getInsets(WindowInsetsCompat.Type.displayCutout()).left
+                insets.getInsets(WindowInsetsCompat.Type.systemBars()).left,
+                insets.getInsets(WindowInsetsCompat.Type.displayCutout()).left
         ));
         int right = pxToDp(Math.max(
-            insets.getInsets(WindowInsetsCompat.Type.systemBars()).right,
-            insets.getInsets(WindowInsetsCompat.Type.displayCutout()).right
+                insets.getInsets(WindowInsetsCompat.Type.systemBars()).right,
+                insets.getInsets(WindowInsetsCompat.Type.displayCutout()).right
         ));
         result.put("top", statusBarDp);
         result.put("bottom", navBarDp);
@@ -112,7 +116,40 @@ public class FmoSystemUiPlugin extends Plugin {
         return result;
     }
 
-    /** 将原始物理像素转换为 dp（与 WebView CSS px 一致）。 */
+    /**
+     * Android 15+ enforces edge-to-edge. WebView < 140 cannot reliably expose safe-area
+     * values to CSS, so Capacitor SystemBars handles those devices with native padding.
+     */
+    private boolean shouldApplyVerticalInsets() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+                && webViewMajorVersion >= WEBVIEW_VERSION_WITH_SAFE_AREA_FIX;
+    }
+
+    private JSObject buildFallbackResult() {
+        JSObject result = new JSObject();
+        result.put("top", 0);
+        result.put("bottom", 0);
+        result.put("left", 0);
+        result.put("right", 0);
+        return result;
+    }
+
+    private int getWebViewMajorVersion() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return 0;
+        try {
+            PackageInfo packageInfo = WebView.getCurrentWebViewPackage();
+            if (packageInfo == null || packageInfo.versionName == null) return 0;
+            String major = packageInfo.versionName.split("\\.")[0];
+            return Integer.parseInt(major);
+        } catch (Exception e) {
+            Log.w(TAG, "getWebViewMajorVersion failed: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * 将原始物理像素转换为 dp（与 WebView CSS px 一致）。
+     */
     private int pxToDp(int px) {
         if (density <= 0) return px;
         return Math.round(px / density);
