@@ -233,6 +233,22 @@ export class FmoApiClient {
     return this.sendRequest('config', 'setCordinate', { latitude, longitude })
   }
 
+  async getUserPhyDeviceName() {
+    return this.sendRequest('config', 'getUserPhyDeviceName', {})
+  }
+
+  async getUserPhyFreq() {
+    return this.sendRequest('config', 'getUserPhyFreq', {})
+  }
+
+  async getUserPhyAnt() {
+    return this.sendRequest('config', 'getUserPhyAnt', {})
+  }
+
+  async getUserPhyAntHeight() {
+    return this.sendRequest('config', 'getUserPhyAntHeight', {})
+  }
+
   close() {
     // 清理连接 Promise
     this.connectPromise = null

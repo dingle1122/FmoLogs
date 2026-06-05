@@ -1,7 +1,8 @@
 <template>
-  <div class="container">
+  <div class="container" :class="{ 'dashboard-fullscreen': isDashboardFullscreen }">
     <!-- 标题栏（含桌面端导航） -->
     <AppHeader
+      v-show="!isDashboardFullscreen"
       :today-logs="todayLogs"
       :total-logs="totalLogs"
       :unique-callsigns="uniqueCallsigns"
@@ -14,6 +15,7 @@
 
     <!-- 发言状态条 -->
     <SpeakingBar
+      v-show="!isDashboardFullscreen"
       :current-speaker="speakingStatus.currentSpeaker.value"
       :current-speaker-address="speakingStatus.currentSpeakerAddress.value"
       :speaking-history="speakingStatus.speakingHistory.value"
@@ -35,7 +37,7 @@
 
     <!-- 下拉刷新指示器（触摸设备，在 content-area 上方） -->
     <div
-      v-if="supportsPullToRefresh"
+      v-if="supportsPullToRefresh && !isDashboardFullscreen"
       class="pull-refresh-indicator"
       :style="{ height: pullDistance + 'px', opacity: Math.min(pullDistance / PULL_THRESHOLD, 1) }"
     >
@@ -77,8 +79,14 @@
           :multi-sync-progress="fmoSync.multiSyncProgress.value"
           :audio-volume="settings.audioVolume.value"
           :contact-counts="settings.contactCounts.value"
+          :is-dashboard-fullscreen="isDashboardFullscreen"
+          :today-logs="todayLogs"
+          :total-logs="totalLogs"
+          :unique-callsigns="uniqueCallsigns"
           @execute-query="executeQuery"
           @show-callsign-records="handleShowCallsignRecords"
+          @open-channel-list="handleOpenStationList"
+          @toggle-dashboard-fullscreen="toggleDashboardFullscreen"
           @select-files="triggerFileInput"
           @export-data="handleExportData"
           @export-adif="handleExportAdif"
@@ -177,7 +185,7 @@
     <QuickNavModal :visible="showQuickNav" :db-loaded="dbLoaded" @close="showQuickNav = false" />
 
     <!-- 底部导航栏（手机端显示） -->
-    <nav class="query-nav mobile-nav">
+    <nav v-show="!isDashboardFullscreen" class="query-nav mobile-nav">
       <router-link v-for="route in NAV_ROUTES" :key="route.path" :to="route.path" class="nav-tab">
         <SvgIcon :name="route.icon" :size="22" class="nav-icon" />
         <span class="nav-label">{{ route.label }}</span>
@@ -239,7 +247,12 @@ const fileInputRef = ref(null)
 const fileInputAccept = Capacitor.getPlatform() === 'android' ? '*/*' : '.db,.adi,.adif'
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
+const isDashboardFullscreen = ref(false)
 let scrollTimer = null
+
+function toggleDashboardFullscreen() {
+  isDashboardFullscreen.value = !isDashboardFullscreen.value
+}
 
 // 快捷导航弹框状态
 const showQuickNav = ref(false)
@@ -563,6 +576,13 @@ watch(currentQueryType, (newType) => {
     dataQuery.currentQueryType.value = newType
   }
 })
+
+watch(
+  () => route.name,
+  (routeName) => {
+    if (routeName !== 'dashboard') isDashboardFullscreen.value = false
+  }
+)
 
 // 查询方法
 async function executeQuery() {
@@ -1351,6 +1371,11 @@ async function handleHardwareBack({ canGoBack }) {
     return
   }
 
+  if (isDashboardFullscreen.value) {
+    isDashboardFullscreen.value = false
+    return
+  }
+
   // 2) 在通联日志首页时，忽略历史记录栈，直接询问退出（防止退回到之前的页面）
   if (route.path === '/logs') {
     if (exitConfirming) return
@@ -1485,6 +1510,14 @@ provide('protocol', settings.protocol)
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+}
+
+.container.dashboard-fullscreen {
+  max-width: none;
+}
+
+.container.dashboard-fullscreen .content-area {
+  padding-top: 0.5rem;
 }
 
 /* 底部导航栏（手机端） */

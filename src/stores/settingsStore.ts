@@ -28,6 +28,25 @@ const AUDIO_PLAYING_KEY = 'fmo_audio_playing'
 const PRIORITIZE_TODAY_KEY = 'fmo_prioritize_today'
 const CUSTOM_THEMES_KEY = 'fmo_custom_themes'
 const ACTIVE_THEME_KEY = 'fmo_active_theme'
+const DASHBOARD_LAYOUT_KEY = 'fmo_dashboard_layout'
+
+export type DashboardPanelId =
+  | 'reachability-info'
+  | 'recent-speaking'
+  | 'speaking-history'
+  | 'today-contacts'
+
+export interface DashboardPanelLayout {
+  id: DashboardPanelId
+  visible: boolean
+}
+
+const DEFAULT_DASHBOARD_LAYOUT: DashboardPanelLayout[] = [
+  { id: 'reachability-info', visible: true },
+  { id: 'recent-speaking', visible: true },
+  { id: 'speaking-history', visible: true },
+  { id: 'today-contacts', visible: true }
+]
 
 interface UserInfo {
   callsign: string
@@ -90,6 +109,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const prioritizeToday = ref(false)
   const customThemes = ref<CustomThemePreset[]>([])
   const activeThemeId = ref(DEFAULT_THEME_ID)
+  const dashboardLayout = ref<DashboardPanelLayout[]>(cloneDefaultDashboardLayout())
 
   const isHttps = window.location.protocol === 'https:'
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -100,9 +120,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const activeAddress = computed<AddressItem | null>(() => {
     if (!fmoAddressStorage.value.activeId) return null
     return (
-      fmoAddressStorage.value.addresses.find(
-        (a) => a.id === fmoAddressStorage.value.activeId
-      ) || null
+      fmoAddressStorage.value.addresses.find((a) => a.id === fmoAddressStorage.value.activeId) ||
+      null
     )
   })
 
@@ -131,6 +150,94 @@ export const useSettingsStore = defineStore('settings', () => {
       builtin: false
     }))
   ])
+
+  function cloneDefaultDashboardLayout(): DashboardPanelLayout[] {
+    return DEFAULT_DASHBOARD_LAYOUT.map((panel) => ({ ...panel }))
+  }
+
+  function normalizeDashboardLayout(value: unknown): DashboardPanelLayout[] {
+    const knownIds = new Set(DEFAULT_DASHBOARD_LAYOUT.map((panel) => panel.id))
+    const normalized: DashboardPanelLayout[] = []
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (
+          item &&
+          typeof item === 'object' &&
+          'id' in item &&
+          typeof item.id === 'string' &&
+          knownIds.has(item.id as DashboardPanelId) &&
+          !normalized.some((panel) => panel.id === item.id)
+        ) {
+          normalized.push({
+            id: item.id as DashboardPanelId,
+            visible: !('visible' in item) || item.visible !== false
+          })
+        }
+      }
+    }
+
+    for (const [defaultIndex, panel] of DEFAULT_DASHBOARD_LAYOUT.entries()) {
+      if (!normalized.some((item) => item.id === panel.id)) {
+        normalized.splice(Math.min(defaultIndex, normalized.length), 0, { ...panel })
+      }
+    }
+
+    return normalized
+  }
+
+  async function persistDashboardLayout() {
+    await getPlatform().storage.set(DASHBOARD_LAYOUT_KEY, JSON.stringify(dashboardLayout.value))
+  }
+
+  async function initDashboardLayout() {
+    const saved = await getPlatform().storage.get(DASHBOARD_LAYOUT_KEY)
+    if (saved) {
+      try {
+        dashboardLayout.value = normalizeDashboardLayout(JSON.parse(saved))
+      } catch (error) {
+        console.error('解析 Dashboard 布局失败:', error)
+        dashboardLayout.value = cloneDefaultDashboardLayout()
+      }
+    }
+  }
+
+  async function moveDashboardPanel(id: DashboardPanelId, direction: -1 | 1) {
+    const currentIndex = dashboardLayout.value.findIndex((panel) => panel.id === id)
+    if (currentIndex < 0) {
+      return
+    }
+
+    let targetIndex = currentIndex + direction
+    while (
+      targetIndex >= 0 &&
+      targetIndex < dashboardLayout.value.length &&
+      !dashboardLayout.value[targetIndex].visible
+    ) {
+      targetIndex += direction
+    }
+
+    if (targetIndex < 0 || targetIndex >= dashboardLayout.value.length) return
+
+    const nextLayout = [...dashboardLayout.value]
+    const targetPanel = nextLayout[targetIndex]
+    nextLayout[targetIndex] = nextLayout[currentIndex]
+    nextLayout[currentIndex] = targetPanel
+    dashboardLayout.value = nextLayout
+    await persistDashboardLayout()
+  }
+
+  async function setDashboardPanelVisible(id: DashboardPanelId, visible: boolean) {
+    dashboardLayout.value = dashboardLayout.value.map((panel) =>
+      panel.id === id ? { ...panel, visible } : panel
+    )
+    await persistDashboardLayout()
+  }
+
+  async function resetDashboardLayout() {
+    dashboardLayout.value = cloneDefaultDashboardLayout()
+    await persistDashboardLayout()
+  }
 
   // ========== 音量 / 播放状态（走 platform.storage） ==========
   async function initAudioVolume() {
@@ -287,10 +394,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function setActiveTheme(themeId: string): Promise<ThemeActionResult> {
-    if (
-      themeId !== DEFAULT_THEME_ID &&
-      !customThemes.value.some((theme) => theme.id === themeId)
-    ) {
+    if (themeId !== DEFAULT_THEME_ID && !customThemes.value.some((theme) => theme.id === themeId)) {
       return { success: false, message: '主题不存在' }
     }
 
@@ -352,6 +456,7 @@ export const useSettingsStore = defineStore('settings', () => {
     await initAudioPlaying()
     await initPrioritizeToday()
     await initThemeSettings()
+    await initDashboardLayout()
 
     const storage: AddressStorage = await getFmoAddresses()
     fmoAddressStorage.value = storage
@@ -424,9 +529,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function generateNumId(): number {
-    const usedIds = new Set(
-      fmoAddressStorage.value.addresses.map((a) => a.numId).filter(Boolean)
-    )
+    const usedIds = new Set(fmoAddressStorage.value.addresses.map((a) => a.numId).filter(Boolean))
     let id = 1
     while (usedIds.has(id)) id++
     return id
@@ -449,11 +552,7 @@ export const useSettingsStore = defineStore('settings', () => {
     await saveFmoAddresses(fmoAddressStorage.value)
   }
 
-  async function addFmoAddress(
-    name: string,
-    host: string,
-    proto: string
-  ): Promise<ActionResult> {
+  async function addFmoAddress(name: string, host: string, proto: string): Promise<ActionResult> {
     const client = new FmoApiClient(`${proto}://${host}`)
     if (!client.isValidAddress(host)) {
       return { success: false, message: '请输入有效的IP地址或域名' }
@@ -687,12 +786,7 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     try {
-      const allRecords = await getAllRecordsFromIndexedDB(
-        1,
-        999999,
-        '',
-        selectedFromCallsign
-      )
+      const allRecords = await getAllRecordsFromIndexedDB(1, 999999, '', selectedFromCallsign)
       const callsigns = new Set<string>()
       const today = new Date()
 
@@ -755,6 +849,7 @@ export const useSettingsStore = defineStore('settings', () => {
     customThemes,
     activeThemeId,
     themeList,
+    dashboardLayout,
     // actions
     initFmoAddress,
     validateAndSaveFmoAddress,
@@ -777,6 +872,9 @@ export const useSettingsStore = defineStore('settings', () => {
     importCustomTheme,
     setActiveTheme,
     deleteCustomTheme,
-    renameCustomTheme
+    renameCustomTheme,
+    moveDashboardPanel,
+    setDashboardPanelVisible,
+    resetDashboardLayout
   }
 })

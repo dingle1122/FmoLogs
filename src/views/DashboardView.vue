@@ -4,6 +4,20 @@
       class="dashboard-hero"
       :class="{ active: isDisplaySpeakerActive, 'self-speaking': isOwnSpeaking }"
     >
+      <button
+        class="dashboard-fullscreen-button"
+        type="button"
+        :title="isDashboardFullscreen ? '退出全屏' : '全屏显示'"
+        :aria-label="isDashboardFullscreen ? '退出全屏' : '全屏显示'"
+        @click="$emit('toggle-dashboard-fullscreen')"
+      >
+        <svg v-if="isDashboardFullscreen" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
+        </svg>
+      </button>
       <span v-if="displaySpeaker" class="hero-watermark" aria-hidden="true">
         {{ displaySpeaker.callsign }}
         <span class="hero-watermark-count"
@@ -17,17 +31,19 @@
               <span class="speaker-callsign" :class="{ idle: !isDisplaySpeakerActive }">
                 {{ displaySpeaker.callsign }}
               </span>
-              <span class="speaker-contact-count"
-                >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
-              >
-              <span
-                v-if="
-                  displaySpeaker.callsign !== selectedFromCallsign &&
-                  todayContactedCallsigns.has(displaySpeaker.callsign)
-                "
-                class="speaker-contact-star"
-              >
-                <img src="/img/star_2b50.png" alt="" />
+              <span class="speaker-contact-meta">
+                <span class="speaker-contact-count"
+                  >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
+                >
+                <span
+                  v-if="
+                    displaySpeaker.callsign !== selectedFromCallsign &&
+                    todayContactedCallsigns.has(displaySpeaker.callsign)
+                  "
+                  class="speaker-contact-star"
+                >
+                  <img src="/img/star_2b50.png" alt="" />
+                </span>
               </span>
             </div>
           </div>
@@ -98,147 +114,434 @@
       </div>
     </section>
 
-    <section class="event-strip-wrap">
-      <h3>最近发言</h3>
+    <template v-for="panel in dashboardLayout" :key="panel.id">
+      <section v-if="panel.visible && panel.id === 'reachability-info'" class="reachability-panel">
+        <h3>
+          <span>可达性信息</span>
+          <span v-if="isEditingLayout" class="panel-layout-actions">
+            <button
+              type="button"
+              title="上移"
+              :disabled="isFirstDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, -1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="下移"
+              :disabled="isLastDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, 1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="隐藏"
+              @click="settingsStore.setDashboardPanelVisible(panel.id, false)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3 21 21" />
+                <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7" />
+                <path d="M9.4 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.1 3.1" />
+                <path d="M6.6 6.6C3.6 8.4 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.4-1.4" />
+              </svg>
+            </button>
+          </span>
+        </h3>
 
-      <div v-if="displayHistoryEvents.length === 0" class="empty-state">
-        <div class="empty-state-copy">
-          <strong>暂无最近发言</strong>
-          <span>有新发言时会显示在这里</span>
-        </div>
-      </div>
-      <div v-else class="event-strip">
-        <div
-          v-for="(event, index) in displayHistoryEvents"
-          :key="index"
-          class="event-chip"
-          :class="{ self: event.callsign === selectedFromCallsign }"
-          @click="
-            event.callsign !== selectedFromCallsign &&
-            $emit('show-callsign-records', event.callsign)
-          "
-        >
-          <span class="event-index-bg" aria-hidden="true">{{ index + 1 }}</span>
-          <div class="event-main">
-            <div class="event-callsign-line">
-              <strong>{{ event.callsign }}</strong>
-              <span
-                v-if="
-                  event.callsign !== selectedFromCallsign &&
-                  todayContactedCallsigns.has(event.callsign)
-                "
-                class="event-contact-star"
-              >
-                <img src="/img/star_2b50.png" alt="" />
-              </span>
+        <div v-if="stationInfoCards.length" class="station-info-strip">
+          <component
+            :is="item.id === 'station' ? 'button' : 'div'"
+            v-for="item in stationInfoCards"
+            :key="item.id"
+            class="station-info-card"
+            :class="{ 'station-info-card-action': item.id === 'station' }"
+            :type="item.id === 'station' ? 'button' : undefined"
+            :title="item.title"
+            :aria-label="`${item.title}：${item.value}`"
+            @click="item.id === 'station' && $emit('open-channel-list')"
+          >
+            <svg
+              v-if="item.icon === 'radio'"
+              class="station-info-watermark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="m4 7 13-4" />
+              <rect x="3" y="7" width="18" height="14" rx="2" />
+              <circle cx="15.5" cy="14" r="3" />
+              <path d="M7 12h3M7 16h2" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'frequency'"
+              class="station-info-watermark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M2 12h3l2-6 4 12 3-9 3 6h5" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'coordinate'"
+              class="station-info-watermark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'grid'"
+              class="station-info-watermark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'address'"
+              class="station-info-watermark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z" />
+              <path d="M9 4v13.5M15 6.5V20" />
+            </svg>
+            <svg
+              v-else-if="item.icon === 'contacts'"
+              class="station-info-watermark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <svg
+              v-else
+              class="station-info-watermark station-channel-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+              />
+            </svg>
+            <div v-if="item.id === 'coordinate'" class="coordinate-content">
+              <div v-for="row in coordinateRows" :key="row.key" class="coordinate-row">
+                <span>{{ row.integer }}</span>
+                <i>.</i>
+                <span>{{ row.fraction }}</span>
+              </div>
             </div>
-            <span>{{ formatEventTime(event.utcTime) }}</span>
-          </div>
-          <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
+            <div v-else-if="item.id === 'radio-setup'" class="radio-setup-content">
+              <div class="radio-setup-primary">
+                <span>{{ formatFrequency(radioProfile.freq) }}</span>
+                <i v-if="radioProfile.freq && radioProfile.height" aria-hidden="true"></i>
+                <span>{{ formatHeight(radioProfile.height) }}</span>
+              </div>
+              <div v-if="radioProfile.ant" class="radio-setup-antenna">
+                <span>{{ radioProfile.ant }}</span>
+              </div>
+            </div>
+            <div v-else-if="item.id === 'contact-stats'" class="contact-stats-content">
+              <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
+              <span>{{ uniqueCallsigns }}人</span>
+            </div>
+            <span v-else>{{ item.value }}</span>
+          </component>
         </div>
-      </div>
-    </section>
 
-    <section class="history-panel">
-      <h3>历史发言记录</h3>
-
-      <div class="history-list">
-        <div v-if="displayHistory.length === 0" class="empty-state">
+        <div v-else class="empty-state">
           <div class="empty-state-copy">
-            <strong>暂无历史发言记录</strong>
-            <span>有发言记录时会显示在这里</span>
+            <strong>暂无可达性信息</strong>
+            <span>连接设备后会显示在这里</span>
           </div>
         </div>
+      </section>
 
-        <div
-          v-for="(record, index) in displayHistory"
-          :key="index"
-          class="history-row"
-          :class="{
-            active: !record.endTime,
-            self: record.callsign === selectedFromCallsign
-          }"
-          @click="
-            record.callsign !== selectedFromCallsign &&
-            $emit('show-callsign-records', record.callsign)
-          "
-        >
-          <span class="history-index-bg" aria-hidden="true">{{ index + 1 }}</span>
-          <div class="history-name">
-            <div class="history-topline">
-              <strong :class="{ on: !record.endTime }">
-                {{ record.callsign }}
-              </strong>
-              <span class="contact-count">
-                <span v-if="record.callsign === selectedFromCallsign" class="self-label">您</span>
-                <template v-else>x{{ contactCounts.get(record.callsign) || 0 }}</template>
-              </span>
-              <span
-                v-if="
-                  record.callsign !== selectedFromCallsign &&
-                  todayContactedCallsigns.has(record.callsign)
-                "
-                class="history-contact-star"
-              >
-                <img class="star-img" src="/img/star_2b50.png" alt="" />
-              </span>
-            </div>
+      <section v-else-if="panel.visible && panel.id === 'recent-speaking'" class="event-strip-wrap">
+        <h3>
+          <span>最近发言</span>
+          <span v-if="isEditingLayout" class="panel-layout-actions">
+            <button
+              type="button"
+              title="上移"
+              :disabled="isFirstDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, -1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="下移"
+              :disabled="isLastDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, 1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="隐藏"
+              @click="settingsStore.setDashboardPanelVisible(panel.id, false)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3 21 21" />
+                <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7" />
+                <path d="M9.4 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.1 3.1" />
+                <path d="M6.6 6.6C3.6 8.4 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.4-1.4" />
+              </svg>
+            </button>
+          </span>
+        </h3>
 
-            <div class="history-meta">
-              <span v-if="record.serverName" class="detail-tag">{{ record.serverName }}</span>
-              <span class="history-address">{{ historyAddressMap[record.callsign] || '' }}</span>
-            </div>
-          </div>
-
-          <div class="history-times">
-            <span class="history-time-summary" :class="{ on: !record.endTime }">
-              <template v-if="!record.endTime">发言中</template>
-              <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
-              {{ formatDurationMmSs((record.endTime || now) - record.startTime) }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="today-contact-panel">
-      <h3>今日通联记录</h3>
-
-      <div class="contact-list">
-        <div v-if="todayContactRecords.length === 0" class="empty-state">
+        <div v-if="displayHistoryEvents.length === 0" class="empty-state">
           <div class="empty-state-copy">
-            <strong>暂无今日通联记录</strong>
-            <span>同步到今日通联后会显示在这里</span>
+            <strong>暂无最近发言</strong>
+            <span>有新发言时会显示在这里</span>
           </div>
         </div>
+        <div v-else class="event-strip">
+          <div
+            v-for="(event, index) in displayHistoryEvents"
+            :key="index"
+            class="event-chip"
+            :class="{ self: event.callsign === selectedFromCallsign }"
+            @click="
+              event.callsign !== selectedFromCallsign &&
+              $emit('show-callsign-records', event.callsign)
+            "
+          >
+            <span class="event-index-bg" aria-hidden="true">{{ index + 1 }}</span>
+            <div class="event-main">
+              <div class="event-callsign-line">
+                <strong>{{ event.callsign }}</strong>
+                <span
+                  v-if="
+                    event.callsign !== selectedFromCallsign &&
+                    todayContactedCallsigns.has(event.callsign)
+                  "
+                  class="event-contact-star"
+                >
+                  <img src="/img/star_2b50.png" alt="" />
+                </span>
+              </div>
+              <span>{{ formatEventTime(event.utcTime) }}</span>
+            </div>
+            <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
+          </div>
+        </div>
+      </section>
 
-        <div
-          v-for="(record, index) in todayContactRecords"
-          :key="`${record.timestamp}-${record.toCallsign}-${index}`"
-          class="contact-row"
-          @click="$emit('show-callsign-records', record.toCallsign)"
-        >
-          <span class="contact-index-bg" aria-hidden="true">{{ index + 1 }}</span>
-          <div class="contact-name">
-            <div class="contact-topline">
-              <strong>{{ record.toCallsign }}</strong>
-              <span class="contact-record-count">
-                x{{ contactCounts.get(record.toCallsign) || 0 }}
+      <section v-else-if="panel.visible && panel.id === 'speaking-history'" class="history-panel">
+        <h3>
+          <span>历史发言记录</span>
+          <span v-if="isEditingLayout" class="panel-layout-actions">
+            <button
+              type="button"
+              title="上移"
+              :disabled="isFirstDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, -1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="下移"
+              :disabled="isLastDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, 1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="隐藏"
+              @click="settingsStore.setDashboardPanelVisible(panel.id, false)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3 21 21" />
+                <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7" />
+                <path d="M9.4 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.1 3.1" />
+                <path d="M6.6 6.6C3.6 8.4 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.4-1.4" />
+              </svg>
+            </button>
+          </span>
+        </h3>
+
+        <div class="history-list">
+          <div v-if="displayHistory.length === 0" class="empty-state">
+            <div class="empty-state-copy">
+              <strong>暂无历史发言记录</strong>
+              <span>有发言记录时会显示在这里</span>
+            </div>
+          </div>
+
+          <div
+            v-for="(record, index) in displayHistory"
+            :key="index"
+            class="history-row"
+            :class="{
+              active: !record.endTime,
+              self: record.callsign === selectedFromCallsign
+            }"
+            @click="
+              record.callsign !== selectedFromCallsign &&
+              $emit('show-callsign-records', record.callsign)
+            "
+          >
+            <span class="history-index-bg" aria-hidden="true">{{ index + 1 }}</span>
+            <div class="history-name">
+              <div class="history-topline">
+                <strong :class="{ on: !record.endTime }">
+                  {{ record.callsign }}
+                </strong>
+                <span class="contact-count">
+                  <span v-if="record.callsign === selectedFromCallsign" class="self-label">您</span>
+                  <template v-else>x{{ contactCounts.get(record.callsign) || 0 }}</template>
+                </span>
+                <span
+                  v-if="
+                    record.callsign !== selectedFromCallsign &&
+                    todayContactedCallsigns.has(record.callsign)
+                  "
+                  class="history-contact-star"
+                >
+                  <img class="star-img" src="/img/star_2b50.png" alt="" />
+                </span>
+              </div>
+
+              <div class="history-meta">
+                <span v-if="record.serverName" class="detail-tag">{{ record.serverName }}</span>
+                <span class="history-address">{{ historyAddressMap[record.callsign] || '' }}</span>
+              </div>
+            </div>
+
+            <div class="history-times">
+              <span class="history-time-summary" :class="{ on: !record.endTime }">
+                <template v-if="!record.endTime">发言中</template>
+                <template v-else>{{ formatTimeAgo(record.endTime) }}</template>
+                {{ formatDurationMmSs((record.endTime || now) - record.startTime) }}
               </span>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <div class="contact-meta">
-              <span class="contact-service">{{ record.relayName || '未知服务' }}</span>
-              <span class="contact-address">{{ getTodayContactAddress(record) }}</span>
+      <section
+        v-else-if="panel.visible && panel.id === 'today-contacts'"
+        class="today-contact-panel"
+      >
+        <h3>
+          <span>今日通联记录</span>
+          <span v-if="isEditingLayout" class="panel-layout-actions">
+            <button
+              type="button"
+              title="上移"
+              :disabled="isFirstDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, -1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="下移"
+              :disabled="isLastDashboardPanel(panel.id)"
+              @click="settingsStore.moveDashboardPanel(panel.id, 1)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <button
+              type="button"
+              title="隐藏"
+              @click="settingsStore.setDashboardPanelVisible(panel.id, false)"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M3 3 21 21" />
+                <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7" />
+                <path d="M9.4 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.1 3.1" />
+                <path d="M6.6 6.6C3.6 8.4 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.4-1.4" />
+              </svg>
+            </button>
+          </span>
+        </h3>
+
+        <div class="contact-list">
+          <div v-if="todayContactRecords.length === 0" class="empty-state">
+            <div class="empty-state-copy">
+              <strong>暂无今日通联记录</strong>
+              <span>同步到今日通联后会显示在这里</span>
             </div>
           </div>
 
-          <div class="contact-times">
-            <span class="contact-time-summary">{{ formatContactTime(record.timestamp) }}</span>
+          <div
+            v-for="(record, index) in todayContactRecords"
+            :key="`${record.timestamp}-${record.toCallsign}-${index}`"
+            class="contact-row"
+            @click="$emit('show-callsign-records', record.toCallsign)"
+          >
+            <span class="contact-index-bg" aria-hidden="true">{{ index + 1 }}</span>
+            <div class="contact-name">
+              <div class="contact-topline">
+                <strong>{{ record.toCallsign }}</strong>
+                <span class="contact-record-count">
+                  x{{ contactCounts.get(record.toCallsign) || 0 }}
+                </span>
+              </div>
+
+              <div class="contact-meta">
+                <span class="contact-service">{{ record.relayName || '未知服务' }}</span>
+                <span class="contact-address">{{ getTodayContactAddress(record) }}</span>
+              </div>
+            </div>
+
+            <div class="contact-times">
+              <span class="contact-time-summary">{{ formatContactTime(record.timestamp) }}</span>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </template>
+
+    <div v-if="isEditingLayout && hiddenDashboardPanels.length" class="hidden-panels">
+      <span>已隐藏</span>
+      <button
+        v-for="panel in hiddenDashboardPanels"
+        :key="panel.id"
+        type="button"
+        @click="settingsStore.setDashboardPanelVisible(panel.id, true)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        {{ dashboardPanelLabels[panel.id] }}
+      </button>
+    </div>
+
+    <div class="dashboard-layout-toolbar">
+      <button
+        class="layout-edit-button"
+        type="button"
+        :class="{ active: isEditingLayout }"
+        :title="isEditingLayout ? '完成布局编辑' : '编辑布局'"
+        @click="isEditingLayout = !isEditingLayout"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </svg>
+        <span>{{ isEditingLayout ? '完成' : '编辑布局' }}</span>
+      </button>
+      <button
+        v-if="isEditingLayout"
+        class="layout-reset-button"
+        type="button"
+        @click="settingsStore.resetDashboardLayout()"
+      >
+        恢复默认
+      </button>
+    </div>
   </div>
 </template>
 
@@ -252,10 +555,37 @@ import { gridToAddress } from '../services/gridService'
 import { normalizeHost } from '../utils/urlUtils'
 import { FmoApiClient } from '../services/fmoApi'
 
-defineEmits(['show-callsign-records'])
+const props = defineProps({
+  isDashboardFullscreen: {
+    type: Boolean,
+    default: false
+  },
+  todayLogs: {
+    type: Number,
+    default: 0
+  },
+  totalLogs: {
+    type: Number,
+    default: 0
+  },
+  uniqueCallsigns: {
+    type: Number,
+    default: 0
+  }
+})
+
+defineEmits(['show-callsign-records', 'open-channel-list', 'toggle-dashboard-fullscreen'])
 
 const speakingStore = useSpeakingStatusStore()
 const settingsStore = useSettingsStore()
+const isEditingLayout = ref(false)
+
+const dashboardPanelLabels = {
+  'reachability-info': '可达性信息',
+  'recent-speaking': '最近发言',
+  'speaking-history': '历史发言记录',
+  'today-contacts': '今日通联记录'
+}
 
 const selectedFromCallsign = inject('selectedFromCallsign', ref(''))
 const fmoAddress = inject('fmoAddress', ref(''))
@@ -266,11 +596,19 @@ let nowTimer = null
 
 const myLat = ref(null)
 const myLng = ref(null)
+const myGridAddress = ref('')
+const radioProfile = reactive({
+  deviceName: '',
+  freq: '',
+  ant: '',
+  height: ''
+})
 
 const historyAddressMap = reactive({})
 const todayContactAddressMap = reactive({})
 const gridAddressCache = reactive({})
 const todayContactRecords = ref([])
+let stationInfoRequestId = 0
 
 // ========== 计算属性 ==========
 
@@ -346,6 +684,24 @@ const displaySpeakerGeoText = computed(() => {
   return `${displaySpeakerDirection.value} ${displaySpeakerDistance.value}`
 })
 
+const myCoordinateText = computed(() => {
+  if (myLat.value === null || myLng.value === null) return ''
+  return `${formatCoordinate(myLat.value)}\n${formatCoordinate(myLng.value)}`
+})
+
+const coordinateRows = computed(() => {
+  if (myLat.value === null || myLng.value === null) return []
+  return [
+    { key: 'latitude', ...splitCoordinate(myLat.value) },
+    { key: 'longitude', ...splitCoordinate(myLng.value) }
+  ]
+})
+
+const myGrid = computed(() => {
+  if (myLat.value === null || myLng.value === null) return ''
+  return latLngToGrid(myLat.value, myLng.value)
+})
+
 const speakingDuration = ref('00:00')
 const ownSpeakingDuration = ref('00:00')
 let durationTimer = null
@@ -361,8 +717,69 @@ const todayContactedCallsigns = computed(() => settingsStore.todayContactedCalls
 const contactCounts = computed(() => settingsStore.contactCounts)
 const allHistoryEvents = computed(() => speakingStore.allHistoryEvents)
 const displayHistoryEvents = computed(() => allHistoryEvents.value)
+const dashboardLayout = computed(() => settingsStore.dashboardLayout)
+const hiddenDashboardPanels = computed(() =>
+  dashboardLayout.value.filter((panel) => !panel.visible)
+)
+const todayContactsPanelVisible = computed(
+  () => dashboardLayout.value.find((panel) => panel.id === 'today-contacts')?.visible !== false
+)
+const speakingHistoryPanelVisible = computed(
+  () => dashboardLayout.value.find((panel) => panel.id === 'speaking-history')?.visible !== false
+)
+const reachabilityPanelVisible = computed(
+  () => dashboardLayout.value.find((panel) => panel.id === 'reachability-info')?.visible !== false
+)
+const stationInfoCards = computed(() => {
+  const serverInfo = speakingStore.primaryServerInfo
+  const cards = [
+    {
+      id: 'station',
+      title: '当前信道',
+      value: serverInfo?.name || '',
+      icon: 'station'
+    },
+    {
+      id: 'contact-stats',
+      title: '通联统计',
+      value: `${props.todayLogs}/${props.totalLogs}\n${props.uniqueCallsigns}人`,
+      icon: 'contacts'
+    },
+    { id: 'device', title: '电台信息', value: radioProfile.deviceName, icon: 'radio' },
+    {
+      id: 'radio-setup',
+      title: '工作频率 / 天线高度 / 天线信息',
+      value: [
+        [formatFrequency(radioProfile.freq), formatHeight(radioProfile.height)]
+          .filter(Boolean)
+          .join(' '),
+        radioProfile.ant
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      icon: 'frequency'
+    },
+    { id: 'coordinate', title: '用户坐标', value: myCoordinateText.value, icon: 'coordinate' },
+    {
+      id: 'grid',
+      title: 'Grid / 地址',
+      value: [myGrid.value, myGridAddress.value].filter(Boolean).join('  '),
+      icon: 'grid'
+    }
+  ]
+  return cards.filter((item) => item.value !== '')
+})
 
 // ========== 方法 ==========
+
+function isFirstDashboardPanel(id) {
+  return dashboardLayout.value.filter((panel) => panel.visible)[0]?.id === id
+}
+
+function isLastDashboardPanel(id) {
+  const visiblePanels = dashboardLayout.value.filter((panel) => panel.visible)
+  return visiblePanels[visiblePanels.length - 1]?.id === id
+}
 
 function formatEventTime(utcTime) {
   if (!utcTime) return ''
@@ -371,6 +788,45 @@ function formatEventTime(utcTime) {
   const m = String(date.getMinutes()).padStart(2, '0')
   const s = String(date.getSeconds()).padStart(2, '0')
   return `${h}:${m}:${s}`
+}
+
+function formatCoordinate(value) {
+  return Number(value)
+    .toFixed(5)
+    .replace(/\.?0+$/, '')
+}
+
+function splitCoordinate(value) {
+  const [integer, fraction] = Number(value).toFixed(5).split('.')
+  return { integer, fraction }
+}
+
+function formatHeight(value) {
+  if (value === '' || value === null || value === undefined) return ''
+  const text = String(value).trim()
+  return /[a-zA-Z米]$/.test(text) ? text : `${text}m`
+}
+
+function formatFrequency(value) {
+  if (value === '' || value === null || value === undefined) return ''
+  const numericValue = Number(String(value).replace(/[^\d.-]/g, ''))
+  if (!Number.isFinite(numericValue)) return String(value).trim()
+  return `${numericValue.toFixed(3)} MHz`
+}
+
+function latLngToGrid(latitude, longitude) {
+  const lat = Math.max(-90, Math.min(90 - Number.EPSILON, Number(latitude))) + 90
+  const lng = Math.max(-180, Math.min(180 - Number.EPSILON, Number(longitude))) + 180
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return ''
+
+  const fieldLng = Math.floor(lng / 20)
+  const fieldLat = Math.floor(lat / 10)
+  const squareLng = Math.floor((lng % 20) / 2)
+  const squareLat = Math.floor(lat % 10)
+  const subLng = Math.floor((((lng % 20) % 2) * 60) / 5)
+  const subLat = Math.floor(((lat % 1) * 60) / 2.5)
+
+  return `${String.fromCharCode(65 + fieldLng)}${String.fromCharCode(65 + fieldLat)}${squareLng}${squareLat}${String.fromCharCode(65 + subLng)}${String.fromCharCode(65 + subLat)}`
 }
 
 function formatContactTime(timestamp) {
@@ -492,6 +948,11 @@ async function loadTodayContactAddresses(records) {
 }
 
 async function loadTodayContactRecords() {
+  if (!todayContactsPanelVisible.value) {
+    todayContactRecords.value = []
+    return
+  }
+
   if (!selectedFromCallsign.value) {
     todayContactRecords.value = []
     return
@@ -522,23 +983,60 @@ async function loadTodayContactRecords() {
   }
 }
 
-async function fetchMyCoordinate() {
-  if (!fmoAddress.value) return
+async function loadStationInfo() {
+  const requestId = ++stationInfoRequestId
+  radioProfile.deviceName = ''
+  radioProfile.freq = ''
+  radioProfile.ant = ''
+  radioProfile.height = ''
+  myLat.value = null
+  myLng.value = null
+  myGridAddress.value = ''
+
+  if (!reachabilityPanelVisible.value || !fmoAddress.value) return
+
+  let client
   try {
     const host = normalizeHost(fmoAddress.value)
     const fullAddress = `${protocol.value}://${host}`
-    const client = new FmoApiClient(fullAddress)
+    client = new FmoApiClient(fullAddress)
     await client.connect()
-    const coord = await client.getCoordinate()
+
+    const [deviceResult, freqResult, antResult, heightResult, coordinateResult] =
+      await Promise.allSettled([
+        client.getUserPhyDeviceName(),
+        client.getUserPhyFreq(),
+        client.getUserPhyAnt(),
+        client.getUserPhyAntHeight(),
+        client.getCoordinate()
+      ])
+
+    if (requestId !== stationInfoRequestId) return
+
+    if (deviceResult.status === 'fulfilled') {
+      radioProfile.deviceName = String(deviceResult.value?.deviceName ?? '').trim()
+    }
+    if (freqResult.status === 'fulfilled') {
+      radioProfile.freq = String(freqResult.value?.freq ?? '').trim()
+    }
+    if (antResult.status === 'fulfilled') {
+      radioProfile.ant = String(antResult.value?.ant ?? '').trim()
+    }
+    if (heightResult.status === 'fulfilled') {
+      radioProfile.height = String(heightResult.value?.height ?? '').trim()
+    }
+
+    const coord = coordinateResult.status === 'fulfilled' ? coordinateResult.value : null
     const latitude = Number(coord?.latitude ?? coord?.lat)
     const longitude = Number(coord?.longitude ?? coord?.lng ?? coord?.lon)
     if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
       myLat.value = latitude
       myLng.value = longitude
     }
-    client.close()
   } catch {
-    // 无法获取坐标
+    // 服务器不可达或不支持可达性信息接口
+  } finally {
+    client?.close()
   }
 }
 
@@ -579,15 +1077,15 @@ onUnmounted(() => {
 })
 
 watch(
-  () => displayHistory.value,
-  (records) => {
-    if (records?.length > 0) loadHistoryAddresses(records)
+  [displayHistory, speakingHistoryPanelVisible],
+  ([records, panelVisible]) => {
+    if (panelVisible && records?.length > 0) loadHistoryAddresses(records)
   },
   { immediate: true, deep: true }
 )
 
 watch(
-  selectedFromCallsign,
+  [selectedFromCallsign, todayContactsPanelVisible],
   () => {
     loadTodayContactRecords()
   },
@@ -603,7 +1101,22 @@ watch(
 
 watch(displaySpeaker, () => updateDisplaySpeakerAddress(), { immediate: true })
 
-watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
+watch([fmoAddress, protocol, reachabilityPanelVisible], () => loadStationInfo(), {
+  immediate: true
+})
+
+watch(
+  [myGrid, reachabilityPanelVisible],
+  async ([grid, panelVisible]) => {
+    if (!panelVisible || !grid) {
+      myGridAddress.value = ''
+      return
+    }
+    const address = await loadGridAddress(grid)
+    if (grid === myGrid.value) myGridAddress.value = address
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>
@@ -617,6 +1130,7 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .dashboard-hero,
+.reachability-panel,
 .event-strip-wrap,
 .today-contact-panel,
 .history-panel {
@@ -625,32 +1139,309 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .event-strip-wrap,
+.reachability-panel,
 .today-contact-panel,
 .history-panel {
   background: transparent;
 }
 
+.station-info-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 0.45rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.reachability-panel {
+  overflow: visible;
+}
+
+.station-info-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 11.5rem;
+  min-height: 4.5rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  color: var(--text-secondary);
+  font-family: inherit;
+  text-align: left;
+  overflow: hidden;
+}
+
+.station-info-card .station-info-watermark {
+  position: absolute;
+  right: -0.15rem;
+  bottom: -0.35rem;
+  width: 3.3rem;
+  height: 3.3rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+  opacity: 0.075;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.station-info-card .station-channel-icon {
+  fill: currentColor;
+  stroke: none;
+}
+
+.station-info-card-action {
+  border-color: var(--component-header-station-hover-border);
+  background: var(--component-header-station-bg);
+  color: var(--component-header-station-text);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .station-info-card-action:hover {
+    border-color: var(--component-header-station-hover-border);
+    background: var(--component-header-station-hover-bg);
+    color: var(--component-header-station-text);
+  }
+}
+
+.station-info-card > span {
+  position: relative;
+  display: -webkit-box;
+  min-width: 0;
+  padding-right: 1.6rem;
+  overflow: hidden;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: pre-line;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  z-index: 1;
+}
+
+.radio-setup-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-right: 1.6rem;
+  line-height: 1.25;
+  z-index: 1;
+}
+
+.radio-setup-primary,
+.radio-setup-antenna {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.radio-setup-primary {
+  gap: 0.45rem;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.radio-setup-primary i {
+  width: 1px;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  background: var(--border-secondary);
+}
+
+.radio-setup-antenna {
+  gap: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.radio-setup-antenna span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coordinate-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-right: 1.6rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.25;
+  z-index: 1;
+}
+
+.coordinate-row {
+  display: grid;
+  grid-template-columns: 4ch auto 5ch;
+}
+
+.coordinate-row span:first-child {
+  text-align: right;
+}
+
+.coordinate-row i {
+  font-style: normal;
+}
+
+.contact-stats-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-right: 1.6rem;
+  line-height: 1.2;
+  z-index: 1;
+}
+
+.contact-stats-content strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.contact-stats-content span {
+  margin-top: 0.2rem;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.dashboard-layout-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  min-height: 2rem;
+}
+
+.layout-edit-button,
+.layout-reset-button,
+.hidden-panels button,
+.panel-layout-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layout-edit-button,
+.layout-reset-button {
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+  border-color: var(--border-light);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+
+.layout-edit-button {
+  gap: 0.3rem;
+}
+
+.layout-edit-button.active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.layout-edit-button svg,
+.hidden-panels button svg,
+.panel-layout-actions button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.hidden-panels {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px dashed var(--border-light);
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+
+.hidden-panels button {
+  gap: 0.25rem;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.5rem;
+  border-color: var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-table-stripe);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
 .dashboard-hero {
   position: relative;
   overflow: hidden;
-  padding: 0.9rem 1.1rem;
+  padding: 0.9rem 3.8rem 0.9rem 1.1rem;
   border: 1px solid var(--border-secondary);
-  background:
-    linear-gradient(135deg, var(--bg-card), var(--bg-table-stripe));
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-table-stripe));
+}
+
+.dashboard-fullscreen-button {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-color: var(--border-light);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
+  color: var(--text-tertiary);
+  z-index: 4;
+}
+
+.dashboard-fullscreen-button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .dashboard-hero.active {
-  background:
-    linear-gradient(135deg, var(--bg-speaking-bar), var(--bg-card));
+  background: linear-gradient(135deg, var(--bg-speaking-bar), var(--bg-card));
 }
 
 .dashboard-hero.self-speaking:not(.active) {
-  background:
-    linear-gradient(
-      270deg,
-      color-mix(in srgb, var(--color-speaking) 10%, transparent),
-      var(--bg-card)
-    );
+  background: linear-gradient(
+    270deg,
+    color-mix(in srgb, var(--color-speaking) 10%, transparent),
+    var(--bg-card)
+  );
 }
 
 .dashboard-hero::before {
@@ -765,6 +1556,13 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   font-size: clamp(2.45rem, 5.8vw, 4.1rem);
   font-weight: 800;
   line-height: 0.95;
+  white-space: nowrap;
+}
+
+.speaker-contact-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   white-space: nowrap;
 }
 
@@ -997,10 +1795,12 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 }
 
 .event-strip-wrap h3,
+.reachability-panel h3,
 .today-contact-panel h3,
 .history-panel h3 {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.4rem;
   flex-shrink: 0;
   margin: 0;
@@ -1009,6 +1809,28 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: 0;
+}
+
+.panel-layout-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.panel-layout-actions button {
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border-color: var(--border-light);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.panel-layout-actions button:disabled {
+  cursor: default;
+  opacity: 0.3;
 }
 
 .event-strip-wrap {
@@ -1433,6 +2255,10 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
     font-size: clamp(2.45rem, 12vw, 3.2rem);
   }
 
+  .speaker-contact-meta {
+    flex-basis: 100%;
+  }
+
   .speaker-contact-star {
     width: clamp(1.9rem, 8vw, 2.35rem);
     height: clamp(1.9rem, 8vw, 2.35rem);
@@ -1445,7 +2271,11 @@ watch([fmoAddress, protocol], () => fetchMyCoordinate(), { immediate: true })
 
 @media (max-width: 520px) {
   .dashboard-hero {
-    padding: 0.8rem 0.9rem;
+    padding: 0.8rem 3.45rem 0.8rem 0.9rem;
+  }
+
+  .station-info-card {
+    min-height: 4.5rem;
   }
 
   .speaker-details {
