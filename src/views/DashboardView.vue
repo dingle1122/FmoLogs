@@ -2274,8 +2274,23 @@ watch(
     padding: 0.8rem 3.45rem 0.8rem 0.9rem;
   }
 
+  .station-info-strip,
+  .event-strip,
+  .contact-list,
+  .history-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .station-info-card {
+    min-width: 0;
+    max-width: none;
     min-height: 4.5rem;
+  }
+
+  .event-chip,
+  .contact-row,
+  .history-row {
+    min-width: 0;
   }
 
   .speaker-details {
@@ -2297,6 +2312,15 @@ watch(
 
   .empty-state {
     min-height: 6.6rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .station-info-strip,
+  .event-strip,
+  .contact-list,
+  .history-list {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>
