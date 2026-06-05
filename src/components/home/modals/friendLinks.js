@@ -25,6 +25,16 @@ export const friendLinks = [
     }
   },
   {
+    id: 'fmo-dashboard',
+    name: 'FMO 仪表盘',
+    url: 'https://fmo.bh1jss.net/v2',
+    displayUrl: 'fmo.bh1jss.net',
+    icon: {
+      type: 'url',
+      content: 'https://fmo.bh1jss.net/v2/app-icon.png'
+    }
+  },
+  {
     id: 'fmo-docs',
     name: 'FMO实践分享',
     url: 'https://bg5esn.com/docs/fmo-user-shares/',
@@ -47,8 +57,6 @@ export const friendLinks = [
   {
     id: 'fmoc',
     name: 'FMOC',
-    tag: '未知',
-    tagType: 'warn',
     url: 'http://fmo.bg5eit.cn/',
     displayUrl: 'fmo.bg5eit.cn',
     icon: {
