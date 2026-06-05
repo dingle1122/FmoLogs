@@ -31,7 +31,7 @@ export const friendLinks = [
     displayUrl: 'fmo.bh1jss.net',
     icon: {
       type: 'url',
-      content: 'https://fmo.bh1jss.net/v2/app-icon.png'
+      content: 'https://cdn.lzyike.cn/fmoLogs/icon/fmo-dashboard.png'
     }
   },
   {
