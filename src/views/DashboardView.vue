@@ -3,21 +3,9 @@
     <section
       class="dashboard-hero"
       :class="{ active: isDisplaySpeakerActive, 'self-speaking': isOwnSpeaking }"
+      title="双击切换全屏"
+      @dblclick="$emit('toggle-dashboard-fullscreen')"
     >
-      <button
-        class="dashboard-fullscreen-button"
-        type="button"
-        :title="isDashboardFullscreen ? '退出全屏' : '全屏显示'"
-        :aria-label="isDashboardFullscreen ? '退出全屏' : '全屏显示'"
-        @click="$emit('toggle-dashboard-fullscreen')"
-      >
-        <svg v-if="isDashboardFullscreen" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" />
-        </svg>
-      </button>
       <span v-if="displaySpeaker" class="hero-watermark" aria-hidden="true">
         {{ displaySpeaker.callsign }}
         <span class="hero-watermark-count"
@@ -556,10 +544,6 @@ import { normalizeHost } from '../utils/urlUtils'
 import { FmoApiClient } from '../services/fmoApi'
 
 const props = defineProps({
-  isDashboardFullscreen: {
-    type: Boolean,
-    default: false
-  },
   todayLogs: {
     type: Number,
     default: 0
@@ -1400,36 +1384,9 @@ watch(
 .dashboard-hero {
   position: relative;
   overflow: hidden;
-  padding: 0.9rem 3.8rem 0.9rem 1.1rem;
+  padding: 0.9rem 1.1rem;
   border: 1px solid var(--border-secondary);
   background: linear-gradient(135deg, var(--bg-card), var(--bg-table-stripe));
-}
-
-.dashboard-fullscreen-button {
-  position: absolute;
-  top: 0.55rem;
-  right: 0.6rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border-color: var(--border-light);
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--bg-card) 78%, transparent);
-  color: var(--text-tertiary);
-  z-index: 4;
-}
-
-.dashboard-fullscreen-button svg {
-  width: 1rem;
-  height: 1rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
 }
 
 .dashboard-hero.active {
@@ -2271,7 +2228,7 @@ watch(
 
 @media (max-width: 520px) {
   .dashboard-hero {
-    padding: 0.8rem 3.45rem 0.8rem 0.9rem;
+    padding: 0.8rem 0.9rem;
   }
 
   .station-info-strip,

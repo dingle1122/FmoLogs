@@ -79,7 +79,6 @@
           :multi-sync-progress="fmoSync.multiSyncProgress.value"
           :audio-volume="settings.audioVolume.value"
           :contact-counts="settings.contactCounts.value"
-          :is-dashboard-fullscreen="isDashboardFullscreen"
           :today-logs="todayLogs"
           :total-logs="totalLogs"
           :unique-callsigns="uniqueCallsigns"
