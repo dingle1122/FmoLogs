@@ -33,7 +33,10 @@
       <div
         v-if="displaySpeaker"
         class="hero-content"
-        :class="{ 'without-clock': !showSpeakerClock }"
+        :class="{
+          'without-clock': !showSpeakerClock,
+          'with-stacked-clock': showStackedSpeakerClock
+        }"
       >
         <div class="hero-station">
           <div v-if="showSpeakerIdentity" class="speaker-title">
@@ -769,6 +772,9 @@ const dashboardLayout = computed(() => settingsStore.dashboardLayout)
 const heroElements = computed(() => settingsStore.dashboardHeroElements)
 const showSpeakerClock = computed(
   () => heroElements.value['local-time'] || heroElements.value['utc-time']
+)
+const showStackedSpeakerClock = computed(
+  () => heroElements.value['local-time'] && heroElements.value['utc-time']
 )
 const showSpeakerIdentity = computed(
   () => heroElements.value.callsign || heroElements.value['contact-meta']
@@ -2372,6 +2378,10 @@ watch(
     grid-template-columns: 1fr;
     gap: 0.75rem;
     padding-top: 1.45rem;
+  }
+
+  .hero-content.with-stacked-clock {
+    padding-top: 2.35rem;
   }
 
   .hero-content.without-clock {
