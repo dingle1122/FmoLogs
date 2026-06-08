@@ -29,6 +29,7 @@ const PRIORITIZE_TODAY_KEY = 'fmo_prioritize_today'
 const CUSTOM_THEMES_KEY = 'fmo_custom_themes'
 const ACTIVE_THEME_KEY = 'fmo_active_theme'
 const DASHBOARD_LAYOUT_KEY = 'fmo_dashboard_layout'
+const DASHBOARD_HERO_ELEMENTS_KEY = 'fmo_dashboard_hero_elements'
 
 export type DashboardPanelId =
   | 'reachability-info'
@@ -41,12 +42,39 @@ export interface DashboardPanelLayout {
   visible: boolean
 }
 
+export type DashboardHeroElementId =
+  | 'local-time'
+  | 'utc-time'
+  | 'watermark'
+  | 'callsign'
+  | 'contact-meta'
+  | 'server-name'
+  | 'grid'
+  | 'address'
+  | 'geo'
+  | 'duration'
+
+export type DashboardHeroElementVisibility = Record<DashboardHeroElementId, boolean>
+
 const DEFAULT_DASHBOARD_LAYOUT: DashboardPanelLayout[] = [
   { id: 'reachability-info', visible: true },
   { id: 'recent-speaking', visible: true },
   { id: 'speaking-history', visible: true },
   { id: 'today-contacts', visible: true }
 ]
+
+const DEFAULT_DASHBOARD_HERO_ELEMENTS: DashboardHeroElementVisibility = {
+  'local-time': true,
+  'utc-time': true,
+  watermark: true,
+  callsign: true,
+  'contact-meta': true,
+  'server-name': true,
+  grid: true,
+  address: true,
+  geo: true,
+  duration: true
+}
 
 interface UserInfo {
   callsign: string
@@ -110,6 +138,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const customThemes = ref<CustomThemePreset[]>([])
   const activeThemeId = ref(DEFAULT_THEME_ID)
   const dashboardLayout = ref<DashboardPanelLayout[]>(cloneDefaultDashboardLayout())
+  const dashboardHeroElements = ref<DashboardHeroElementVisibility>(
+    cloneDefaultDashboardHeroElements()
+  )
 
   const isHttps = window.location.protocol === 'https:'
   const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -155,6 +186,10 @@ export const useSettingsStore = defineStore('settings', () => {
     return DEFAULT_DASHBOARD_LAYOUT.map((panel) => ({ ...panel }))
   }
 
+  function cloneDefaultDashboardHeroElements(): DashboardHeroElementVisibility {
+    return { ...DEFAULT_DASHBOARD_HERO_ELEMENTS }
+  }
+
   function normalizeDashboardLayout(value: unknown): DashboardPanelLayout[] {
     const knownIds = new Set(DEFAULT_DASHBOARD_LAYOUT.map((panel) => panel.id))
     const normalized: DashboardPanelLayout[] = []
@@ -190,6 +225,13 @@ export const useSettingsStore = defineStore('settings', () => {
     await getPlatform().storage.set(DASHBOARD_LAYOUT_KEY, JSON.stringify(dashboardLayout.value))
   }
 
+  async function persistDashboardHeroElements() {
+    await getPlatform().storage.set(
+      DASHBOARD_HERO_ELEMENTS_KEY,
+      JSON.stringify(dashboardHeroElements.value)
+    )
+  }
+
   async function initDashboardLayout() {
     const saved = await getPlatform().storage.get(DASHBOARD_LAYOUT_KEY)
     if (saved) {
@@ -198,6 +240,34 @@ export const useSettingsStore = defineStore('settings', () => {
       } catch (error) {
         console.error('解析 Dashboard 布局失败:', error)
         dashboardLayout.value = cloneDefaultDashboardLayout()
+      }
+    }
+
+    const savedHeroElements = await getPlatform().storage.get(DASHBOARD_HERO_ELEMENTS_KEY)
+    if (savedHeroElements) {
+      try {
+        const parsed = JSON.parse(savedHeroElements)
+        const legacyClockVisible = typeof parsed?.clock === 'boolean' ? parsed.clock : undefined
+        const legacySpeakerDetailsVisible =
+          typeof parsed?.['speaker-details'] === 'boolean' ? parsed['speaker-details'] : undefined
+        dashboardHeroElements.value = Object.fromEntries(
+          Object.entries(DEFAULT_DASHBOARD_HERO_ELEMENTS).map(([id, defaultVisible]) => {
+            let visible = typeof parsed?.[id] === 'boolean' ? parsed[id] : defaultVisible
+            if ((id === 'local-time' || id === 'utc-time') && legacyClockVisible !== undefined) {
+              visible = legacyClockVisible
+            }
+            if (
+              (id === 'server-name' || id === 'grid' || id === 'address') &&
+              legacySpeakerDetailsVisible !== undefined
+            ) {
+              visible = legacySpeakerDetailsVisible
+            }
+            return [id, visible]
+          })
+        ) as DashboardHeroElementVisibility
+      } catch (error) {
+        console.error('解析 Dashboard 当前发言卡片设置失败:', error)
+        dashboardHeroElements.value = cloneDefaultDashboardHeroElements()
       }
     }
   }
@@ -236,7 +306,17 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function resetDashboardLayout() {
     dashboardLayout.value = cloneDefaultDashboardLayout()
+    dashboardHeroElements.value = cloneDefaultDashboardHeroElements()
     await persistDashboardLayout()
+    await persistDashboardHeroElements()
+  }
+
+  async function setDashboardHeroElementVisible(id: DashboardHeroElementId, visible: boolean) {
+    dashboardHeroElements.value = {
+      ...dashboardHeroElements.value,
+      [id]: visible
+    }
+    await persistDashboardHeroElements()
   }
 
   // ========== 音量 / 播放状态（走 platform.storage） ==========
@@ -850,6 +930,7 @@ export const useSettingsStore = defineStore('settings', () => {
     activeThemeId,
     themeList,
     dashboardLayout,
+    dashboardHeroElements,
     // actions
     initFmoAddress,
     validateAndSaveFmoAddress,
@@ -875,6 +956,7 @@ export const useSettingsStore = defineStore('settings', () => {
     renameCustomTheme,
     moveDashboardPanel,
     setDashboardPanelVisible,
+    setDashboardHeroElementVisible,
     resetDashboardLayout
   }
 })

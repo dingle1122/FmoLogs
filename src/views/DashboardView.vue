@@ -6,20 +6,46 @@
       title="双击切换全屏"
       @dblclick="$emit('toggle-dashboard-fullscreen')"
     >
-      <span v-if="displaySpeaker" class="hero-watermark" aria-hidden="true">
+      <span
+        v-if="displaySpeaker && heroElements.watermark"
+        class="hero-watermark"
+        aria-hidden="true"
+      >
         {{ displaySpeaker.callsign }}
         <span class="hero-watermark-count"
           >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
         >
       </span>
-      <div v-if="displaySpeaker" class="hero-content">
+      <div v-if="displaySpeaker && showSpeakerClock" class="speaker-clock" aria-label="当前时间">
+        <time v-if="heroElements['local-time']" :datetime="currentLocalIso">{{
+          currentLocalTimeText
+        }}</time>
+        <span
+          v-if="heroElements['local-time'] && heroElements['utc-time']"
+          class="speaker-clock-divider"
+          aria-hidden="true"
+          >|</span
+        >
+        <time v-if="heroElements['utc-time']" :datetime="currentUtcIso">{{
+          currentUtcTimeText
+        }}</time>
+      </div>
+      <div
+        v-if="displaySpeaker"
+        class="hero-content"
+        :class="{ 'without-clock': !showSpeakerClock }"
+      >
         <div class="hero-station">
-          <div class="speaker-title">
+          <div v-if="showSpeakerIdentity" class="speaker-title">
             <div class="speaker-identity">
-              <span class="speaker-callsign" :class="{ idle: !isDisplaySpeakerActive }">
+              <span
+                v-if="heroElements.callsign"
+                class="speaker-callsign"
+                :class="{ idle: !isDisplaySpeakerActive }"
+              >
                 {{ displaySpeaker.callsign }}
               </span>
-              <span class="speaker-contact-meta">
+              <span v-if="heroElements['contact-meta']" class="speaker-contact-meta">
                 <span class="speaker-contact-count"
                   >x{{ contactCounts.get(displaySpeaker.callsign) || 0 }}</span
                 >
@@ -36,14 +62,21 @@
             </div>
           </div>
 
-          <div class="speaker-details">
-            <span v-if="displaySpeaker.serverName" class="detail-tag">{{
-              displaySpeaker.serverName
+          <div v-if="showSpeakerDetails" class="speaker-details">
+            <span
+              v-if="heroElements['server-name'] && displaySpeaker.serverName"
+              class="detail-tag"
+              >{{ displaySpeaker.serverName }}</span
+            >
+            <span v-if="heroElements.grid && displaySpeaker.grid" class="speaker-grid">{{
+              displaySpeaker.grid
             }}</span>
-            <span v-if="displaySpeakerAddress">{{ displaySpeakerAddress }}</span>
+            <span v-if="heroElements.address && displaySpeakerAddress">{{
+              displaySpeakerAddress
+            }}</span>
           </div>
 
-          <div class="metric-block geo-block">
+          <div v-if="heroElements.geo" class="metric-block geo-block">
             <span
               v-if="displaySpeakerGeoText"
               class="geo-icon"
@@ -57,7 +90,7 @@
           </div>
         </div>
 
-        <div class="hero-metrics">
+        <div v-if="heroElements.duration" class="hero-metrics">
           <div class="metric-block duration-block">
             <span
               class="duration-own-callsign"
@@ -101,6 +134,18 @@
         </div>
       </div>
     </section>
+
+    <div v-if="isEditingLayout" class="hero-elements-editor">
+      <span>当前发言卡片</span>
+      <label v-for="item in dashboardHeroElementOptions" :key="item.id">
+        <input
+          type="checkbox"
+          :checked="heroElements[item.id]"
+          @change="settingsStore.setDashboardHeroElementVisible(item.id, $event.target.checked)"
+        />
+        <span>{{ item.label }}</span>
+      </label>
+    </div>
 
     <template v-for="panel in dashboardLayout" :key="panel.id">
       <section v-if="panel.visible && panel.id === 'reachability-info'" class="reachability-panel">
@@ -571,6 +616,19 @@ const dashboardPanelLabels = {
   'today-contacts': '今日通联记录'
 }
 
+const dashboardHeroElementOptions = [
+  { id: 'local-time', label: '本地时间' },
+  { id: 'utc-time', label: 'UTC 时间' },
+  { id: 'watermark', label: '背景呼号' },
+  { id: 'callsign', label: '呼号' },
+  { id: 'contact-meta', label: '通联次数/星标' },
+  { id: 'server-name', label: '信道' },
+  { id: 'grid', label: 'Grid' },
+  { id: 'address', label: '地址' },
+  { id: 'geo', label: '方位距离' },
+  { id: 'duration', label: '发言时长' }
+]
+
 const selectedFromCallsign = inject('selectedFromCallsign', ref(''))
 const fmoAddress = inject('fmoAddress', ref(''))
 const protocol = inject('protocol', ref('ws'))
@@ -639,6 +697,12 @@ const heroOwnCallsign = computed(
   () => currentOwnSpeakerRecord.value?.callsign || selectedFromCallsign.value
 )
 
+const currentDate = computed(() => new Date(now.value))
+const currentLocalIso = computed(() => currentDate.value.toISOString())
+const currentUtcIso = computed(() => currentDate.value.toISOString())
+const currentLocalTimeText = computed(() => formatDateTime(currentDate.value, 'local'))
+const currentUtcTimeText = computed(() => formatDateTime(currentDate.value, 'utc'))
+
 const displaySpeakerAddress = ref('')
 
 const displaySpeakerDistance = computed(() => {
@@ -702,6 +766,16 @@ const contactCounts = computed(() => settingsStore.contactCounts)
 const allHistoryEvents = computed(() => speakingStore.allHistoryEvents)
 const displayHistoryEvents = computed(() => allHistoryEvents.value)
 const dashboardLayout = computed(() => settingsStore.dashboardLayout)
+const heroElements = computed(() => settingsStore.dashboardHeroElements)
+const showSpeakerClock = computed(
+  () => heroElements.value['local-time'] || heroElements.value['utc-time']
+)
+const showSpeakerIdentity = computed(
+  () => heroElements.value.callsign || heroElements.value['contact-meta']
+)
+const showSpeakerDetails = computed(
+  () => heroElements.value['server-name'] || heroElements.value.grid || heroElements.value.address
+)
 const hiddenDashboardPanels = computed(() =>
   dashboardLayout.value.filter((panel) => !panel.visible)
 )
@@ -772,6 +846,40 @@ function formatEventTime(utcTime) {
   const m = String(date.getMinutes()).padStart(2, '0')
   const s = String(date.getSeconds()).padStart(2, '0')
   return `${h}:${m}:${s}`
+}
+
+function formatDateTime(date, timezone = 'local') {
+  const timezoneOffset = timezone === 'utc' ? 0 : -date.getTimezoneOffset() / 60
+  const timezoneText =
+    timezoneOffset === 0
+      ? 'UTC+0'
+      : `UTC${timezoneOffset > 0 ? '+' : ''}${Number.isInteger(timezoneOffset) ? timezoneOffset : timezoneOffset.toFixed(1)}`
+  const getValue = (part) =>
+    timezone === 'utc'
+      ? {
+          year: date.getUTCFullYear(),
+          month: date.getUTCMonth() + 1,
+          day: date.getUTCDate(),
+          hours: date.getUTCHours(),
+          minutes: date.getUTCMinutes(),
+          seconds: date.getUTCSeconds()
+        }[part]
+      : {
+          year: date.getFullYear(),
+          month: date.getMonth() + 1,
+          day: date.getDate(),
+          hours: date.getHours(),
+          minutes: date.getMinutes(),
+          seconds: date.getSeconds()
+        }[part]
+
+  const year = getValue('year')
+  const month = String(getValue('month')).padStart(2, '0')
+  const day = String(getValue('day')).padStart(2, '0')
+  const hours = String(getValue('hours')).padStart(2, '0')
+  const minutes = String(getValue('minutes')).padStart(2, '0')
+  const seconds = String(getValue('seconds')).padStart(2, '0')
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timezoneText}`
 }
 
 function formatCoordinate(value) {
@@ -1319,6 +1427,7 @@ watch(
 
 .layout-edit-button,
 .layout-reset-button,
+.hero-elements-editor label,
 .hidden-panels button,
 .panel-layout-actions button {
   display: inline-flex;
@@ -1368,6 +1477,36 @@ watch(
   border-radius: 6px;
   color: var(--text-tertiary);
   font-size: 0.78rem;
+}
+
+.hero-elements-editor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px dashed var(--border-light);
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+}
+
+.hero-elements-editor label {
+  gap: 0.28rem;
+  min-height: 1.9rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: var(--bg-table-stripe);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.hero-elements-editor input {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin: 0;
+  accent-color: var(--color-primary);
 }
 
 .hidden-panels button {
@@ -1470,7 +1609,12 @@ watch(
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 1rem;
+  padding-top: 1rem;
   z-index: 1;
+}
+
+.hero-content.without-clock {
+  padding-top: 0;
 }
 
 .hero-station {
@@ -1482,9 +1626,42 @@ watch(
 
 .speaker-title {
   display: flex;
-  align-items: center;
-  gap: 0.65rem;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+}
+
+.speaker-clock {
+  position: absolute;
+  top: 0.72rem;
+  right: 1.1rem;
+  left: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.16rem 0.55rem;
+  max-width: 100%;
+  color: var(--text-tertiary);
+  font-family: 'IntelOneMono', monospace;
+  font-size: clamp(0.72rem, 1.2vw, 0.82rem);
+  font-weight: 500;
+  line-height: 1.2;
+  opacity: 0.86;
+  pointer-events: none;
+  text-align: right;
+  z-index: 3;
+}
+
+.speaker-clock time {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.speaker-clock-divider {
+  color: var(--text-disabled);
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .speaker-identity {
@@ -1552,6 +1729,10 @@ watch(
 
 .speaker-details {
   margin-top: 0.45rem;
+}
+
+.speaker-grid {
+  text-transform: uppercase;
 }
 
 .hero-station .geo-block {
@@ -2190,6 +2371,11 @@ watch(
   .hero-content {
     grid-template-columns: 1fr;
     gap: 0.75rem;
+    padding-top: 1.45rem;
+  }
+
+  .hero-content.without-clock {
+    padding-top: 0;
   }
 
   .hero-metrics {
@@ -2214,6 +2400,16 @@ watch(
 
   .speaker-contact-meta {
     flex-basis: 100%;
+  }
+
+  .speaker-clock {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.18rem;
+  }
+
+  .speaker-clock-divider {
+    display: none;
   }
 
   .speaker-contact-star {
