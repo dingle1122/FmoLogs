@@ -89,7 +89,7 @@
                 <path d="M12 4 19 20 12 16 5 20 12 4Z" />
               </svg>
             </span>
-            <strong>{{ displaySpeakerGeoText || '位置计算中' }}</strong>
+            <strong>{{ displaySpeakerGeoText }}</strong>
           </div>
         </div>
 
@@ -449,7 +449,8 @@
                   <img src="/img/star_2b50.png" alt="" />
                 </span>
               </div>
-              <span>{{ formatEventTime(event.utcTime) }}</span>
+              <span class="event-address">{{ historyAddressMap[event.callsign] || '' }}</span>
+              <span class="event-time">{{ formatEventTime(event.utcTime) }}</span>
             </div>
             <span class="event-count">x{{ contactCounts.get(event.callsign) || 0 }}</span>
           </div>
@@ -807,21 +808,24 @@ const currentLocalTimeText = computed(() => formatDateTime(currentDate.value, 'l
 const currentUtcTimeText = computed(() => formatDateTime(currentDate.value, 'utc'))
 
 const displaySpeakerAddress = ref('')
+const hasMyCoordinate = computed(() => Number.isFinite(myLat.value) && Number.isFinite(myLng.value))
 
 const displaySpeakerDistance = computed(() => {
-  if (!displaySpeaker.value?.grid || myLat.value === null) return ''
+  if (!displaySpeaker.value?.grid || !hasMyCoordinate.value) return ''
   const coords = gridToLatLng(displaySpeaker.value.grid)
   if (!coords) return ''
   const dist = haversineDistance(myLat.value, myLng.value, coords.lat, coords.lng)
+  if (!Number.isFinite(dist)) return ''
   if (dist < 1) return `${Math.round(dist * 1000)}m`
   return `${dist.toFixed(1)}km`
 })
 
 const displaySpeakerBearing = computed(() => {
-  if (!displaySpeaker.value?.grid || myLat.value === null) return ''
+  if (!displaySpeaker.value?.grid || !hasMyCoordinate.value) return ''
   const coords = gridToLatLng(displaySpeaker.value.grid)
   if (!coords) return ''
-  return calcBearing(myLat.value, myLng.value, coords.lat, coords.lng)
+  const bearing = calcBearing(myLat.value, myLng.value, coords.lat, coords.lng)
+  return Number.isFinite(bearing) ? bearing : ''
 })
 
 const displaySpeakerDirection = computed(() => {
@@ -892,11 +896,17 @@ const hiddenStationInfoCards = computed(() =>
 const todayContactsPanelVisible = computed(
   () => dashboardLayout.value.find((panel) => panel.id === 'today-contacts')?.visible !== false
 )
+const recentSpeakingPanelVisible = computed(
+  () => dashboardLayout.value.find((panel) => panel.id === 'recent-speaking')?.visible !== false
+)
 const speakingHistoryPanelVisible = computed(
   () => dashboardLayout.value.find((panel) => panel.id === 'speaking-history')?.visible !== false
 )
 const reachabilityPanelVisible = computed(
   () => dashboardLayout.value.find((panel) => panel.id === 'reachability-info')?.visible !== false
+)
+const shouldLoadStationInfo = computed(
+  () => reachabilityPanelVisible.value || (heroElements.value.geo && !!displaySpeaker.value)
 )
 const screenModeText = computed(() => {
   if (screenMode.value === 1) return '待机模式'
@@ -1077,7 +1087,8 @@ function formatContactTime(timestamp) {
 
 function gridToLatLng(grid) {
   if (!grid || grid.length < 4) return null
-  grid = grid.toUpperCase()
+  grid = String(grid).trim().toUpperCase()
+  if (!/^[A-R]{2}\d{2}([A-X]{2})?$/.test(grid)) return null
   let lng = (grid.charCodeAt(0) - 65) * 20 - 180
   let lat = (grid.charCodeAt(1) - 65) * 10 - 90
   lng += parseInt(grid[2]) * 2
@@ -1285,7 +1296,7 @@ async function loadStationInfo() {
   myGridAddress.value = ''
   screenMode.value = null
 
-  if (!reachabilityPanelVisible.value || !fmoAddress.value) return
+  if (!shouldLoadStationInfo.value || !fmoAddress.value) return
 
   let client
   try {
@@ -1373,9 +1384,9 @@ onUnmounted(() => {
 })
 
 watch(
-  [displayHistory, speakingHistoryPanelVisible],
-  ([records, panelVisible]) => {
-    if (panelVisible && records?.length > 0) loadHistoryAddresses(records)
+  [displayHistory, recentSpeakingPanelVisible, speakingHistoryPanelVisible],
+  ([records, recentVisible, historyVisible]) => {
+    if ((recentVisible || historyVisible) && records?.length > 0) loadHistoryAddresses(records)
   },
   { immediate: true, deep: true }
 )
@@ -1397,7 +1408,7 @@ watch(
 
 watch(displaySpeaker, () => updateDisplaySpeakerAddress(), { immediate: true })
 
-watch([fmoAddress, protocol, reachabilityPanelVisible], () => loadStationInfo(), {
+watch([fmoAddress, protocol, shouldLoadStationInfo], () => loadStationInfo(), {
   immediate: true
 })
 
@@ -1937,7 +1948,7 @@ watch(
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   gap: 1rem;
-  padding-top: 1rem;
+  padding-top: 1.35rem;
   z-index: 1;
 }
 
@@ -1972,7 +1983,7 @@ watch(
   max-width: 100%;
   color: var(--text-tertiary);
   font-family: 'IntelOneMono', monospace;
-  font-size: clamp(0.72rem, 1.2vw, 0.82rem);
+  font-size: 0.88rem;
   font-weight: 500;
   line-height: 1.2;
   opacity: 0.86;
@@ -2357,8 +2368,8 @@ watch(
   align-items: center;
   gap: 0.45rem;
   min-width: 11.5rem;
-  height: 4.5rem;
-  padding: 0.7rem 0.6rem;
+  min-height: 6.1rem;
+  padding: 0.72rem 0.6rem 0.65rem;
   padding-right: 2.65rem;
   border-radius: 6px;
   background: color-mix(in srgb, var(--text-primary) 5%, transparent);
@@ -2437,11 +2448,27 @@ watch(
   font-size: 1.15rem;
 }
 
-.event-main > span {
+.event-time {
   display: block;
   margin-top: 0.12rem;
   color: var(--text-tertiary);
   font-size: 0.82rem;
+}
+
+.event-address {
+  display: -webkit-box;
+  width: 100%;
+  min-height: calc(0.78rem * 1.25 * 2);
+  margin-top: 0.18rem;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .event-count,
@@ -2699,11 +2726,11 @@ watch(
   .hero-content {
     grid-template-columns: 1fr;
     gap: 0.75rem;
-    padding-top: 1.45rem;
+    padding-top: 1.6rem;
   }
 
   .hero-content.with-stacked-clock {
-    padding-top: 2.35rem;
+    padding-top: 2.75rem;
   }
 
   .hero-content.without-clock {
