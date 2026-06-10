@@ -28,8 +28,10 @@ const AUDIO_PLAYING_KEY = 'fmo_audio_playing'
 const PRIORITIZE_TODAY_KEY = 'fmo_prioritize_today'
 const CUSTOM_THEMES_KEY = 'fmo_custom_themes'
 const ACTIVE_THEME_KEY = 'fmo_active_theme'
-const DASHBOARD_LAYOUT_KEY = 'fmo_dashboard_layout'
-const DASHBOARD_HERO_ELEMENTS_KEY = 'fmo_dashboard_hero_elements'
+const DASHBOARD_CONFIG_KEY = 'fmo_dashboard_config'
+const LEGACY_DASHBOARD_LAYOUT_KEY = 'fmo_dashboard_layout'
+const LEGACY_DASHBOARD_HERO_ELEMENTS_KEY = 'fmo_dashboard_hero_elements'
+const LEGACY_DASHBOARD_STATION_INFO_LAYOUT_KEY = 'fmo_dashboard_station_info_layout'
 
 export type DashboardPanelId =
   | 'reachability-info'
@@ -39,6 +41,20 @@ export type DashboardPanelId =
 
 export interface DashboardPanelLayout {
   id: DashboardPanelId
+  visible: boolean
+}
+
+export type DashboardStationInfoCardId =
+  | 'station'
+  | 'contact-stats'
+  | 'device'
+  | 'radio-setup'
+  | 'coordinate'
+  | 'grid'
+  | 'screen-mode'
+
+export interface DashboardStationInfoCardLayout {
+  id: DashboardStationInfoCardId
   visible: boolean
 }
 
@@ -61,6 +77,16 @@ const DEFAULT_DASHBOARD_LAYOUT: DashboardPanelLayout[] = [
   { id: 'recent-speaking', visible: true },
   { id: 'speaking-history', visible: true },
   { id: 'today-contacts', visible: true }
+]
+
+const DEFAULT_DASHBOARD_STATION_INFO_LAYOUT: DashboardStationInfoCardLayout[] = [
+  { id: 'station', visible: true },
+  { id: 'contact-stats', visible: true },
+  { id: 'device', visible: true },
+  { id: 'radio-setup', visible: true },
+  { id: 'coordinate', visible: true },
+  { id: 'grid', visible: true },
+  { id: 'screen-mode', visible: true }
 ]
 
 const DEFAULT_DASHBOARD_HERO_ELEMENTS: DashboardHeroElementVisibility = {
@@ -110,6 +136,12 @@ interface ThemeStorage {
   activeId: string
 }
 
+interface DashboardConfigStorage {
+  layout?: unknown
+  heroElements?: unknown
+  stationInfoLayout?: unknown
+}
+
 /**
  * 设置/存储 store（替代 composables/useSettings.js）。
  *
@@ -138,6 +170,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const customThemes = ref<CustomThemePreset[]>([])
   const activeThemeId = ref(DEFAULT_THEME_ID)
   const dashboardLayout = ref<DashboardPanelLayout[]>(cloneDefaultDashboardLayout())
+  const dashboardStationInfoLayout = ref<DashboardStationInfoCardLayout[]>(
+    cloneDefaultDashboardStationInfoLayout()
+  )
   const dashboardHeroElements = ref<DashboardHeroElementVisibility>(
     cloneDefaultDashboardHeroElements()
   )
@@ -186,6 +221,10 @@ export const useSettingsStore = defineStore('settings', () => {
     return DEFAULT_DASHBOARD_LAYOUT.map((panel) => ({ ...panel }))
   }
 
+  function cloneDefaultDashboardStationInfoLayout(): DashboardStationInfoCardLayout[] {
+    return DEFAULT_DASHBOARD_STATION_INFO_LAYOUT.map((card) => ({ ...card }))
+  }
+
   function cloneDefaultDashboardHeroElements(): DashboardHeroElementVisibility {
     return { ...DEFAULT_DASHBOARD_HERO_ELEMENTS }
   }
@@ -221,54 +260,130 @@ export const useSettingsStore = defineStore('settings', () => {
     return normalized
   }
 
-  async function persistDashboardLayout() {
-    await getPlatform().storage.set(DASHBOARD_LAYOUT_KEY, JSON.stringify(dashboardLayout.value))
+  function normalizeDashboardStationInfoLayout(value: unknown): DashboardStationInfoCardLayout[] {
+    const knownIds = new Set(DEFAULT_DASHBOARD_STATION_INFO_LAYOUT.map((card) => card.id))
+    const normalized: DashboardStationInfoCardLayout[] = []
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (
+          item &&
+          typeof item === 'object' &&
+          'id' in item &&
+          typeof item.id === 'string' &&
+          knownIds.has(item.id as DashboardStationInfoCardId) &&
+          !normalized.some((card) => card.id === item.id)
+        ) {
+          normalized.push({
+            id: item.id as DashboardStationInfoCardId,
+            visible: !('visible' in item) || item.visible !== false
+          })
+        }
+      }
+    }
+
+    for (const [defaultIndex, card] of DEFAULT_DASHBOARD_STATION_INFO_LAYOUT.entries()) {
+      if (!normalized.some((item) => item.id === card.id)) {
+        normalized.splice(Math.min(defaultIndex, normalized.length), 0, { ...card })
+      }
+    }
+
+    return normalized
   }
 
-  async function persistDashboardHeroElements() {
+  function normalizeDashboardHeroElements(value: unknown): DashboardHeroElementVisibility {
+    if (!value || typeof value !== 'object') return cloneDefaultDashboardHeroElements()
+
+    const parsed = value as Record<string, unknown>
+    const legacyClockVisible = typeof parsed.clock === 'boolean' ? parsed.clock : undefined
+    const legacySpeakerDetailsVisible =
+      typeof parsed['speaker-details'] === 'boolean' ? parsed['speaker-details'] : undefined
+
+    return Object.fromEntries(
+      Object.entries(DEFAULT_DASHBOARD_HERO_ELEMENTS).map(([id, defaultVisible]) => {
+        let visible = typeof parsed[id] === 'boolean' ? parsed[id] : defaultVisible
+        if ((id === 'local-time' || id === 'utc-time') && legacyClockVisible !== undefined) {
+          visible = legacyClockVisible
+        }
+        if (
+          (id === 'server-name' || id === 'grid' || id === 'address') &&
+          legacySpeakerDetailsVisible !== undefined
+        ) {
+          visible = legacySpeakerDetailsVisible
+        }
+        return [id, visible]
+      })
+    ) as DashboardHeroElementVisibility
+  }
+
+  async function persistDashboardConfig() {
     await getPlatform().storage.set(
-      DASHBOARD_HERO_ELEMENTS_KEY,
-      JSON.stringify(dashboardHeroElements.value)
+      DASHBOARD_CONFIG_KEY,
+      JSON.stringify({
+        layout: dashboardLayout.value,
+        heroElements: dashboardHeroElements.value,
+        stationInfoLayout: dashboardStationInfoLayout.value
+      })
     )
   }
 
   async function initDashboardLayout() {
-    const saved = await getPlatform().storage.get(DASHBOARD_LAYOUT_KEY)
+    const savedConfig = await getPlatform().storage.get(DASHBOARD_CONFIG_KEY)
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig) as DashboardConfigStorage
+        dashboardLayout.value = normalizeDashboardLayout(parsed.layout)
+        dashboardStationInfoLayout.value = normalizeDashboardStationInfoLayout(
+          parsed.stationInfoLayout
+        )
+        dashboardHeroElements.value = normalizeDashboardHeroElements(parsed.heroElements)
+        return
+      } catch (error) {
+        console.error('解析 Dashboard 配置失败:', error)
+      }
+    }
+
+    let migrated = false
+
+    const saved = await getPlatform().storage.get(LEGACY_DASHBOARD_LAYOUT_KEY)
     if (saved) {
       try {
         dashboardLayout.value = normalizeDashboardLayout(JSON.parse(saved))
+        migrated = true
       } catch (error) {
         console.error('解析 Dashboard 布局失败:', error)
         dashboardLayout.value = cloneDefaultDashboardLayout()
       }
     }
 
-    const savedHeroElements = await getPlatform().storage.get(DASHBOARD_HERO_ELEMENTS_KEY)
+    const savedStationInfoLayout = await getPlatform().storage.get(
+      LEGACY_DASHBOARD_STATION_INFO_LAYOUT_KEY
+    )
+    if (savedStationInfoLayout) {
+      try {
+        dashboardStationInfoLayout.value = normalizeDashboardStationInfoLayout(
+          JSON.parse(savedStationInfoLayout)
+        )
+        migrated = true
+      } catch (error) {
+        console.error('解析 Dashboard 可达性卡片布局失败:', error)
+        dashboardStationInfoLayout.value = cloneDefaultDashboardStationInfoLayout()
+      }
+    }
+
+    const savedHeroElements = await getPlatform().storage.get(LEGACY_DASHBOARD_HERO_ELEMENTS_KEY)
     if (savedHeroElements) {
       try {
-        const parsed = JSON.parse(savedHeroElements)
-        const legacyClockVisible = typeof parsed?.clock === 'boolean' ? parsed.clock : undefined
-        const legacySpeakerDetailsVisible =
-          typeof parsed?.['speaker-details'] === 'boolean' ? parsed['speaker-details'] : undefined
-        dashboardHeroElements.value = Object.fromEntries(
-          Object.entries(DEFAULT_DASHBOARD_HERO_ELEMENTS).map(([id, defaultVisible]) => {
-            let visible = typeof parsed?.[id] === 'boolean' ? parsed[id] : defaultVisible
-            if ((id === 'local-time' || id === 'utc-time') && legacyClockVisible !== undefined) {
-              visible = legacyClockVisible
-            }
-            if (
-              (id === 'server-name' || id === 'grid' || id === 'address') &&
-              legacySpeakerDetailsVisible !== undefined
-            ) {
-              visible = legacySpeakerDetailsVisible
-            }
-            return [id, visible]
-          })
-        ) as DashboardHeroElementVisibility
+        dashboardHeroElements.value = normalizeDashboardHeroElements(JSON.parse(savedHeroElements))
+        migrated = true
       } catch (error) {
         console.error('解析 Dashboard 当前发言卡片设置失败:', error)
         dashboardHeroElements.value = cloneDefaultDashboardHeroElements()
       }
+    }
+
+    if (migrated) {
+      await persistDashboardConfig()
     }
   }
 
@@ -294,21 +409,56 @@ export const useSettingsStore = defineStore('settings', () => {
     nextLayout[targetIndex] = nextLayout[currentIndex]
     nextLayout[currentIndex] = targetPanel
     dashboardLayout.value = nextLayout
-    await persistDashboardLayout()
+    await persistDashboardConfig()
   }
 
   async function setDashboardPanelVisible(id: DashboardPanelId, visible: boolean) {
     dashboardLayout.value = dashboardLayout.value.map((panel) =>
       panel.id === id ? { ...panel, visible } : panel
     )
-    await persistDashboardLayout()
+    await persistDashboardConfig()
+  }
+
+  async function moveDashboardStationInfoCard(id: DashboardStationInfoCardId, direction: -1 | 1) {
+    const currentIndex = dashboardStationInfoLayout.value.findIndex((card) => card.id === id)
+    if (currentIndex < 0) {
+      return
+    }
+
+    let targetIndex = currentIndex + direction
+    while (
+      targetIndex >= 0 &&
+      targetIndex < dashboardStationInfoLayout.value.length &&
+      !dashboardStationInfoLayout.value[targetIndex].visible
+    ) {
+      targetIndex += direction
+    }
+
+    if (targetIndex < 0 || targetIndex >= dashboardStationInfoLayout.value.length) return
+
+    const nextLayout = [...dashboardStationInfoLayout.value]
+    const targetCard = nextLayout[targetIndex]
+    nextLayout[targetIndex] = nextLayout[currentIndex]
+    nextLayout[currentIndex] = targetCard
+    dashboardStationInfoLayout.value = nextLayout
+    await persistDashboardConfig()
+  }
+
+  async function setDashboardStationInfoCardVisible(
+    id: DashboardStationInfoCardId,
+    visible: boolean
+  ) {
+    dashboardStationInfoLayout.value = dashboardStationInfoLayout.value.map((card) =>
+      card.id === id ? { ...card, visible } : card
+    )
+    await persistDashboardConfig()
   }
 
   async function resetDashboardLayout() {
     dashboardLayout.value = cloneDefaultDashboardLayout()
+    dashboardStationInfoLayout.value = cloneDefaultDashboardStationInfoLayout()
     dashboardHeroElements.value = cloneDefaultDashboardHeroElements()
-    await persistDashboardLayout()
-    await persistDashboardHeroElements()
+    await persistDashboardConfig()
   }
 
   async function setDashboardHeroElementVisible(id: DashboardHeroElementId, visible: boolean) {
@@ -316,7 +466,7 @@ export const useSettingsStore = defineStore('settings', () => {
       ...dashboardHeroElements.value,
       [id]: visible
     }
-    await persistDashboardHeroElements()
+    await persistDashboardConfig()
   }
 
   // ========== 音量 / 播放状态（走 platform.storage） ==========
@@ -930,6 +1080,7 @@ export const useSettingsStore = defineStore('settings', () => {
     activeThemeId,
     themeList,
     dashboardLayout,
+    dashboardStationInfoLayout,
     dashboardHeroElements,
     // actions
     initFmoAddress,
@@ -956,6 +1107,8 @@ export const useSettingsStore = defineStore('settings', () => {
     renameCustomTheme,
     moveDashboardPanel,
     setDashboardPanelVisible,
+    moveDashboardStationInfoCard,
+    setDashboardStationInfoCardVisible,
     setDashboardHeroElementVisible,
     resetDashboardLayout
   }

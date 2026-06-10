@@ -187,109 +187,195 @@
         </h3>
 
         <div v-if="stationInfoCards.length" class="station-info-strip">
-          <component
-            :is="item.id === 'station' ? 'button' : 'div'"
-            v-for="item in stationInfoCards"
-            :key="item.id"
-            class="station-info-card"
-            :class="{ 'station-info-card-action': item.id === 'station' }"
-            :type="item.id === 'station' ? 'button' : undefined"
-            :title="item.title"
-            :aria-label="`${item.title}：${item.value}`"
-            @click="item.id === 'station' && $emit('open-channel-list')"
-          >
-            <svg
-              v-if="item.icon === 'radio'"
-              class="station-info-watermark"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
+          <div v-for="item in stationInfoCards" :key="item.id" class="station-info-item">
+            <component
+              :is="item.id === 'station' && !isEditingLayout ? 'button' : 'div'"
+              class="station-info-card"
+              :class="{
+                'station-info-card-action': item.id === 'station' && !isEditingLayout,
+                'station-info-card-editing': isEditingLayout
+              }"
+              :type="item.id === 'station' && !isEditingLayout ? 'button' : undefined"
+              :title="item.title"
+              :aria-label="`${item.title}：${item.value}`"
+              @click="item.id === 'station' && !isEditingLayout && $emit('open-channel-list')"
             >
-              <path d="m4 7 13-4" />
-              <rect x="3" y="7" width="18" height="14" rx="2" />
-              <circle cx="15.5" cy="14" r="3" />
-              <path d="M7 12h3M7 16h2" />
-            </svg>
-            <svg
-              v-else-if="item.icon === 'frequency'"
-              class="station-info-watermark"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M2 12h3l2-6 4 12 3-9 3 6h5" />
-            </svg>
-            <svg
-              v-else-if="item.icon === 'coordinate'"
-              class="station-info-watermark"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z" />
-              <circle cx="12" cy="10" r="2.5" />
-            </svg>
-            <svg
-              v-else-if="item.icon === 'grid'"
-              class="station-info-watermark"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
-            </svg>
-            <svg
-              v-else-if="item.icon === 'address'"
-              class="station-info-watermark"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z" />
-              <path d="M9 4v13.5M15 6.5V20" />
-            </svg>
-            <svg
-              v-else-if="item.icon === 'contacts'"
-              class="station-info-watermark"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            <svg
-              v-else
-              class="station-info-watermark station-channel-icon"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
-              />
-            </svg>
-            <div v-if="item.id === 'coordinate'" class="coordinate-content">
-              <div v-for="row in coordinateRows" :key="row.key" class="coordinate-row">
-                <span>{{ row.integer }}</span>
-                <i>.</i>
-                <span>{{ row.fraction }}</span>
+              <div v-if="isEditingLayout" class="station-card-layout-actions">
+                <button
+                  type="button"
+                  title="左移"
+                  :disabled="isFirstStationInfoCard(item.id)"
+                  @click.stop="settingsStore.moveDashboardStationInfoCard(item.id, -1)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+                </button>
+                <button
+                  type="button"
+                  title="右移"
+                  :disabled="isLastStationInfoCard(item.id)"
+                  @click.stop="settingsStore.moveDashboardStationInfoCard(item.id, 1)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                </button>
+                <button
+                  type="button"
+                  title="隐藏"
+                  @click.stop="settingsStore.setDashboardStationInfoCardVisible(item.id, false)"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 3 21 21" />
+                    <path d="M10.6 10.7a2 2 0 0 0 2.7 2.7" />
+                    <path
+                      d="M9.4 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.1 3.1"
+                    />
+                    <path d="M6.6 6.6C3.6 8.4 2 12 2 12s3.5 7 10 7a10.7 10.7 0 0 0 5.4-1.4" />
+                  </svg>
+                </button>
               </div>
-            </div>
-            <div v-else-if="item.id === 'radio-setup'" class="radio-setup-content">
-              <div class="radio-setup-primary">
-                <span>{{ formatFrequency(radioProfile.freq) }}</span>
-                <i v-if="radioProfile.freq && radioProfile.height" aria-hidden="true"></i>
-                <span>{{ formatHeight(radioProfile.height) }}</span>
+              <svg
+                v-if="item.icon === 'radio'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="m4 7 13-4" />
+                <rect x="3" y="7" width="18" height="14" rx="2" />
+                <circle cx="15.5" cy="14" r="3" />
+                <path d="M7 12h3M7 16h2" />
+              </svg>
+              <svg
+                v-else-if="item.icon === 'frequency'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M2 12h3l2-6 4 12 3-9 3 6h5" />
+              </svg>
+              <svg
+                v-else-if="item.icon === 'coordinate'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+              <svg
+                v-else-if="item.icon === 'grid'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M3 15h18M9 3v18M15 3v18" />
+              </svg>
+              <svg
+                v-else-if="item.icon === 'address'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z" />
+                <path d="M9 4v13.5M15 6.5V20" />
+              </svg>
+              <svg
+                v-else-if="item.icon === 'contacts'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <svg
+                v-else-if="item.icon === 'screen-mode'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="12" rx="2" />
+                <path d="M8 20h8M12 16v4" />
+              </svg>
+              <svg
+                v-else
+                class="station-info-watermark station-channel-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  d="M20 13H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-6c0-.55-.45-1-1-1zM7 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM20 3H4c-.55 0-1 .45-1 1v6c0 .55.45 1 1 1h16c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1zM7 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
+                />
+              </svg>
+              <div v-if="item.id === 'coordinate'" class="coordinate-content">
+                <div v-for="row in coordinateRows" :key="row.key" class="coordinate-row">
+                  <span>{{ row.integer }}</span>
+                  <i>.</i>
+                  <span>{{ row.fraction }}</span>
+                </div>
               </div>
-              <div v-if="radioProfile.ant" class="radio-setup-antenna">
-                <span>{{ radioProfile.ant }}</span>
+              <div v-else-if="item.id === 'radio-setup'" class="radio-setup-content">
+                <div class="radio-setup-primary">
+                  <span>{{ formatFrequency(radioProfile.freq) }}</span>
+                  <i v-if="radioProfile.freq && radioProfile.height" aria-hidden="true"></i>
+                  <span>{{ formatHeight(radioProfile.height) }}</span>
+                </div>
+                <div v-if="radioProfile.ant" class="radio-setup-antenna">
+                  <span>{{ radioProfile.ant }}</span>
+                </div>
               </div>
-            </div>
-            <div v-else-if="item.id === 'contact-stats'" class="contact-stats-content">
-              <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
-              <span>{{ uniqueCallsigns }}人</span>
-            </div>
-            <span v-else>{{ item.value }}</span>
-          </component>
+              <div v-else-if="item.id === 'contact-stats'" class="contact-stats-content">
+                <strong>{{ todayLogs }}/{{ totalLogs }}</strong>
+                <span>{{ uniqueCallsigns }}人</span>
+              </div>
+              <div v-else-if="item.id === 'screen-mode'" class="screen-mode-content">
+                <strong>
+                  <span>{{ screenModeText }}</span>
+                  <button
+                    type="button"
+                    title="刷新模式"
+                    :disabled="screenModeLoading || screenModeSetting"
+                    @click="refreshScreenMode"
+                  >
+                    刷新
+                  </button>
+                </strong>
+                <span class="screen-mode-actions">
+                  <button
+                    type="button"
+                    class="screen-mode-toggle"
+                    :disabled="screenModeLoading || screenModeSetting"
+                    @click="toggleScreenMode"
+                  >
+                    {{ screenModeToggleText }}
+                  </button>
+                </span>
+              </div>
+              <span v-else>{{ item.value }}</span>
+            </component>
+          </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-if="isEditingLayout && hiddenStationInfoCards.length" class="hidden-panels">
+          <span>已隐藏卡片</span>
+          <button
+            v-for="card in hiddenStationInfoCards"
+            :key="card.id"
+            type="button"
+            @click="settingsStore.setDashboardStationInfoCardVisible(card.id, true)"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            {{ stationInfoCardLabels[card.id] }}
+          </button>
+        </div>
+
+        <div
+          v-if="!stationInfoCards.length && !(isEditingLayout && hiddenStationInfoCards.length)"
+          class="empty-state"
+        >
           <div class="empty-state-copy">
             <strong>暂无可达性信息</strong>
             <span>连接设备后会显示在这里</span>
@@ -619,6 +705,16 @@ const dashboardPanelLabels = {
   'today-contacts': '今日通联记录'
 }
 
+const stationInfoCardLabels = {
+  station: '当前信道',
+  'contact-stats': '通联统计',
+  device: '电台信息',
+  'radio-setup': '电台参数',
+  coordinate: '用户坐标',
+  grid: 'Grid / 地址',
+  'screen-mode': '设备模式'
+}
+
 const dashboardHeroElementOptions = [
   { id: 'local-time', label: '本地时间' },
   { id: 'utc-time', label: 'UTC 时间' },
@@ -648,12 +744,16 @@ const radioProfile = reactive({
   ant: '',
   height: ''
 })
+const screenMode = ref(null)
+const screenModeLoading = ref(false)
+const screenModeSetting = ref(false)
 
 const historyAddressMap = reactive({})
 const todayContactAddressMap = reactive({})
 const gridAddressCache = reactive({})
 const todayContactRecords = ref([])
 let stationInfoRequestId = 0
+let screenModeRequestId = 0
 
 // ========== 计算属性 ==========
 
@@ -743,8 +843,8 @@ const myCoordinateText = computed(() => {
 const coordinateRows = computed(() => {
   if (myLat.value === null || myLng.value === null) return []
   return [
-    { key: 'latitude', ...splitCoordinate(myLat.value) },
-    { key: 'longitude', ...splitCoordinate(myLng.value) }
+    { key: 'longitude', ...splitCoordinate(myLng.value) },
+    { key: 'latitude', ...splitCoordinate(myLat.value) }
   ]
 })
 
@@ -769,6 +869,7 @@ const contactCounts = computed(() => settingsStore.contactCounts)
 const allHistoryEvents = computed(() => speakingStore.allHistoryEvents)
 const displayHistoryEvents = computed(() => allHistoryEvents.value)
 const dashboardLayout = computed(() => settingsStore.dashboardLayout)
+const dashboardStationInfoLayout = computed(() => settingsStore.dashboardStationInfoLayout)
 const heroElements = computed(() => settingsStore.dashboardHeroElements)
 const showSpeakerClock = computed(
   () => heroElements.value['local-time'] || heroElements.value['utc-time']
@@ -785,6 +886,9 @@ const showSpeakerDetails = computed(
 const hiddenDashboardPanels = computed(() =>
   dashboardLayout.value.filter((panel) => !panel.visible)
 )
+const hiddenStationInfoCards = computed(() =>
+  dashboardStationInfoLayout.value.filter((card) => !card.visible)
+)
 const todayContactsPanelVisible = computed(
   () => dashboardLayout.value.find((panel) => panel.id === 'today-contacts')?.visible !== false
 )
@@ -794,23 +898,33 @@ const speakingHistoryPanelVisible = computed(
 const reachabilityPanelVisible = computed(
   () => dashboardLayout.value.find((panel) => panel.id === 'reachability-info')?.visible !== false
 )
+const screenModeText = computed(() => {
+  if (screenMode.value === 1) return '待机模式'
+  if (screenMode.value === 0) return '标准模式'
+  return ''
+})
+const screenModeToggleText = computed(() => {
+  if (screenMode.value === 1) return '切换到标准'
+  if (screenMode.value === 0) return '切换到待机'
+  return '切换模式'
+})
 const stationInfoCards = computed(() => {
   const serverInfo = speakingStore.primaryServerInfo
-  const cards = [
-    {
+  const cards = {
+    station: {
       id: 'station',
       title: '当前信道',
       value: serverInfo?.name || '',
       icon: 'station'
     },
-    {
+    'contact-stats': {
       id: 'contact-stats',
       title: '通联统计',
       value: `${props.todayLogs}/${props.totalLogs}\n${props.uniqueCallsigns}人`,
       icon: 'contacts'
     },
-    { id: 'device', title: '电台信息', value: radioProfile.deviceName, icon: 'radio' },
-    {
+    device: { id: 'device', title: '电台信息', value: radioProfile.deviceName, icon: 'radio' },
+    'radio-setup': {
       id: 'radio-setup',
       title: '工作频率 / 天线高度 / 天线信息',
       value: [
@@ -823,15 +937,30 @@ const stationInfoCards = computed(() => {
         .join('\n'),
       icon: 'frequency'
     },
-    { id: 'coordinate', title: '用户坐标', value: myCoordinateText.value, icon: 'coordinate' },
-    {
+    coordinate: {
+      id: 'coordinate',
+      title: '用户坐标',
+      value: myCoordinateText.value,
+      icon: 'coordinate'
+    },
+    grid: {
       id: 'grid',
       title: 'Grid / 地址',
       value: [myGrid.value, myGridAddress.value].filter(Boolean).join('  '),
       icon: 'grid'
+    },
+    'screen-mode': {
+      id: 'screen-mode',
+      title: '设备模式',
+      value: screenModeText.value,
+      icon: 'screen-mode'
     }
-  ]
-  return cards.filter((item) => item.value !== '')
+  }
+
+  return dashboardStationInfoLayout.value
+    .filter((item) => item.visible)
+    .map((item) => cards[item.id])
+    .filter((item) => item?.value !== '')
 })
 
 // ========== 方法 ==========
@@ -843,6 +972,14 @@ function isFirstDashboardPanel(id) {
 function isLastDashboardPanel(id) {
   const visiblePanels = dashboardLayout.value.filter((panel) => panel.visible)
   return visiblePanels[visiblePanels.length - 1]?.id === id
+}
+
+function isFirstStationInfoCard(id) {
+  return stationInfoCards.value[0]?.id === id
+}
+
+function isLastStationInfoCard(id) {
+  return stationInfoCards.value[stationInfoCards.value.length - 1]?.id === id
 }
 
 function formatEventTime(utcTime) {
@@ -895,7 +1032,7 @@ function formatCoordinate(value) {
 }
 
 function splitCoordinate(value) {
-  const [integer, fraction] = Number(value).toFixed(5).split('.')
+  const [integer, fraction = ''] = formatCoordinate(value).split('.')
   return { integer, fraction }
 }
 
@@ -1081,6 +1218,62 @@ async function loadTodayContactRecords() {
   }
 }
 
+function normalizeScreenMode(value) {
+  const mode = Number(value)
+  return mode === 0 || mode === 1 ? mode : null
+}
+
+async function refreshScreenMode() {
+  const requestId = ++screenModeRequestId
+  screenModeLoading.value = true
+
+  let client
+  try {
+    if (!reachabilityPanelVisible.value || !fmoAddress.value) {
+      screenMode.value = null
+      return
+    }
+
+    const host = normalizeHost(fmoAddress.value)
+    const fullAddress = `${protocol.value}://${host}`
+    client = new FmoApiClient(fullAddress)
+    await client.connect()
+    const result = await client.getScreenMode()
+    if (requestId !== screenModeRequestId) return
+
+    screenMode.value = normalizeScreenMode(result?.mode)
+  } catch {
+    if (requestId === screenModeRequestId) screenMode.value = null
+  } finally {
+    if (requestId === screenModeRequestId) screenModeLoading.value = false
+    client?.close()
+  }
+}
+
+async function toggleScreenMode() {
+  if (screenMode.value === null || screenModeSetting.value) return
+
+  const targetMode = screenMode.value === 1 ? 0 : 1
+  screenModeSetting.value = true
+
+  let client
+  try {
+    const host = normalizeHost(fmoAddress.value)
+    const fullAddress = `${protocol.value}://${host}`
+    client = new FmoApiClient(fullAddress)
+    await client.connect()
+    const result = await client.setScreenMode(targetMode)
+    if (Number(result?.result) === 0) {
+      await refreshScreenMode()
+    }
+  } catch {
+    screenMode.value = null
+  } finally {
+    screenModeSetting.value = false
+    client?.close()
+  }
+}
+
 async function loadStationInfo() {
   const requestId = ++stationInfoRequestId
   radioProfile.deviceName = ''
@@ -1090,6 +1283,7 @@ async function loadStationInfo() {
   myLat.value = null
   myLng.value = null
   myGridAddress.value = ''
+  screenMode.value = null
 
   if (!reachabilityPanelVisible.value || !fmoAddress.value) return
 
@@ -1100,13 +1294,14 @@ async function loadStationInfo() {
     client = new FmoApiClient(fullAddress)
     await client.connect()
 
-    const [deviceResult, freqResult, antResult, heightResult, coordinateResult] =
+    const [deviceResult, freqResult, antResult, heightResult, coordinateResult, screenModeResult] =
       await Promise.allSettled([
         client.getUserPhyDeviceName(),
         client.getUserPhyFreq(),
         client.getUserPhyAnt(),
         client.getUserPhyAntHeight(),
-        client.getCoordinate()
+        client.getCoordinate(),
+        client.getScreenMode()
       ])
 
     if (requestId !== stationInfoRequestId) return
@@ -1122,6 +1317,9 @@ async function loadStationInfo() {
     }
     if (heightResult.status === 'fulfilled') {
       radioProfile.height = String(heightResult.value?.height ?? '').trim()
+    }
+    if (screenModeResult.status === 'fulfilled') {
+      screenMode.value = normalizeScreenMode(screenModeResult.value?.mode)
     }
 
     const coord = coordinateResult.status === 'fulfilled' ? coordinateResult.value : null
@@ -1254,11 +1452,15 @@ watch(
   overflow: visible;
 }
 
+.station-info-item {
+  min-width: 11.5rem;
+}
+
 .station-info-card {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 11.5rem;
+  width: 100%;
   min-height: 4.5rem;
   padding: 0.7rem 0.75rem;
   border: 1px solid var(--border-light);
@@ -1298,11 +1500,65 @@ watch(
   cursor: pointer;
 }
 
+.station-info-card-editing {
+  min-height: 6.4rem;
+  padding-top: 2.45rem;
+}
+
+.station-card-layout-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0.28rem 0.42rem;
+  border-bottom: 1px solid var(--border-light);
+  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  z-index: 3;
+}
+
+.station-card-layout-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  color: var(--text-tertiary);
+}
+
+.station-card-layout-actions button:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.station-card-layout-actions svg {
+  width: 0.92rem;
+  height: 0.92rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
 @media (hover: hover) {
   .station-info-card-action:hover {
     border-color: var(--component-header-station-hover-border);
     background: var(--component-header-station-hover-bg);
     color: var(--component-header-station-text);
+  }
+
+  .station-card-layout-actions button:not(:disabled):hover {
+    border-color: var(--border-secondary);
+    color: var(--text-secondary);
   }
 }
 
@@ -1373,8 +1629,8 @@ watch(
 
 .coordinate-content {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: max-content auto max-content;
   min-width: 0;
   padding-right: 1.6rem;
   color: var(--text-secondary);
@@ -1386,8 +1642,7 @@ watch(
 }
 
 .coordinate-row {
-  display: grid;
-  grid-template-columns: 4ch auto 5ch;
+  display: contents;
 }
 
 .coordinate-row span:first-child {
@@ -1421,6 +1676,73 @@ watch(
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+}
+
+.screen-mode-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+  width: 100%;
+  min-width: 0;
+  padding-right: 1.6rem;
+  line-height: 1.2;
+  z-index: 1;
+}
+
+.screen-mode-content strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-mode-content strong span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.screen-mode-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.screen-mode-content button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.screen-mode-content button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+@media (hover: hover) {
+  .screen-mode-content button:not(:disabled):hover {
+    color: var(--text-primary);
+  }
 }
 
 .dashboard-layout-toolbar {

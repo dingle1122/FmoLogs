@@ -249,6 +249,14 @@ export class FmoApiClient {
     return this.sendRequest('config', 'getUserPhyAntHeight', {})
   }
 
+  async getScreenMode() {
+    return this.sendRequest('ui', 'getScreenMode', {})
+  }
+
+  async setScreenMode(mode) {
+    return this.sendRequest('ui', 'setScreenMode', { mode })
+  }
+
   close() {
     // 清理连接 Promise
     this.connectPromise = null
