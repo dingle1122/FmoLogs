@@ -1,5 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../views/MainLayout.vue'
+import AboutView from '../views/AboutView.vue'
+import DashboardView from '../views/DashboardView.vue'
+import FriendLinksView from '../views/FriendLinksView.vue'
+import LocationReportView from '../views/LocationReportView.vue'
+import LogsView from '../views/LogsView.vue'
+import MessageView from '../views/MessageView.vue'
+import MoreView from '../views/MoreView.vue'
+import OldFriendsView from '../views/OldFriendsView.vue'
+import RemoteControlView from '../views/RemoteControlView.vue'
+import SettingsView from '../views/SettingsView.vue'
+import ThemeSettingsView from '../views/ThemeSettingsView.vue'
+import Top20View from '../views/Top20View.vue'
 import { getPlatform } from '../platform'
 
 const children = [
@@ -10,57 +22,57 @@ const children = [
   {
     path: 'logs',
     name: 'logs',
-    component: () => import('../views/LogsView.vue')
+    component: LogsView
   },
   {
     path: 'dashboard',
     name: 'dashboard',
-    component: () => import('../views/DashboardView.vue')
+    component: DashboardView
   },
   {
     path: 'top20',
     name: 'top20',
-    component: () => import('../views/Top20View.vue')
+    component: Top20View
   },
   {
     path: 'old-friends',
     name: 'oldFriends',
-    component: () => import('../views/OldFriendsView.vue')
+    component: OldFriendsView
   },
   {
     path: 'messages',
     name: 'messages',
-    component: () => import('../views/MessageView.vue')
+    component: MessageView
   },
   {
     path: 'more',
     name: 'more',
-    component: () => import('../views/MoreView.vue')
+    component: MoreView
   },
   {
     path: 'remote-control',
     name: 'remoteControl',
-    component: () => import('../views/RemoteControlView.vue')
+    component: RemoteControlView
   },
   {
     path: 'friend-links',
     name: 'friendLinks',
-    component: () => import('../views/FriendLinksView.vue')
+    component: FriendLinksView
   },
   {
     path: 'about',
     name: 'about',
-    component: () => import('../views/AboutView.vue')
+    component: AboutView
   },
   {
     path: 'settings',
     name: 'settings',
-    component: () => import('../views/SettingsView.vue')
+    component: SettingsView
   },
   {
     path: 'themes',
     name: 'themes',
-    component: () => import('../views/ThemeSettingsView.vue')
+    component: ThemeSettingsView
   }
 ]
 
@@ -69,7 +81,7 @@ if (getPlatform().capabilities.hasNativeLocation) {
   children.push({
     path: 'location-report',
     name: 'locationReport',
-    component: () => import('../views/LocationReportView.vue')
+    component: LocationReportView
   })
 }
 

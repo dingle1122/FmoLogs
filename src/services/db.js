@@ -1,8 +1,10 @@
 import initSqlJsWasm from 'sql.js'
+import sqlJsAsmUrl from 'sql.js/dist/sql-asm.js?url'
 import { AdifFormatter, AdifParser } from '../adif/index.js'
 import { exportFile } from '../utils/exportFile.js'
 
 let SQL = null
+let sqlJsAsmLoader = null
 
 async function smokeTestSQL(sql) {
   const db = new sql.Database()
@@ -11,6 +13,35 @@ async function smokeTestSQL(sql) {
   } finally {
     db.close()
   }
+}
+
+function loadSqlJsAsm() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return Promise.reject(new Error('当前环境不支持加载 sql.js asm fallback'))
+  }
+
+  if (typeof window.initSqlJs === 'function') {
+    return Promise.resolve(window.initSqlJs)
+  }
+
+  if (!sqlJsAsmLoader) {
+    sqlJsAsmLoader = new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = sqlJsAsmUrl
+      script.async = true
+      script.onload = () => {
+        if (typeof window.initSqlJs === 'function') {
+          resolve(window.initSqlJs)
+        } else {
+          reject(new Error('sql.js asm fallback 加载后未找到 initSqlJs'))
+        }
+      }
+      script.onerror = () => reject(new Error('sql.js asm fallback 加载失败'))
+      document.head.appendChild(script)
+    })
+  }
+
+  return sqlJsAsmLoader
 }
 
 // 初始化sql.js（使用本地wasm文件）
@@ -24,8 +55,7 @@ async function initSQL() {
       SQL = wasmSQL
     } catch (err) {
       console.warn('[sql.js] wasm 初始化失败，回退到 asm.js:', err)
-      const asmModule = await import('sql.js/dist/sql-asm.js')
-      const initSqlJsAsm = asmModule.default || asmModule
+      const initSqlJsAsm = await loadSqlJsAsm()
       const asmSQL = await initSqlJsAsm()
       await smokeTestSQL(asmSQL)
       SQL = asmSQL

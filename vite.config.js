@@ -1,22 +1,29 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import legacy from '@vitejs/plugin-legacy'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    legacy({
+      targets: ['Chrome >= 55'],
+      modernPolyfills: true,
+      renderLegacyChunks: true
+    })
+  ],
   esbuild: {
-    target: 'chrome64'
+    target: 'chrome55'
   },
   optimizeDeps: {
     esbuildOptions: {
-      target: 'chrome64'
+      target: 'chrome55'
     }
   },
   build: {
     // 兼容旧版 Android System WebView，避免保留过新的 JS/CSS 语法。
-    target: ['chrome64', 'safari12'],
-    cssTarget: ['chrome64', 'safari12'],
+    cssTarget: ['chrome55', 'safari12'],
     rollupOptions: {
       output: {
         manualChunks(id) {
