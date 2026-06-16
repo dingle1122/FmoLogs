@@ -37,8 +37,6 @@ interface FmoUpdaterPlugin {
 
 const FmoUpdater = registerPlugin<FmoUpdaterPlugin>('FmoUpdater')
 
-const DAILY_CHECK_KEY = 'fmologs_update_last_checked_at'
-const ONE_DAY_MS = 24 * 60 * 60 * 1000
 let listenerInstalled = false
 let progressHandle: { remove: () => Promise<void> } | null = null
 
@@ -63,14 +61,6 @@ function isAndroidNative(): boolean {
 
 function getManifestUrl(): string {
   return import.meta.env.VITE_ANDROID_UPDATE_MANIFEST_URL?.trim() || ''
-}
-
-function getLastCheckedAt(): number {
-  return Number(localStorage.getItem(DAILY_CHECK_KEY) || 0)
-}
-
-function setLastCheckedAt(value: number): void {
-  localStorage.setItem(DAILY_CHECK_KEY, String(value))
 }
 
 function formatBytes(value: number): string {
@@ -242,12 +232,8 @@ export async function checkForAndroidUpdate(options: { silent?: boolean } = {}):
   }
 }
 
-export async function checkAndroidUpdateDaily(): Promise<void> {
+export async function checkAndroidUpdateOnStartup(): Promise<void> {
   if (!isAndroidNative() || !getManifestUrl()) return
-
-  const now = Date.now()
-  if (now - getLastCheckedAt() < ONE_DAY_MS) return
-  setLastCheckedAt(now)
   await checkForAndroidUpdate({ silent: true })
 }
 
