@@ -11,7 +11,7 @@
       </div>
 
       <div class="theme-toolbar">
-        <button class="btn-add" @click="triggerThemeUpload">上传主题</button>
+        <button class="btn-add" type="button" @click="triggerThemeUpload">上传主题</button>
         <button class="btn-secondary" @click="toggleThemeExample">
           {{ showThemeExample ? '隐藏示例' : '查看示例' }}
         </button>
@@ -165,7 +165,6 @@
       <input
         ref="themeUploadInput"
         type="file"
-        accept=".css,text/css"
         multiple
         class="hidden-input"
         @change="handleThemeFilesSelected"
@@ -406,7 +405,33 @@ function toggleThemeExample() {
 
 function triggerThemeUpload() {
   clearThemeStatus()
-  themeUploadInput.value?.click()
+  const input = themeUploadInput.value
+  if (!input) return
+
+  if (typeof input.showPicker === 'function') {
+    input.showPicker()
+    return
+  }
+
+  input.click()
+}
+
+function readThemeFileText(file) {
+  if (typeof file.text === 'function') {
+    return file.text()
+  }
+
+  return new Promise((resolve, reject) => {
+    if (typeof FileReader === 'undefined') {
+      reject(new Error('当前系统不支持读取本地文件'))
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('读取主题文件失败'))
+    reader.readAsText(file, 'UTF-8')
+  })
 }
 
 function themeUrlToName(urlText) {
@@ -485,7 +510,15 @@ async function handleThemeFilesSelected(event) {
 
   for (const file of files) {
     try {
-      const cssText = await file.text()
+      if (!/\.css$/i.test(file.name)) {
+        results.push({
+          success: false,
+          message: `${file.name} 不是 .css 主题文件`
+        })
+        continue
+      }
+
+      const cssText = await readThemeFileText(file)
       const themeName = fileNameToThemeName(file.name)
       const result = await settingsStore.importCustomTheme(themeName, cssText)
       results.push(result)
@@ -1051,7 +1084,17 @@ onUnmounted(() => {
 }
 
 .hidden-input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 @media (max-width: 760px) {
