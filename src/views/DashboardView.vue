@@ -1434,6 +1434,23 @@ watch(
   gap: 0.75rem;
   min-height: 0;
   width: 100%;
+  --dashboard-card-bg-soft: var(--alpha-neutral-12);
+  --dashboard-card-bg-subtle: var(--alpha-neutral-12);
+  --dashboard-card-bg-hover: var(--alpha-black-10);
+  --dashboard-action-bg: var(--bg-card);
+  --dashboard-self-speaking-bg: var(--alpha-success-08);
+  --dashboard-speaking-shadow: var(--alpha-success-25);
+}
+
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+  .dashboard-view {
+    --dashboard-card-bg-soft: color-mix(in srgb, var(--text-primary) 5%, transparent);
+    --dashboard-card-bg-subtle: color-mix(in srgb, var(--text-primary) 3%, transparent);
+    --dashboard-card-bg-hover: color-mix(in srgb, var(--text-primary) 7%, transparent);
+    --dashboard-action-bg: color-mix(in srgb, var(--bg-card) 88%, transparent);
+    --dashboard-self-speaking-bg: color-mix(in srgb, var(--color-speaking) 10%, transparent);
+    --dashboard-speaking-shadow: color-mix(in srgb, var(--color-speaking) 32%, transparent);
+  }
 }
 
 .dashboard-hero,
@@ -1476,7 +1493,7 @@ watch(
   padding: 0.7rem 0.75rem;
   border: 1px solid var(--border-light);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  background: var(--dashboard-card-bg-soft);
   color: var(--text-secondary);
   font-family: inherit;
   text-align: left;
@@ -1528,7 +1545,7 @@ watch(
   min-height: 2rem;
   padding: 0.28rem 0.42rem;
   border-bottom: 1px solid var(--border-light);
-  background: color-mix(in srgb, var(--text-primary) 4%, transparent);
+  background: var(--dashboard-card-bg-soft);
   z-index: 3;
 }
 
@@ -1541,7 +1558,7 @@ watch(
   padding: 0;
   border: 1px solid var(--border-light);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  background: var(--dashboard-action-bg);
   color: var(--text-tertiary);
 }
 
@@ -1582,6 +1599,7 @@ watch(
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.25;
+  word-break: break-word;
   overflow-wrap: anywhere;
   text-overflow: ellipsis;
   white-space: pre-line;
@@ -1640,8 +1658,8 @@ watch(
 
 .coordinate-content {
   position: relative;
-  display: grid;
-  grid-template-columns: max-content auto max-content;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding-right: 1.6rem;
   color: var(--text-secondary);
@@ -1653,7 +1671,9 @@ watch(
 }
 
 .coordinate-row {
-  display: contents;
+  display: grid;
+  grid-template-columns: max-content auto max-content;
+  column-gap: 0.2rem;
 }
 
 .coordinate-row span:first-child {
@@ -1874,14 +1894,17 @@ watch(
 .dashboard-hero.self-speaking:not(.active) {
   background: linear-gradient(
     270deg,
-    color-mix(in srgb, var(--color-speaking) 10%, transparent),
+    var(--dashboard-self-speaking-bg),
     var(--bg-card)
   );
 }
 
 .dashboard-hero::before {
   position: absolute;
-  inset: 0 auto 0 0;
+  top: 0;
+  right: auto;
+  bottom: 0;
+  left: 0;
   width: 4px;
   background: var(--text-disabled);
   content: '';
@@ -1893,10 +1916,13 @@ watch(
 }
 
 .dashboard-hero.self-speaking:not(.active)::before {
-  inset: 0 0 0 auto;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
   width: 4px;
   background: var(--color-speaking);
-  box-shadow: -5px 0 16px color-mix(in srgb, var(--color-speaking) 32%, transparent);
+  box-shadow: -5px 0 16px var(--dashboard-speaking-shadow);
   opacity: 1;
 }
 
@@ -1916,11 +1942,15 @@ watch(
 
 .hero-watermark {
   position: absolute;
-  inset: 0 0.45rem 0 0.85rem;
+  top: 0;
+  right: 0.45rem;
+  bottom: 0;
+  left: 0.85rem;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   color: var(--text-primary);
+  font-size: 6rem;
   font-size: clamp(3.8rem, 15vw, 8.8rem);
   font-weight: 800;
   line-height: 0.9;
@@ -2013,10 +2043,12 @@ watch(
 
 .speaker-callsign {
   color: var(--color-speaking);
+  font-size: 3.2rem;
   font-size: clamp(2.45rem, 5.8vw, 4.1rem);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 0.95;
+  word-break: break-word;
   overflow-wrap: anywhere;
 }
 
@@ -2026,6 +2058,7 @@ watch(
 
 .speaker-contact-count {
   color: var(--text-tertiary);
+  font-size: 3.2rem;
   font-size: clamp(2.45rem, 5.8vw, 4.1rem);
   font-weight: 800;
   line-height: 0.95;
@@ -2043,7 +2076,9 @@ watch(
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 2.4rem;
   width: clamp(1.9rem, 4.4vw, 2.95rem);
+  height: 2.4rem;
   height: clamp(1.9rem, 4.4vw, 2.95rem);
   line-height: 1;
 }
@@ -2222,6 +2257,8 @@ watch(
   position: relative;
   display: grid;
   place-items: center;
+  align-items: center;
+  justify-items: center;
   min-height: 6.7rem;
   color: var(--text-secondary);
   text-align: center;
@@ -2239,6 +2276,7 @@ watch(
   font-size: 1.82rem;
   font-weight: 800;
   line-height: 1.15;
+  word-break: break-word;
   overflow-wrap: anywhere;
   text-transform: uppercase;
   visibility: hidden;
@@ -2323,11 +2361,13 @@ watch(
   display: grid;
   grid-column: 1 / -1;
   place-items: center;
+  align-items: center;
+  justify-items: center;
   min-height: 6.8rem;
   padding: 1.1rem;
   border: 1px dashed var(--border-light);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+  background: var(--dashboard-card-bg-subtle);
   color: var(--text-tertiary);
   text-align: center;
 }
@@ -2372,7 +2412,7 @@ watch(
   padding: 0.72rem 0.6rem 0.65rem;
   padding-right: 2.65rem;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  background: var(--dashboard-card-bg-soft);
   cursor: pointer;
   overflow: hidden;
   transition: background 0.15s;
@@ -2509,7 +2549,7 @@ watch(
   padding-right: 2.65rem;
   border-left: 3px solid transparent;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  background: var(--dashboard-card-bg-soft);
   cursor: pointer;
   line-height: 1.35;
   overflow: hidden;
@@ -2554,7 +2594,7 @@ watch(
   .event-chip:hover,
   .contact-row:hover,
   .history-row:hover {
-    background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+    background: var(--dashboard-card-bg-hover);
   }
 
   .history-row.active:hover {
@@ -2717,6 +2757,119 @@ watch(
   }
 }
 
+@supports not (display: grid) {
+  .station-info-strip,
+  .event-strip,
+  .contact-list,
+  .history-list {
+    display: flex;
+    flex-wrap: wrap;
+    margin: -0.225rem;
+  }
+
+  .station-info-item,
+  .event-chip,
+  .contact-row,
+  .history-row {
+    flex: 1 1 11.5rem;
+    margin: 0.225rem;
+  }
+
+  .station-info-strip {
+    padding: 0.325rem 0.425rem;
+  }
+
+  .event-strip,
+  .contact-list,
+  .history-list {
+    padding: 0.325rem 0.425rem;
+  }
+
+  .hero-content {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .hero-station {
+    flex: 1 1 auto;
+  }
+
+  .hero-metrics {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+  }
+
+  .geo-block,
+  .coordinate-row {
+    display: flex;
+    align-items: center;
+  }
+
+  .geo-block > * + *,
+  .coordinate-row > * + * {
+    margin-left: 0.45rem;
+  }
+
+  .coordinate-row span:first-child {
+    min-width: 1.1rem;
+  }
+
+  .hero-empty,
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .empty-state {
+    flex: 1 1 100%;
+    margin: 0.225rem;
+  }
+}
+
+@supports not (gap: 1rem) {
+  .dashboard-view > * + * {
+    margin-top: 0.75rem;
+  }
+
+  .station-card-layout-actions > * + *,
+  .dashboard-layout-toolbar > * + *,
+  .hidden-panels > * + *,
+  .hero-elements-editor > * + *,
+  .panel-layout-actions > * + *,
+  .speaker-identity > * + *,
+  .speaker-contact-meta > * + *,
+  .event-callsign-line > * + *,
+  .contact-topline > * + *,
+  .history-topline > * + * {
+    margin-left: 0.4rem;
+  }
+
+  .radio-setup-primary > * + *,
+  .radio-setup-antenna > * + *,
+  .screen-mode-actions > * + *,
+  .speaker-details > * + *,
+  .history-meta > * + * {
+    margin-left: 0.45rem;
+  }
+
+  .screen-mode-content > * + *,
+  .contact-name > * + *,
+  .history-name > * + *,
+  .contact-meta > * + *,
+  .history-meta > * + * {
+    margin-top: 0.35rem;
+  }
+
+  .hero-content > * + *,
+  .hero-metrics > * + *,
+  .contact-row > * + *,
+  .history-row > * + * {
+    margin-top: 0.5rem;
+  }
+}
+
 @media (max-width: 760px) {
   .dashboard-view {
     height: auto;
@@ -2754,6 +2907,7 @@ watch(
 
   .speaker-callsign,
   .speaker-contact-count {
+    font-size: 2.75rem;
     font-size: clamp(2.45rem, 12vw, 3.2rem);
   }
 
@@ -2772,12 +2926,24 @@ watch(
   }
 
   .speaker-contact-star {
+    width: 2.1rem;
     width: clamp(1.9rem, 8vw, 2.35rem);
+    height: 2.1rem;
     height: clamp(1.9rem, 8vw, 2.35rem);
   }
 
   .history-row {
     min-height: 6rem;
+  }
+
+  @supports not (display: grid) {
+    .hero-content {
+      flex-direction: column;
+    }
+
+    .hero-metrics {
+      align-self: flex-end;
+    }
   }
 }
 
@@ -2825,6 +2991,16 @@ watch(
   .empty-state {
     min-height: 6.6rem;
   }
+
+  @supports not (display: grid) {
+    .station-info-item,
+    .event-chip,
+    .contact-row,
+    .history-row {
+      flex-basis: calc(50% - 0.45rem);
+      min-width: 0;
+    }
+  }
 }
 
 @media (max-width: 375px) {
@@ -2833,6 +3009,15 @@ watch(
   .contact-list,
   .history-list {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  @supports not (display: grid) {
+    .station-info-item,
+    .event-chip,
+    .contact-row,
+    .history-row {
+      flex-basis: 100%;
+    }
   }
 }
 </style>

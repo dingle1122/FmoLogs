@@ -24,15 +24,15 @@ const FmoSystemUi = registerPlugin<FmoSystemUiPlugin>('FmoSystemUi')
 /**
  * 将安全区 inset 写入 :root CSS 变量。
  * - Android：从原生插件获取真实 WindowInsets
- * - 降级：插件调用失败时使用估算值
+ * - 降级：插件调用失败时不预留安全区，避免旧 Android 产生额外上下留白
  */
 export async function applySafeAreaInsets(): Promise<void> {
   try {
     const insets = await FmoSystemUi.getSafeAreaInsets()
     setCssVariables(insets)
   } catch (e) {
-    console.warn('[FmoSystemUi] getSafeAreaInsets failed, using fallback:', e)
-    setCssVariables({ top: 36, bottom: 48, left: 0, right: 0 })
+    console.warn('[FmoSystemUi] getSafeAreaInsets failed, using zero fallback:', e)
+    setCssVariables({ top: 0, bottom: 0, left: 0, right: 0 })
   }
 
   // 监听动态变化（手势/三键导航切换、折叠屏展开/折叠）

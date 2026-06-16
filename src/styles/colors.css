@@ -198,22 +198,10 @@
   );
   --theme-surface-striped: var(--neutral-030);
   --theme-surface-disabled: var(--neutral-050);
-  --theme-surface-accent-soft: var(
-    --theme-quick-surface-accent-soft,
-    color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-surface-container))
-  );
-  --theme-surface-success-soft: var(
-    --theme-quick-surface-success-soft,
-    color-mix(in srgb, var(--theme-success) 12%, var(--theme-surface-container))
-  );
-  --theme-surface-warning-soft: var(
-    --theme-quick-surface-warning-soft,
-    color-mix(in srgb, var(--theme-warning) 12%, var(--theme-surface-container))
-  );
-  --theme-surface-danger-soft: var(
-    --theme-quick-surface-danger-soft,
-    color-mix(in srgb, var(--theme-danger) 12%, var(--theme-surface-container))
-  );
+  --theme-surface-accent-soft: var(--theme-quick-surface-accent-soft, var(--surface-green-050));
+  --theme-surface-success-soft: var(--theme-quick-surface-success-soft, var(--surface-green-100));
+  --theme-surface-warning-soft: var(--theme-quick-surface-warning-soft, var(--surface-orange-050));
+  --theme-surface-danger-soft: var(--theme-quick-surface-danger-soft, var(--surface-red-050));
   --theme-surface-hint-soft: var(--surface-orange-050);
 
   /* Theme tokens: text */
@@ -277,27 +265,27 @@
   );
   --theme-current-highlight-bg: var(
     --theme-quick-highlight-bg,
-    color-mix(in srgb, var(--theme-current-highlight-accent) 12%, var(--theme-surface-card))
+    var(--surface-green-050)
   );
   --theme-current-highlight-bg-alt: var(
     --theme-quick-highlight-bg-alt,
-    color-mix(in srgb, var(--theme-current-highlight-accent) 7%, var(--theme-surface-container))
+    var(--surface-green-110)
   );
   --theme-current-highlight-bg-strong: var(
     --theme-quick-highlight-bg-strong,
-    color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-surface-card))
+    var(--surface-green-120)
   );
   --theme-current-highlight-border-soft: var(
     --theme-quick-highlight-border-soft,
-    color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-border-subtle))
+    var(--border-green-100)
   );
   --theme-current-highlight-border: var(
     --theme-quick-highlight-border,
-    color-mix(in srgb, var(--theme-current-highlight-accent) 30%, var(--theme-border-default))
+    var(--border-green-200)
   );
   --theme-current-highlight-muted: var(
     --theme-quick-highlight-muted,
-    color-mix(in srgb, var(--theme-current-highlight-accent) 45%, var(--theme-text-muted))
+    var(--theme-current-highlight-accent)
   );
 
   --theme-warning-panel-bg: var(--surface-orange-100);
@@ -750,6 +738,51 @@
   --control-success-ring: var(--component-control-success-ring);
   --control-danger-bg: var(--component-control-danger-bg);
   --control-danger-ring: var(--component-control-danger-ring);
+}
+
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+  :root {
+    --theme-surface-accent-soft: var(
+      --theme-quick-surface-accent-soft,
+      color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-surface-container))
+    );
+    --theme-surface-success-soft: var(
+      --theme-quick-surface-success-soft,
+      color-mix(in srgb, var(--theme-success) 12%, var(--theme-surface-container))
+    );
+    --theme-surface-warning-soft: var(
+      --theme-quick-surface-warning-soft,
+      color-mix(in srgb, var(--theme-warning) 12%, var(--theme-surface-container))
+    );
+    --theme-surface-danger-soft: var(
+      --theme-quick-surface-danger-soft,
+      color-mix(in srgb, var(--theme-danger) 12%, var(--theme-surface-container))
+    );
+    --theme-current-highlight-bg: var(
+      --theme-quick-highlight-bg,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 12%, var(--theme-surface-card))
+    );
+    --theme-current-highlight-bg-alt: var(
+      --theme-quick-highlight-bg-alt,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 7%, var(--theme-surface-container))
+    );
+    --theme-current-highlight-bg-strong: var(
+      --theme-quick-highlight-bg-strong,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-surface-card))
+    );
+    --theme-current-highlight-border-soft: var(
+      --theme-quick-highlight-border-soft,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-border-subtle))
+    );
+    --theme-current-highlight-border: var(
+      --theme-quick-highlight-border,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 30%, var(--theme-border-default))
+    );
+    --theme-current-highlight-muted: var(
+      --theme-quick-highlight-muted,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 45%, var(--theme-text-muted))
+    );
+  }
 }
 
 @media (prefers-color-scheme: dark) {

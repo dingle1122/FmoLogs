@@ -15,9 +15,8 @@ import './style.css'
 // 统一写入 --app-height / --vh，供布局和弹框复用真实可视高度。
 applyViewportCssVars()
 
-//  Android 原生平台：env(safe-area-inset-*) 在许多厂商 ROM 上返回 0px，
-// 需要通过原生 WindowInsets API 动态获取真实值并写入 CSS 变量。
-// 降级值：状态栏约 36px，导航栏约 48px（在 WebView CSS 坐标中 1dp ≈ 1px）。
+// Android 原生平台：由原生插件按系统版本决定是否写入安全区。
+// Android 7 等非 edge-to-edge 系统不额外预留上下安全区。
 if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
   applySafeAreaInsets()
 }

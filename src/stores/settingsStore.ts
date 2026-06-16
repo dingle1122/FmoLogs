@@ -10,7 +10,11 @@ import {
 // @ts-ignore - legacy JS
 import { FmoApiClient } from '../services/fmoApi'
 // @ts-ignore - legacy JS
-import { normalizeHost } from '../utils/urlUtils'
+import {
+  buildWebSocketUrl,
+  normalizeHost,
+  normalizeWebSocketEndpoint
+} from '../utils/urlUtils'
 // @ts-ignore - legacy JS
 import { downloadRemoteFile } from '../utils/exportFile'
 import { getPlatform } from '../platform'
@@ -216,6 +220,18 @@ export const useSettingsStore = defineStore('settings', () => {
       builtin: false
     }))
   ])
+
+  function normalizeAddressItem(address: AddressItem): boolean {
+    const endpoint = normalizeWebSocketEndpoint(address.host, address.protocol)
+    if (!endpoint.host) return false
+
+    const changed = address.host !== endpoint.host || address.protocol !== endpoint.protocol
+    if (changed) {
+      address.host = endpoint.host
+      address.protocol = endpoint.protocol
+    }
+    return changed
+  }
 
   function cloneDefaultDashboardLayout(): DashboardPanelLayout[] {
     return DEFAULT_DASHBOARD_LAYOUT.map((panel) => ({ ...panel }))
@@ -689,13 +705,17 @@ export const useSettingsStore = defineStore('settings', () => {
     await initDashboardLayout()
 
     const storage: AddressStorage = await getFmoAddresses()
+    let addressStorageChanged = false
+    storage.addresses.forEach((address) => {
+      if (normalizeAddressItem(address)) addressStorageChanged = true
+    })
     fmoAddressStorage.value = storage
 
     selectedAddressIds.value = storage.selectedIds || []
     multiSelectMode.value = storage.multiSelectMode || false
 
     if (storage.addresses.length > 0) {
-      await saveFmoAddresses(storage)
+      if (addressStorageChanged) await saveFmoAddresses(storage)
 
       if (storage.activeId) {
         const activeAddr = storage.addresses.find((a) => a.id === storage.activeId)
@@ -734,7 +754,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function validateConnection(host: string, proto: string): Promise<boolean> {
-    const wsUrl = `${proto}://${normalizeHost(host)}/ws`
+    const wsUrl = buildWebSocketUrl(host, '/ws', proto)
     return new Promise((resolve) => {
       const socket = new WebSocket(wsUrl)
       const timeout = setTimeout(() => {
@@ -783,25 +803,32 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   async function addFmoAddress(name: string, host: string, proto: string): Promise<ActionResult> {
-    const client = new FmoApiClient(`${proto}://${host}`)
-    if (!client.isValidAddress(host)) {
+    const endpoint = normalizeWebSocketEndpoint(host, proto)
+    const client = new FmoApiClient(`${endpoint.protocol}://${endpoint.host}`)
+    if (!client.isValidAddress(endpoint.host)) {
       return { success: false, message: '请输入有效的IP地址或域名' }
     }
 
-    const exists = fmoAddressStorage.value.addresses.some(
-      (a) => a.host === host && a.protocol === proto
-    )
+    const exists = fmoAddressStorage.value.addresses.some((a) => {
+      const current = normalizeWebSocketEndpoint(a.host, a.protocol)
+      return current.host === endpoint.host && current.protocol === endpoint.protocol
+    })
     if (exists) {
       return { success: false, message: '该地址已存在' }
     }
 
     const id = generateId()
     const numId = generateNumId()
-    const newAddress: AddressItem = { id, numId, name: name || host, host, protocol: proto }
+    const newAddress: AddressItem = {
+      id,
+      numId,
+      name: name || endpoint.host,
+      host: endpoint.host,
+      protocol: endpoint.protocol
+    }
 
     try {
-      const normalizedHost = normalizeHost(host)
-      const fullAddress = `${proto}://${normalizedHost}`
+      const fullAddress = `${endpoint.protocol}://${endpoint.host}`
       const apiClient = new FmoApiClient(fullAddress)
       const userInfo = await apiClient.getUserInfo()
       newAddress.userInfo = {
@@ -832,23 +859,26 @@ export const useSettingsStore = defineStore('settings', () => {
       return { success: false, message: '地址不存在' }
     }
 
-    const client = new FmoApiClient(`${proto}://${host}`)
-    if (!client.isValidAddress(host)) {
+    const endpoint = normalizeWebSocketEndpoint(host, proto)
+    const client = new FmoApiClient(`${endpoint.protocol}://${endpoint.host}`)
+    if (!client.isValidAddress(endpoint.host)) {
       return { success: false, message: '请输入有效的IP地址或域名' }
     }
 
-    const duplicate = fmoAddressStorage.value.addresses.some(
-      (a, i) => i !== index && a.host === host && a.protocol === proto
-    )
+    const duplicate = fmoAddressStorage.value.addresses.some((a, i) => {
+      if (i === index) return false
+      const current = normalizeWebSocketEndpoint(a.host, a.protocol)
+      return current.host === endpoint.host && current.protocol === endpoint.protocol
+    })
     if (duplicate) {
       return { success: false, message: '该地址已存在' }
     }
 
     fmoAddressStorage.value.addresses[index] = {
       ...fmoAddressStorage.value.addresses[index],
-      name: name || host,
-      host,
-      protocol: proto
+      name: name || endpoint.host,
+      host: endpoint.host,
+      protocol: endpoint.protocol
     }
 
     await saveFmoAddresses(fmoAddressStorage.value)

@@ -1,4 +1,4 @@
-import { normalizeHost } from '../utils/urlUtils'
+import { buildWebSocketUrl, normalizeHost } from '../utils/urlUtils'
 
 export class FmoApiClient {
   constructor(baseUrl) {
@@ -12,7 +12,7 @@ export class FmoApiClient {
   // 检查是否为有效的IP地址或域名（可带端口号）
   isValidAddress(address) {
     // 分离主机名和端口号
-    let host = address
+    let host = normalizeHost(address).replace(/\/.*$/, '')
     let port = null
 
     // 检查是否包含端口号
@@ -46,12 +46,10 @@ export class FmoApiClient {
       return this.connectPromise
     }
 
-    let host = normalizeHost(this.baseUrl)
-    const protocol = this.baseUrl.startsWith('wss') ? 'wss' : 'ws'
     // 兼容两种 baseUrl：
     //  1) 基础地址，如 'wss://host'           → 自动拼 /ws
     //  2) 完整地址，如 'wss://host/ws'        → 直接使用，避免拼成 /ws/ws
-    const wsUrl = host.endsWith('/ws') ? `${protocol}://${host}` : `${protocol}://${host}/ws`
+    const wsUrl = buildWebSocketUrl(this.baseUrl, '/ws')
 
     this.connectPromise = new Promise((resolve, reject) => {
       console.log(`Connecting to FMO: ${wsUrl}`)

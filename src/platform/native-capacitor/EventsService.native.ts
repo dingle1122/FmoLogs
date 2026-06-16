@@ -1,6 +1,7 @@
 import { registerPlugin } from '@capacitor/core'
 import type { IEventsService, EventsConnectConfig } from '../interfaces/IEventsService'
 import type { EventsSnapshot, EventsStatus, ServerInfo } from '../types/speaking'
+import { WebEventsService } from '../web/EventsService.web'
 
 /**
  * FmoEvents 原生插件契约（Android）。
@@ -37,11 +38,54 @@ export class NativeEventsService implements IEventsService {
   private msgListeners = new Set<(addressId: string, data: string) => void>()
   private statusListeners = new Set<(addressId: string, s: EventsStatus) => void>()
   private infoListeners = new Set<(addressId: string, info: ServerInfo) => void>()
+  private fallback = new WebEventsService()
 
   private msgHandle: { remove: () => Promise<void> } | null = null
   private statusHandle: { remove: () => Promise<void> } | null = null
   private infoHandle: { remove: () => Promise<void> } | null = null
   private listenersInstalled = false
+  private fallbackListenersInstalled = false
+  private nativeUnavailable = false
+
+  private markNativeUnavailable(err: unknown) {
+    if (!this.nativeUnavailable) {
+      console.warn('[Events] native FmoEvents unavailable, falling back to WebSocket', err)
+    }
+    this.nativeUnavailable = true
+    this.installFallbackListeners()
+  }
+
+  private installFallbackListeners() {
+    if (this.fallbackListenersInstalled) return
+    this.fallbackListenersInstalled = true
+    this.fallback.onMessage((addressId, data) => {
+      for (const cb of this.msgListeners) {
+        try {
+          cb(addressId, data)
+        } catch (err) {
+          console.warn('[Events] fallback msg listener error', err)
+        }
+      }
+    })
+    this.fallback.onStatus((addressId, status) => {
+      for (const cb of this.statusListeners) {
+        try {
+          cb(addressId, status)
+        } catch (err) {
+          console.warn('[Events] fallback status listener error', err)
+        }
+      }
+    })
+    this.fallback.onServerInfo((addressId, info) => {
+      for (const cb of this.infoListeners) {
+        try {
+          cb(addressId, info)
+        } catch (err) {
+          console.warn('[Events] fallback info listener error', err)
+        }
+      }
+    })
+  }
 
   private installListeners() {
     if (this.listenersInstalled) return
@@ -56,9 +100,11 @@ export class NativeEventsService implements IEventsService {
           console.warn('[Events] msg listener error', err)
         }
       }
-    }).then((h) => {
-      this.msgHandle = h
     })
+      .then((h) => {
+        this.msgHandle = h
+      })
+      .catch((err) => this.markNativeUnavailable(err))
 
     FmoEvents.addListener('status', (payload: any) => {
       const { addressId, status } = payload || {}
@@ -70,9 +116,11 @@ export class NativeEventsService implements IEventsService {
           console.warn('[Events] status listener error', err)
         }
       }
-    }).then((h) => {
-      this.statusHandle = h
     })
+      .then((h) => {
+        this.statusHandle = h
+      })
+      .catch((err) => this.markNativeUnavailable(err))
 
     FmoEvents.addListener('serverInfo', (payload: any) => {
       const { addressId, uid, name } = payload || {}
@@ -84,53 +132,89 @@ export class NativeEventsService implements IEventsService {
           console.warn('[Events] info listener error', err)
         }
       }
-    }).then((h) => {
-      this.infoHandle = h
     })
+      .then((h) => {
+        this.infoHandle = h
+      })
+      .catch((err) => this.markNativeUnavailable(err))
   }
 
   async connect(cfg: EventsConnectConfig): Promise<void> {
     this.installListeners()
-    await FmoEvents.connect({
-      addressId: cfg.addressId,
-      url: cfg.url,
-      apiUrl: cfg.apiUrl
-    })
+    if (this.nativeUnavailable) {
+      await this.fallback.connect(cfg)
+      return
+    }
+    try {
+      await FmoEvents.connect({
+        addressId: cfg.addressId,
+        url: cfg.url,
+        apiUrl: cfg.apiUrl
+      })
+    } catch (err) {
+      this.markNativeUnavailable(err)
+      await this.fallback.connect(cfg)
+    }
   }
 
   async disconnect(addressId: string): Promise<void> {
+    if (this.nativeUnavailable) {
+      await this.fallback.disconnect(addressId)
+      return
+    }
     try {
       await FmoEvents.disconnect({ addressId })
     } catch (err) {
       console.warn(`[Events] disconnect(${addressId}) failed`, err)
+      this.markNativeUnavailable(err)
+      await this.fallback.disconnect(addressId)
     }
   }
 
   async disconnectAll(): Promise<void> {
+    if (this.nativeUnavailable) {
+      await this.fallback.disconnectAll()
+      return
+    }
     try {
       await FmoEvents.disconnectAll()
     } catch (err) {
       console.warn('[Events] disconnectAll failed', err)
+      this.markNativeUnavailable(err)
+      await this.fallback.disconnectAll()
     }
   }
 
   async setPrimary(addressId: string): Promise<void> {
+    if (this.nativeUnavailable) {
+      await this.fallback.setPrimary(addressId)
+      return
+    }
     try {
       await FmoEvents.setPrimary({ addressId: addressId || '' })
-    } catch {
-      /* ignore */
+    } catch (err) {
+      this.markNativeUnavailable(err)
+      await this.fallback.setPrimary(addressId)
     }
   }
 
   async refreshServerInfo(addressId: string): Promise<void> {
+    if (this.nativeUnavailable) {
+      await this.fallback.refreshServerInfo(addressId)
+      return
+    }
     try {
       await FmoEvents.refreshServerInfo({ addressId })
-    } catch {
-      /* ignore */
+    } catch (err) {
+      this.markNativeUnavailable(err)
+      await this.fallback.refreshServerInfo(addressId)
     }
   }
 
   async getSnapshot(addressId?: string): Promise<EventsSnapshot> {
+    if (this.nativeUnavailable) {
+      return this.fallback.getSnapshot(addressId)
+    }
     try {
       const payload = addressId ? { addressId } : {}
       const snapshot: any = await FmoEvents.getSnapshot(payload)
@@ -138,16 +222,22 @@ export class NativeEventsService implements IEventsService {
       return { connections: list }
     } catch (err) {
       console.warn('[Events] getSnapshot failed', err)
+      this.markNativeUnavailable(err)
       return { connections: [] }
     }
   }
 
   async updateServerName(addressId: string, name: string): Promise<void> {
     if (!addressId || !name) return
+    if (this.nativeUnavailable) {
+      await this.fallback.updateServerName(addressId, name)
+      return
+    }
     try {
       await FmoEvents.updateServerName({ addressId, name })
-    } catch {
-      /* ignore */
+    } catch (err) {
+      this.markNativeUnavailable(err)
+      await this.fallback.updateServerName(addressId, name)
     }
   }
 

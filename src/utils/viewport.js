@@ -1,8 +1,33 @@
+let lastStableHeight = 0
+let lastStableWidth = 0
+
+function isEditableFocused() {
+  const active = document.activeElement
+  if (!active) return false
+  const tagName = active.tagName
+  return (
+    tagName === 'INPUT' ||
+    tagName === 'TEXTAREA' ||
+    active.isContentEditable
+  )
+}
+
 function setViewportCssVars() {
   const viewport = window.visualViewport
-  const height = viewport?.height || window.innerHeight
-  const width = viewport?.width || window.innerWidth
+  const nextHeight = viewport?.height || window.innerHeight
+  const nextWidth = viewport?.width || window.innerWidth
+  const keyboardLikelyOpen =
+    isEditableFocused() &&
+    lastStableHeight > 0 &&
+    nextHeight < lastStableHeight * 0.8
+  const height = keyboardLikelyOpen ? lastStableHeight : nextHeight
+  const width = keyboardLikelyOpen ? lastStableWidth || nextWidth : nextWidth
   const rootStyle = document.documentElement.style
+
+  if (!keyboardLikelyOpen) {
+    lastStableHeight = nextHeight
+    lastStableWidth = nextWidth
+  }
 
   rootStyle.setProperty('--app-height', `${height}px`)
   rootStyle.setProperty('--app-width', `${width}px`)

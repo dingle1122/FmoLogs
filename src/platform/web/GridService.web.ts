@@ -161,13 +161,13 @@ export class WebGridService implements IGridService {
       await this.acquireRate()
 
       // 6. 远程 API
+      const url = `${API_BASE_URL}/api/grid2addr/${encodeURIComponent(normalizedGrid)}`
       let response: Response
       try {
-        response = await fetch(
-          `${API_BASE_URL}/api/grid2addr/${encodeURIComponent(normalizedGrid)}`,
-          { method: 'GET', headers: { Accept: 'application/json' } }
-        )
+        console.log(`[WebGridService] requesting ${url}`)
+        response = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } })
       } catch (err: any) {
+        console.warn(`[WebGridService] request failed ${url}`, err)
         throw new Error(`grid 转换失败: 网络请求异常 (${err?.message ?? err})`)
       }
 
@@ -189,6 +189,7 @@ export class WebGridService implements IGridService {
       if (result.retcode !== 0 || !result.data) {
         throw new Error(result.retmsg || 'grid 转换失败')
       }
+      console.log(`[WebGridService] resolved ${normalizedGrid}`)
 
       // 7. 写缓存
       this.memoryCache.set(normalizedGrid, { data: result.data, timestamp: Date.now() })

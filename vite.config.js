@@ -8,22 +8,22 @@ export default defineConfig({
   plugins: [
     vue(),
     legacy({
-      targets: ['Chrome >= 55'],
+      targets: ['Chrome >= 51'],
       modernPolyfills: true,
       renderLegacyChunks: true
     })
   ],
   esbuild: {
-    target: 'chrome55'
+    target: 'chrome51'
   },
   optimizeDeps: {
     esbuildOptions: {
-      target: 'chrome55'
+      target: 'chrome51'
     }
   },
   build: {
     // 兼容旧版 Android System WebView，避免保留过新的 JS/CSS 语法。
-    cssTarget: ['chrome55', 'safari12'],
+    cssTarget: ['chrome51', 'safari12'],
     rollupOptions: {
       output: {
         manualChunks(id) {

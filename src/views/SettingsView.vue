@@ -381,7 +381,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import packageInfo from '../../package.json'
-import { normalizeHost } from '../utils/urlUtils'
+import { buildWebSocketUrl, normalizeHost } from '../utils/urlUtils'
 import confirmDialog from '../composables/useConfirm'
 import { clearGridCache } from '../services/gridService'
 import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
@@ -656,7 +656,7 @@ const getSyncFullButtonText = computed(() => {
 
 // 验证WebSocket连接
 async function validateConnection(host, proto) {
-  const wsUrl = `${proto}://${normalizeHost(host)}/ws`
+  const wsUrl = buildWebSocketUrl(host, '/ws', proto)
 
   return new Promise((resolve) => {
     let socket

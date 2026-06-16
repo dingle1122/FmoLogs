@@ -44,11 +44,17 @@ public class FmoSystemUiPlugin extends Plugin {
 
     @Override
     public void load() {
+        webViewMajorVersion = getWebViewMajorVersion();
+        if (!shouldApplySafeAreaInsets()) {
+            Log.i(TAG, "safe area disabled on sdk=" + Build.VERSION.SDK_INT
+                    + ", webViewMajor=" + webViewMajorVersion);
+            return;
+        }
+
         try {
             Resources res = getActivity().getResources();
             DisplayMetrics metrics = res.getDisplayMetrics();
             density = metrics.density;
-            webViewMajorVersion = getWebViewMajorVersion();
             Log.i(TAG, "density=" + density + " (width=" + metrics.widthPixels
                     + "px, dpi=" + metrics.densityDpi + ", webViewMajor=" + webViewMajorVersion + ")");
 
@@ -97,18 +103,22 @@ public class FmoSystemUiPlugin extends Plugin {
         JSObject result = new JSObject();
         int statusBarDp = 0;
         int navBarDp = 0;
-        if (shouldApplyVerticalInsets()) {
+        if (shouldApplySafeAreaInsets()) {
             statusBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.statusBars()).top);
             navBarDp = pxToDp(insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom);
         }
-        int left = pxToDp(Math.max(
-                insets.getInsets(WindowInsetsCompat.Type.systemBars()).left,
-                insets.getInsets(WindowInsetsCompat.Type.displayCutout()).left
-        ));
-        int right = pxToDp(Math.max(
-                insets.getInsets(WindowInsetsCompat.Type.systemBars()).right,
-                insets.getInsets(WindowInsetsCompat.Type.displayCutout()).right
-        ));
+        int left = 0;
+        int right = 0;
+        if (shouldApplySafeAreaInsets()) {
+            left = pxToDp(Math.max(
+                    insets.getInsets(WindowInsetsCompat.Type.systemBars()).left,
+                    insets.getInsets(WindowInsetsCompat.Type.displayCutout()).left
+            ));
+            right = pxToDp(Math.max(
+                    insets.getInsets(WindowInsetsCompat.Type.systemBars()).right,
+                    insets.getInsets(WindowInsetsCompat.Type.displayCutout()).right
+            ));
+        }
         result.put("top", statusBarDp);
         result.put("bottom", navBarDp);
         result.put("left", left);
@@ -120,7 +130,7 @@ public class FmoSystemUiPlugin extends Plugin {
      * Android 15+ enforces edge-to-edge. WebView < 140 cannot reliably expose safe-area
      * values to CSS, so Capacitor SystemBars handles those devices with native padding.
      */
-    private boolean shouldApplyVerticalInsets() {
+    private boolean shouldApplySafeAreaInsets() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                 && webViewMajorVersion >= WEBVIEW_VERSION_WITH_SAFE_AREA_FIX;
     }

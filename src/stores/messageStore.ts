@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 // @ts-ignore - legacy JS
-import { normalizeHost } from '../utils/urlUtils'
+import { buildWebSocketUrl } from '../utils/urlUtils'
 
 interface MessageSummary {
   messageId: string | number
@@ -83,9 +83,7 @@ export const useMessageStore = defineStore('message', () => {
     fmoAddress = addr
     protocol = proto
 
-    const host = normalizeHost(addr)
-    const wsProtocol = proto === 'https' || proto === 'wss' ? 'wss' : 'ws'
-    const wsUrl = `${wsProtocol}://${host}/ws`
+    const wsUrl = buildWebSocketUrl(addr, '/ws', proto)
 
     connectPromise = new Promise<void>((resolve, reject) => {
       console.log(`[MessageStore] 连接到: ${wsUrl}`)

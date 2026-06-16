@@ -13,281 +13,852 @@
   - 建议优先改 CSS 变量，不建议直接写组件 class 选择器，这样后续升级更稳定。
 */
 
-/* ========================================================================
-   第一部分：调色版
-
-   这里放“基础颜色”。建议把常用颜色先写成 palette 变量，后面再引用。
-   这样换主题时只需要集中修改这一段。
-   ======================================================================== */
-
 :root {
-  /*
-    品牌主色：最重要的强调色。
-    常用于按钮、链接、当前选中项、焦点边框。
-  */
-  /* --palette-brand: #4caf50; */
+  /* Core palette */
+  --color-transparent: transparent;
+  --color-white: #ffffff;
+  --color-black: #000000;
 
-  /*
-    品牌主色悬停：鼠标移到按钮或可点击元素上时使用。
-    一般比品牌主色更深一点。
-  */
-  /* --palette-brand-hover: #3d8b40; */
+  /* Neutral palette */
+  --neutral-900: #333333;
+  --neutral-800: #4a4a4a;
+  --neutral-700: #606266;
+  --neutral-650: #5c6b7f;
+  --neutral-600: #666666;
+  --neutral-500: #909399;
+  --neutral-400: #94a3b8;
+  --neutral-350: #969696;
+  --neutral-300: #b8b8b8;
+  --neutral-250: #c0c4cc;
+  --neutral-200: #dcdfe6;
+  --neutral-175: #dddddd;
+  --neutral-150: #e5e7eb;
+  --neutral-100: #ebeef5;
+  --neutral-075: #eeeeee;
+  --neutral-050: #f0f2f5;
+  --neutral-040: #f5f7fa;
+  --neutral-030: #f8f9fb;
+  --neutral-020: #f9fafb;
 
-  /*
-    成功色：表示成功、在线、启用、正向状态。
-  */
-  /* --palette-success: #67c23a; */
+  /* Brand palette */
+  --brand-primary: #4caf50;
+  --brand-primary-hover: #3d8b40;
+  --brand-primary-soft: #81c784;
+  --brand-primary-strong: #2e7d32;
+  --brand-indigo: #2f9e89;
 
-  /*
-    警告色：表示提醒、等待、需要注意但不是错误的状态。
-  */
-  /* --palette-warning: #d46b08; */
+  --brand-success: #67c23a;
+  --brand-success-strong: #22c55e;
+  --brand-success-emerald: #10b981;
+  --brand-success-soft: #4ade80;
+  --brand-success-accent: #4caf50;
 
-  /*
-    危险色：表示删除、失败、错误、断开等高风险状态。
-  */
-  /* --palette-danger: #f56c6c; */
+  --brand-warning: #d46b08;
+  --brand-warning-soft: #e6a23c;
+  --brand-warning-gold: #f59e0b;
+  --brand-warning-deep: #b45309;
+  --brand-warning-muted: #c69500;
+  --brand-warning-bright: #fbbf24;
+  --brand-bronze: #d97706;
+  --brand-bronze-muted: #a0522d;
 
-  /*
-    页面底色：整个应用最底层的背景色。
-  */
-  /* --palette-page: #ffffff; */
+  --brand-danger: #f56c6c;
+  --brand-danger-hover: #e64242;
+  --brand-danger-strong: #ef4444;
+  --brand-danger-soft: #f78989;
+  --brand-danger-close: #ff5f57;
 
-  /*
-    容器底色：列表、页面内容区、普通容器的背景色。
-  */
-  /* --palette-container: #ffffff; */
+  /* Surface palette */
+  --surface-blue-050: #ecf5ff;
+  --surface-blue-100: #e6f7ff;
+  --surface-blue-150: #f0f9ff;
+  --surface-blue-200: #f0f4ff;
 
-  /*
-    卡片底色：主题卡片、信息卡片、弹窗内容等较独立区域的背景色。
-  */
-  /* --palette-card: #ffffff; */
+  --surface-green-050: #f0f9eb;
+  --surface-green-100: #f0fdf4;
+  --surface-green-110: #f6fef6;
+  --surface-green-120: #e8f8e8;
 
-  /*
-    输入框底色：输入框、选择框等表单控件的背景色。
-  */
-  /* --palette-input: #ffffff; */
+  --surface-orange-050: #fff7e6;
+  --surface-orange-100: #fff7ed;
 
-  /*
-    悬停底色：鼠标移到列表行、按钮或菜单项上时的浅色背景。
-  */
-  /* --palette-hover: #f5f7fa; */
+  --surface-red-050: #fef0f0;
+  --surface-red-100: #fde2e2;
 
-  /*
-    主文字：正文、标题、重要数字等最主要文字颜色。
-  */
-  /* --palette-text-main: #333333; */
+  --surface-yellow-050: #fef9e7;
+  --surface-yellow-100: #fef3c7;
 
-  /*
-    次要文字：说明文字、辅助信息、表格副内容。
-  */
-  /* --palette-text-subtle: #606266; */
+  --surface-tan-050: #fdf2e9;
+  --surface-slate-050: #e8ecf2;
 
-  /*
-    弱文字：时间、提示、占位、低优先级信息。
-  */
-  /* --palette-text-muted: #909399; */
+  /* Border palette */
+  --border-blue-100: #b3d8ff;
+  --border-blue-050: #d9ecff;
+  --border-orange-100: #ffd591;
+  --border-yellow-100: #fcd34d;
+  --border-red-100: #fde2e2;
+  --border-green-100: #e1f3d8;
+  --border-green-200: #c8e6c9;
+  --border-green-300: #a5d6a7;
+  --border-green-400: #86efac;
+  --border-orange-200: #fed7aa;
 
-  /*
-    主要边框：输入框、卡片、按钮等常规边界。
-  */
-  /* --palette-border: #dcdfe6; */
+  /* Dark palette */
+  --dark-900: #1a1a1a;
+  --dark-850: #1a241a;
+  --dark-840: #1a281a;
+  --dark-830: #1a2a3a;
+  --dark-820: #1e2e1e;
+  --dark-800: #1f3a1f;
+  --dark-750: #242424;
+  --dark-740: #263626;
+  --dark-700: #2a2a2a;
+  --dark-680: #2c2c2c;
+  --dark-660: #2d5a2d;
+  --dark-640: #363636;
+  --dark-620: #3a1f1f;
+  --dark-610: #3a2e1f;
+  --dark-600: #3a3a3a;
+  --dark-580: #3a3d42;
+  --dark-560: #3d2e20;
+  --dark-540: #3d3520;
+  --dark-500: #404040;
+  --dark-text-primary: #e8e8e8;
 
-  /*
-    浅边框：分割线、弱边界、内部辅助线。
-  */
-  /* --palette-border-soft: #ebeef5; */
+  /* Alpha and utility */
+  --alpha-black-06: rgba(0, 0, 0, 0.06);
+  --alpha-black-10: rgba(0, 0, 0, 0.1);
+  --alpha-black-12: rgba(0, 0, 0, 0.12);
+  --alpha-black-15: rgba(0, 0, 0, 0.15);
+  --alpha-black-20: rgba(0, 0, 0, 0.2);
+  --alpha-black-25: rgba(0, 0, 0, 0.25);
+  --alpha-black-30: rgba(0, 0, 0, 0.3);
+  --alpha-black-40: rgba(0, 0, 0, 0.4);
+  --alpha-black-50: rgba(0, 0, 0, 0.5);
+  --alpha-black-70: rgba(0, 0, 0, 0.7);
 
-  /*
-    当前项高亮：今日通联、当前电台、选中状态等“当前正在关注”的颜色。
-  */
-  /* --palette-current: var(--palette-brand); */
+  --alpha-white-06: rgba(255, 255, 255, 0.06);
+  --alpha-white-15: rgba(255, 255, 255, 0.15);
+  --alpha-white-30: rgba(255, 255, 255, 0.3);
+  --alpha-white-35: rgba(255, 255, 255, 0.35);
+
+  --alpha-primary-08: rgba(64, 158, 255, 0.08);
+  --alpha-primary-10: rgba(64, 158, 255, 0.1);
+  --alpha-primary-12: rgba(64, 158, 255, 0.12);
+  --alpha-primary-15: rgba(64, 158, 255, 0.15);
+  --alpha-primary-20: rgba(64, 158, 255, 0.2);
+  --alpha-primary-30: rgba(64, 158, 255, 0.3);
+
+  --alpha-success-08: rgba(103, 194, 58, 0.08);
+  --alpha-success-12: rgba(103, 194, 58, 0.12);
+  --alpha-success-15: rgba(103, 194, 58, 0.15);
+  --alpha-success-25: rgba(103, 194, 58, 0.25);
+  --alpha-success-strong-12: rgba(34, 197, 94, 0.12);
+  --alpha-emerald-20: rgba(16, 185, 129, 0.2);
+
+  --alpha-warning-08: rgba(230, 162, 60, 0.08);
+  --alpha-warning-22: rgba(230, 162, 60, 0.22);
+  --alpha-warning-25: rgba(230, 162, 60, 0.25);
+  --alpha-warning-gold-10: rgba(245, 158, 11, 0.1);
+  --alpha-warning-gold-30: rgba(245, 158, 11, 0.3);
+  --alpha-warning-brown-12: rgba(212, 107, 8, 0.12);
+
+  --alpha-danger-08: rgba(245, 108, 108, 0.08);
+  --alpha-danger-20: rgba(245, 108, 108, 0.2);
+  --alpha-danger-strong-10: rgba(239, 68, 68, 0.1);
+  --alpha-danger-strong-20: rgba(239, 68, 68, 0.2);
+  --alpha-danger-strong-30: rgba(239, 68, 68, 0.3);
+  --alpha-danger-close-12: rgba(255, 95, 87, 0.12);
+  --alpha-danger-close-55: rgba(255, 95, 87, 0.55);
+  --alpha-danger-close-70: rgba(255, 95, 87, 0.7);
+  --alpha-danger-close-80: rgba(255, 95, 87, 0.8);
+  --alpha-danger-close-90: rgba(255, 95, 87, 0.9);
+
+  --alpha-primary-strong-20: rgba(59, 130, 246, 0.2);
+  --alpha-neutral-12: rgba(128, 128, 128, 0.12);
+  --alpha-neutral-30: rgba(150, 150, 150, 0.3);
+
+  /* Theme tokens: surfaces
+     Shortcut layer:
+     - --theme-quick-primary
+     - --theme-quick-primary-hover
+     - --theme-quick-success
+     - --theme-quick-warning
+     - --theme-quick-danger
+     - --theme-quick-highlight-accent
+     - --theme-quick-highlight-bg / -alt / -strong
+     - --theme-quick-highlight-border / -soft / -muted
+     - --theme-quick-surface-hover / -accent-soft */
+  /* --theme-surface-page: var(--color-white);
+  --theme-surface-container: var(--color-white);
+  --theme-surface-header: var(--color-white);
+  --theme-surface-card: var(--color-white);
+  --theme-surface-input: var(--color-white);
+  --theme-surface-subtle: var(--neutral-040);
+  --theme-surface-hover: var(
+    --theme-quick-surface-hover,
+    var(--neutral-040)
+  );
+  --theme-surface-striped: var(--neutral-030);
+  --theme-surface-disabled: var(--neutral-050);
+  --theme-surface-accent-soft: var(--theme-quick-surface-accent-soft, var(--surface-green-050));
+  --theme-surface-success-soft: var(--theme-quick-surface-success-soft, var(--surface-green-100));
+  --theme-surface-warning-soft: var(--theme-quick-surface-warning-soft, var(--surface-orange-050));
+  --theme-surface-danger-soft: var(--theme-quick-surface-danger-soft, var(--surface-red-050));
+  --theme-surface-hint-soft: var(--surface-orange-050); */
+
+  /* Theme tokens: text */
+  /* --theme-text-primary: var(--neutral-900);
+  --theme-text-secondary: var(--neutral-700);
+  --theme-text-muted: var(--neutral-500);
+  --theme-text-disabled: var(--neutral-250);
+  --theme-text-inverse: var(--color-white); */
+
+  /* Theme tokens: borders */
+  /* --theme-border-default: var(--neutral-200);
+  --theme-border-subtle: var(--neutral-100);
+  --theme-border-muted: var(--neutral-075);
+  --theme-border-strong: var(--neutral-175); */
+
+  /* Theme tokens: interactive and feedback */
+  /* --theme-accent-primary: var(--theme-quick-primary, var(--brand-primary));
+  --theme-accent-primary-hover: var(--theme-quick-primary-hover, var(--brand-primary-hover));
+  --theme-accent-primary-soft: var(--brand-primary-soft);
+  --theme-accent-primary-strong: var(--brand-primary-strong);
+  --theme-accent-secondary: var(--brand-indigo);
+
+  --theme-success: var(--theme-quick-success, var(--brand-success));
+  --theme-success-strong: var(--brand-success-strong);
+  --theme-success-emerald: var(--brand-success-emerald);
+  --theme-success-soft: var(--brand-success-soft);
+  --theme-success-accent: var(--theme-quick-success, var(--brand-success-accent));
+
+  --theme-warning: var(--theme-quick-warning, var(--brand-warning));
+  --theme-warning-soft: var(--brand-warning-soft);
+  --theme-warning-gold: var(--brand-warning-gold);
+  --theme-warning-deep: var(--brand-warning-deep);
+  --theme-warning-muted: var(--brand-warning-muted);
+  --theme-warning-bright: var(--brand-warning-bright);
+  --theme-bronze: var(--brand-bronze);
+  --theme-bronze-muted: var(--brand-bronze-muted);
+
+  --theme-danger: var(--theme-quick-danger, var(--brand-danger));
+  --theme-danger-hover: var(--brand-danger-hover);
+  --theme-danger-strong: var(--brand-danger-strong);
+  --theme-danger-soft: var(--brand-danger-soft);
+  --theme-danger-close: var(--brand-danger-close); */
+
+  /* Theme tokens: contextual surfaces */
+  /* --theme-info-panel-bg: var(--surface-blue-150);
+  --theme-info-panel-bg-strong: var(--surface-blue-100);
+  --theme-info-panel-border: var(--border-blue-100);
+  --theme-info-panel-border-soft: var(--border-blue-050);
+
+  --theme-success-panel-bg: var(--surface-green-100);
+  --theme-success-panel-bg-alt: var(--surface-green-110);
+  --theme-success-panel-bg-strong: var(--surface-green-120);
+  --theme-success-panel-border: var(--border-green-100);
+  --theme-success-panel-border-soft: var(--border-green-200);
+  --theme-success-panel-border-strong: var(--border-green-300);
+  --theme-success-panel-border-bright: var(--border-green-400);
+
+  --theme-current-highlight-accent: var(
+    --theme-quick-highlight-accent,
+    var(--theme-success-accent)
+  );
+  --theme-current-highlight-bg: var(
+    --theme-quick-highlight-bg,
+    var(--surface-green-050)
+  );
+  --theme-current-highlight-bg-alt: var(
+    --theme-quick-highlight-bg-alt,
+    var(--surface-green-110)
+  );
+  --theme-current-highlight-bg-strong: var(
+    --theme-quick-highlight-bg-strong,
+    var(--surface-green-120)
+  );
+  --theme-current-highlight-border-soft: var(
+    --theme-quick-highlight-border-soft,
+    var(--border-green-100)
+  );
+  --theme-current-highlight-border: var(
+    --theme-quick-highlight-border,
+    var(--border-green-200)
+  );
+  --theme-current-highlight-muted: var(
+    --theme-quick-highlight-muted,
+    var(--theme-current-highlight-accent)
+  );
+
+  --theme-warning-panel-bg: var(--surface-orange-100);
+  --theme-warning-panel-border: var(--border-orange-100);
+  --theme-warning-panel-border-strong: var(--border-orange-200);
+
+  --theme-danger-panel-bg: var(--surface-red-050);
+  --theme-danger-panel-border: var(--border-red-100);
+
+  --theme-rank-gold-bg: var(--surface-yellow-050);
+  --theme-rank-gold-badge-bg: var(--surface-yellow-100);
+  --theme-rank-silver-bg: var(--surface-slate-050);
+  --theme-rank-bronze-bg: var(--surface-tan-050); */
+
+  /* Theme tokens: shadows and overlays */
+  /* --theme-shadow-card: var(--alpha-black-10);
+  --theme-shadow-modal: var(--alpha-black-15);
+  --theme-shadow-focus-primary: var(--alpha-primary-20);
+  --theme-shadow-focus-primary-hover: var(--alpha-primary-30);
+  --theme-overlay-default: var(--alpha-black-50);
+  --theme-overlay-soft: var(--alpha-black-40);
+  --theme-tooltip-bg: var(--neutral-900);
+  --theme-text-shadow-subtle: 0 0 0.3px var(--alpha-black-30); */
+
+  /* Theme tokens: textures */
+  /* --theme-texture-edge-fade: var(--alpha-black-25);
+  --theme-texture-stripe: var(--alpha-black-06);
+  --theme-texture-mask-solid: var(--color-black);
+  --theme-app-edge-shadow: var(--alpha-black-10); */
+
+  /* Theme tokens: utility */
+  /* --theme-tap-highlight: var(--color-transparent);
+  --theme-glass-highlight: var(--alpha-white-30);
+  --theme-glass-highlight-strong: var(--alpha-white-35); */
+
+  /* Component tokens */
+  /* --component-close-button-border: var(--alpha-danger-close-55);
+  --component-close-button-text: var(--alpha-danger-close-70);
+  --component-close-button-hover-bg: var(--alpha-danger-close-12);
+  --component-close-button-hover-border: var(--alpha-danger-close-80);
+  --component-close-button-hover-text: var(--alpha-danger-close-90);
+
+  --component-status-primary-bg: var(--alpha-primary-10);
+  --component-status-primary-bg-soft: var(--alpha-primary-08);
+  --component-status-primary-bg-strong: var(--alpha-primary-12);
+  --component-status-primary-bg-active: var(--alpha-primary-15);
+  --component-status-primary-border: var(--alpha-primary-30);
+  --component-status-primary-shadow: var(--alpha-primary-20);
+  --component-status-primary-text: var(--theme-accent-primary);
+
+  --component-status-success-bg: var(--alpha-success-15);
+  --component-status-success-bg-soft: var(--alpha-success-08);
+  --component-status-success-bg-strong: var(--alpha-success-12);
+  --component-status-success-bg-active: var(--alpha-success-25);
+  --component-status-success-border: var(--theme-success-panel-border);
+  --component-status-success-text: var(--theme-success);
+  --component-status-success-ring: var(--alpha-success-15);
+
+  --component-status-warning-bg: var(--alpha-warning-gold-10);
+  --component-status-warning-bg-soft: var(--alpha-warning-08);
+  --component-status-warning-bg-active: var(--alpha-warning-22);
+  --component-status-warning-border: var(--alpha-warning-gold-30);
+  --component-status-warning-border-strong: var(--alpha-warning-25);
+  --component-status-warning-text: var(--theme-warning-gold);
+  --component-status-warning-text-deep: var(--theme-warning-deep);
+  --component-status-warning-text-muted: var(--theme-warning-muted);
+
+  --component-status-danger-bg: var(--alpha-danger-strong-10);
+  --component-status-danger-bg-soft: var(--alpha-danger-08);
+  --component-status-danger-border: var(--alpha-danger-strong-30);
+  --component-status-danger-border-strong: var(--alpha-danger-20);
+  --component-status-danger-ring: var(--alpha-danger-strong-20);
+  --component-status-danger-text: var(--theme-danger-strong);
+
+  --component-status-neutral-bg: var(--alpha-neutral-12);
+  --component-status-neutral-border: var(--alpha-neutral-30);
+  --component-status-neutral-text: var(--theme-text-secondary);
+
+  --component-speaking-bar-bg: var(--theme-success-panel-bg);
+  --component-speaking-bar-border: var(--theme-success-panel-border-bright);
+  --component-speaking-bar-text-accent: var(--theme-success-strong);
+  --component-speaking-bar-hover-bg: var(--theme-current-highlight-bg);
+
+  --component-header-title-hover: var(--theme-current-highlight-accent);
+  --component-header-station-bg: var(--theme-current-highlight-bg);
+  --component-header-station-text: var(--theme-current-highlight-accent);
+  --component-header-station-hover-bg: var(--theme-current-highlight-bg-strong);
+  --component-header-station-hover-border: var(--theme-current-highlight-border);
+  --component-header-nav-hover-text: var(--theme-current-highlight-accent);
+  --component-header-nav-active-text: var(--theme-current-highlight-accent);
+  --component-header-nav-active-indicator: var(--theme-current-highlight-accent);
+  --component-header-action-hover-text: var(--theme-current-highlight-accent);
+  --component-mobile-nav-active-text: var(--theme-current-highlight-accent);
+
+  --component-logs-table-header-bg: var(--theme-surface-subtle);
+  --component-logs-table-header-text: var(--theme-text-secondary);
+  --component-logs-table-header-border: var(--theme-border-default);
+  --component-logs-index-bg: var(--theme-surface-striped);
+  --component-logs-index-today-bg: var(--theme-current-highlight-bg-strong);
+  --component-logs-index-today-neutral-bg: var(--theme-current-highlight-bg);
+  --component-logs-index-rank-1-bg: var(--theme-rank-gold-bg);
+  --component-logs-index-rank-2-bg: var(--theme-rank-silver-bg);
+  --component-logs-index-rank-3-bg: var(--theme-rank-bronze-bg);
+
+  --component-record-card-bg: var(--theme-surface-subtle);
+  --component-record-card-border: var(--theme-border-subtle);
+  --component-record-card-label-text: var(--theme-text-muted);
+  --component-record-card-value-text: var(--theme-text-primary);
+  --component-record-card-address-text: var(--theme-text-muted);
+  --component-record-card-count-text: var(--theme-text-muted);
+  --component-record-card-today-bg: var(--theme-current-highlight-bg);
+  --component-record-card-today-border: var(--theme-current-highlight-border);
+  --component-record-card-highlight-outline: var(--theme-accent-primary);
+  --component-speaking-history-uncontacted-text: var(--neutral-175);
+
+  --component-more-icon-bg: var(--status-success-bg-strong);
+  --component-more-icon-text: var(--theme-current-highlight-accent);
+  --component-more-item-hover-border: var(--theme-current-highlight-border);
+  --component-more-item-hover-bg: var(--bg-table-hover);
+  --component-more-arrow-hover-text: var(--theme-current-highlight-accent);
+
+  --component-page-nav-button-hover-border: var(--theme-current-highlight-border);
+  --component-page-nav-button-hover-bg: var(--bg-table-hover);
+  --component-page-nav-input-focus-border: var(--theme-current-highlight-accent);
+
+  --component-button-hover-bg: var(--theme-surface-accent-soft);
+  --component-button-hover-border: var(--theme-accent-primary);
+  --component-button-hover-text: var(--theme-accent-primary);
+
+  --component-quick-nav-item-hover-border: var(--theme-current-highlight-border);
+  --component-quick-nav-item-active-bg: var(--status-success-bg-soft);
+  --component-quick-nav-item-active-text: var(--theme-current-highlight-accent);
+  --component-quick-nav-item-active-border: var(--theme-current-highlight-accent);
+  --component-quick-nav-item-active-icon: var(--theme-current-highlight-accent);
+
+  --component-station-name-hover-text: var(--theme-current-highlight-accent);
+  --component-station-primary-badge-bg: var(--status-success-bg-active);
+  --component-station-primary-badge-text: var(--theme-current-highlight-accent);
+  --component-station-search-focus-border: var(--theme-current-highlight-accent);
+  --component-station-refresh-hover-text: var(--theme-current-highlight-accent);
+  --component-station-item-hover-border: var(--theme-current-highlight-border);
+  --component-station-item-active-bg: var(--theme-current-highlight-bg);
+  --component-station-item-active-border: var(--theme-current-highlight-accent);
+  --component-station-item-active-text: var(--theme-current-highlight-accent);
+  --component-station-item-active-pin-bg: var(--theme-current-highlight-bg-strong);
+  --component-station-item-active-pin-text: var(--theme-current-highlight-accent);
+
+  --component-settings-slider-thumb: var(--theme-accent-primary);
+  --component-settings-info-text: var(--theme-success);
+  --component-settings-focus-border: var(--theme-accent-primary);
+  --component-settings-add-button-text: var(--theme-accent-primary);
+  --component-settings-add-button-border: var(--theme-accent-primary);
+  --component-settings-add-button-hover-bg: var(--theme-accent-primary);
+  --component-settings-address-hover-border: var(--theme-accent-primary);
+  --component-settings-address-hover-bg: var(--theme-surface-hover);
+  --component-settings-address-active-border: var(--theme-accent-primary);
+  --component-settings-address-active-bg: var(--alpha-primary-08);
+  --component-settings-status-active-bg: var(--theme-success);
+  --component-settings-status-active-shadow: var(--theme-success);
+  --component-settings-status-connecting-bg: var(--theme-accent-primary);
+  --component-settings-user-callsign-bg: var(--alpha-primary-15);
+  --component-settings-user-callsign-text: var(--theme-accent-primary);
+  --component-settings-user-uid-bg: var(--status-success-bg-active);
+  --component-settings-user-uid-text: var(--theme-success);
+  --component-settings-icon-hover-text: var(--theme-accent-primary);
+  --component-settings-sync-status-text: var(--theme-accent-primary);
+  --component-settings-toggle-checked-bg: var(--theme-accent-primary);
+  --component-settings-toggle-focus-ring: var(--alpha-primary-20);
+  --component-settings-checkbox-checked-border: var(--theme-accent-primary);
+  --component-settings-checkbox-checked-fill: var(--theme-accent-primary);
+  --component-settings-primary-badge-bg: var(--theme-accent-primary);
+  --component-settings-primary-badge-text: var(--theme-text-inverse);
+  --component-settings-server-id-bg: var(--status-success-bg-active);
+  --component-settings-server-id-text: var(--theme-success);
+
+  --component-message-accent-text: var(--theme-accent-primary);
+  --component-message-hover-text: var(--theme-accent-primary);
+  --component-message-hover-bg: var(--theme-surface-hover);
+  --component-message-spinner-top: var(--theme-accent-primary);
+  --component-message-item-hover-border: var(--theme-accent-primary);
+  --component-message-item-active-border: var(--theme-accent-primary);
+  --component-message-item-active-bg: var(--theme-surface-accent-soft);
+  --component-message-load-more-hover-border: var(--theme-accent-primary);
+  --component-message-load-more-hover-text: var(--theme-accent-primary);
+  --component-message-primary-button-bg: var(--theme-accent-primary);
+  --component-message-primary-button-border: var(--theme-accent-primary);
+  --component-message-primary-button-hover-bg: var(--theme-accent-primary-hover);
+  --component-message-primary-button-hover-border: var(--theme-accent-primary-hover);
+  --component-message-secondary-button-hover-border: var(--theme-accent-primary);
+  --component-message-secondary-button-hover-text: var(--theme-accent-primary);
+  --component-message-text-button-hover-text: var(--theme-accent-primary);
+  --component-message-text-button-hover-bg: var(--theme-surface-hover);
+  --component-message-form-focus-border: var(--theme-accent-primary);
+  --component-message-success-bg: var(--theme-surface-success-soft);
+  --component-message-success-text: var(--theme-success);
+
+  --component-remote-connected-bg: var(--theme-success);
+  --component-remote-connected-shadow: var(--theme-success);
+  --component-remote-connecting-bg: var(--theme-accent-primary);
+  --component-remote-add-button-text: var(--theme-accent-primary);
+  --component-remote-add-button-border: var(--theme-accent-primary);
+  --component-remote-add-button-hover-bg: var(--theme-accent-primary);
+  --component-remote-icon-hover-text: var(--theme-accent-primary);
+  --component-remote-select-focus-border: var(--theme-accent-primary);
+  --component-remote-checkbox-accent: var(--theme-accent-primary);
+  --component-remote-password-hover-text: var(--theme-accent-primary);
+  --component-remote-input-focus-border: var(--theme-accent-primary);
+  --component-remote-control-hover-border: var(--theme-accent-primary);
+  --component-remote-control-hover-text: var(--theme-accent-primary);
+  --component-remote-primary-button-bg: var(--theme-accent-primary);
+  --component-remote-primary-button-hover-bg: var(--theme-accent-primary-hover);
+
+  --component-location-refresh-text: var(--theme-accent-primary);
+  --component-location-refresh-border: var(--theme-accent-primary);
+  --component-location-refresh-hover-bg: var(--theme-accent-primary);
+  --component-location-toggle-checked-bg: var(--theme-success);
+  --component-location-slider-thumb: var(--theme-accent-primary);
+  --component-location-slider-value: var(--theme-accent-primary);
+  --component-location-primary-button-bg: var(--theme-accent-primary);
+  --component-location-primary-button-hover-bg: var(--theme-accent-primary-hover);
+  --component-location-status-success-text: var(--theme-success);
+
+  --component-filter-panel-bg: var(--theme-surface-card);
+  --component-filter-panel-border: var(--theme-border-subtle);
+  --component-filter-control-bg: var(--theme-surface-input);
+  --component-filter-control-border: var(--theme-border-default);
+  --component-filter-control-hover-border: var(--theme-current-highlight-border);
+  --component-filter-chip-bg: var(--theme-surface-container);
+  --component-filter-chip-text: var(--theme-text-secondary);
+  --component-filter-chip-hover-bg: var(--theme-current-highlight-bg);
+  --component-filter-chip-hover-text: var(--theme-current-highlight-accent);
+  --component-filter-chip-active-bg: var(--theme-current-highlight-accent);
+  --component-filter-chip-active-text: var(--theme-text-inverse);
+
+  --component-date-picker-clear-hover-text: var(--theme-danger);
+  --component-date-picker-nav-hover-bg: var(--theme-surface-hover);
+  --component-date-picker-nav-hover-border: var(--theme-current-highlight-border);
+  --component-date-picker-stats-text: var(--theme-current-highlight-accent);
+  --component-date-picker-day-hover-bg: var(--theme-surface-hover);
+  --component-date-picker-day-has-data-hover-bg: var(--status-success-bg-soft);
+  --component-date-picker-day-selected-bg: var(--theme-current-highlight-accent);
+  --component-date-picker-day-selected-border: var(--theme-current-highlight-accent);
+  --component-date-picker-badge-bg: var(--theme-current-highlight-accent);
+  --component-date-picker-badge-text: var(--theme-text-inverse);
+
+  --component-old-friend-card-bg: var(--theme-warning-panel-bg);
+  --component-old-friend-card-border: var(--theme-warning-panel-border-strong);
+
+  --component-info-panel-bg: var(--theme-info-panel-bg);
+  --component-info-panel-bg-hover: var(--theme-info-panel-bg-strong);
+  --component-info-panel-border: var(--theme-info-panel-border);
+  --component-info-panel-border-soft: var(--theme-info-panel-border-soft);
+  --component-info-panel-text: var(--theme-text-secondary);
+  --component-info-panel-accent: var(--theme-accent-primary);
+
+  --component-error-panel-bg: var(--theme-danger-panel-bg);
+  --component-error-panel-border: var(--theme-danger-panel-border);
+
+  --component-modal-backdrop: var(--theme-overlay-default);
+  --component-modal-backdrop-soft: var(--theme-overlay-soft);
+  --component-modal-shadow: 0 8px 32px var(--alpha-black-20);
+  --component-modal-glass-highlight: var(--theme-glass-highlight);
+  --component-modal-glass-highlight-strong: var(--theme-glass-highlight-strong);
+
+  --component-badge-count-bg: var(--theme-accent-secondary);
+  --component-badge-online-bg: var(--theme-success-emerald);
+  --component-badge-warning-bg: var(--theme-warning-gold);
+
+  --component-rank-gold: var(--theme-warning-gold);
+  --component-rank-silver: var(--neutral-400);
+  --component-rank-bronze: var(--theme-bronze);
+  --component-rank-gold-muted: var(--theme-warning-muted);
+  --component-rank-slate-muted: var(--neutral-650);
+  --component-rank-bronze-muted: var(--theme-bronze-muted);
+  --component-rank-dark-bg: var(--dark-540);
+  --component-rank-dark-border: var(--dark-610);
+
+  --component-control-primary-bg: var(--theme-accent-primary-strong);
+  --component-control-primary-ring: var(--alpha-primary-strong-20);
+  --component-control-success-bg: var(--theme-success-emerald);
+  --component-control-success-ring: var(--alpha-emerald-20);
+  --component-control-danger-bg: var(--theme-danger-strong);
+  --component-control-danger-ring: var(--alpha-danger-strong-20); */
+
+  /* --component-timeline-dot-send-bg: #409eff;
+  --component-timeline-dot-send-ring: rgba(64, 158, 255, 0.2);
+  --component-timeline-dot-success-bg: #22c55e;
+  --component-timeline-dot-success-ring: rgba(34, 197, 94, 0.2);
+  --component-timeline-dot-fail-bg: #ef4444;
+  --component-timeline-dot-fail-ring: rgba(239, 68, 68, 0.2); */
+
+  /* Compatibility aliases */
+  /* --bg-page: var(--theme-surface-page);
+  --bg-container: var(--theme-surface-container);
+  --bg-header: var(--theme-surface-header);
+  --bg-card: var(--theme-surface-card);
+  --bg-input: var(--theme-surface-input);
+  --bg-table-header: var(--theme-surface-subtle);
+  --bg-table-hover: var(--theme-surface-hover);
+  --bg-table-stripe: var(--theme-surface-striped);
+  --bg-hover: var(--theme-surface-hover);
+  --bg-button-hover: var(--component-button-hover-bg);
+  --text-button-hover: var(--component-button-hover-text);
+  --bg-disabled: var(--theme-surface-disabled);
+  --bg-success-light: var(--theme-surface-success-soft);
+  --bg-warning-light: var(--theme-surface-warning-soft);
+  --bg-error-light: var(--theme-surface-danger-soft);
+  --bg-https-hint: var(--theme-surface-hint-soft);
+  --bg-primary-light: var(--theme-surface-accent-soft);
+
+  --text-primary: var(--theme-text-primary);
+  --text-secondary: var(--theme-text-secondary);
+  --text-tertiary: var(--theme-text-muted);
+  --text-disabled: var(--theme-text-disabled);
+  --text-white: var(--theme-text-inverse);
+
+  --border-primary: var(--theme-border-default);
+  --border-secondary: var(--theme-border-subtle);
+  --border-light: var(--theme-border-muted);
+  --border-table: var(--theme-border-strong);
+
+  --color-primary: var(--theme-accent-primary);
+  --color-primary-hover: var(--theme-accent-primary-hover);
+  --color-success: var(--theme-success);
+  --color-success-border: var(--theme-success-panel-border);
+  --color-warning: var(--theme-warning);
+  --color-warning-border: var(--theme-warning-panel-border);
+  --color-danger: var(--theme-danger);
+  --color-danger-hover: var(--theme-danger-hover);
+
+  --bg-friend-card: var(--component-old-friend-card-bg);
+  --border-friend-card: var(--component-old-friend-card-border);
+  --bg-today-card: var(--theme-current-highlight-bg);
+  --bg-today-row: var(--theme-current-highlight-bg-alt);
+  --bg-today-index: var(--theme-current-highlight-bg-strong);
+  --bg-today-index-neutral: var(--theme-current-highlight-bg);
+  --border-today-row: var(--theme-current-highlight-border-soft);
+  --border-today-card: var(--theme-current-highlight-border);
+  --color-today-accent: var(--theme-current-highlight-accent);
+  --color-today-uncontacted: var(--component-speaking-history-uncontacted-text);
+  --bg-rank-1: var(--theme-rank-gold-bg);
+  --bg-rank-2: var(--theme-rank-silver-bg);
+  --bg-rank-3: var(--theme-rank-bronze-bg);
+  --bg-record-card: var(--component-record-card-bg);
+  --border-record-card: var(--component-record-card-border);
+
+  --shadow-card: var(--theme-shadow-card);
+  --shadow-modal: var(--theme-shadow-modal);
+  --shadow-primary: var(--theme-shadow-focus-primary);
+  --shadow-primary-hover: var(--theme-shadow-focus-primary-hover);
+  --overlay-bg: var(--component-modal-backdrop);
+  --tooltip-bg: var(--theme-tooltip-bg);
+  --body-text-shadow: var(--theme-text-shadow-subtle);
+  --texture-edge-fade: var(--theme-texture-edge-fade);
+  --texture-stripe: var(--theme-texture-stripe);
+  --texture-mask-solid: var(--theme-texture-mask-solid);
+  --tap-highlight-color: var(--theme-tap-highlight);
+  --app-edge-shadow: var(--theme-app-edge-shadow);
+
+  --close-btn-border: var(--component-close-button-border);
+  --close-btn-color: var(--component-close-button-text);
+  --close-btn-hover-bg: var(--component-close-button-hover-bg);
+  --close-btn-hover-border: var(--component-close-button-hover-border);
+  --close-btn-hover-color: var(--component-close-button-hover-text);
+
+  --status-primary-bg: var(--component-status-primary-bg);
+  --status-primary-bg-soft: var(--component-status-primary-bg-soft);
+  --status-primary-bg-strong: var(--component-status-primary-bg-strong);
+  --status-primary-bg-active: var(--component-status-primary-bg-active);
+  --status-primary-border: var(--component-status-primary-border);
+  --status-primary-shadow: var(--component-status-primary-shadow);
+  --status-primary-text: var(--component-status-primary-text);
+
+  --status-success-bg: var(--component-status-success-bg);
+  --status-success-bg-soft: var(--component-status-success-bg-soft);
+  --status-success-bg-strong: var(--component-status-success-bg-strong);
+  --status-success-bg-active: var(--component-status-success-bg-active);
+  --status-success-border: var(--component-status-success-border);
+  --status-success-text: var(--component-status-success-text);
+  --status-success-ring: var(--component-status-success-ring);
+
+  --color-speaking: var(--component-speaking-bar-text-accent);
+  --bg-speaking-bar: var(--component-speaking-bar-bg);
+  --border-speaking-bar: var(--component-speaking-bar-border);
+  --bg-speaking-bar-hover: var(--component-speaking-bar-hover-bg);
+
+  --status-warning-bg: var(--component-status-warning-bg);
+  --status-warning-bg-soft: var(--component-status-warning-bg-soft);
+  --status-warning-bg-active: var(--component-status-warning-bg-active);
+  --status-warning-border: var(--component-status-warning-border);
+  --status-warning-border-strong: var(--component-status-warning-border-strong);
+  --status-warning-text: var(--component-status-warning-text);
+  --status-warning-text-deep: var(--component-status-warning-text-deep);
+  --status-warning-text-muted: var(--component-status-warning-text-muted);
+
+  --status-danger-bg: var(--component-status-danger-bg);
+  --status-danger-bg-soft: var(--component-status-danger-bg-soft);
+  --status-danger-border: var(--component-status-danger-border);
+  --status-danger-border-strong: var(--component-status-danger-border-strong);
+  --status-danger-ring: var(--component-status-danger-ring);
+  --status-danger-text: var(--component-status-danger-text);
+
+  --status-neutral-bg: var(--component-status-neutral-bg);
+  --status-neutral-border: var(--component-status-neutral-border);
+  --status-neutral-text: var(--component-status-neutral-text);
+
+  --panel-info-bg: var(--component-info-panel-bg);
+  --panel-info-bg-hover: var(--component-info-panel-bg-hover);
+  --panel-info-border: var(--component-info-panel-border);
+  --panel-info-border-soft: var(--component-info-panel-border-soft);
+  --panel-info-text: var(--component-info-panel-text);
+  --panel-info-accent: var(--component-info-panel-accent);
+
+  --panel-error-bg: var(--component-error-panel-bg);
+  --panel-error-border: var(--component-error-panel-border);
+
+  --filter-panel-bg: var(--component-filter-panel-bg);
+  --filter-panel-border: var(--component-filter-panel-border);
+  --filter-control-bg: var(--component-filter-control-bg);
+  --filter-control-border: var(--component-filter-control-border);
+  --filter-control-hover-border: var(--component-filter-control-hover-border);
+  --filter-chip-bg: var(--component-filter-chip-bg);
+  --filter-chip-text: var(--component-filter-chip-text);
+  --filter-chip-hover-bg: var(--component-filter-chip-hover-bg);
+  --filter-chip-hover-text: var(--component-filter-chip-hover-text);
+  --filter-chip-active-bg: var(--component-filter-chip-active-bg);
+  --filter-chip-active-text: var(--component-filter-chip-active-text);
+
+  --modal-backdrop-soft: var(--component-modal-backdrop-soft);
+  --modal-surface-shadow: var(--component-modal-shadow);
+  --modal-glass-highlight: var(--component-modal-glass-highlight);
+  --modal-glass-highlight-strong: var(--component-modal-glass-highlight-strong);
+
+  --badge-count-bg: var(--component-badge-count-bg);
+  --badge-online-bg: var(--component-badge-online-bg);
+  --badge-warning-bg: var(--component-badge-warning-bg);
+
+  --rank-gold: var(--component-rank-gold);
+  --rank-silver: var(--component-rank-silver);
+  --rank-bronze: var(--component-rank-bronze);
+  --rank-gold-muted: var(--component-rank-gold-muted);
+  --rank-slate-muted: var(--component-rank-slate-muted);
+  --rank-bronze-muted: var(--component-rank-bronze-muted);
+  --rank-dark-bg: var(--component-rank-dark-bg);
+  --rank-dark-border: var(--component-rank-dark-border);
+
+  --control-primary-bg: var(--component-control-primary-bg);
+  --control-primary-ring: var(--component-control-primary-ring);
+  --control-success-bg: var(--component-control-success-bg);
+  --control-success-ring: var(--component-control-success-ring);
+  --control-danger-bg: var(--component-control-danger-bg);
+  --control-danger-ring: var(--component-control-danger-ring); */
 }
 
-/* ========================================================================
-   第二部分：具体样式名称说明
-
-   下面这些变量会真正被 FmoLogs 读取。
-   每一行都带有中文含义说明。需要生效时，取消注释即可。
-   ======================================================================== */
-
-:root {
-  /* 快速套色：主按钮、链接、选中态的主色。 */
-  /* --theme-quick-primary: var(--palette-brand); */
-
-  /* 快速套色：主按钮和重点可点击元素的悬停颜色。 */
-  /* --theme-quick-primary-hover: var(--palette-brand-hover); */
-
-  /* 快速套色：成功、在线、启用等正向状态颜色。 */
-  /* --theme-quick-success: var(--palette-success); */
-
-  /* 快速套色：提醒、等待、警告状态颜色。 */
-  /* --theme-quick-warning: var(--palette-warning); */
-
-  /* 快速套色：错误、失败、删除、危险操作颜色。 */
-  /* --theme-quick-danger: var(--palette-danger); */
-
-  /* 快速套色：当前项、选中项、今日通联的强调颜色。 */
-  /* --theme-quick-highlight-accent: var(--palette-current); */
-
-  /* 快速套色：列表行、菜单项、次要按钮悬停时的背景。 */
-  /* --theme-quick-surface-hover: var(--palette-hover); */
-
-  /* 页面底色：应用最外层背景。 */
-  /* --theme-surface-page: var(--palette-page); */
-
-  /* 容器底色：主要内容区、列表容器、页面块背景。 */
-  /* --theme-surface-container: var(--palette-container); */
-
-  /* 顶栏底色：顶部导航、页面头部区域背景。 */
-  /* --theme-surface-header: var(--palette-container); */
-
-  /* 卡片底色：卡片、弹窗主体、独立信息面板背景。 */
-  /* --theme-surface-card: var(--palette-card); */
-
-  /* 输入框底色：搜索框、文本框、表单控件背景。 */
-  /* --theme-surface-input: var(--palette-input); */
-
-  /* 悬停底色：鼠标移入可点击区域时的背景。 */
-  /* --theme-surface-hover: var(--palette-hover); */
-
-  /* 主文字：标题、正文、表格主要内容。 */
-  /* --theme-text-primary: var(--palette-text-main); */
-
-  /* 次要文字：说明、副标题、辅助字段。 */
-  /* --theme-text-secondary: var(--palette-text-subtle); */
-
-  /* 弱文字：时间、占位、低优先级提示。 */
-  /* --theme-text-muted: var(--palette-text-muted); */
-
-  /* 默认边框：卡片、输入框、按钮的常规边界。 */
-  /* --theme-border-default: var(--palette-border); */
-
-  /* 浅边框：分隔线和弱边界。 */
-  /* --theme-border-subtle: var(--palette-border-soft); */
-
-  /* 全局强调色：按钮、链接、焦点、主要操作。 */
-  /* --theme-accent-primary: var(--palette-brand); */
-
-  /* 全局强调色悬停：主要操作的悬停颜色。 */
-  /* --theme-accent-primary-hover: var(--palette-brand-hover); */
-
-  /* 全局成功色：成功提示和启用状态。 */
-  /* --theme-success: var(--palette-success); */
-
-  /* 全局警告色：警告提示和注意状态。 */
-  /* --theme-warning: var(--palette-warning); */
-
-  /* 全局危险色：错误提示、删除按钮、失败状态。 */
-  /* --theme-danger: var(--palette-danger); */
-
-  /* 当前项强调色：当前电台、今日通联、选中项的核心颜色。 */
-  /* --theme-current-highlight-accent: var(--palette-current); */
-
-  /* 当前项浅背景：当前项、今日通联的轻量背景。 */
-  /* --theme-current-highlight-bg: color-mix(in srgb, var(--theme-current-highlight-accent) 12%, var(--theme-surface-card)); */
-
-  /* 当前项备用浅背景：用于列表或容器里的弱高亮。 */
-  /* --theme-current-highlight-bg-alt: color-mix(in srgb, var(--theme-current-highlight-accent) 7%, var(--theme-surface-container)); */
-
-  /* 当前项强背景：用于更醒目的当前状态背景。 */
-  /* --theme-current-highlight-bg-strong: color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-surface-card)); */
-
-  /* 当前项边框：当前项、选中项、今日通联的边界颜色。 */
-  /* --theme-current-highlight-border: color-mix(in srgb, var(--theme-current-highlight-accent) 30%, var(--theme-border-default)); */
-
-  /* 顶部标题悬停文字：鼠标移到应用标题时的颜色。 */
-  /* --component-header-title-hover: var(--theme-current-highlight-accent); */
-
-  /* 当前电台标签背景：顶部当前电台标识的背景。 */
-  /* --component-header-station-bg: var(--theme-current-highlight-bg); */
-
-  /* 当前电台标签文字：顶部当前电台标识的文字颜色。 */
-  /* --component-header-station-text: var(--theme-current-highlight-accent); */
-
-  /* 普通按钮悬停背景：次要按钮或工具按钮悬停时的背景。 */
-  /* --component-button-hover-bg: color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-surface-container)); */
-
-  /* 普通按钮悬停边框：次要按钮或工具按钮悬停时的边框。 */
-  /* --component-button-hover-border: var(--theme-accent-primary); */
-
-  /* 普通按钮悬停文字：次要按钮或工具按钮悬停时的文字颜色。 */
-  /* --component-button-hover-text: var(--theme-accent-primary); */
-
-  /* 日志表头背景：日志表格标题行的背景。 */
-  /* --component-logs-table-header-bg: var(--palette-hover); */
-
-  /* 日志表头文字：日志表格标题行的文字颜色。 */
-  /* --component-logs-table-header-text: var(--theme-text-secondary); */
-
-  /* 电台条目悬停边框：电台列表项鼠标移入时的边框。 */
-  /* --component-station-item-hover-border: var(--theme-current-highlight-border); */
-
-  /* 电台条目选中背景：当前选中电台列表项的背景。 */
-  /* --component-station-item-active-bg: var(--theme-current-highlight-bg); */
-
-  /* 电台条目选中边框：当前选中电台列表项的边框。 */
-  /* --component-station-item-active-border: var(--theme-current-highlight-accent); */
-
-  /* 电台条目选中文字：当前选中电台列表项的文字颜色。 */
-  /* --component-station-item-active-text: var(--theme-current-highlight-accent); */
-
-  /* 筛选标签选中背景：日志筛选、状态筛选等标签被选中时的背景。 */
-  /* --component-filter-chip-active-bg: var(--theme-current-highlight-accent); */
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+  /* :root {
+    --theme-surface-accent-soft: var(
+      --theme-quick-surface-accent-soft,
+      color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-surface-container))
+    );
+    --theme-surface-success-soft: var(
+      --theme-quick-surface-success-soft,
+      color-mix(in srgb, var(--theme-success) 12%, var(--theme-surface-container))
+    );
+    --theme-surface-warning-soft: var(
+      --theme-quick-surface-warning-soft,
+      color-mix(in srgb, var(--theme-warning) 12%, var(--theme-surface-container))
+    );
+    --theme-surface-danger-soft: var(
+      --theme-quick-surface-danger-soft,
+      color-mix(in srgb, var(--theme-danger) 12%, var(--theme-surface-container))
+    );
+    --theme-current-highlight-bg: var(
+      --theme-quick-highlight-bg,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 12%, var(--theme-surface-card))
+    );
+    --theme-current-highlight-bg-alt: var(
+      --theme-quick-highlight-bg-alt,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 7%, var(--theme-surface-container))
+    );
+    --theme-current-highlight-bg-strong: var(
+      --theme-quick-highlight-bg-strong,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-surface-card))
+    );
+    --theme-current-highlight-border-soft: var(
+      --theme-quick-highlight-border-soft,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 18%, var(--theme-border-subtle))
+    );
+    --theme-current-highlight-border: var(
+      --theme-quick-highlight-border,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 30%, var(--theme-border-default))
+    );
+    --theme-current-highlight-muted: var(
+      --theme-quick-highlight-muted,
+      color-mix(in srgb, var(--theme-current-highlight-accent) 45%, var(--theme-text-muted))
+    );
+  } */
 }
-
-/*
-  深色模式可选覆盖
-
-  如果你的主题需要同时适配系统深色模式，可以取消下面变量的注释。
-  这些值只会在浏览器或系统处于深色模式时生效。
-*/
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    /* 深色页面底色：深色模式下应用最外层背景。 */
-    /* --theme-surface-page: #1a1a1a; */
+  /* :root {
+    --theme-surface-page: var(--dark-900);
+    --theme-surface-container: var(--dark-750);
+    --theme-surface-header: var(--dark-680);
+    --theme-surface-card: var(--dark-680);
+    --theme-surface-input: var(--dark-600);
+    --theme-surface-subtle: var(--dark-640);
+    --theme-surface-hover: var(--dark-700);
+    --theme-surface-striped: var(--dark-700);
+    --theme-surface-disabled: var(--dark-500);
+    --theme-surface-accent-soft: var(--dark-830);
+    --theme-surface-success-soft: var(--dark-800);
+    --theme-surface-warning-soft: var(--dark-610);
+    --theme-surface-danger-soft: var(--dark-620);
+    --theme-surface-hint-soft: var(--dark-610);
 
-    /* 深色容器底色：深色模式下主要内容区背景。 */
-    /* --theme-surface-container: #242424; */
+    --theme-text-primary: var(--dark-text-primary);
+    --theme-text-secondary: var(--neutral-300);
+    --theme-text-muted: var(--neutral-500);
+    --theme-text-disabled: var(--neutral-600);
 
-    /* 深色顶栏底色：深色模式下顶部导航背景。 */
-    /* --theme-surface-header: #2c2c2c; */
+    --theme-border-default: var(--dark-500);
+    --theme-border-subtle: var(--dark-640);
+    --theme-border-muted: var(--neutral-900);
+    --theme-border-strong: var(--dark-500);
 
-    /* 深色卡片底色：深色模式下卡片和弹窗背景。 */
-    /* --theme-surface-card: #2c2c2c; */
+    --theme-accent-primary-hover: var(--theme-accent-primary-soft);
+    --theme-success-panel-border: var(--dark-660);
+    --theme-warning-panel-border: var(--dark-660);
+    --theme-danger-hover: var(--theme-danger-soft);
 
-    /* 深色输入框底色：深色模式下输入框背景。 */
-    /* --theme-surface-input: #3a3a3a; */
+    --theme-warning-panel-bg: var(--dark-610);
+    --theme-warning-panel-border-strong: var(--dark-660);
+    --theme-success-panel-bg: var(--dark-800);
+    --theme-success-panel-bg-alt: var(--dark-850);
+    --theme-success-panel-bg-strong: var(--dark-820);
+    --theme-success-panel-border-soft: var(--dark-740);
+    --theme-success-panel-border-strong: var(--dark-660);
+    --theme-success-panel-border-bright: var(--dark-660);
 
-    /* 深色悬停底色：深色模式下鼠标移入背景。 */
-    /* --theme-surface-hover: #2a2a2a; */
+    --theme-current-highlight-bg: var(--theme-success-panel-bg);
+    --theme-current-highlight-bg-alt: var(--theme-success-panel-bg-alt);
+    --theme-current-highlight-bg-strong: var(--theme-success-panel-bg-strong);
+    --theme-current-highlight-border-soft: var(--theme-success-panel-border-soft);
+    --theme-current-highlight-border: var(--theme-success-panel-border-strong);
 
-    /* 深色主文字：深色模式下标题和正文颜色。 */
-    /* --theme-text-primary: #e8e8e8; */
+    --theme-rank-gold-bg: var(--dark-540);
+    --theme-rank-silver-bg: var(--dark-580);
+    --theme-rank-bronze-bg: var(--dark-560);
 
-    /* 深色次要文字：深色模式下说明和辅助文字颜色。 */
-    /* --theme-text-secondary: #b8b8b8; */
+    --theme-shadow-card: var(--alpha-black-30);
+    --theme-shadow-modal: var(--alpha-black-50);
+    --theme-overlay-default: var(--alpha-black-70);
+    --theme-tooltip-bg: var(--neutral-800);
+    --theme-texture-edge-fade: var(--alpha-white-15);
+    --theme-texture-stripe: var(--alpha-white-06);
+    --theme-app-edge-shadow: var(--alpha-white-15);
 
-    /* 深色弱文字：深色模式下时间、占位和提示文字颜色。 */
-    /* --theme-text-muted: #909399; */
+    --component-info-panel-bg: var(--dark-830);
+    --component-info-panel-bg-hover: var(--dark-830);
+    --component-info-panel-border: var(--theme-border-default);
+    --component-info-panel-border-soft: var(--theme-border-subtle);
+    --component-info-panel-text: var(--theme-text-secondary);
 
-    /* 深色默认边框：深色模式下常规边界颜色。 */
-    /* --theme-border-default: #404040; */
+    --component-error-panel-bg: var(--theme-surface-danger-soft);
+    --component-error-panel-border: var(--theme-border-default);
 
-    /* 深色浅边框：深色模式下分割线和弱边界。 */
-    /* --theme-border-subtle: #363636; */
-
-    /* 深色当前项浅背景：深色模式下当前项、今日通联背景。 */
-    /* --theme-current-highlight-bg: #1f3a1f; */
-
-    /* 深色当前项备用背景：深色模式下列表里的弱高亮背景。 */
-    /* --theme-current-highlight-bg-alt: #1a241a; */
-
-    /* 深色当前项强背景：深色模式下更醒目的当前状态背景。 */
-    /* --theme-current-highlight-bg-strong: #1e2e1e; */
-
-    /* 深色当前项边框：深色模式下选中项和当前项边框。 */
-    /* --theme-current-highlight-border: #2d5a2d; */
-  }
+    --component-speaking-bar-bg: var(--theme-success-panel-bg);
+    --component-speaking-bar-border: var(--theme-success-panel-border-bright);
+    --component-speaking-bar-text-accent: var(--theme-success-soft);
+    --component-speaking-bar-hover-bg: var(--theme-current-highlight-bg);
+  } */
 }

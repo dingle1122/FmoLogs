@@ -103,6 +103,7 @@ export class WebEventsService implements IEventsService {
 
     let ws: WebSocket
     try {
+      console.log(`[Events][${addressId}] opening WebSocket: ${cfg.url}`)
       ws = new WebSocket(cfg.url)
     } catch (err) {
       console.warn(`[Events][${addressId}] new WebSocket failed`, err)
@@ -112,6 +113,7 @@ export class WebEventsService implements IEventsService {
     this.connections.set(addressId, ws)
 
     ws.onopen = () => {
+      console.log(`[Events][${addressId}] WebSocket connected`)
       this.clearReconnectTimer(addressId)
       this.emitStatus(addressId, 'connected')
       this.startServerInfoPolling(addressId)
@@ -120,6 +122,7 @@ export class WebEventsService implements IEventsService {
       this.emitMessage(addressId, String(ev.data))
     }
     ws.onclose = () => {
+      console.warn(`[Events][${addressId}] WebSocket closed`)
       this.stopServerInfoPolling(addressId)
       if (this.manualDisconnect.has(addressId)) {
         this.emitStatus(addressId, 'disconnected')
@@ -129,7 +132,7 @@ export class WebEventsService implements IEventsService {
       }
     }
     ws.onerror = () => {
-      /* onclose 会接管 */
+      console.warn(`[Events][${addressId}] WebSocket error`)
     }
   }
 
@@ -180,6 +183,7 @@ export class WebEventsService implements IEventsService {
       await client.connect()
       const data = await client.getCurrentStation()
       if (data && data.uid) {
+        console.log(`[Events][${addressId}] getCurrentStation uid=${data.uid} name=${data.name || ''}`)
         this.emitServerInfo(addressId, { uid: data.uid, name: data.name || '' })
       }
     } catch (err: any) {

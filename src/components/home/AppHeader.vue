@@ -214,7 +214,9 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   border: 1px solid var(--border-light);
   cursor: pointer;
   transition: all 0.2s;
+  flex: 0 1 10rem;
   flex: 0 1 clamp(7.5rem, 16vw, 14rem);
+  width: 10rem;
   width: clamp(7.5rem, 16vw, 14rem);
   min-width: 7.5rem;
   max-width: 14rem;
@@ -392,7 +394,9 @@ defineEmits(['open-nav-menu', 'open-channel-list'])
   }
 
   .station-tag {
+    flex-basis: 8.5rem;
     flex-basis: clamp(7rem, 28vw, 10rem);
+    width: 8.5rem;
     width: clamp(7rem, 28vw, 10rem);
     min-width: 7rem;
     max-width: 10rem;

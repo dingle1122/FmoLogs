@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 // @ts-ignore - legacy JS
-import { normalizeHost } from '../utils/urlUtils'
+import { buildWebSocketUrl } from '../utils/urlUtils'
 // @ts-ignore - legacy JS
 import { gridToAddress } from '../services/gridService'
 import { getPlatform } from '../platform'
@@ -460,11 +460,10 @@ export const useSpeakingStatusStore = defineStore('speakingStatus', () => {
 
   // ========== 公共 actions ==========
   function buildWsUrl(host: string, protocol: string) {
-    const normalizedHost = normalizeHost(host)
     return {
-      wsUrl: `${protocol}://${normalizedHost}/events`,
+      wsUrl: buildWebSocketUrl(host, '/events', protocol),
       // 完整的 station WebSocket URL，调用端直接使用，不再自行拼接 /ws
-      apiUrl: `${protocol}://${normalizedHost}/ws`
+      apiUrl: buildWebSocketUrl(host, '/ws', protocol)
     }
   }
 

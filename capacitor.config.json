@@ -7,7 +7,7 @@
     "androidScheme": "http"
   },
   "android": {
-    "minWebViewVersion": 55,
+    "minWebViewVersion": 51,
     "buildOptions": {
       "keystorePath": "",
       "keystorePassword": "",
