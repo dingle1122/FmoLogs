@@ -11,6 +11,7 @@ import {
 import { FmoApiClient } from '../services/fmoApi'
 // @ts-ignore - legacy JS
 import {
+  buildHttpUrl,
   buildWebSocketUrl,
   normalizeHost,
   normalizeWebSocketEndpoint
@@ -1027,15 +1028,7 @@ export const useSettingsStore = defineStore('settings', () => {
   async function backupLogs() {
     if (!fmoAddress.value) return
 
-    let address = fmoAddress.value.trim()
-    const httpProtocol = protocol.value === 'wss' ? 'https' : 'http'
-
-    if (!address.startsWith('http://') && !address.startsWith('https://')) {
-      address = `${httpProtocol}://${address}`
-    }
-    address = address.replace(/\/+$/, '')
-
-    const url = `${address}/api/qso/backup`
+    const url = buildHttpUrl(`${protocol.value}://${fmoAddress.value}`, '/api/qso/backup')
     return await downloadRemoteFile(url, `fmo-backup-${Date.now()}.db`)
   }
 

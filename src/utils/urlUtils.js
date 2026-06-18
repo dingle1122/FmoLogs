@@ -48,6 +48,22 @@ export function buildWebSocketUrl(address, path = '/ws', fallbackProtocol = 'ws'
   return `${protocol}://${host}${normalizedPath}`
 }
 
+export function resolveHttpProtocol(addressOrProtocol, fallback = 'http') {
+  const wsProtocol = resolveWebSocketProtocol(addressOrProtocol, fallback)
+  return wsProtocol === 'wss' ? 'https' : 'http'
+}
+
+export function buildHttpUrl(address, path = '', fallbackProtocol = 'http') {
+  const host = normalizeHost(address)
+  const protocol = resolveHttpProtocol(address, fallbackProtocol)
+  const normalizedPath = path ? `/${String(path).replace(/^\/+/, '')}` : ''
+
+  if (!normalizedPath || host.endsWith(normalizedPath)) {
+    return `${protocol}://${host}`
+  }
+  return `${protocol}://${host}${normalizedPath}`
+}
+
 export function normalizeWebSocketEndpoint(address, fallbackProtocol = 'ws') {
   return {
     host: normalizeHost(address),

@@ -8,12 +8,18 @@
  * 所有函数接受 client (FmoApiClient) 作为入参，由编排层负责创建与关闭。
  */
 
+import { Capacitor } from '@capacitor/core'
 // @ts-ignore - legacy JS
 import {
+  importDbFilesToIndexedDB,
   isQsoExistsInIndexedDB,
   saveSingleQsoToIndexedDB
   // @ts-ignore
 } from '../../services/db'
+// @ts-ignore - legacy JS
+import { downloadRemoteFileData } from '../../utils/exportFile'
+// @ts-ignore - legacy JS
+import { buildHttpUrl } from '../../utils/urlUtils'
 
 export interface SyncFailedRecord {
   logId: any
@@ -38,6 +44,15 @@ function noop() {
 }
 function never() {
   return false
+}
+
+function isSQLiteDatabase(data: Uint8Array): boolean {
+  const header = 'SQLite format 3'
+  if (!data || data.length < header.length) return false
+  for (let i = 0; i < header.length; i++) {
+    if (data[i] !== header.charCodeAt(i)) return false
+  }
+  return true
 }
 
 /** 获取 N 天前 UTC 零点时间戳（单位秒） */
@@ -251,9 +266,9 @@ export async function syncIncrementalForAddress(
 }
 
 /**
- * 全量同步：分页遍历所有日志，用 FMO 数据覆盖本地。
+ * 浏览器全量同步：保留 WebSocket RPC 路径，避免浏览器直接下载数据库文件遇到 CORS。
  */
-export async function syncFullForAddress(
+async function syncFullViaWebSocketForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
@@ -326,4 +341,72 @@ export async function syncFullForAddress(
   }
 
   return { totalSynced, totalProcessed }
+}
+
+/**
+ * Android 全量同步：直接下载 FMO 日志数据库文件并导入，用 FMO 数据覆盖本地同 key 记录。
+ */
+async function syncFullViaDbBackupForAddress(
+  client: any,
+  ctx: SyncContext
+): Promise<{ totalSynced: number; totalProcessed: number }> {
+  const currentFromCallsign = ctx.currentFromCallsign || ''
+  const statusCallback = ctx.statusCallback ?? noop
+  const isAborted = ctx.isAborted ?? never
+
+  if (isAborted()) {
+    return { totalSynced: 0, totalProcessed: 0 }
+  }
+
+  const url = buildHttpUrl(client.baseUrl, '/api/qso/backup')
+  statusCallback('正在下载 FMO 数据库文件...')
+
+  let downloaded: { data: Uint8Array }
+  try {
+    downloaded = await downloadRemoteFileData(url)
+  } catch (err: any) {
+    throw new Error(`下载 FMO 数据库失败: ${err?.message || String(err)}`)
+  }
+  if (!isSQLiteDatabase(downloaded.data)) {
+    throw new Error('下载的文件不是有效的 SQLite 数据库')
+  }
+
+  if (isAborted()) {
+    return { totalSynced: 0, totalProcessed: 0 }
+  }
+
+  statusCallback('正在导入数据库文件...')
+  const result = await importDbFilesToIndexedDB(
+    [
+      {
+        name: `fmo-backup-${Date.now()}.db`,
+        data: downloaded.data
+      }
+    ],
+    (progress: any) => {
+      if (isAborted()) return
+      statusCallback(`正在导入 ${progress.callsign}：${progress.current}/${progress.total}`)
+    },
+    currentFromCallsign ? { fromCallsign: currentFromCallsign } : {}
+  )
+
+  return {
+    totalSynced: result.totalRecords || 0,
+    totalProcessed: result.totalRecords || 0
+  }
+}
+
+/**
+ * 全量同步：
+ * - Android 客户端：下载 FMO 数据库文件后导入，减少接口调用。
+ * - 浏览器：继续走 WebSocket RPC，避免跨域下载数据库文件。
+ */
+export async function syncFullForAddress(
+  client: any,
+  ctx: SyncContext
+): Promise<{ totalSynced: number; totalProcessed: number }> {
+  if (Capacitor.getPlatform() === 'android') {
+    return syncFullViaDbBackupForAddress(client, ctx)
+  }
+  return syncFullViaWebSocketForAddress(client, ctx)
 }

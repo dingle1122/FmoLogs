@@ -516,11 +516,12 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
 }
 
 // 将db文件数据导入到IndexedDB
-export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
+export async function importDbFilesToIndexedDB(dbFiles, onProgress = null, options = {}) {
   await initSQL()
 
   // 解析SQLite文件
   const allRecords = []
+  const fromCallsignFilter = options?.fromCallsign || ''
 
   for (const file of dbFiles) {
     try {
@@ -536,7 +537,9 @@ export async function importDbFilesToIndexedDB(dbFiles, onProgress = null) {
           columns.forEach((col, index) => {
             record[col] = row[index]
           })
-          allRecords.push(record)
+          if (!fromCallsignFilter || record.fromCallsign === fromCallsignFilter) {
+            allRecords.push(record)
+          }
         }
       }
       db.close()

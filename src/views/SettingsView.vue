@@ -907,7 +907,7 @@ async function handleSyncFull() {
   // 多选模式且选中多个地址
   if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
     const confirmed = await confirmDialog.show(
-      `确定要对选中的 ${props.selectedAddressIds.length} 个地址执行全量同步吗？将用各FMO服务器的数据完全替换本地数据库中的所有记录。`
+      `确定要对选中的 ${props.selectedAddressIds.length} 个地址执行全量同步吗？将从各FMO服务器下载数据库文件并导入，覆盖本地相同记录。`
     )
     if (confirmed) {
       emit('sync-multiple', { syncType: 'full', days: 1 })
@@ -916,7 +916,7 @@ async function handleSyncFull() {
   }
   // 单选模式
   const confirmed = await confirmDialog.show(
-    '确定要执行全量同步吗？将用FMO服务器的数据完全替换本地数据库中的所有记录。'
+    '确定要执行全量同步吗？将从FMO服务器下载数据库文件并导入，覆盖本地相同记录。'
   )
   if (confirmed) {
     emit('sync-full')

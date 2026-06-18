@@ -45,6 +45,15 @@ function downloadInBrowser(filename, blob) {
   URL.revokeObjectURL(url)
 }
 
+function base64ToUint8Array(base64) {
+  const binary = atob(base64 || '')
+  const data = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    data[i] = binary.charCodeAt(i)
+  }
+  return data
+}
+
 /**
  * 将入参统一转换为 Blob
  */
@@ -188,13 +197,51 @@ export async function downloadRemoteFile(url, fallbackFilename) {
   const headers = httpResponse.headers || {}
   const filename = parseFilenameFromHeaders(headers, fallbackFilename)
 
-  const base64 = httpResponse.data || ''
-  const binary = atob(base64)
-  const data = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) {
-    data[i] = binary.charCodeAt(i)
-  }
+  const data = base64ToUint8Array(httpResponse.data || '')
   const mimeType = headers['Content-Type'] || headers['content-type'] || 'application/octet-stream'
 
   return await exportFile(filename, data, mimeType)
+}
+
+/**
+ * 跨平台下载远程文件到内存。
+ * - Web：走 fetch，需要目标服务允许当前页面访问。
+ * - Android/iOS：走 CapacitorHttp，避免 WebView CORS 限制。
+ *
+ * @param {string} url 远程 URL
+ * @returns {Promise<{data: Uint8Array, headers: Record<string,string>, status: number}>}
+ */
+export async function downloadRemoteFileData(url) {
+  const platform = Capacitor.getPlatform()
+
+  if (platform === 'web') {
+    const response = await fetch(url, { cache: 'no-store', credentials: 'include' })
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+    return {
+      data: new Uint8Array(await response.arrayBuffer()),
+      headers: Object.fromEntries(response.headers.entries()),
+      status: response.status
+    }
+  }
+
+  const httpResponse = await CapacitorHttp.request({
+    method: 'GET',
+    url,
+    responseType: 'blob',
+    headers: {
+      'Cache-Control': 'no-cache'
+    }
+  })
+
+  if (httpResponse.status < 200 || httpResponse.status >= 300) {
+    throw new Error(`HTTP ${httpResponse.status}`)
+  }
+
+  return {
+    data: base64ToUint8Array(httpResponse.data || ''),
+    headers: httpResponse.headers || {},
+    status: httpResponse.status
+  }
 }
