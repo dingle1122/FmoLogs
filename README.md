@@ -132,56 +132,45 @@ npm run preview
 
 ```
 src/
-├── components/              # Vue 组件
-│   ├── common/             # 通用组件
-│   │   ├── ConfirmDialog.vue    # 确认对话框
-│   │   ├── DatePicker.vue       # 日期选择器
-│   │   ├── StatusHints.vue      # 状态提示
-│   │   └── ToastContainer.vue   # Toast 提示容器
-│   └── home/               # 主页组件
-│       ├── AppHeader.vue        # 应用头部
-│       ├── LogDataTable.vue     # 日志数据表格
-│       ├── OldFriendsList.vue   # 老朋友列表
-│       ├── PaginationControl.vue # 分页控制
-│       ├── QuerySection.vue     # 查询区域
-│       ├── SpeakingBar.vue      # 发言状态栏
-│       ├── StationControl.vue   # 站点控制
-│       ├── Top20Summary.vue     # 排行榜统计
-│       ├── constants.js         # 常量定义
-│       └── modals/             # 弹窗组件
-│           ├── AprsRemoteControl.vue    # APRS 远程控制
-│           ├── CallsignRecordsModal.vue # 呼号记录弹窗
-│           ├── DetailModal.vue          # 详情弹窗
-│           ├── SettingsModal.vue        # 设置弹窗
-│           ├── SpeakingHistoryModal.vue # 发言历史弹窗
-│           └── StationListModal.vue     # 服务器列表弹窗
-├── composables/            # 组合式 API（业务逻辑）
-│   ├── useAprsControl.js    # APRS 远程控制
-│   ├── useConfirm.js        # 确认对话框
-│   ├── useDataQuery.js      # 数据查询
-│   ├── useDbManager.js      # 数据库管理
-│   ├── useFmoSync.js        # FMO 同步
-│   ├── useSettings.js       # 应用设置
-│   ├── useSpeakingStatus.js # 发言状态
-│   └── useToast.js          # 提示消息
-├── services/               # 服务层
-│   ├── db.js               # IndexedDB 操作
-│   └── fmoApi.js           # FMO API 封装
-├── stores/                 # Pinia 状态管理
-├── router/                 # 路由配置
-├── utils/                  # 工具函数
-└── views/                  # 页面视图
-    ├── MainLayout.vue      # 主布局
-    ├── LogsView.vue        # 通联日志页
-    ├── Top20View.vue       # 排行榜页
-    └── OldFriendsView.vue  # 老朋友页
+├── adif/                  # ADIF 解析与格式化
+├── components/            # Vue 组件
+│   ├── common/            # 通用控件、弹框、提示组件
+│   └── home/              # 日志页、排行榜、老朋友等业务组件
+│       └── modals/        # APRS 远控、呼号记录、服务器列表等弹窗
+├── composables/           # 少量可复用组合式逻辑
+├── core/                  # APRS、网格校验、同步引擎等核心逻辑
+│   └── sync/              # FMO 日志同步实现
+├── data/                  # 静态数据
+├── platform/              # Web / Android Capacitor 平台抽象
+│   ├── interfaces/        # 平台能力接口
+│   ├── native-capacitor/  # Android 原生插件适配
+│   ├── types/             # 平台共享类型
+│   └── web/               # Web / Tauri 实现
+├── router/                # Vue Router 路由配置
+├── services/              # 数据库、FMO API、音频、消息、更新等服务
+├── stores/                # Pinia 状态管理
+├── styles/                # 主题与样式覆盖
+├── utils/                 # URL、导出、视口、主题等工具函数
+└── views/                 # 页面视图和主布局
 ```
 
 ## 🙏 特别感谢
 
 - **BG5ESN**：提供完美的 FMO 硬件平台
 - **BG9JYT**：提供甘肃集群服务器，并提供被控支持
-- **BG2LRU、BD6JDU、BI3SQP 等各位友台**：提供宝贵的想法和建议
+- **BG2LRU**：提供宝贵的想法和建议
+- **BD6JDU**：页面美化建议
+- **BI3SQP**：提供宝贵的想法和建议
+- **BG9JQD**：提供老朋友排序显示和信道列表显示方式的建议
+- **BI4TKL**：提供服务器收藏列表建议和打赏
+- **BG9GOK**：提供页面美化建议
+
+## ☕ 赞助名单
+
+- **BG9JYT**
+- **BI4TKL**
+- **BG9JQD**
+- **BG9JLV**
 
 ## 📄 开源许可
 
@@ -189,7 +178,7 @@ src/
 
 ## 👨‍💻 贡献者
 
-- **BH5HSJ 后视镜**：项目创建与主要开发
-- **BG9JYT**：APRS 远程控制功能开发
+- **BH5HSJ 后视镜**：项目创建、主要开发与维护
+- **BG9JYT**：APRS 远程控制功能开发与被控支持
 
 欢迎提交 Issue 和 Pull Request！
