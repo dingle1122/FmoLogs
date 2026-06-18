@@ -1658,8 +1658,9 @@ watch(
 
 .coordinate-content {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  column-gap: 0.2rem;
   min-width: 0;
   padding-right: 1.6rem;
   color: var(--text-secondary);
@@ -1671,9 +1672,7 @@ watch(
 }
 
 .coordinate-row {
-  display: grid;
-  grid-template-columns: max-content auto max-content;
-  column-gap: 0.2rem;
+  display: contents;
 }
 
 .coordinate-row span:first-child {
