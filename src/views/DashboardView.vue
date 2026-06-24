@@ -59,7 +59,7 @@
                   "
                   class="speaker-contact-star"
                 >
-                  <img src="/img/star_2b50.png" alt="" />
+                  <img src="/img/star_2b50.webp" alt="" />
                 </span>
               </span>
             </div>
@@ -446,7 +446,7 @@
                   "
                   class="event-contact-star"
                 >
-                  <img src="/img/star_2b50.png" alt="" />
+                  <img src="/img/star_2b50.webp" alt="" />
                 </span>
               </div>
               <span class="event-address">{{ historyAddressMap[event.callsign] || '' }}</span>
@@ -530,7 +530,7 @@
                   "
                   class="history-contact-star"
                 >
-                  <img class="star-img" src="/img/star_2b50.png" alt="" />
+                  <img class="star-img" src="/img/star_2b50.webp" alt="" />
                 </span>
               </div>
 

@@ -56,7 +56,7 @@
                         <img
                           v-if="todayContactedCallsigns.has(record.callsign)"
                           class="today-star-icon"
-                          src="/img/star_2b50.png"
+                          src="/img/star_2b50.webp"
                           alt="今日已通联"
                         />
                         <template v-else>&#9733;</template>

@@ -7,7 +7,7 @@
       <div class="header-meta">
         <span class="total-logs">
           <strong>
-            <img class="total-logs-star" src="/img/star_2b50.png" alt="今日日志" />
+            <img class="total-logs-star" src="/img/star_2b50.webp" alt="今日日志" />
             {{ todayLogs }}/{{ totalLogs }}
           </strong>
           <template v-if="uniqueCallsigns > 0">
