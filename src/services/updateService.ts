@@ -1,7 +1,8 @@
-import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core'
+import { CapacitorHttp, registerPlugin } from '@capacitor/core'
 import { reactive } from 'vue'
 import confirmDialog from '../composables/useConfirm'
 import toast from '../composables/useToast'
+import { isAndroidNativeRuntimeAvailable } from '../platform/runtime'
 
 interface CurrentVersion {
   versionName: string
@@ -56,7 +57,7 @@ export const updateState = reactive({
 })
 
 function isAndroidNative(): boolean {
-  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+  return isAndroidNativeRuntimeAvailable()
 }
 
 function getManifestUrl(): string {

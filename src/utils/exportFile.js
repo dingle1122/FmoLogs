@@ -5,9 +5,10 @@
  *   如需分享，可调用单独导出的 shareFile() 发起系统分享
  */
 
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { CapacitorHttp } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
+import { getEffectivePlatform } from '../platform/runtime'
 
 // 原生端统一写入到 Documents/FmoLogs 子目录，便于用户查找
 const NATIVE_SUBDIR = 'FmoLogs'
@@ -75,7 +76,7 @@ function toBlob(data, mimeType) {
  *   - uri: 原生端的文件 URI，可用于后续分享
  */
 export async function exportFile(filename, data, mimeType) {
-  const platform = Capacitor.getPlatform() // 'web' | 'android' | 'ios'
+  const platform = getEffectivePlatform()
 
   // ========== Web 端：保持原有浏览器下载体验 ==========
   if (platform === 'web') {
@@ -172,7 +173,7 @@ function parseFilenameFromHeaders(headers, fallback) {
  * @returns {Promise<{platform: string, savedPath?: string, uri?: string, displayPath?: string}|undefined>}
  */
 export async function downloadRemoteFile(url, fallbackFilename) {
-  const platform = Capacitor.getPlatform()
+  const platform = getEffectivePlatform()
 
   if (platform === 'web') {
     const link = document.createElement('a')
@@ -212,7 +213,7 @@ export async function downloadRemoteFile(url, fallbackFilename) {
  * @returns {Promise<{data: Uint8Array, headers: Record<string,string>, status: number}>}
  */
 export async function downloadRemoteFileData(url) {
-  const platform = Capacitor.getPlatform()
+  const platform = getEffectivePlatform()
 
   if (platform === 'web') {
     const response = await fetch(url, { cache: 'no-store', credentials: 'include' })

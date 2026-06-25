@@ -8,7 +8,7 @@
  * 所有函数接受 client (FmoApiClient) 作为入参，由编排层负责创建与关闭。
  */
 
-import { Capacitor } from '@capacitor/core'
+import { getEffectivePlatform } from '../../platform/runtime'
 // @ts-ignore - legacy JS
 import {
   importDbFilesToIndexedDB,
@@ -405,7 +405,7 @@ export async function syncFullForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
-  if (Capacitor.getPlatform() === 'android') {
+  if (getEffectivePlatform() === 'android') {
     return syncFullViaDbBackupForAddress(client, ctx)
   }
   return syncFullViaWebSocketForAddress(client, ctx)

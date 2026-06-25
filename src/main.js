@@ -1,11 +1,10 @@
-import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import pinia from './stores'
 import { useLocationStore } from './stores/locationStore'
-import { getPlatform } from './platform'
+import { getPlatform, isAndroidNativeRuntimeAvailable } from './platform'
 import { applySafeAreaInsets } from './platform/native-capacitor/SystemUiService.native'
 import { applyViewportCssVars } from './utils/viewport'
 import {
@@ -20,7 +19,7 @@ applyViewportCssVars()
 
 // Android 原生平台：由原生插件按系统版本决定是否写入安全区。
 // Android 7 等非 edge-to-edge 系统不额外预留上下安全区。
-if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') {
+if (isAndroidNativeRuntimeAvailable()) {
   applySafeAreaInsets()
 }
 
@@ -33,7 +32,7 @@ app.use(pinia)
 app.use(router)
 
 // 深度链接：点击定位上报通知直接打开自动定位页面
-if (Capacitor.isNativePlatform()) {
+if (isAndroidNativeRuntimeAvailable()) {
   CapacitorApp.addListener('appUrlOpen', (data) => {
     try {
       const url = new URL(data.url)

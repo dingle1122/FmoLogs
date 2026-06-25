@@ -213,7 +213,6 @@ import SvgIcon from '../components/common/SvgIcon.vue'
 
 // Composables
 import { storeToRefs } from 'pinia'
-import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { useSpeakingStatusStore } from '../stores/speakingStore'
 import { useSyncStore } from '../stores/syncStore'
@@ -235,6 +234,7 @@ import { normalizeHost } from '../utils/urlUtils'
 import { NAV_ROUTES } from '../components/home/constants'
 import { getMessageService } from '../services/messageService'
 import packageInfo from '../../package.json'
+import { isAndroidNativeRuntimeAvailable } from '../platform/runtime'
 
 // 路由
 const route = useRoute()
@@ -243,7 +243,7 @@ const router = useRouter()
 // UI 状态
 const showSpeakingHistory = ref(false)
 const fileInputRef = ref(null)
-const fileInputAccept = Capacitor.getPlatform() === 'android' ? '*/*' : '.db,.adi,.adif'
+const fileInputAccept = isAndroidNativeRuntimeAvailable() ? '*/*' : '.db,.adi,.adif'
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
 const isDashboardFullscreen = ref(false)
@@ -1432,7 +1432,7 @@ onMounted(async () => {
   contentAreaRef.value?.addEventListener('scroll', handleScroll, { passive: true })
 
   // 注册安卓硬件返回键监听（仅原生平台）
-  if (Capacitor.isNativePlatform()) {
+  if (isAndroidNativeRuntimeAvailable()) {
     try {
       backButtonListener = await CapacitorApp.addListener('backButton', handleHardwareBack)
     } catch (err) {
