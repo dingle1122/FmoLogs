@@ -1891,11 +1891,7 @@ watch(
 }
 
 .dashboard-hero.self-speaking:not(.active) {
-  background: linear-gradient(
-    270deg,
-    var(--dashboard-self-speaking-bg),
-    var(--bg-card)
-  );
+  background: linear-gradient(270deg, var(--dashboard-self-speaking-bg), var(--bg-card));
 }
 
 .dashboard-hero::before {
@@ -2191,17 +2187,23 @@ watch(
 }
 
 .geo-block {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
+  align-self: flex-start;
   column-gap: 0.45rem;
+  width: 100%;
   min-width: 0;
   padding: 0;
   border: 0;
   background: transparent;
+  text-align: left;
 }
 
 .geo-block strong {
+  display: block;
+  min-width: 0;
   margin-top: 0;
   color: var(--text-tertiary);
   font-size: 1.02rem;

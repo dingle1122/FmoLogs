@@ -94,6 +94,9 @@ const showCoffee = ref(false)
 
 <style scoped>
 .about-view {
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -105,10 +108,11 @@ const showCoffee = ref(false)
   font-weight: 700;
   color: var(--text-primary);
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin: 0 0 1.5rem;
 }
 
 .about-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -183,6 +187,8 @@ const showCoffee = ref(false)
 }
 
 .about-thanks {
+  flex-shrink: 0;
+  box-sizing: border-box;
   width: 100%;
   max-width: 500px;
   margin-bottom: 1.25rem;
@@ -218,6 +224,8 @@ const showCoffee = ref(false)
 }
 
 .about-coffee {
+  flex-shrink: 0;
+  box-sizing: border-box;
   width: 100%;
   max-width: 500px;
   margin-bottom: 1.25rem;
@@ -289,6 +297,8 @@ const showCoffee = ref(false)
 }
 
 .about-sponsors {
+  flex-shrink: 0;
+  box-sizing: border-box;
   width: 100%;
   max-width: 500px;
   margin-bottom: 1.25rem;
@@ -319,10 +329,91 @@ const showCoffee = ref(false)
 }
 
 .about-footer {
+  flex-shrink: 0;
   text-align: center;
   font-size: 0.8rem;
   color: var(--text-tertiary);
   margin-top: auto;
   padding-top: 0.75rem;
+}
+
+.about-footer p {
+  margin: 0.25rem 0;
+}
+
+@media (max-width: 760px) {
+  .about-view {
+    padding: 0.75rem;
+  }
+
+  .page-title {
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+  }
+
+  .about-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .about-left {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .about-logo {
+    width: 48px;
+    height: 48px;
+  }
+
+  .about-title {
+    font-size: 1.2rem;
+  }
+
+  .about-description {
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  .about-thanks,
+  .about-coffee {
+    margin-bottom: 1rem;
+    border-radius: 10px;
+  }
+
+  .about-thanks {
+    padding: 0.85rem;
+  }
+
+  .thanks-title {
+    margin-bottom: 0.75rem;
+  }
+
+  .thanks-item {
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+
+  .coffee-content {
+    padding: 0 0.75rem 1rem;
+  }
+
+  .coffee-qrcode-list {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .coffee-qrcode-wrap {
+    width: 112px;
+    height: 112px;
+  }
+
+  .about-sponsors {
+    margin-bottom: 1rem;
+  }
 }
 </style>

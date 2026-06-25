@@ -174,9 +174,13 @@ watch(() => props.oldFriendsAllData, loadGridAddresses, { immediate: true, deep:
 const containerRef = ref(null)
 const loadMoreRef = ref(null)
 let observer = null
+let scrollRoot = null
 
 function setupObserver() {
   if (!loadMoreRef.value) return
+
+  scrollRoot = loadMoreRef.value.closest('.content-area')
+  scrollRoot?.addEventListener('scroll', handleScrollLoad, { passive: true })
 
   observer = new IntersectionObserver(
     (entries) => {
@@ -186,15 +190,27 @@ function setupObserver() {
       }
     },
     {
-      root: containerRef.value,
+      root: scrollRoot || null,
       rootMargin: '100px',
       threshold: 0
     }
   )
   observer.observe(loadMoreRef.value)
+  setTimeout(handleScrollLoad, 0)
+}
+
+function handleScrollLoad() {
+  if (!scrollRoot || !props.hasMore || props.loadingMore) return
+
+  const remaining = scrollRoot.scrollHeight - scrollRoot.scrollTop - scrollRoot.clientHeight
+  if (remaining <= 100) {
+    emit('load-more')
+  }
 }
 
 function cleanupObserver() {
+  scrollRoot?.removeEventListener('scroll', handleScrollLoad)
+  scrollRoot = null
   if (observer) {
     observer.disconnect()
     observer = null

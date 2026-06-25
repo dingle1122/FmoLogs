@@ -100,7 +100,7 @@
                   <div class="callsign-main">
                     <span class="callsign-text">{{ row.toCallsign }}</span>
                     <span v-if="contactCounts.get(row.toCallsign)" class="contact-count">
-                    &nbsp;x{{ contactCounts.get(row.toCallsign) }}
+                      &nbsp;x{{ contactCounts.get(row.toCallsign) }}
                     </span>
                   </div>
                   <div v-if="row.toGrid || gridAddressMap[row.toGrid]" class="callsign-grid">
@@ -203,6 +203,7 @@ watch(() => props.queryResult, loadGridAddresses, { immediate: true, deep: true 
 const resultSectionRef = ref(null)
 const loadMoreRef = ref(null)
 let observer = null
+let scrollRoot = null
 
 function isMobile() {
   return window.innerWidth <= 760
@@ -210,6 +211,9 @@ function isMobile() {
 
 function setupObserver() {
   if (!isMobile() || !loadMoreRef.value) return
+
+  scrollRoot = loadMoreRef.value.closest('.content-area')
+  scrollRoot?.addEventListener('scroll', handleScrollLoad, { passive: true })
 
   observer = new IntersectionObserver(
     (entries) => {
@@ -219,15 +223,27 @@ function setupObserver() {
       }
     },
     {
-      root: isMobile() ? null : resultSectionRef.value,
+      root: scrollRoot || null,
       rootMargin: '100px',
       threshold: 0
     }
   )
   observer.observe(loadMoreRef.value)
+  setTimeout(handleScrollLoad, 0)
+}
+
+function handleScrollLoad() {
+  if (!scrollRoot || !props.hasMore || props.loadingMore) return
+
+  const remaining = scrollRoot.scrollHeight - scrollRoot.scrollTop - scrollRoot.clientHeight
+  if (remaining <= 100) {
+    emit('load-more')
+  }
 }
 
 function cleanupObserver() {
+  scrollRoot?.removeEventListener('scroll', handleScrollLoad)
+  scrollRoot = null
   if (observer) {
     observer.disconnect()
     observer = null

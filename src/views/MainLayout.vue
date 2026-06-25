@@ -53,6 +53,7 @@
       class="content-area"
       :class="{ 'pull-snapping': !isPullTracking && !isRefreshing }"
       :style="supportsPullToRefresh ? { transform: `translateY(${pullDistance}px)` } : {}"
+      @scroll.capture.passive="handleScroll"
       @touchstart="handleTouchStart"
       @touchmove="handleTouchMove"
       @touchend="handleTouchEnd"
@@ -246,6 +247,7 @@ const fileInputRef = ref(null)
 const fileInputAccept = isAndroidNativeRuntimeAvailable() ? '*/*' : '.db,.adi,.adif'
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
+let activeScrollElement = null
 const isDashboardFullscreen = ref(false)
 let scrollTimer = null
 
@@ -745,17 +747,27 @@ async function handleStationSelect(uid) {
 }
 
 // 回到顶部 - 带防抖的滚动处理
-function handleScroll() {
+function handleScroll(event) {
+  const eventTarget = event?.target
+  const scrollElement =
+    eventTarget &&
+    typeof eventTarget.scrollTop === 'number' &&
+    contentAreaRef.value?.contains(eventTarget)
+      ? eventTarget
+      : contentAreaRef.value
+
+  activeScrollElement = scrollElement
   if (scrollTimer) clearTimeout(scrollTimer)
   scrollTimer = setTimeout(() => {
-    if (contentAreaRef.value) {
-      showBackToTop.value = contentAreaRef.value.scrollTop > 200
-    }
+    showBackToTop.value = (scrollElement?.scrollTop || 0) > 200
   }, 100)
 }
 
 function scrollToTop() {
-  contentAreaRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
+  const scrollElement = activeScrollElement || contentAreaRef.value
+  if (scrollElement) {
+    scrollElement.scrollTop = 0
+  }
 }
 
 async function handleShowCallsignRecords(payload) {
@@ -1428,9 +1440,6 @@ async function handleStationRefresh() {
 
 // 生命周期
 onMounted(async () => {
-  // 回到顶部滚动监听
-  contentAreaRef.value?.addEventListener('scroll', handleScroll, { passive: true })
-
   // 注册安卓硬件返回键监听（仅原生平台）
   if (isAndroidNativeRuntimeAvailable()) {
     try {
@@ -1474,7 +1483,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (scrollTimer) clearTimeout(scrollTimer)
-  contentAreaRef.value?.removeEventListener('scroll', handleScroll)
 
   // 移除返回键监听
   if (backButtonListener) {
