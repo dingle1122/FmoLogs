@@ -484,7 +484,9 @@ const updateMessage = computed(() => updateState.message || '')
 const updatePercent = computed(() => updateState.percent || 0)
 const currentAppVersion = computed(() => `v${packageInfo.version}`)
 const updateStatusText = computed(() => {
+  if (updateState.status === 'web-download') return '下载中'
   if (updateState.downloadable) return '已下载'
+  if (updateState.phase === 'downloaded') return '已下载'
   if (updateState.phase === 'installing') return '正在安装'
   if (updateState.phase === 'downloading') return '正在下载'
   return '待开始'

@@ -90,6 +90,7 @@ public class FmoUpdaterPlugin extends Plugin {
                 JSObject ret = new JSObject();
                 ret.put("path", apkFile.getAbsolutePath());
                 call.resolve(ret);
+                mainHandler.post(() -> installApk(apkFile));
             } catch (Exception e) {
                 Log.e(TAG, "downloadAndInstall failed", e);
                 call.reject(e.getMessage() == null ? "downloadAndInstall failed" : e.getMessage());
@@ -204,8 +205,9 @@ public class FmoUpdaterPlugin extends Plugin {
                 apkFile
         );
 
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setDataAndType(uri, "application/vnd.android.package-archive");
+        Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+        intent.setData(uri);
+        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         getContext().startActivity(intent);
