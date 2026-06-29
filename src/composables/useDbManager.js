@@ -117,18 +117,23 @@ export function useDbManager() {
     try {
       // 验证文件类型
       const validFiles = []
-      for (const file of files) {
-        const name = file.name.toLowerCase()
-        if (name.endsWith('.db') || name.endsWith('.adi') || name.endsWith('.adif')) {
-          validFiles.push(file)
-        }
+    for (const file of files) {
+      const name = file.name.toLowerCase()
+      if (
+        name.endsWith('.db') ||
+        name.endsWith('.zip') ||
+        name.endsWith('.adi') ||
+        name.endsWith('.adif')
+      ) {
+        validFiles.push(file)
       }
+    }
 
-      if (validFiles.length === 0) {
-        error.value = '所选文件中没有有效的 .db 或 .adi/.adif 文件'
-        loading.value = false
-        return false
-      }
+    if (validFiles.length === 0) {
+      error.value = '所选文件中没有有效的 .db/.zip 或 .adi/.adif 文件'
+      loading.value = false
+      return false
+    }
 
       // .db 文件需要先通过 loadDbFilesFromFileList 验证
       const dbFiles = await loadDbFilesFromFileList(validFiles)

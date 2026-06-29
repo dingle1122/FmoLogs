@@ -6,6 +6,12 @@ import { exportFile } from '../utils/exportFile.js'
 let SQL = null
 let sqlJsAsmLoader = null
 
+const ZIP_EOCD_SIGNATURE = 0x06054b50
+const ZIP_CENTRAL_DIR_SIGNATURE = 0x02014b50
+const ZIP_LOCAL_FILE_SIGNATURE = 0x04034b50
+const ZIP_STORE_METHOD = 0
+const FMO_EXPORT_SHARD_SIZE = 500
+
 async function smokeTestSQL(sql) {
   const db = new sql.Database()
   try {
@@ -62,6 +68,279 @@ async function initSQL() {
     }
   }
   return SQL
+}
+
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256)
+  for (let i = 0; i < 256; i++) {
+    let c = i
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+    }
+    table[i] = c >>> 0
+  }
+  return table
+})()
+
+function crc32(bytes) {
+  let crc = 0xffffffff
+  for (let i = 0; i < bytes.length; i++) {
+    crc = CRC32_TABLE[(crc ^ bytes[i]) & 0xff] ^ (crc >>> 8)
+  }
+  return (crc ^ 0xffffffff) >>> 0
+}
+
+function encodeUtf8(value) {
+  return new TextEncoder().encode(value)
+}
+
+function concatUint8Arrays(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0)
+  const out = new Uint8Array(total)
+  let offset = 0
+  for (const part of parts) {
+    out.set(part, offset)
+    offset += part.length
+  }
+  return out
+}
+
+function dosDateTime(date = new Date()) {
+  const year = Math.max(1980, date.getFullYear())
+  const dosTime =
+    ((date.getHours() & 0x1f) << 11) |
+    ((date.getMinutes() & 0x3f) << 5) |
+    (Math.floor(date.getSeconds() / 2) & 0x1f)
+  const dosDate =
+    (((year - 1980) & 0x7f) << 9) |
+    (((date.getMonth() + 1) & 0x0f) << 5) |
+    (date.getDate() & 0x1f)
+  return { dosTime, dosDate }
+}
+
+function buildZip(entries) {
+  const localParts = []
+  const centralParts = []
+  let offset = 0
+
+  for (const entry of entries) {
+    const nameBytes = encodeUtf8(entry.name)
+    const data = entry.data
+    const checksum = crc32(data)
+    const { dosTime, dosDate } = dosDateTime(entry.date)
+
+    const localHeader = new Uint8Array(30 + nameBytes.length)
+    const localView = new DataView(localHeader.buffer)
+    localView.setUint32(0, ZIP_LOCAL_FILE_SIGNATURE, true)
+    localView.setUint16(4, 20, true)
+    localView.setUint16(6, 0x0800, true)
+    localView.setUint16(8, ZIP_STORE_METHOD, true)
+    localView.setUint16(10, dosTime, true)
+    localView.setUint16(12, dosDate, true)
+    localView.setUint32(14, checksum, true)
+    localView.setUint32(18, data.length, true)
+    localView.setUint32(22, data.length, true)
+    localView.setUint16(26, nameBytes.length, true)
+    localView.setUint16(28, 0, true)
+    localHeader.set(nameBytes, 30)
+
+    localParts.push(localHeader, data)
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length)
+    const centralView = new DataView(centralHeader.buffer)
+    centralView.setUint32(0, ZIP_CENTRAL_DIR_SIGNATURE, true)
+    centralView.setUint16(4, 20, true)
+    centralView.setUint16(6, 20, true)
+    centralView.setUint16(8, 0x0800, true)
+    centralView.setUint16(10, ZIP_STORE_METHOD, true)
+    centralView.setUint16(12, dosTime, true)
+    centralView.setUint16(14, dosDate, true)
+    centralView.setUint32(16, checksum, true)
+    centralView.setUint32(20, data.length, true)
+    centralView.setUint32(24, data.length, true)
+    centralView.setUint16(28, nameBytes.length, true)
+    centralView.setUint16(30, 0, true)
+    centralView.setUint16(32, 0, true)
+    centralView.setUint16(34, 0, true)
+    centralView.setUint16(36, 0, true)
+    centralView.setUint32(38, 0, true)
+    centralView.setUint32(42, offset, true)
+    centralHeader.set(nameBytes, 46)
+    centralParts.push(centralHeader)
+
+    offset += localHeader.length + data.length
+  }
+
+  const centralDirectory = concatUint8Arrays(centralParts)
+  const eocd = new Uint8Array(22)
+  const eocdView = new DataView(eocd.buffer)
+  eocdView.setUint32(0, ZIP_EOCD_SIGNATURE, true)
+  eocdView.setUint16(4, 0, true)
+  eocdView.setUint16(6, 0, true)
+  eocdView.setUint16(8, entries.length, true)
+  eocdView.setUint16(10, entries.length, true)
+  eocdView.setUint32(12, centralDirectory.length, true)
+  eocdView.setUint32(16, offset, true)
+  eocdView.setUint16(20, 0, true)
+
+  return concatUint8Arrays([...localParts, centralDirectory, eocd])
+}
+
+function createEmptyQsoDatabase() {
+  const db = new SQL.Database()
+  db.run(
+    'CREATE TABLE qso_logs (logId INTEGER PRIMARY KEY,timestamp INTEGER,freqHz INTEGER,fromCallsign TEXT,fromGrid TEXT,toCallsign TEXT,toGrid TEXT,toComment TEXT,mode TEXT,relayName TEXT,relayAdmin TEXT)'
+  )
+  return db
+}
+
+function exportQsoDatabase(records, startingLogId = 1) {
+  const db = createEmptyQsoDatabase()
+  const insertStmt = db.prepare(`
+    INSERT INTO qso_logs (
+      logId, timestamp, freqHz, fromCallsign, fromGrid, toCallsign,
+      toGrid, toComment, mode, relayName, relayAdmin
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  records.forEach((record, index) => {
+    insertStmt.run([
+      startingLogId + index,
+      record.timestamp || null,
+      record.freqHz || null,
+      record.fromCallsign || null,
+      record.fromGrid || null,
+      record.toCallsign || null,
+      record.toGrid || null,
+      record.toComment || null,
+      record.mode || null,
+      record.relayName || null,
+      record.relayAdmin || null
+    ])
+  })
+  insertStmt.free()
+
+  const data = db.export()
+  db.close()
+  return data
+}
+
+function readZipEntries(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const decoder = new TextDecoder('utf-8')
+  let eocdOffset = -1
+
+  for (let i = bytes.length - 22; i >= 0; i--) {
+    if (view.getUint32(i, true) === ZIP_EOCD_SIGNATURE) {
+      eocdOffset = i
+      break
+    }
+  }
+
+  if (eocdOffset < 0) {
+    throw new Error('不是有效的 ZIP 文件')
+  }
+
+  const centralDirSize = view.getUint32(eocdOffset + 12, true)
+  const centralDirOffset = view.getUint32(eocdOffset + 16, true)
+  const entries = []
+  let offset = centralDirOffset
+  const centralDirEnd = centralDirOffset + centralDirSize
+
+  while (offset < centralDirEnd) {
+    if (view.getUint32(offset, true) !== ZIP_CENTRAL_DIR_SIGNATURE) {
+      throw new Error('ZIP 中央目录结构无效')
+    }
+
+    const compressionMethod = view.getUint16(offset + 10, true)
+    const compressedSize = view.getUint32(offset + 20, true)
+    const uncompressedSize = view.getUint32(offset + 24, true)
+    const fileNameLength = view.getUint16(offset + 28, true)
+    const extraLength = view.getUint16(offset + 30, true)
+    const commentLength = view.getUint16(offset + 32, true)
+    const localHeaderOffset = view.getUint32(offset + 42, true)
+    const fileNameBytes = bytes.slice(offset + 46, offset + 46 + fileNameLength)
+    const name = decoder.decode(fileNameBytes)
+
+    entries.push({
+      name,
+      compressionMethod,
+      compressedSize,
+      uncompressedSize,
+      localHeaderOffset
+    })
+
+    offset += 46 + fileNameLength + extraLength + commentLength
+  }
+
+  return entries
+}
+
+async function inflateRaw(bytes) {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('当前环境不支持 ZIP 解压')
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+  const arrayBuffer = await new Response(stream).arrayBuffer()
+  return new Uint8Array(arrayBuffer)
+}
+
+async function extractDbFilesFromZip(file) {
+  const arrayBuffer = await file.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const entries = readZipEntries(bytes)
+  const dbFiles = []
+
+  for (const entry of entries) {
+    if (!entry.name.toLowerCase().endsWith('.db')) continue
+    if (view.getUint32(entry.localHeaderOffset, true) !== ZIP_LOCAL_FILE_SIGNATURE) {
+      throw new Error(`ZIP 本地文件头无效: ${entry.name}`)
+    }
+
+    const fileNameLength = view.getUint16(entry.localHeaderOffset + 26, true)
+    const extraLength = view.getUint16(entry.localHeaderOffset + 28, true)
+    const dataOffset = entry.localHeaderOffset + 30 + fileNameLength + extraLength
+    const compressedData = bytes.slice(dataOffset, dataOffset + entry.compressedSize)
+
+    let data
+    if (entry.compressionMethod === 0) {
+      data = compressedData
+    } else if (entry.compressionMethod === 8) {
+      data = await inflateRaw(compressedData)
+    } else {
+      console.warn(`跳过不支持的 ZIP 压缩方式: ${entry.name} method=${entry.compressionMethod}`)
+      continue
+    }
+
+    if (entry.uncompressedSize && data.length !== entry.uncompressedSize) {
+      console.warn(`ZIP 解压尺寸不匹配: ${entry.name} expected=${entry.uncompressedSize} actual=${data.length}`)
+    }
+
+    dbFiles.push({
+      name: entry.name.split('/').pop() || entry.name,
+      data
+    })
+  }
+
+  return dbFiles
+}
+
+function validateDbData(name, uint8Array) {
+  try {
+    const db = new SQL.Database(uint8Array)
+    db.exec('SELECT 1')
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';")
+    const hasQsoLogsTable = tables.some((table) =>
+      table.values.some((row) => row.includes('qso_logs'))
+    )
+    db.close()
+    if (!hasQsoLogsTable) return null
+    return { name, data: uint8Array }
+  } catch (err) {
+    console.warn(`跳过无效的数据库文件: ${name}`, err)
+    return null
+  }
 }
 
 // IndexedDB存储目录句柄
@@ -239,31 +518,17 @@ export async function loadDbFilesFromFileList(files) {
     if (file.name.endsWith('.db')) {
       const arrayBuffer = await file.arrayBuffer()
       const uint8Array = new Uint8Array(arrayBuffer)
-
+      const validated = validateDbData(file.name, uint8Array)
+      if (validated) dbFiles.push(validated)
+    } else if (file.name.endsWith('.zip')) {
       try {
-        // 尝试打开数据库以验证其有效性
-        const db = new SQL.Database(uint8Array)
-
-        // 尝试执行一个简单的查询来确认这是有效的SQLite数据库
-        db.exec('SELECT 1')
-
-        // 验证数据库是否包含预期的表（例如 qso_logs 表）
-        const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table';")
-        const hasQsoLogsTable = tables.some((table) =>
-          table.values.some((row) => row.includes('qso_logs'))
-        )
-
-        if (hasQsoLogsTable) {
-          dbFiles.push({
-            name: file.name,
-            data: uint8Array
-          })
+        const extractedFiles = await extractDbFilesFromZip(file)
+        for (const extracted of extractedFiles) {
+          const validated = validateDbData(extracted.name, extracted.data)
+          if (validated) dbFiles.push(validated)
         }
-
-        // 关闭临时数据库连接
-        db.close()
       } catch (err) {
-        console.warn(`跳过无效的数据库文件: ${file.name}`, err)
+        console.warn(`读取 ZIP 数据文件 ${file.name} 失败:`, err)
       }
     }
   }
@@ -1191,47 +1456,54 @@ export async function exportDataToDbFile(fromCallsign) {
     throw new Error('没有数据可导出')
   }
 
-  // 创建新的SQLite数据库
-  const db = new SQL.Database()
-
-  // 创建qso_logs表（导出时包含logId主键）
-  db.run(
-    'CREATE TABLE qso_logs (logId INTEGER PRIMARY KEY,timestamp INTEGER,freqHz INTEGER,fromCallsign TEXT,fromGrid TEXT,toCallsign TEXT,toGrid TEXT,toComment TEXT,mode TEXT,relayName TEXT,relayAdmin TEXT)'
-  )
-
-  // 插入数据（logId自动递增）
-  const insertStmt = db.prepare(`
-    INSERT INTO qso_logs (
-      timestamp, freqHz, fromCallsign, fromGrid, toCallsign, 
-      toGrid, toComment, mode, relayName, relayAdmin
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-
-  for (const record of allRecords) {
-    insertStmt.run([
-      record.timestamp || null,
-      record.freqHz || null,
-      record.fromCallsign || null,
-      record.fromGrid || null,
-      record.toCallsign || null,
-      record.toGrid || null,
-      record.toComment || null,
-      record.mode || null,
-      record.relayName || null,
-      record.relayAdmin || null
-    ])
-  }
-  insertStmt.free()
-
-  // 导出为Uint8Array
-  const data = db.export()
-  db.close()
+  const data = exportQsoDatabase(allRecords)
 
   // 生成文件名：呼号-fmo-logs-秒时间戳.db
   const timestamp = Math.floor(Date.now() / 1000)
   const filename = `${fromCallsign}-fmo-logs-${timestamp}.db`
 
   return await exportFile(filename, data, 'application/x-sqlite3')
+}
+
+export async function exportDataToFmoZip(fromCallsign) {
+  if (!fromCallsign) {
+    throw new Error('必须指定呼号才能导出')
+  }
+
+  await initSQL()
+
+  const allRecords = await getDataFromIndexedDB(fromCallsign)
+
+  if (allRecords.length === 0) {
+    throw new Error('没有数据可导出')
+  }
+
+  const sortedRecords = [...allRecords].sort((a, b) => {
+    const ta = Number(a.timestamp || 0)
+    const tb = Number(b.timestamp || 0)
+    if (ta !== tb) return ta - tb
+    return String(a.toCallsign || '').localeCompare(String(b.toCallsign || ''))
+  })
+
+  const chunks = []
+  for (let i = 0; i < sortedRecords.length; i += FMO_EXPORT_SHARD_SIZE) {
+    chunks.push(sortedRecords.slice(i, i + FMO_EXPORT_SHARD_SIZE))
+  }
+
+  const now = new Date()
+  const zipEntries = chunks.map((records, index) => {
+    const isLast = index === chunks.length - 1
+    const name = isLast
+      ? 'logBook_v1_active.db'
+      : `logBook_v1_s${String(index + 1).padStart(4, '0')}.db`
+    const data = exportQsoDatabase(records, index * FMO_EXPORT_SHARD_SIZE + 1)
+    return { name, data, date: now }
+  })
+
+  const zipData = buildZip(zipEntries)
+  const timestamp = Math.floor(Date.now() / 1000)
+  const filename = `${fromCallsign}-fmo-logs-${timestamp}.zip`
+  return await exportFile(filename, zipData, 'application/zip')
 }
 
 // 导出IndexedDB数据到ADIF文件

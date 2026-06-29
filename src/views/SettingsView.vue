@@ -275,6 +275,11 @@
             <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
               导出数据库文件
             </button>
+            <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-fmo-zip')">
+              导出分片压缩包
+            </button>
+          </div>
+          <div class="setting-item-data-row">
             <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-adif')">
               导出ADIF
             </button>
@@ -465,6 +470,7 @@ const props = defineProps({
 const emit = defineEmits([
   'select-files',
   'export-data',
+  'export-fmo-zip',
   'export-adif',
   'sync-days',
   'sync-incremental',

@@ -93,6 +93,7 @@
           @toggle-dashboard-fullscreen="toggleDashboardFullscreen"
           @select-files="triggerFileInput"
           @export-data="handleExportData"
+          @export-fmo-zip="handleExportFmoZip"
           @export-adif="handleExportAdif"
           @sync-days="handleSyncDays"
           @sync-incremental="handleSyncIncremental"
@@ -233,7 +234,7 @@ import {
 } from '../composables/useModalBackHandler'
 import toast from '../composables/useToast'
 import confirmDialog from '../composables/useConfirm'
-import { exportDataToDbFile, exportDataToAdif } from '../services/db'
+import { exportDataToDbFile, exportDataToFmoZip, exportDataToAdif } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
 import { NAV_ROUTES } from '../components/home/constants'
@@ -248,7 +249,7 @@ const router = useRouter()
 // UI 状态
 const showSpeakingHistory = ref(false)
 const fileInputRef = ref(null)
-const fileInputAccept = isAndroidNativeRuntimeAvailable() ? '*/*' : '.db,.adi,.adif'
+const fileInputAccept = isAndroidNativeRuntimeAvailable() ? '*/*' : '.db,.zip,.adi,.adif'
 const contentAreaRef = ref(null)
 const showBackToTop = ref(false)
 let activeScrollElement = null
@@ -830,6 +831,20 @@ async function handleExportData() {
   } catch (err) {
     loading.value = false
     toast.error(`导出失败: ${err.message}`)
+  }
+}
+
+async function handleExportFmoZip() {
+  try {
+    loading.value = true
+    const result = await exportDataToFmoZip(selectedFromCallsign.value)
+    loading.value = false
+    if (result && result.displayPath) {
+      toast.success(`已保存到 ${result.displayPath}`)
+    }
+  } catch (err) {
+    loading.value = false
+    toast.error(`导出FMO ZIP失败: ${err.message}`)
   }
 }
 
