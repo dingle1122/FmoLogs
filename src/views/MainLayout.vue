@@ -79,6 +79,10 @@
           :selected-address-ids="settings.selectedAddressIds.value"
           :multi-sync-progress="fmoSync.multiSyncProgress.value"
           :audio-volume="settings.audioVolume.value"
+          :backup-busy="backupBusy"
+          :backup-progress="backupProgress"
+          :backup-status-text="backupStatusText"
+          :backup-error="backupError"
           :contact-counts="settings.contactCounts.value"
           :today-logs="todayLogs"
           :total-logs="totalLogs"
@@ -398,6 +402,10 @@ const stationListFetchedAt = ref(cachedStations.fetchedAt)
 
 // Station 状态
 const stationBusy = ref(false)
+const backupBusy = ref(false)
+const backupProgress = ref(0)
+const backupStatusText = ref('')
+const backupError = ref('')
 
 // 消息未读状态
 const hasUnreadMessages = computed(() => {
@@ -843,13 +851,37 @@ async function handleExportAdif() {
 
 // 备份 FMO 日志（原生端在 App 内完成下载/分享，Web 端走浏览器下载）
 async function handleBackupLogs() {
+  backupBusy.value = true
+  backupProgress.value = 0
+  backupStatusText.value = '正在启动备份'
+  backupError.value = ''
   try {
-    const result = await settings.backupLogs()
-    if (result && result.displayPath) {
+    const result = await settings.backupLogs((state) => {
+      backupStatusText.value = state.message || ''
+      backupProgress.value = Number(state.percent ?? 0)
+      if (state.phase === 'completed') {
+        backupStatusText.value = '备份完成'
+      }
+      if (state.phase === 'error') {
+        backupError.value = state.message || '备份失败'
+      }
+    })
+    backupStatusText.value = '备份完成'
+    backupProgress.value = 100
+    if (isAndroidNativeRuntimeAvailable() && result?.displayPath) {
       toast.success(`已保存到 ${result.displayPath}`)
     }
   } catch (err) {
-    toast.error(`备份失败: ${err.message}`)
+    backupError.value = err.message || '备份失败'
+    backupStatusText.value = backupError.value
+  } finally {
+    setTimeout(() => {
+      backupBusy.value = false
+      if (!backupError.value) {
+        backupStatusText.value = ''
+        backupProgress.value = 0
+      }
+    }, backupError.value ? 0 : 1200)
   }
 }
 

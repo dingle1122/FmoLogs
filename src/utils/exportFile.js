@@ -163,6 +163,16 @@ function parseFilenameFromHeaders(headers, fallback) {
   return fallback
 }
 
+function fallbackFilenameFromUrl(url, fallback = 'download') {
+  try {
+    const pathname = new URL(url, window.location.href).pathname || ''
+    const last = pathname.split('/').filter(Boolean).pop() || ''
+    return last || fallback
+  } catch {
+    return fallback
+  }
+}
+
 /**
  * 跨平台下载远程文件并落盘。
  * - Web：交给浏览器原生下载（由服务器决定文件名）
@@ -196,7 +206,10 @@ export async function downloadRemoteFile(url, fallbackFilename) {
   }
 
   const headers = httpResponse.headers || {}
-  const filename = parseFilenameFromHeaders(headers, fallbackFilename)
+  const filename = parseFilenameFromHeaders(
+    headers,
+    fallbackFilename || fallbackFilenameFromUrl(url)
+  )
 
   const data = base64ToUint8Array(httpResponse.data || '')
   const mimeType = headers['Content-Type'] || headers['content-type'] || 'application/octet-stream'

@@ -193,11 +193,14 @@
           </div>
           <div v-if="addressList.length > 0" class="setting-item-buttons setting-item-buttons-full">
             <button
-              class="btn-ghost"
-              :disabled="!fmoAddress || syncing"
+              class="btn-ghost btn-backup-progress"
+              :class="{ 'is-busy': backupBusy, 'is-error': !!backupError }"
+              :disabled="!fmoAddress || syncing || backupBusy"
+              :style="{ '--backup-progress': `${backupProgressPercent}%` }"
               @click="$emit('backup-logs')"
             >
-              备份FMO日志
+              <span class="btn-backup-progress-fill"></span>
+              <span class="btn-backup-progress-label">{{ backupButtonText }}</span>
             </button>
           </div>
           <div v-if="syncStatus" class="sync-status">
@@ -440,6 +443,22 @@ const props = defineProps({
   audioVolume: {
     type: Number,
     default: 100
+  },
+  backupBusy: {
+    type: Boolean,
+    default: false
+  },
+  backupProgress: {
+    type: Number,
+    default: 0
+  },
+  backupStatusText: {
+    type: String,
+    default: ''
+  },
+  backupError: {
+    type: String,
+    default: ''
   }
 })
 
@@ -654,6 +673,26 @@ const getSyncFullButtonText = computed(() => {
     return `全量同步已选(${props.selectedAddressIds.length})`
   }
   return '全量同步'
+})
+
+const backupProgressPercent = computed(() => {
+  const value = Number(props.backupProgress ?? 0)
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(100, Math.round(value)))
+})
+
+const backupButtonText = computed(() => {
+  if (props.backupBusy) {
+    if (props.backupError) return '备份失败'
+    if (props.backupStatusText) {
+      if (backupProgressPercent.value > 0 && backupProgressPercent.value < 100) {
+        return `${props.backupStatusText} ${backupProgressPercent.value}%`
+      }
+      return props.backupStatusText
+    }
+    return '正在备份...'
+  }
+  return '备份FMO日志'
 })
 
 // 验证WebSocket连接
@@ -1497,6 +1536,41 @@ function handleVolumeChange(e) {
 .btn-ghost:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.btn-backup-progress:disabled {
+  opacity: 1;
+}
+
+.btn-backup-progress {
+  position: relative;
+  overflow: hidden;
+  min-height: 2.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.btn-backup-progress-fill {
+  position: absolute;
+  inset: 0;
+  width: var(--backup-progress, 0%);
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  transition: width 0.2s ease;
+  pointer-events: none;
+}
+
+.btn-backup-progress.is-error .btn-backup-progress-fill {
+  width: 100%;
+  background: color-mix(in srgb, var(--color-danger, #d14343) 18%, transparent);
+}
+
+.btn-backup-progress-label {
+  position: relative;
+  z-index: 1;
+  white-space: nowrap;
 }
 
 .sync-days-select:focus {

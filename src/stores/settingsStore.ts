@@ -11,14 +11,15 @@ import {
 import { FmoApiClient } from '../services/fmoApi'
 // @ts-ignore - legacy JS
 import {
-  buildHttpUrl,
   buildWebSocketUrl,
   normalizeHost,
   normalizeWebSocketEndpoint
 } from '../utils/urlUtils'
-// @ts-ignore - legacy JS
-import { downloadRemoteFile } from '../utils/exportFile'
 import { getPlatform } from '../platform'
+import {
+  backupLogsWithCompatibility,
+  type BackupProgressState
+} from '../services/fmoBackupService'
 import {
   DEFAULT_THEME_ID,
   applyThemeCss,
@@ -1025,11 +1026,14 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  async function backupLogs() {
+  async function backupLogs(onProgress?: (state: BackupProgressState) => void) {
     if (!fmoAddress.value) return
 
-    const url = buildHttpUrl(`${protocol.value}://${fmoAddress.value}`, '/api/qso/backup')
-    return await downloadRemoteFile(url, `fmo-backup-${Date.now()}.db`)
+    return await backupLogsWithCompatibility({
+      host: fmoAddress.value,
+      protocol: protocol.value,
+      onProgress
+    })
   }
 
   async function loadTodayContactedCallsigns(selectedFromCallsign: string) {
