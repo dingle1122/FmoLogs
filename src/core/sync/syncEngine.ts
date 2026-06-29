@@ -45,6 +45,18 @@ function never() {
   return false
 }
 
+function isValidQsoTimestamp(timestamp: number): boolean {
+  return Number.isFinite(timestamp) && timestamp > 0
+}
+
+function isValidQsoListItem(item: any): boolean {
+  return (
+    isValidQsoTimestamp(item?.timestamp) &&
+    typeof item?.toCallsign === 'string' &&
+    item.toCallsign.trim().length > 0
+  )
+}
+
 function parseBaseUrl(baseUrl: string): { host: string; protocol: string } {
   const url = new URL(baseUrl)
   return {
@@ -94,6 +106,7 @@ export async function processSingleQsoItem(
   client: any,
   ctx: SyncContext
 ): Promise<any | null> {
+  if (!isValidQsoListItem(item)) return null
   if (item.timestamp < rangeStart) return null
 
   const onFailed = ctx.onFailed ?? noop
@@ -175,6 +188,10 @@ export async function syncRecentData(
 
     for (const item of list) {
       if (isAborted()) break
+      if (!isValidQsoListItem(item)) {
+        continue
+      }
+
       if (item.timestamp >= rangeStart) {
         const qso = await processSingleQsoItem(item, rangeStart, client, ctx)
         if (qso) {
@@ -228,6 +245,7 @@ export async function syncIncrementalForAddress(
 
     for (const item of list) {
       if (isAborted()) break
+      if (!isValidQsoListItem(item)) continue
 
       try {
         let qso: any = null
@@ -321,6 +339,7 @@ async function syncFullViaWebSocketForAddress(
 
     for (const item of list) {
       if (isAborted()) break
+      if (!isValidQsoListItem(item)) continue
 
       try {
         let qso: any = null
