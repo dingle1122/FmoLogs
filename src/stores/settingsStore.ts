@@ -57,6 +57,7 @@ export type DashboardStationInfoCardId =
   | 'radio-setup'
   | 'coordinate'
   | 'grid'
+  | 'audio-control'
   | 'screen-mode'
 
 export interface DashboardStationInfoCardLayout {
@@ -92,7 +93,8 @@ const DEFAULT_DASHBOARD_STATION_INFO_LAYOUT: DashboardStationInfoCardLayout[] = 
   { id: 'radio-setup', visible: true },
   { id: 'coordinate', visible: true },
   { id: 'grid', visible: true },
-  { id: 'screen-mode', visible: true }
+  { id: 'screen-mode', visible: true },
+  { id: 'audio-control', visible: true }
 ]
 
 const DEFAULT_DASHBOARD_HERO_ELEMENTS: DashboardHeroElementVisibility = {

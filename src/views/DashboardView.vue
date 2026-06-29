@@ -193,7 +193,8 @@
               class="station-info-card"
               :class="{
                 'station-info-card-action': item.id === 'station' && !isEditingLayout,
-                'station-info-card-editing': isEditingLayout
+                'station-info-card-editing': isEditingLayout,
+                'station-info-card-active': item.id === 'audio-control' && item.active
               }"
               :type="item.id === 'station' && !isEditingLayout ? 'button' : undefined"
               :title="item.title"
@@ -289,6 +290,16 @@
                 <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
               <svg
+                v-else-if="item.icon === 'audio'"
+                class="station-info-watermark"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M11 5 6 9H3v6h3l5 4z" />
+                <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                <path d="M18.5 6a8.5 8.5 0 0 1 0 12" />
+              </svg>
+              <svg
                 v-else-if="item.icon === 'screen-mode'"
                 class="station-info-watermark"
                 viewBox="0 0 24 24"
@@ -350,6 +361,59 @@
                     {{ screenModeToggleText }}
                   </button>
                 </span>
+              </div>
+              <div v-else-if="item.id === 'audio-control'" class="audio-control-content">
+                <div class="audio-control-main">
+                  <strong>{{ item.value }}</strong>
+                  <button
+                    type="button"
+                    class="audio-control-text"
+                    :class="{ playing: item.status === 'playing' }"
+                    :disabled="item.disabled"
+                    @click="toggleDashboardAudio"
+                  >
+                    {{ item.actionText }}
+                  </button>
+                </div>
+                <div class="audio-volume-row" aria-label="当前音量">
+                  <span class="audio-volume-label">音量</span>
+                  <button
+                    type="button"
+                    class="audio-volume-text"
+                    :class="{ playing: item.status === 'playing' }"
+                    :disabled="item.volumeDownDisabled"
+                    aria-label="降低音量"
+                    @click="adjustDashboardAudioVolume(-5)"
+                  >
+                    -
+                  </button>
+                  <span class="audio-volume-value">{{ item.volumeText }}</span>
+                  <button
+                    type="button"
+                    class="audio-volume-text"
+                    :class="{ playing: item.status === 'playing' }"
+                    :disabled="item.volumeUpDisabled"
+                    aria-label="提高音量"
+                    @click="adjustDashboardAudioVolume(5)"
+                  >
+                    +
+                  </button>
+                  <button
+                    type="button"
+                    class="audio-mute-icon"
+                    :class="{ active: item.muted, playing: item.status === 'playing' }"
+                    :disabled="item.muteDisabled"
+                    :aria-label="item.muteText"
+                    :title="item.muteText"
+                    @click="toggleDashboardAudioMute"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M11 5 6 9H3v6h3l5 4z" />
+                      <path v-if="item.muted" d="M15 9 19 15M19 9l-4 6" />
+                      <path v-else d="M15.5 8.5a5 5 0 0 1 0 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <span v-else>{{ item.value }}</span>
             </component>
@@ -670,7 +734,9 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, inject, reactive } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useSpeakingStatusStore } from '../stores/speakingStore'
+import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { formatTimeAgo, formatDurationMmSs } from '../components/home/constants'
 import { getAllRecordsFromIndexedDB } from '../services/db'
@@ -696,6 +762,7 @@ const props = defineProps({
 defineEmits(['show-callsign-records', 'open-channel-list', 'toggle-dashboard-fullscreen'])
 
 const speakingStore = useSpeakingStatusStore()
+const audioStore = useAudioPlayerStore()
 const settingsStore = useSettingsStore()
 const isEditingLayout = ref(false)
 
@@ -713,6 +780,7 @@ const stationInfoCardLabels = {
   'radio-setup': '电台参数',
   coordinate: '用户坐标',
   grid: 'Grid / 地址',
+  'audio-control': '音频播放',
   'screen-mode': '设备模式'
 }
 
@@ -732,6 +800,7 @@ const dashboardHeroElementOptions = [
 const selectedFromCallsign = inject('selectedFromCallsign', ref(''))
 const fmoAddress = inject('fmoAddress', ref(''))
 const protocol = inject('protocol', ref('ws'))
+const { isPlaying: isAudioPlaying, isMuted: isAudioMuted, audioStatus } = storeToRefs(audioStore)
 
 const now = ref(Date.now())
 let nowTimer = null
@@ -918,6 +987,16 @@ const screenModeToggleText = computed(() => {
   if (screenMode.value === 0) return '切换到待机'
   return '切换模式'
 })
+const dashboardAudioTitle = computed(() => {
+  return '音频播放'
+})
+const dashboardAudioActionText = computed(() => (isAudioPlaying.value ? '停止' : '播放'))
+const dashboardAudioMuteText = computed(() => (isAudioMuted.value ? '取消静音' : '静音'))
+const dashboardAudioStatus = computed(() => {
+  if (!fmoAddress.value) return 'disabled'
+  return isAudioPlaying.value ? 'playing' : 'idle'
+})
+const dashboardAudioVolumeText = computed(() => `${String(settingsStore.audioVolume).padStart(3, '0')}%`)
 const stationInfoCards = computed(() => {
   const serverInfo = speakingStore.primaryServerInfo
   const cards = {
@@ -959,6 +1038,22 @@ const stationInfoCards = computed(() => {
       value: [myGrid.value, myGridAddress.value].filter(Boolean).join('  '),
       icon: 'grid'
     },
+    'audio-control': {
+      id: 'audio-control',
+      title: '音频播放',
+      value: dashboardAudioTitle.value,
+      actionText: dashboardAudioActionText.value,
+      muteText: dashboardAudioMuteText.value,
+      muted: isAudioMuted.value,
+      muteDisabled: !isAudioPlaying.value,
+      status: dashboardAudioStatus.value,
+      active: isAudioPlaying.value,
+      disabled: !fmoAddress.value,
+      volumeText: dashboardAudioVolumeText.value,
+      volumeDownDisabled: settingsStore.audioVolume <= 0,
+      volumeUpDisabled: settingsStore.audioVolume >= 200,
+      icon: 'audio'
+    },
     'screen-mode': {
       id: 'screen-mode',
       title: '设备模式',
@@ -970,7 +1065,7 @@ const stationInfoCards = computed(() => {
   return dashboardStationInfoLayout.value
     .filter((item) => item.visible)
     .map((item) => cards[item.id])
-    .filter((item) => item?.value !== '')
+    .filter((item) => item && (item.id === 'audio-control' || item.value !== ''))
 })
 
 // ========== 方法 ==========
@@ -990,6 +1085,39 @@ function isFirstStationInfoCard(id) {
 
 function isLastStationInfoCard(id) {
   return stationInfoCards.value[stationInfoCards.value.length - 1]?.id === id
+}
+
+async function toggleDashboardAudio() {
+  if (!fmoAddress.value) return
+
+  await audioStore.toggleAudio(fmoAddress.value, protocol.value)
+  await settingsStore.setAudioPlaying(isAudioPlaying.value)
+
+  if (isAudioPlaying.value && !isAudioMuted.value) {
+    await audioStore.setVolume(settingsStore.audioVolume)
+    await audioStore.resumeAudio().catch(() => {})
+  }
+}
+
+async function adjustDashboardAudioVolume(delta) {
+  const nextVolume = Math.max(0, Math.min(200, Number(settingsStore.audioVolume) + delta))
+  if (nextVolume === settingsStore.audioVolume) return
+
+  await settingsStore.setAudioVolume(nextVolume)
+
+  if (isAudioPlaying.value && !isAudioMuted.value) {
+    await audioStore.setVolume(nextVolume)
+  }
+}
+
+async function toggleDashboardAudioMute() {
+  if (!isAudioPlaying.value) return
+
+  if (isAudioMuted.value) {
+    await audioStore.unmuteAudio(settingsStore.audioVolume)
+  } else {
+    await audioStore.muteAudio()
+  }
 }
 
 function formatEventTime(utcTime) {
@@ -1528,6 +1656,12 @@ watch(
   cursor: pointer;
 }
 
+.station-info-card-active {
+  border-color: var(--component-header-station-hover-border);
+  background: var(--component-header-station-bg);
+  color: var(--component-header-station-text);
+}
+
 .station-info-card-editing {
   min-height: 6.4rem;
   padding-top: 2.45rem;
@@ -1770,9 +1904,130 @@ watch(
 }
 
 @media (hover: hover) {
+  .audio-control-text:not(:disabled):hover,
+  .audio-volume-text:not(:disabled):hover,
+  .audio-mute-icon:not(:disabled):hover,
   .screen-mode-content button:not(:disabled):hover {
     color: var(--text-primary);
   }
+
+  .audio-control-text.playing:not(:disabled):hover,
+  .audio-volume-text.playing:not(:disabled):hover,
+  .audio-mute-icon.playing:not(:disabled):hover {
+    color: var(--color-speaking);
+  }
+}
+
+.audio-control-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.24rem;
+  width: 100%;
+  min-width: 0;
+  line-height: 1.2;
+  z-index: 1;
+}
+
+.audio-control-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.audio-control-content strong {
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.audio-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.audio-volume-label {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.audio-control-text,
+.audio-volume-text {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.audio-control-text.playing {
+  color: var(--color-speaking);
+}
+
+.audio-volume-value {
+  display: inline-block;
+  color: var(--text-tertiary);
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  min-width: 4.2ch;
+  text-align: center;
+}
+
+.audio-control-text:disabled,
+.audio-volume-text:disabled,
+.audio-mute-icon:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.audio-mute-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.audio-mute-icon svg {
+  width: 0.92rem;
+  height: 0.92rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
+.audio-mute-icon.active {
+  color: var(--color-speaking);
+}
+
+.station-info-card-active .audio-control-content strong,
+.station-info-card-active .audio-control-text,
+.station-info-card-active .audio-volume-label,
+.station-info-card-active .audio-volume-text,
+.station-info-card-active .audio-volume-value,
+.station-info-card-active .audio-mute-icon {
+  color: var(--component-header-station-text);
 }
 
 .dashboard-layout-toolbar {
@@ -2855,6 +3110,7 @@ watch(
     margin-left: 0.45rem;
   }
 
+  .audio-control-content > * + *,
   .screen-mode-content > * + *,
   .contact-name > * + *,
   .history-name > * + *,
