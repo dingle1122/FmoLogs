@@ -194,7 +194,11 @@
           <div v-if="addressList.length > 0" class="setting-item-buttons setting-item-buttons-full">
             <button
               class="btn-ghost btn-backup-progress"
-              :class="{ 'is-busy': backupBusy, 'is-error': !!backupError }"
+              :class="{
+                'is-busy': backupBusy,
+                'is-error': !!backupError,
+                'is-disabled': (!fmoAddress || syncing) && !backupBusy
+              }"
               :disabled="!fmoAddress || syncing || backupBusy"
               :style="{ '--backup-progress': `${backupProgressPercent}%` }"
               @click="$emit('backup-logs')"
@@ -954,7 +958,7 @@ async function handleSyncFull() {
   // 多选模式且选中多个地址
   if (props.multiSelectMode && props.selectedAddressIds.length > 1) {
     const confirmed = await confirmDialog.show(
-      `确定要对选中的 ${props.selectedAddressIds.length} 个地址执行全量同步吗？将从各FMO服务器下载数据库文件并导入，覆盖本地相同记录。`
+      `确定要对选中的 ${props.selectedAddressIds.length} 个地址执行全量同步吗？将从各 FMO 服务器备份并导入日志，覆盖本地相同记录。`
     )
     if (confirmed) {
       emit('sync-multiple', { syncType: 'full', days: 1 })
@@ -963,7 +967,7 @@ async function handleSyncFull() {
   }
   // 单选模式
   const confirmed = await confirmDialog.show(
-    '确定要执行全量同步吗？将从FMO服务器下载数据库文件并导入，覆盖本地相同记录。'
+    '确定要执行全量同步吗？将从 FMO 服务器备份并导入日志，覆盖本地相同记录。'
   )
   if (confirmed) {
     emit('sync-full')
@@ -1546,6 +1550,11 @@ function handleVolumeChange(e) {
 
 .btn-backup-progress:disabled {
   opacity: 1;
+}
+
+.btn-backup-progress.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .btn-backup-progress {

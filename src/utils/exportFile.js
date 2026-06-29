@@ -141,7 +141,7 @@ export async function shareFile(uri, filename) {
  * @param {Record<string,string>} headers
  * @param {string} fallback
  */
-function parseFilenameFromHeaders(headers, fallback) {
+export function parseFilenameFromHeaders(headers, fallback) {
   const getHeader = (name) => {
     const lower = name.toLowerCase()
     for (const key of Object.keys(headers || {})) {
@@ -163,7 +163,7 @@ function parseFilenameFromHeaders(headers, fallback) {
   return fallback
 }
 
-function fallbackFilenameFromUrl(url, fallback = 'download') {
+export function fallbackFilenameFromUrl(url, fallback = 'download') {
   try {
     const pathname = new URL(url, window.location.href).pathname || ''
     const last = pathname.split('/').filter(Boolean).pop() || ''

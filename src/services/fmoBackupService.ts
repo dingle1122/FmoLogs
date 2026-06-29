@@ -1,7 +1,12 @@
 import { CapacitorHttp } from '@capacitor/core'
 import { getPlatform, getEffectivePlatform } from '../platform'
 import { buildHttpUrl, buildWebSocketUrl, normalizeHost } from '../utils/urlUtils'
-import { downloadRemoteFile } from '../utils/exportFile'
+import {
+  downloadRemoteFile,
+  downloadRemoteFileData,
+  fallbackFilenameFromUrl,
+  parseFilenameFromHeaders
+} from '../utils/exportFile'
 
 const BACKUP_PATH = '/api/qso/backup'
 const FIRST_PROGRESS_TIMEOUT_MS = 15000
@@ -19,6 +24,15 @@ export interface BackupLogsResult {
   savedPath?: string
   uri?: string
   displayPath?: string
+}
+
+export interface BackupLogsDataResult {
+  mode: 'legacy' | 'async'
+  platform: string
+  filename: string
+  data: Uint8Array
+  headers?: Record<string, string>
+  status?: number
 }
 
 export interface BackupProgressState {
@@ -134,6 +148,21 @@ function shouldFallbackToLegacy(status: number) {
 async function downloadBackupFile(url: string) {
   console.info('[Backup] downloading backup file', { url })
   return downloadRemoteFile(url, undefined)
+}
+
+async function downloadBackupFileData(url: string): Promise<BackupLogsDataResult> {
+  console.info('[Backup] downloading backup file to memory', { url })
+  const result = await downloadRemoteFileData(url)
+  const headers = result.headers || {}
+  const filename = parseFilenameFromHeaders(headers, fallbackFilenameFromUrl(url, 'fmo-backup'))
+  return {
+    mode: 'legacy',
+    platform: getEffectivePlatform(),
+    filename,
+    data: result.data,
+    headers,
+    status: result.status
+  }
 }
 
 async function waitForAsyncBackupReady(
@@ -372,4 +401,107 @@ export async function backupLogsWithCompatibility(
     message: '备份完成'
   })
   return { mode: 'async', ...result }
+}
+
+export async function backupLogsDataWithCompatibility(
+  options: BackupLogsOptions
+): Promise<BackupLogsDataResult> {
+  const host = normalizeHost(options.host)
+  if (!host) {
+    throw new Error('未配置 FMO 地址')
+  }
+
+  const url = buildBackupUrl(host, options.protocol)
+  options.onProgress?.({ phase: 'starting', percent: 0, message: '正在启动备份' })
+
+  let startResponse: { status: number } | null = null
+  try {
+    startResponse = await requestRemote(url, 'POST')
+  } catch {
+    startResponse = null
+  }
+
+  if (!startResponse || shouldFallbackToLegacy(startResponse.status)) {
+    options.onProgress?.({
+      phase: 'downloading',
+      mode: 'legacy',
+      percent: 100,
+      message: '正在下载备份'
+    })
+    const result = await downloadBackupFileData(url)
+    options.onProgress?.({
+      phase: 'completed',
+      mode: 'legacy',
+      percent: 100,
+      message: '备份完成'
+    })
+    return result
+  }
+
+  if (startResponse.status < 200 || startResponse.status >= 300) {
+    options.onProgress?.({
+      phase: 'error',
+      message: `启动 FMO 备份失败: HTTP ${startResponse.status}`
+    })
+    throw new Error(`启动 FMO 备份失败: HTTP ${startResponse.status}`)
+  }
+
+  options.onProgress?.({
+    phase: 'exporting',
+    mode: 'async',
+    percent: 0,
+    message: '正在导出备份'
+  })
+
+  try {
+    await waitForAsyncBackupReady(host, options.protocol, options.onProgress)
+  } catch (err: any) {
+    if (
+      err?.message === 'ASYNC_BACKUP_LISTEN_FAILED' ||
+      err?.message === 'ASYNC_BACKUP_PROGRESS_TIMEOUT'
+    ) {
+      options.onProgress?.({
+        phase: 'downloading',
+        mode: 'legacy',
+        percent: 100,
+        message: '正在下载备份'
+      })
+      const result = await downloadBackupFileData(url)
+      options.onProgress?.({
+        phase: 'completed',
+        mode: 'legacy',
+        percent: 100,
+        message: '备份完成'
+      })
+      return result
+    }
+    if (err?.message === 'ASYNC_BACKUP_COMPLETE_TIMEOUT') {
+      options.onProgress?.({ phase: 'error', message: '等待 FMO 备份完成超时' })
+      throw new Error('等待 FMO 备份完成超时')
+    }
+    if (err?.message === 'FMO_BACKUP_EXPORT_FAILED') {
+      options.onProgress?.({ phase: 'error', message: 'FMO 设备导出备份失败' })
+      throw new Error('FMO 设备导出备份失败')
+    }
+    options.onProgress?.({ phase: 'error', message: err?.message || '备份失败' })
+    throw err
+  }
+
+  options.onProgress?.({
+    phase: 'downloading',
+    mode: 'async',
+    percent: 100,
+    message: '正在下载备份'
+  })
+  const result = await downloadBackupFileData(url)
+  options.onProgress?.({
+    phase: 'completed',
+    mode: 'async',
+    percent: 100,
+    message: '备份完成'
+  })
+  return {
+    ...result,
+    mode: 'async'
+  }
 }

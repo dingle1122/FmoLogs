@@ -11,13 +11,12 @@
 import { getEffectivePlatform } from '../../platform/runtime'
 // @ts-ignore - legacy JS
 import {
-  importDbFilesToIndexedDB,
+  importFmoBackupDataToIndexedDB,
   isQsoExistsInIndexedDB,
   saveSingleQsoToIndexedDB
   // @ts-ignore
 } from '../../services/db'
-// @ts-ignore - legacy JS
-import { downloadRemoteFileData } from '../../utils/exportFile'
+import { backupLogsDataWithCompatibility } from '../../services/fmoBackupService'
 // @ts-ignore - legacy JS
 import { buildHttpUrl } from '../../utils/urlUtils'
 
@@ -46,13 +45,36 @@ function never() {
   return false
 }
 
-function isSQLiteDatabase(data: Uint8Array): boolean {
-  const header = 'SQLite format 3'
-  if (!data || data.length < header.length) return false
-  for (let i = 0; i < header.length; i++) {
-    if (data[i] !== header.charCodeAt(i)) return false
+function parseBaseUrl(baseUrl: string): { host: string; protocol: string } {
+  const url = new URL(baseUrl)
+  return {
+    host: url.host,
+    protocol: url.protocol.replace(/:$/, '')
   }
-  return true
+}
+
+function isSameOriginUrl(targetUrl: string): boolean {
+  if (typeof window === 'undefined' || !window.location) return false
+  try {
+    const target = new URL(targetUrl, window.location.href)
+    return target.origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
+async function probeWebBackupReadAccess(host: string, protocol: string): Promise<boolean> {
+  const probeUrl = buildHttpUrl(`${protocol}://${host}`, '/favicon.ico')
+  try {
+    await fetch(probeUrl, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store'
+    })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** 获取 N 天前 UTC 零点时间戳（单位秒） */
@@ -344,7 +366,7 @@ async function syncFullViaWebSocketForAddress(
 }
 
 /**
- * Android 全量同步：直接下载 FMO 日志数据库文件并导入，用 FMO 数据覆盖本地同 key 记录。
+ * 全量同步优先路径：复用兼容备份流程，下载备份产物（.db/.zip）后统一导入。
  */
 async function syncFullViaDbBackupForAddress(
   client: any,
@@ -358,31 +380,31 @@ async function syncFullViaDbBackupForAddress(
     return { totalSynced: 0, totalProcessed: 0 }
   }
 
-  const url = buildHttpUrl(client.baseUrl, '/api/qso/backup')
-  statusCallback('正在下载 FMO 数据库文件...')
-
-  let downloaded: { data: Uint8Array }
+  let downloaded: { filename: string; data: Uint8Array }
   try {
-    downloaded = await downloadRemoteFileData(url)
+    const { host, protocol } = parseBaseUrl(client.baseUrl)
+    downloaded = await backupLogsDataWithCompatibility({
+      host,
+      protocol,
+      onProgress: (state) => {
+        if (isAborted()) return
+        statusCallback(state.message || '正在备份 FMO 日志...')
+      }
+    })
   } catch (err: any) {
-    throw new Error(`下载 FMO 数据库失败: ${err?.message || String(err)}`)
-  }
-  if (!isSQLiteDatabase(downloaded.data)) {
-    throw new Error('下载的文件不是有效的 SQLite 数据库')
+    throw new Error(`备份 FMO 日志失败: ${err?.message || String(err)}`)
   }
 
   if (isAborted()) {
     return { totalSynced: 0, totalProcessed: 0 }
   }
 
-  statusCallback('正在导入数据库文件...')
-  const result = await importDbFilesToIndexedDB(
-    [
-      {
-        name: `fmo-backup-${Date.now()}.db`,
-        data: downloaded.data
-      }
-    ],
+  statusCallback('正在导入备份文件...')
+  const result = await importFmoBackupDataToIndexedDB(
+    {
+      name: downloaded.filename || `fmo-backup-${Date.now()}`,
+      data: downloaded.data
+    },
     (progress: any) => {
       if (isAborted()) return
       statusCallback(`正在导入 ${progress.callsign}：${progress.current}/${progress.total}`)
@@ -398,15 +420,42 @@ async function syncFullViaDbBackupForAddress(
 
 /**
  * 全量同步：
- * - Android 客户端：下载 FMO 数据库文件后导入，减少接口调用。
- * - 浏览器：继续走 WebSocket RPC，避免跨域下载数据库文件。
+ * - 所有平台优先走“备份 FMO 日志 + 导入 FMO 日志”的组合流程，兼容 .db/.zip 备份产物。
+ * - 备份或导入失败时，回落到原有 WebSocket RPC 逻辑。
  */
 export async function syncFullForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
-  if (getEffectivePlatform() === 'android') {
-    return syncFullViaDbBackupForAddress(client, ctx)
+  const statusCallback = ctx.statusCallback ?? noop
+  const platform = getEffectivePlatform()
+
+  if (platform === 'web') {
+    const { host, protocol } = parseBaseUrl(client.baseUrl)
+    const backupUrl = buildHttpUrl(`${protocol}://${host}`, '/api/qso/backup')
+
+    if (!isSameOriginUrl(backupUrl)) {
+      statusCallback('正在探测备份接口可访问性...')
+      const canReadBackup = await probeWebBackupReadAccess(host, protocol)
+      if (!canReadBackup) {
+        statusCallback('跨源备份不可读，直接使用 WebSocket RPC...')
+        return syncFullViaWebSocketForAddress(client, ctx)
+      }
+    }
   }
+
+  try {
+    return await syncFullViaDbBackupForAddress(client, ctx)
+  } catch (err: any) {
+    const reason = err?.message || String(err)
+    console.warn('全量同步备份导入失败，回落 WebSocket RPC:', reason)
+    statusCallback(`备份导入失败，回落 RPC：${reason}`)
+  }
+
+  if (ctx.isAborted?.()) {
+    return { totalSynced: 0, totalProcessed: 0 }
+  }
+
+  statusCallback('正在回落到 WebSocket RPC 全量同步...')
   return syncFullViaWebSocketForAddress(client, ctx)
 }

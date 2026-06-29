@@ -288,6 +288,10 @@ async function inflateRaw(bytes) {
 async function extractDbFilesFromZip(file) {
   const arrayBuffer = await file.arrayBuffer()
   const bytes = new Uint8Array(arrayBuffer)
+  return extractDbFilesFromZipBytes(bytes)
+}
+
+async function extractDbFilesFromZipBytes(bytes, fallbackName = 'backup.zip') {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const entries = readZipEntries(bytes)
   const dbFiles = []
@@ -318,12 +322,25 @@ async function extractDbFilesFromZip(file) {
     }
 
     dbFiles.push({
-      name: entry.name.split('/').pop() || entry.name,
+      name: entry.name.split('/').pop() || entry.name || fallbackName,
       data
     })
   }
 
   return dbFiles
+}
+
+function isZipData(bytes) {
+  return !!bytes && bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b
+}
+
+function isSQLiteData(bytes) {
+  const header = 'SQLite format 3'
+  if (!bytes || bytes.length < header.length) return false
+  for (let i = 0; i < header.length; i++) {
+    if (bytes[i] !== header.charCodeAt(i)) return false
+  }
+  return true
 }
 
 function validateDbData(name, uint8Array) {
@@ -780,8 +797,8 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
   }
 }
 
-// 将db文件数据导入到IndexedDB
-export async function importDbFilesToIndexedDB(dbFiles, onProgress = null, options = {}) {
+// 将已验证的 FMO SQLite 日志数据导入到 IndexedDB
+export async function importFmoDbFilesToIndexedDB(dbFiles, onProgress = null, options = {}) {
   await initSQL()
 
   // 解析SQLite文件
@@ -815,6 +832,40 @@ export async function importDbFilesToIndexedDB(dbFiles, onProgress = null, optio
 
   // 统一导入
   return importRecordsToIndexedDB(allRecords, onProgress)
+}
+
+export async function importFmoBackupDataToIndexedDB(backupFile, onProgress = null, options = {}) {
+  await initSQL()
+
+  if (!backupFile?.data || !(backupFile.data instanceof Uint8Array)) {
+    throw new Error('备份文件数据无效')
+  }
+
+  const filename = backupFile.name || 'fmo-backup'
+  const lowerName = filename.toLowerCase()
+  let dbFiles = []
+
+  if (lowerName.endsWith('.zip') || isZipData(backupFile.data)) {
+    try {
+      dbFiles = await extractDbFilesFromZipBytes(backupFile.data, filename)
+    } catch (err) {
+      throw new Error(`解析备份 ZIP 失败: ${err?.message || String(err)}`)
+    }
+  } else if (lowerName.endsWith('.db') || isSQLiteData(backupFile.data)) {
+    const validated = validateDbData(filename, backupFile.data)
+    if (validated) dbFiles = [validated]
+  }
+
+  if (dbFiles.length === 0) {
+    throw new Error('备份文件中未找到可导入的 FMO 日志数据库')
+  }
+
+  return importFmoDbFilesToIndexedDB(dbFiles, onProgress, options)
+}
+
+// 兼容旧调用名
+export async function importDbFilesToIndexedDB(dbFiles, onProgress = null, options = {}) {
+  return importFmoDbFilesToIndexedDB(dbFiles, onProgress, options)
 }
 
 // ADIF日期时间转Unix时间戳

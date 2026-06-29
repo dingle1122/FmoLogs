@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import {
   loadDbFilesFromFileList,
-  importDbFilesToIndexedDB,
+  importFmoDbFilesToIndexedDB,
   importAdifFilesToIndexedDB,
   getAvailableFromCallsigns,
   clearIndexedDBData,
@@ -40,7 +40,7 @@ export function useDbManager() {
     // 并行导入两种类型的文件
     const results = await Promise.all([
       dbFiles.length > 0
-        ? importDbFilesToIndexedDB(dbFiles, (progress) => {
+        ? importFmoDbFilesToIndexedDB(dbFiles, (progress) => {
             importProgress.value = progress
           })
         : Promise.resolve({ totalRecords: 0, callsigns: [] }),
