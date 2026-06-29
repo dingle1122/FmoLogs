@@ -145,9 +145,9 @@ function shouldFallbackToLegacy(status: number) {
   return status === 404 || status === 405 || status === 501
 }
 
-async function downloadBackupFile(url: string) {
-  console.info('[Backup] downloading backup file', { url })
-  return downloadRemoteFile(url, undefined)
+async function downloadBackupFile(url: string, fallbackFilename: string) {
+  console.info('[Backup] downloading backup file', { url, fallbackFilename })
+  return downloadRemoteFile(url, fallbackFilename)
 }
 
 async function downloadBackupFileData(url: string): Promise<BackupLogsDataResult> {
@@ -304,7 +304,7 @@ export async function backupLogsWithCompatibility(
       reason: !startResponse ? 'start-failed' : `status-${startResponse.status}`,
       url
     })
-    const result = await downloadBackupFile(url)
+    const result = await downloadBackupFile(url, 'fmo-backup.db')
     options.onProgress?.({
       phase: 'completed',
       mode: 'legacy',
@@ -348,7 +348,7 @@ export async function backupLogsWithCompatibility(
         message: '正在下载备份'
       })
       console.info('[Backup] fallback to legacy because events listener failed', { url })
-      const result = await downloadBackupFile(url)
+      const result = await downloadBackupFile(url, 'fmo-backup.zip')
       options.onProgress?.({
         phase: 'completed',
         mode: 'legacy',
@@ -365,7 +365,7 @@ export async function backupLogsWithCompatibility(
         message: '正在下载备份'
       })
       console.info('[Backup] fallback to legacy because no async progress arrived', { url })
-      const result = await downloadBackupFile(url)
+      const result = await downloadBackupFile(url, 'fmo-backup.zip')
       options.onProgress?.({
         phase: 'completed',
         mode: 'legacy',
@@ -393,7 +393,7 @@ export async function backupLogsWithCompatibility(
     percent: 100,
     message: '正在下载备份'
   })
-  const result = await downloadBackupFile(url)
+  const result = await downloadBackupFile(url, 'fmo-backup.zip')
   options.onProgress?.({
     phase: 'completed',
     mode: 'async',

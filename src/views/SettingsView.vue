@@ -272,10 +272,10 @@
           <div class="setting-item-data-header">
             <span class="setting-label">数据管理</span>
           </div>
-          <div class="setting-item-data-row">
+          <div v-if="!isLegacyAndroidRuntime" class="setting-item-data-row">
             <button class="btn-primary btn-full" @click="$emit('select-files')">导入FMO日志</button>
           </div>
-          <div class="setting-item-data-row">
+          <div v-if="!isLegacyAndroidRuntime" class="setting-item-data-row">
             <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-data')">
               导出数据库文件
             </button>
@@ -283,7 +283,7 @@
               导出分片压缩包
             </button>
           </div>
-          <div class="setting-item-data-row">
+          <div v-if="!isLegacyAndroidRuntime" class="setting-item-data-row">
             <button class="btn-secondary" :disabled="!dbLoaded" @click="$emit('export-adif')">
               导出ADIF
             </button>
@@ -392,11 +392,13 @@
 
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import packageInfo from '../../package.json'
 import { buildWebSocketUrl, normalizeHost } from '../utils/urlUtils'
 import confirmDialog from '../composables/useConfirm'
 import { clearGridCache } from '../services/gridService'
 import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
+import { isAndroidNativeRuntimeAvailable } from '../platform/runtime'
 import {
   cancelAndroidUpdate,
   checkForAndroidUpdate,
@@ -498,6 +500,12 @@ const connectingId = ref(null)
 const refreshingId = ref(null)
 const checkingUpdate = ref(false)
 const androidUpdateEnabled = isAndroidUpdateEnabled()
+const isLegacyAndroidRuntime = computed(
+  () =>
+    Capacitor.isNativePlatform() &&
+    Capacitor.getPlatform() === 'android' &&
+    !isAndroidNativeRuntimeAvailable()
+)
 const updateButtonText = computed(() =>
   isUpdateDownloading()
     ? '停止更新'

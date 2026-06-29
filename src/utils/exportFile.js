@@ -55,6 +55,14 @@ function base64ToUint8Array(base64) {
   return data
 }
 
+function isSameOriginUrl(url) {
+  try {
+    return new URL(url, window.location.href).origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
 /**
  * 将入参统一转换为 Blob
  */
@@ -186,12 +194,39 @@ export async function downloadRemoteFile(url, fallbackFilename) {
   const platform = getEffectivePlatform()
 
   if (platform === 'web') {
-    const link = document.createElement('a')
-    link.href = url
-    link.download = ''
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    if (!isSameOriginUrl(url)) {
+      const link = document.createElement('a')
+      link.href = url
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return { platform }
+    }
+
+    try {
+      const response = await fetch(url, {
+        cache: 'no-store',
+        credentials: 'include'
+      })
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const headers = Object.fromEntries(response.headers.entries())
+      const filename = parseFilenameFromHeaders(
+        headers,
+        fallbackFilename || fallbackFilenameFromUrl(url)
+      )
+      downloadInBrowser(filename, await response.blob())
+      return { platform }
+    } catch (err) {
+      console.warn('[exportFile] web download fetch failed, fallback to direct navigation:', err)
+      const link = document.createElement('a')
+      link.href = url
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
     return { platform }
   }
 
@@ -229,6 +264,10 @@ export async function downloadRemoteFileData(url) {
   const platform = getEffectivePlatform()
 
   if (platform === 'web') {
+    if (!isSameOriginUrl(url)) {
+      throw new Error('WEB_CROSS_ORIGIN_DOWNLOAD_DATA_UNSUPPORTED')
+    }
+
     const response = await fetch(url, { cache: 'no-store', credentials: 'include' })
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
