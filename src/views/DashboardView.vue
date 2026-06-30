@@ -706,34 +706,50 @@
       </button>
     </div>
 
-    <div class="dashboard-layout-toolbar">
-      <button
-        class="layout-edit-button"
-        type="button"
-        :class="{ active: isEditingLayout }"
-        :title="isEditingLayout ? '完成布局编辑' : '编辑布局'"
-        @click="isEditingLayout = !isEditingLayout"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 20h9" />
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-        </svg>
-        <span>{{ isEditingLayout ? '完成' : '编辑布局' }}</span>
-      </button>
-      <button
-        v-if="isEditingLayout"
-        class="layout-reset-button"
-        type="button"
-        @click="settingsStore.resetDashboardLayout()"
-      >
-        恢复默认
-      </button>
-    </div>
+    <section
+      ref="dashboardLayoutSectionRef"
+      class="dashboard-layout-section"
+      :class="{ editing: isEditingLayout }"
+    >
+      <div class="dashboard-layout-section-divider" aria-hidden="true"></div>
+
+      <div class="dashboard-layout-drawer">
+        <div class="dashboard-layout-toolbar" :class="{ editing: isEditingLayout }">
+          <button
+            v-if="!isEditingLayout"
+            class="dashboard-layout-text-button"
+            type="button"
+            title="编辑布局"
+            @click="isEditingLayout = true"
+          >
+            编辑布局
+          </button>
+          <template v-else>
+            <button
+              class="dashboard-layout-text-button is-primary"
+              type="button"
+              title="完成布局编辑"
+              @click="finishLayoutEditing"
+            >
+              完成
+            </button>
+            <button
+              class="dashboard-layout-text-button"
+              type="button"
+              title="恢复默认布局"
+              @click="resetLayoutAndFinishEditing"
+            >
+              恢复默认
+            </button>
+          </template>
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, inject, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, inject, reactive, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSpeakingStatusStore } from '../stores/speakingStore'
 import { useAudioPlayerStore } from '../stores/audioPlayerStore'
@@ -765,6 +781,7 @@ const speakingStore = useSpeakingStatusStore()
 const audioStore = useAudioPlayerStore()
 const settingsStore = useSettingsStore()
 const isEditingLayout = ref(false)
+const dashboardLayoutSectionRef = ref(null)
 
 const dashboardPanelLabels = {
   'reachability-info': '可达性信息',
@@ -929,6 +946,36 @@ const myGrid = computed(() => {
 const speakingDuration = ref('00:00')
 const ownSpeakingDuration = ref('00:00')
 let durationTimer = null
+
+function scrollDashboardLayoutControlsIntoView() {
+  if (typeof window === 'undefined') return
+
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const root = dashboardLayoutSectionRef.value?.closest('.dashboard-view')
+      if (root?.scrollIntoView) {
+        root.scrollIntoView({ block: 'start', behavior: 'smooth' })
+        return
+      }
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    })
+  })
+}
+
+function finishLayoutEditing() {
+  isEditingLayout.value = false
+  scrollDashboardLayoutControlsIntoView()
+}
+
+function resetLayoutAndFinishEditing() {
+  settingsStore.resetDashboardLayout()
+  isEditingLayout.value = false
+  scrollDashboardLayoutControlsIntoView()
+}
 
 const displayHistory = computed(() => {
   if (speakingStore.allSpeakingHistories?.length > 0) {
@@ -1536,6 +1583,12 @@ watch(
 
 watch(displaySpeaker, () => updateDisplaySpeakerAddress(), { immediate: true })
 
+watch(isEditingLayout, (editing) => {
+  if (editing) {
+    scrollDashboardLayoutControlsIntoView()
+  }
+})
+
 watch([fmoAddress, protocol, shouldLoadStationInfo], () => loadStationInfo(), {
   immediate: true
 })
@@ -2030,16 +2083,39 @@ watch(
   color: var(--component-header-station-text);
 }
 
+.dashboard-layout-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 1.65rem;
+  padding-top: 0.75rem;
+}
+
+.dashboard-layout-section-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0, var(--border-light) 8%, var(--border-light) 92%, transparent 100%);
+  opacity: 0.78;
+}
+
+.dashboard-layout-drawer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 .dashboard-layout-toolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: 0.55rem;
   min-height: 2rem;
+  width: 100%;
 }
 
-.layout-edit-button,
-.layout-reset-button,
+.dashboard-layout-text-button,
 .hero-elements-editor label,
 .hidden-panels button,
 .panel-layout-actions button {
@@ -2048,36 +2124,40 @@ watch(
   justify-content: center;
 }
 
-.layout-edit-button,
-.layout-reset-button {
+.dashboard-layout-text-button {
   min-height: 2rem;
-  padding: 0.3rem 0.55rem;
-  border-color: var(--border-light);
-  border-radius: 5px;
+  padding: 0.22rem 0.2rem;
+  border: 0;
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 0.78rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
-.layout-edit-button {
-  gap: 0.3rem;
+.dashboard-layout-toolbar.editing .dashboard-layout-text-button {
+  color: var(--text-secondary);
 }
 
-.layout-edit-button.active {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.layout-edit-button svg,
 .hidden-panels button svg,
 .panel-layout-actions button svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.12rem;
+  height: 1.12rem;
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
+}
+
+.dashboard-layout-text-button.is-primary,
+.dashboard-layout-toolbar.editing .dashboard-layout-text-button:first-child {
+  color: var(--color-primary);
+}
+
+.dashboard-layout-text-button:hover,
+.dashboard-layout-text-button:focus-visible {
+  color: var(--text-primary);
 }
 
 .hidden-panels {
