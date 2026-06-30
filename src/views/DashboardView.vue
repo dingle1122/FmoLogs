@@ -364,7 +364,7 @@
               </div>
               <div v-else-if="item.id === 'audio-control'" class="audio-control-content">
                 <div class="audio-control-main">
-                  <strong>{{ item.value }}</strong>
+                  <strong class="audio-control-status">{{ item.value }}</strong>
                   <button
                     type="button"
                     class="audio-control-text"
@@ -817,7 +817,8 @@ const dashboardHeroElementOptions = [
 const selectedFromCallsign = inject('selectedFromCallsign', ref(''))
 const fmoAddress = inject('fmoAddress', ref(''))
 const protocol = inject('protocol', ref('ws'))
-const { isPlaying: isAudioPlaying, isMuted: isAudioMuted, audioStatus } = storeToRefs(audioStore)
+const { isPlaying: isAudioPlaying, isMuted: isAudioMuted, hostMuted: isAudioHostMuted } =
+  storeToRefs(audioStore)
 
 const now = ref(Date.now())
 let nowTimer = null
@@ -1035,7 +1036,9 @@ const screenModeToggleText = computed(() => {
   return '切换模式'
 })
 const dashboardAudioTitle = computed(() => {
-  return '音频播放'
+  if (!isAudioPlaying.value) return '暂未播放'
+  if (isAudioMuted.value || isAudioHostMuted.value) return '静音播放'
+  return '正在播放'
 })
 const dashboardAudioActionText = computed(() => (isAudioPlaying.value ? '停止' : '播放'))
 const dashboardAudioMuteText = computed(() => (isAudioMuted.value ? '取消静音' : '静音'))
@@ -1997,7 +2000,7 @@ watch(
   min-width: 0;
   color: var(--text-primary);
   font-size: 0.92rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .audio-volume-row {
