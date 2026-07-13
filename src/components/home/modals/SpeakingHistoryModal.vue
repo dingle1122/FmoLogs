@@ -59,7 +59,12 @@
                           src="/img/star_2b50.webp"
                           alt="今日已通联"
                         />
-                        <template v-else>&#9733;</template>
+                        <img
+                          v-else
+                          class="today-star-icon"
+                          src="/img/star_2b50_unactivated.webp"
+                          alt="今日未通联"
+                        />
                       </span>
                     </span>
                     <span
