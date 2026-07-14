@@ -60,13 +60,13 @@
         <div class="coffee-qrcode-list">
           <div class="coffee-item">
             <div class="coffee-qrcode-wrap">
-              <img src="/coffee/wechat.png" alt="微信收款码" class="coffee-qrcode" />
+              <img src="/coffee/wechat.webp" alt="微信收款码" class="coffee-qrcode" />
             </div>
             <span class="coffee-label">微信支付</span>
           </div>
           <div class="coffee-item">
             <div class="coffee-qrcode-wrap">
-              <img src="/coffee/alipay.png" alt="支付宝收款码" class="coffee-qrcode" />
+              <img src="/coffee/alipay.webp" alt="支付宝收款码" class="coffee-qrcode" />
             </div>
             <span class="coffee-label">支付宝</span>
           </div>
