@@ -47,11 +47,6 @@
                       <span
                         v-else
                         class="today-star"
-                        :class="
-                          todayContactedCallsigns.has(record.callsign)
-                            ? 'is-contacted'
-                            : 'is-uncontacted'
-                        "
                       >
                         <img
                           v-if="todayContactedCallsigns.has(record.callsign)"
@@ -457,9 +452,6 @@ defineEmits([
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.today-star.is-contacted {
   width: 1em;
   height: 1em;
 }
@@ -469,11 +461,6 @@ defineEmits([
   width: 0.95em;
   height: 0.95em;
   object-fit: contain;
-}
-
-.today-star.is-uncontacted {
-  color: var(--color-today-uncontacted);
-  font-size: 0.95em;
 }
 
 .contact-count {
