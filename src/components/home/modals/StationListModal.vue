@@ -10,6 +10,23 @@
             placeholder="查询信道"
             @keydown.enter.prevent
           />
+          <div class="station-summary" aria-live="polite">
+            <div class="summary-main">
+              <div class="summary-item">
+                <span class="summary-value">{{ stationCount }}</span>
+                <span>个信道</span>
+              </div>
+              <span class="summary-separator" aria-hidden="true">·</span>
+              <div class="summary-item summary-item-pinned">
+                <span class="summary-value">{{ pinnedCount }}</span>
+                <span>个收藏</span>
+              </div>
+            </div>
+            <div v-if="hasSearchQuery" class="summary-item summary-item-match">
+              <span>匹配</span>
+              <span class="summary-value">{{ filteredStationList.length }}</span>
+            </div>
+          </div>
         </div>
         <div class="header-actions">
           <button
@@ -86,6 +103,10 @@ const emit = defineEmits(['close', 'select', 'refresh'])
 
 const searchQuery = ref('')
 const modalBodyRef = ref(null)
+
+const stationCount = computed(() => props.stationList.length)
+const pinnedCount = computed(() => props.stationList.filter((station) => station.isPinned).length)
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
 
 // 弹框关闭后重置开关状态，打开时滚动到当前选中项
 watch(
@@ -186,6 +207,54 @@ function handleSelect(uid) {
   align-items: center;
   padding: 1rem 1rem;
   border-bottom: 1px solid var(--border-light);
+}
+
+.station-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.summary-main {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.summary-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.summary-value {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-separator {
+  color: var(--text-disabled);
+}
+
+.summary-item-pinned .summary-value {
+  color: var(--color-warning);
+}
+
+.summary-item-match {
+  padding-left: 0.65rem;
+  border-left: 1px solid var(--border-light);
+  line-height: 1;
+}
+
+.summary-item-match .summary-value {
+  font-size: inherit;
+  color: var(--text-secondary);
 }
 
 .search-input {
@@ -353,6 +422,22 @@ function handleSelect(uid) {
 @media (max-width: 600px) {
   .modal-station-list {
     width: 95%;
+  }
+
+  .modal-header {
+    position: relative;
+    padding-bottom: 2.1rem;
+  }
+
+  .station-summary {
+    position: absolute;
+    left: 1rem;
+    bottom: 0.55rem;
+    right: 1rem;
+  }
+
+  .summary-item-match {
+    margin-left: auto;
   }
 
   .station-item {
