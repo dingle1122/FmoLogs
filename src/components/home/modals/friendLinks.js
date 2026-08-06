@@ -1,17 +1,27 @@
 /**
  * 友情链接配置
- * 添加新友链时，在此数组中添加配置对象即可
+ * 支持从 RSS 订阅获取数据，失败时降级到静态配置
  */
-export const friendLinks = [
+import { parseRssXml, extractCategory, extractDisplayUrl } from '../../../utils/rssParser'
+
+const RSS_URL = import.meta.env.VITE_RSS_URL || 'http://localhost:4321/rss.xml'
+const CACHE_KEY = 'fmo-rss-cache'
+const CACHE_TTL = 30 * 60 * 1000 // 30 分钟缓存
+
+export function getRssSourceUrl() {
+  return RSS_URL.replace(/\/[^/]*$/, '')
+}
+
+/**
+ * 静态降级数据（原有链接）
+ */
+const staticLinks = [
   {
     id: 'fmo-map',
     name: 'FMO 地图',
     url: 'https://map.fmo.net.cn/',
     displayUrl: 'map.fmo.net.cn',
-    icon: {
-      type: 'emoji',
-      content: '🗺️'
-    }
+    icon: { type: 'emoji', content: '🗺️' }
   },
   {
     id: 'fmodeck',
@@ -19,40 +29,28 @@ export const friendLinks = [
     url: 'https://fmologs.wh0am1i.com/logs',
     displayUrl: 'fmologs.wh0am1i.com',
     description: '业余无线电 FMO 平台的日志与控制台 · 战术 HUD 主题',
-    icon: {
-      type: 'url',
-      content: 'https://fmologs.wh0am1i.com/icon.svg'
-    }
+    icon: { type: 'url', content: 'https://fmologs.wh0am1i.com/icon.svg' }
   },
   {
     id: 'fmo-dashboard',
     name: 'FMO 仪表盘',
     url: 'https://fmo.bh1jss.net/v2',
     displayUrl: 'fmo.bh1jss.net',
-    icon: {
-      type: 'url',
-      content: 'https://cdn.lzyike.cn/fmoLogs/icon/fmo-dashboard.png'
-    }
+    icon: { type: 'url', content: 'https://cdn.lzyike.cn/fmoLogs/icon/fmo-dashboard.png' }
   },
   {
     id: 'fmo-docs',
     name: 'FMO实践分享',
     url: 'https://bg5esn.com/docs/fmo-user-shares/',
     displayUrl: 'bg5esn.com',
-    icon: {
-      type: 'emoji',
-      content: '📖'
-    }
+    icon: { type: 'emoji', content: '📖' }
   },
   {
     id: 'bg5esn',
     name: '大船地下室',
     url: 'https://bg5esn.com/',
     displayUrl: 'bg5esn.com',
-    icon: {
-      type: 'emoji',
-      content: '⚓'
-    }
+    icon: { type: 'emoji', content: '⚓' }
   },
   {
     id: 'fmoc',
@@ -69,34 +67,58 @@ export const friendLinks = [
   }
 ]
 
-import { normalizeHost } from '../../../utils/urlUtils'
-
 /**
- * 获取处理后的友链列表
- * @param {string} rawAddress - 当前FMO原始地址，用于动态生成远程控制链接
- * @returns {Array} 处理后的友链数组
+ * 从 RSS 获取友链数据
+ * @returns {Promise<Array>} 友链数组
  */
-export function getProcessedLinks(rawAddress = '') {
-  const host = rawAddress ? normalizeHost(rawAddress) : ''
-
-  return friendLinks.map((link) => {
-    const processed = { ...link }
-
-    // 如果定义了 getUrl 方法，调用它生成 URL
-    if (link.getUrl) {
-      processed.url = link.getUrl(host)
+export async function fetchFriendLinks() {
+  // 检查缓存
+  const cached = localStorage.getItem(CACHE_KEY)
+  if (cached) {
+    try {
+      const { data, timestamp } = JSON.parse(cached)
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return { links: data, fromRss: true }
+      }
+    } catch {
+      // 缓存解析失败，继续请求
     }
+  }
 
-    // 如果定义了 getDisplayUrl 方法，调用它生成显示文本
-    if (link.getDisplayUrl) {
-      processed.displayUrl = link.getDisplayUrl(host)
-    }
+  try {
+    const response = await fetch(RSS_URL)
+    const xml = await response.text()
+    const items = parseRssXml(xml)
 
-    // 如果 url 是 # 或未设置，标记为禁用
-    if (processed.url === '#' || !processed.url) {
-      processed.disabled = true
-    }
+    const links = items.map((item) => {
+      const { category, name } = extractCategory(item.title)
+      return {
+        id: item.link,
+        name,
+        url: item.link,
+        displayUrl: extractDisplayUrl(item.link),
+        description: item.description,
+        icon: item.imageUrl
+          ? { type: 'url', content: item.imageUrl }
+          : { type: 'emoji', content: '🔗' },
+        tag: category || null,
+        tagType: 'info'
+      }
+    })
 
-    return processed
-  })
+    // 缓存
+    localStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({
+        data: links,
+        timestamp: Date.now()
+      })
+    )
+
+    return { links, fromRss: true }
+  } catch (error) {
+    console.error('Failed to fetch RSS:', error)
+    // 降级到静态数据
+    return { links: staticLinks, fromRss: false }
+  }
 }

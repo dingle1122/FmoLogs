@@ -91,6 +91,7 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_RSS_URL: ${{ secrets.RSS_URL }}
         with:
           tagName: ${{ steps.release.outputs.tag }}
           releaseName: ${{ steps.release.outputs.name }}

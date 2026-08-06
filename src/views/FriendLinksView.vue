@@ -1,58 +1,109 @@
 <template>
   <div class="friend-links-view">
-    <div class="links-card-grid">
-      <a
-        v-for="link in friendLinksList"
-        :key="link.id"
-        :href="link.url"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="link-card"
-        :class="{ disabled: link.disabled }"
-        :title="link.description"
-      >
-        <div class="link-icon">
-          <template v-if="link.icon.type === 'emoji'">
-            {{ link.icon.content }}
-          </template>
-          <template v-else-if="link.icon.type === 'svg'">
-            <span v-html="link.icon.content"></span>
-          </template>
-          <template v-else-if="link.icon.type === 'url'">
-            <img :src="link.icon.content" :alt="link.name" />
-          </template>
-        </div>
-        <div class="link-info">
-          <div class="link-name">
-            {{ link.name }}
-            <span
-              v-if="link.tag"
-              class="link-tag"
-              :class="link.tagType ? `tag-${link.tagType}` : 'tag-info'"
-            >
-              {{ link.tag }}
-            </span>
-          </div>
-          <div class="link-url">{{ link.displayUrl }}</div>
-        </div>
-        <div class="link-arrow">&rarr;</div>
-      </a>
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-state">
+      <div class="loading-spinner"></div>
+      <span>加载中...</span>
     </div>
+
+    <!-- 错误提示 -->
+    <div v-else-if="error" class="error-state">
+      <span>{{ error }}</span>
+    </div>
+
+    <!-- 分类分组展示 -->
+    <template v-else>
+      <div v-for="group in groupedLinks" :key="group.category || 'default'" class="link-group">
+        <h3 v-if="group.category" class="group-title">{{ group.category }}</h3>
+        <div class="links-card-grid">
+          <a
+            v-for="link in group.items"
+            :key="link.id"
+            :href="link.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link-card"
+            :class="{ disabled: link.disabled }"
+            :title="link.description"
+          >
+            <div class="link-icon">
+              <template v-if="link.icon.type === 'emoji'">
+                {{ link.icon.content }}
+              </template>
+              <template v-else-if="link.icon.type === 'svg'">
+                <span v-html="link.icon.content"></span>
+              </template>
+              <template v-else-if="link.icon.type === 'url'">
+                <img :src="link.icon.content" :alt="link.name" />
+              </template>
+            </div>
+            <div class="link-info">
+              <div class="link-name">
+                {{ link.name }}
+              </div>
+              <div v-if="link.description" class="link-description">{{ link.description }}</div>
+            </div>
+            <div class="link-arrow">&rarr;</div>
+          </a>
+        </div>
+      </div>
+      <div v-if="rssSource" class="rss-source">
+        数据来源：<a :href="rssSource" target="_blank" rel="noopener noreferrer">{{ rssSource }}</a>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { getProcessedLinks } from '../components/home/modals/friendLinks'
+import { ref, computed, onMounted } from 'vue'
+import { fetchFriendLinks, getRssSourceUrl } from '../components/home/modals/friendLinks'
 
-const props = defineProps({
-  fmoAddress: {
-    type: String,
-    default: ''
+const friendLinksList = ref([])
+const loading = ref(true)
+const error = ref(null)
+const rssSource = ref(null)
+
+onMounted(async () => {
+  try {
+    const result = await fetchFriendLinks()
+    friendLinksList.value = result.links
+    if (result.fromRss) {
+      rssSource.value = getRssSourceUrl()
+    }
+  } catch (e) {
+    error.value = '加载失败'
+    console.error(e)
+  } finally {
+    loading.value = false
   }
 })
 
-const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
+// 按分类分组
+const groupedLinks = computed(() => {
+  const groups = {}
+  const defaultCategory = '__default__'
+
+  for (const link of friendLinksList.value) {
+    const category = link.tag || defaultCategory
+    if (!groups[category]) {
+      groups[category] = []
+    }
+    groups[category].push(link)
+  }
+
+  // 转换为数组，有分类的放前面，无分类的放最后
+  const result = []
+  for (const [category, items] of Object.entries(groups)) {
+    if (category !== defaultCategory) {
+      result.push({ category, items })
+    }
+  }
+  if (groups[defaultCategory]) {
+    result.push({ category: '其他', items: groups[defaultCategory] })
+  }
+
+  return result
+})
 </script>
 
 <style scoped>
@@ -60,6 +111,66 @@ const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
   height: 100%;
   overflow-y: auto;
   padding: 1.5rem;
+}
+
+.loading-state,
+.error-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem;
+  color: var(--text-tertiary);
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-secondary);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rss-source {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.rss-source a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.rss-source a:hover {
+  text-decoration: underline;
+}
+
+.link-group {
+  margin-bottom: 1.5rem;
+}
+
+.link-group:last-child {
+  margin-bottom: 0;
+}
+
+.group-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--color-primary);
 }
 
 .links-card-grid {
@@ -135,36 +246,17 @@ const friendLinksList = computed(() => getProcessedLinks(props.fmoAddress))
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
-.link-tag {
-  font-size: 0.65rem;
-  font-weight: 500;
-  padding: 0.15rem 0.4rem;
-  border-radius: 3px;
-  flex-shrink: 0;
-  border: 1px solid;
-}
-
-.link-tag.tag-info {
-  background: var(--alpha-primary-10);
-  color: var(--color-primary);
-  border-color: var(--alpha-primary-30);
-}
-
-.link-tag.tag-warn {
-  background: var(--alpha-warning-gold-10);
-  color: var(--brand-warning-gold);
-  border-color: var(--alpha-warning-gold-30);
-}
-
-.link-tag.tag-error {
-  background: var(--alpha-danger-strong-10);
-  color: var(--brand-danger-strong);
-  border-color: var(--alpha-danger-strong-30);
+.link-description {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .link-url {
