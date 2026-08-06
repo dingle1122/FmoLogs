@@ -11,14 +11,18 @@ export function parseRssXml(xmlString) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(xmlString, 'text/xml')
   const items = doc.querySelectorAll('item')
+  const channelLink = doc.querySelector('channel > link')?.textContent || ''
 
-  return Array.from(items).map((item) => ({
-    title: item.querySelector('title')?.textContent || '',
-    link: item.querySelector('link')?.textContent || '',
-    description: item.querySelector('description')?.textContent || '',
-    pubDate: item.querySelector('pubDate')?.textContent || '',
-    imageUrl: item.querySelector('enclosure')?.getAttribute('url') || ''
-  }))
+  return {
+    channelLink,
+    items: Array.from(items).map((item) => ({
+      title: item.querySelector('title')?.textContent || '',
+      link: item.querySelector('link')?.textContent || '',
+      description: item.querySelector('description')?.textContent || '',
+      pubDate: item.querySelector('pubDate')?.textContent || '',
+      imageUrl: item.querySelector('enclosure')?.getAttribute('url') || ''
+    }))
+  }
 }
 
 /**

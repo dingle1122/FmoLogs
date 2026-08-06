@@ -7,9 +7,10 @@ import { parseRssXml, extractCategory, extractDisplayUrl } from '../../../utils/
 const RSS_URL = import.meta.env.VITE_RSS_URL || 'http://localhost:4321/rss.xml'
 const CACHE_KEY = 'fmo-rss-cache'
 const CACHE_TTL = 30 * 60 * 1000 // 30 分钟缓存
+let rssChannelLink = ''
 
 export function getRssSourceUrl() {
-  return RSS_URL.replace(/\/[^/]*$/, '')
+  return rssChannelLink || RSS_URL.replace(/\/[^/]*$/, '')
 }
 
 /**
@@ -88,7 +89,8 @@ export async function fetchFriendLinks() {
   try {
     const response = await fetch(RSS_URL)
     const xml = await response.text()
-    const items = parseRssXml(xml)
+    const { channelLink, items } = parseRssXml(xml)
+    if (channelLink) rssChannelLink = channelLink
 
     const links = items.map((item) => {
       const { category, name } = extractCategory(item.title)
