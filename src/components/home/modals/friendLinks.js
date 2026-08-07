@@ -2,6 +2,8 @@
  * 友情链接配置
  * 支持从 RSS 订阅获取数据，失败时降级到静态配置
  */
+import { CapacitorHttp } from '@capacitor/core'
+import { getEffectivePlatform } from '../../../platform/runtime'
 import { parseRssXml, extractCategory, extractDisplayUrl } from '../../../utils/rssParser'
 
 const RSS_URL = import.meta.env.VITE_RSS_URL || 'http://localhost:4321/rss.xml'
@@ -87,8 +89,14 @@ export async function fetchFriendLinks() {
   }
 
   try {
-    const response = await fetch(RSS_URL)
-    const xml = await response.text()
+    let xml
+    if (getEffectivePlatform() === 'android') {
+      const response = await CapacitorHttp.request({ url: RSS_URL, method: 'GET', responseType: 'text' })
+      xml = response.data
+    } else {
+      const response = await fetch(RSS_URL)
+      xml = await response.text()
+    }
     const { channelLink, items } = parseRssXml(xml)
     if (channelLink) rssChannelLink = channelLink
 
