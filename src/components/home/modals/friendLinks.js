@@ -79,8 +79,9 @@ export async function fetchFriendLinks() {
   const cached = localStorage.getItem(CACHE_KEY)
   if (cached) {
     try {
-      const { data, timestamp } = JSON.parse(cached)
+      const { data, timestamp, channelLink: cachedLink } = JSON.parse(cached)
       if (Date.now() - timestamp < CACHE_TTL) {
+        if (cachedLink) rssChannelLink = cachedLink
         return { links: data, fromRss: true }
       }
     } catch {
@@ -121,7 +122,8 @@ export async function fetchFriendLinks() {
       CACHE_KEY,
       JSON.stringify({
         data: links,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        channelLink: rssChannelLink
       })
     )
 
