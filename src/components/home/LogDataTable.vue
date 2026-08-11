@@ -91,7 +91,7 @@
               </template>
               <template v-else-if="col === 'relayName'">
                 <div class="relay-cell">
-                  <div>{{ row.relayName }}</div>
+                  <div class="relay-name" :title="row.relayName">{{ row.relayName }}</div>
                   <div class="relay-admin">（{{ row.relayAdmin }}）</div>
                 </div>
               </template>
@@ -396,6 +396,12 @@ function formatTimePart(dateTimeStr) {
 
 .relay-cell {
   text-align: center;
+}
+
+.relay-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .relay-admin {

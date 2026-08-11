@@ -571,7 +571,7 @@ export const ColumnNames = {
   toGrid: '接收网格',
   toComment: '留言',
   mode: '模式',
-  relayName: '中继',
+  relayName: '信道',
   count: '计数'
 }
 

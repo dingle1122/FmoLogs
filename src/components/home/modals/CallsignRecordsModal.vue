@@ -47,7 +47,7 @@
               <span class="record-value">{{ formatFreqHz(record.freqHz) }} MHz</span>
             </div>
             <div class="record-row">
-              <span class="record-label">中继：</span>
+              <span class="record-label">信道：</span>
               <span class="record-value"
                 >{{ record.relayName || '-'
                 }}<template v-if="record.relayAdmin">（{{ record.relayAdmin }}）</template></span

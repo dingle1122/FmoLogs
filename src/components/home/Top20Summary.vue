@@ -68,7 +68,7 @@
 
       <!-- 中继名称 TOP20 -->
       <div class="top20-card">
-        <h3>中继名称 TOP20</h3>
+        <h3>信道名称 TOP20</h3>
         <div class="top20-list">
           <div
             v-for="(item, index) in top20Result.relayName"
