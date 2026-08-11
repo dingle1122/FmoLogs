@@ -3,9 +3,9 @@
     <div class="modal modal-callsign-records">
       <div class="modal-header">
         <div class="friend-callsign">
-              {{ callsign }}
-              <span class="contact-count">&nbsp;x{{ records ? records.total : 0 }}</span>
-            </div>
+          {{ callsign }}
+          <span class="contact-count">&nbsp;x{{ records ? records.total : 0 }}</span>
+        </div>
         <button class="close-btn" @click="$emit('close')">&times;</button>
       </div>
       <div ref="modalBodyRef" class="modal-body">
@@ -89,7 +89,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['close'])
+defineEmits(['close'])
 
 const cardRefs = ref([])
 const modalBodyRef = ref(null)

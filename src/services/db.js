@@ -75,7 +75,7 @@ const CRC32_TABLE = (() => {
   for (let i = 0; i < 256; i++) {
     let c = i
     for (let j = 0; j < 8; j++) {
-      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
     }
     table[i] = c >>> 0
   }
@@ -112,9 +112,7 @@ function dosDateTime(date = new Date()) {
     ((date.getMinutes() & 0x3f) << 5) |
     (Math.floor(date.getSeconds() / 2) & 0x1f)
   const dosDate =
-    (((year - 1980) & 0x7f) << 9) |
-    (((date.getMonth() + 1) & 0x0f) << 5) |
-    (date.getDate() & 0x1f)
+    (((year - 1980) & 0x7f) << 9) | (((date.getMonth() + 1) & 0x0f) << 5) | (date.getDate() & 0x1f)
   return { dosTime, dosDate }
 }
 
@@ -318,7 +316,9 @@ async function extractDbFilesFromZipBytes(bytes, fallbackName = 'backup.zip') {
     }
 
     if (entry.uncompressedSize && data.length !== entry.uncompressedSize) {
-      console.warn(`ZIP 解压尺寸不匹配: ${entry.name} expected=${entry.uncompressedSize} actual=${data.length}`)
+      console.warn(
+        `ZIP 解压尺寸不匹配: ${entry.name} expected=${entry.uncompressedSize} actual=${data.length}`
+      )
     }
 
     dbFiles.push({

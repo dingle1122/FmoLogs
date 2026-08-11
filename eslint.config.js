@@ -24,7 +24,11 @@ export default [
         IDBKeyRange: 'readonly',
         localStorage: 'readonly',
         Blob: 'readonly',
-        URL: 'readonly'
+        URL: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
+        DecompressionStream: 'readonly',
+        Response: 'readonly'
       }
     },
     rules: {
