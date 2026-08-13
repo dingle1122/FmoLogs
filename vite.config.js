@@ -1,59 +1,65 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import legacy from '@vitejs/plugin-legacy'
 import { fileURLToPath, URL } from 'node:url'
+import { aboutConfigPlugin } from './scripts/about-data-plugin.mjs'
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    vue(),
-    legacy({
-      targets: ['Chrome >= 51'],
-      modernPolyfills: true,
-      renderLegacyChunks: true
-    })
-  ],
-  esbuild: {
-    target: 'chrome51'
-  },
-  optimizeDeps: {
-    esbuildOptions: {
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd())
+
+  return {
+    plugins: [
+      vue(),
+      aboutConfigPlugin(env),
+      legacy({
+        targets: ['Chrome >= 51'],
+        modernPolyfills: true,
+        renderLegacyChunks: true
+      })
+    ],
+    esbuild: {
       target: 'chrome51'
-    }
-  },
-  build: {
-    // 兼容旧版 Android System WebView，避免保留过新的 JS/CSS 语法。
-    cssTarget: ['chrome51', 'safari12'],
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return
-          }
+    },
+    optimizeDeps: {
+      esbuildOptions: {
+        target: 'chrome51'
+      }
+    },
+    build: {
+      // 兼容旧版 Android System WebView，避免保留过新的 JS/CSS 语法。
+      cssTarget: ['chrome51', 'safari12'],
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return
+            }
 
-          if (id.includes('/sql.js/')) {
-            return 'vendor-sql'
-          }
+            if (id.includes('/sql.js/')) {
+              return 'vendor-sql'
+            }
 
-          if (id.includes('/@capacitor/') || id.includes('/@anuradev/')) {
-            return 'vendor-native'
-          }
+            if (id.includes('/@capacitor/') || id.includes('/@anuradev/')) {
+              return 'vendor-native'
+            }
 
-          if (id.includes('/vue/') || id.includes('/vue-router/') || id.includes('/pinia/')) {
-            return 'vendor-vue'
-          }
+            if (id.includes('/vue/') || id.includes('/vue-router/') || id.includes('/pinia/')) {
+              return 'vendor-vue'
+            }
 
-          return 'vendor'
+            return 'vendor'
+          }
         }
       }
+    },
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url))
+      }
+    },
+    server: {
+      host: '0.0.0.0'
     }
-  },
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    }
-  },
-  server: {
-    host: '0.0.0.0'
   }
 })

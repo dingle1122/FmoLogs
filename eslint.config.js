@@ -1,11 +1,18 @@
 import js from '@eslint/js'
 import pluginVue from 'eslint-plugin-vue'
 import prettier from 'eslint-plugin-prettier/recommended'
+import globals from 'globals'
 
 export default [
   js.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
   prettier,
+  {
+    files: ['vite.config.js', 'scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: globals.node
+    }
+  },
   {
     files: ['**/*.{js,vue}'],
     languageOptions: {

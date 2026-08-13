@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <div class="about-thanks">
+    <div v-if="thanksList.length > 0" class="about-thanks">
       <div class="thanks-title">特别感谢</div>
       <div class="thanks-list">
         <div v-for="person in thanksList" :key="person.name" class="thanks-item">
@@ -51,24 +51,18 @@
       </div>
     </div>
 
-    <div class="about-coffee">
+    <div v-if="coffee.length > 0" class="about-coffee">
       <div class="coffee-toggle" @click="showCoffee = !showCoffee">
         <span>请作者喝杯咖啡</span>
       </div>
       <div v-if="showCoffee" class="coffee-content">
         <p class="coffee-hint">如果这个项目对你有帮助，欢迎支持一下</p>
         <div class="coffee-qrcode-list">
-          <div class="coffee-item">
+          <div v-for="(item, index) in coffee" :key="index" class="coffee-item">
             <div class="coffee-qrcode-wrap">
-              <img src="/coffee/wechat.webp" alt="微信收款码" class="coffee-qrcode" />
+              <img :src="item.url" :alt="item.label" class="coffee-qrcode" />
             </div>
-            <span class="coffee-label">微信支付</span>
-          </div>
-          <div class="coffee-item">
-            <div class="coffee-qrcode-wrap">
-              <img src="/coffee/alipay.webp" alt="支付宝收款码" class="coffee-qrcode" />
-            </div>
-            <span class="coffee-label">支付宝</span>
+            <span class="coffee-label">{{ item.label }}</span>
           </div>
         </div>
       </div>
@@ -84,10 +78,12 @@
 <script setup>
 import { computed, ref } from 'vue'
 import packageInfo from '../../package.json'
-import sponsorList from '../data/sponsors.json'
-import thanksList from '../data/thanks.json'
+import { aboutConfig } from 'virtual:about-config'
 
 const appVersion = computed(() => `v${packageInfo.version}`)
+const sponsorList = aboutConfig.sponsors
+const thanksList = aboutConfig.thanks
+const coffee = aboutConfig.coffee
 
 const showCoffee = ref(false)
 </script>

@@ -140,7 +140,6 @@ src/
 ├── composables/           # 少量可复用组合式逻辑
 ├── core/                  # APRS、网格校验、同步引擎等核心逻辑
 │   └── sync/              # FMO 日志同步实现
-├── data/                  # 静态数据
 ├── platform/              # Web / Android Capacitor 平台抽象
 │   ├── interfaces/        # 平台能力接口
 │   ├── native-capacitor/  # Android 原生插件适配
@@ -154,23 +153,19 @@ src/
 └── views/                 # 页面视图和主布局
 ```
 
-## 🙏 特别感谢
+## 🙏 特别感谢与赞助
 
-- **BG5ESN**：提供完美的 FMO 硬件平台
-- **BG9JYT**：提供甘肃集群服务器，并提供被控支持
-- **BG2LRU**：提供宝贵的想法和建议
-- **BD6JDU**：页面美化建议
-- **BI3SQP**：提供宝贵的想法和建议
-- **BG9JQD**：提供老朋友排序显示和信道列表显示方式的建议
-- **BI4TKL**：提供服务器收藏列表建议和打赏
-- **BG9GOK**：提供页面美化建议
+关于页的赞助名单、特别感谢和赞赏二维码，通过构建时环境变量 `VITE_ABOUT_CONFIG_URL` 拉取线上 JSON 打包进产物；未配置时该区域为空。
 
-## ☕ 赞助名单
+JSON 结构：
 
-- **BG9JYT**
-- **BI4TKL**
-- **BG9JQD**
-- **BG9JLV**
+```json
+{
+  "sponsors": ["呼号1"],
+  "thanks": [{ "name": "呼号", "contribution": "贡献说明" }],
+  "coffee": [{ "label": "微信支付", "url": "收款码图片URL" }]
+}
+```
 
 ## 📄 开源许可
 
