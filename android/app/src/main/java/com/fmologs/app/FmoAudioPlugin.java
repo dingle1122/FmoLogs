@@ -47,6 +47,7 @@ public class FmoAudioPlugin extends Plugin {
 
     private static final String TAG = "FmoAudioPlugin";
     private static final int SAMPLE_RATE = 8000;
+    private static final int BYTES_PER_SAMPLE = 2;
     private static final long[] BACKOFF_MS = { 3000L, 5000L, 10000L, 30000L };
 
     private static volatile FmoAudioPlugin sInstance;
@@ -157,8 +158,9 @@ public class FmoAudioPlugin extends Plugin {
             // 前台服务延后到 WebSocket onOpen 时启动。
             acquireWakeLock();
             initAudioTrack();
-            openWebSocket(url);
+            // 在建立 WS 前允许处理 PCM，避免极快首包落在 running=false 的竞态窗口。
             running.set(true);
+            openWebSocket(url);
             emitStatus("connecting");
             call.resolve();
         } catch (Exception e) {
@@ -265,7 +267,7 @@ public class FmoAudioPlugin extends Plugin {
                 AudioFormat.CHANNEL_OUT_MONO,
                 AudioFormat.ENCODING_PCM_16BIT);
         // 放大缓冲，抵御网络抖动
-        int bufferSize = Math.max(minBuf * 4, SAMPLE_RATE); // 至少 1s
+        int bufferSize = Math.max(minBuf * 4, SAMPLE_RATE * BYTES_PER_SAMPLE); // 至少 1s
 
         AudioAttributes attrs = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_MEDIA)
@@ -400,8 +402,20 @@ public class FmoAudioPlugin extends Plugin {
     private final AtomicBoolean firstChunk = new AtomicBoolean(true);
 
     private void safeWrite(byte[] data, int len) {
+        AudioTrack track = audioTrack;
+        if (track == null) return;
+
+        int offset = 0;
         try {
-            audioTrack.write(data, 0, len);
+            while (offset < len) {
+                int written = track.write(data, offset, len - offset);
+                if (written <= 0) {
+                    Log.w(TAG, "AudioTrack.write incomplete: written=" + written
+                            + " offset=" + offset + " len=" + len);
+                    return;
+                }
+                offset += written;
+            }
         } catch (Exception e) {
             Log.w(TAG, "audioTrack.write failed", e);
         }
