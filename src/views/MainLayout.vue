@@ -189,6 +189,10 @@
     />
     <div v-if="stationImport.visible" class="station-import-overlay">
       <section class="station-import-status" role="status" aria-live="polite">
+        <div v-if="stationImportCloseSeconds !== null" class="station-import-close-control">
+          <span>{{ stationImportCloseSeconds }} 秒后</span>
+          <button type="button" @click="closeStationImport">关闭</button>
+        </div>
         <div v-if="!stationImport.failed" class="station-import-spinner" aria-hidden="true"></div>
         <div v-else class="station-import-failed-icon" aria-hidden="true">!</div>
         <h3>{{ stationImport.failed ? '导入失败' : stationImport.status }}</h3>
@@ -412,7 +416,9 @@ const stationList = ref(cachedStations.list)
 const stationListLoading = ref(false)
 const stationListFetchedAt = ref(cachedStations.fetchedAt)
 const stationImport = ref({ visible: false, status: '', failed: false, error: '' })
+const stationImportCloseSeconds = ref(null)
 let stationImportCloseTimer = null
+let stationImportCountdownTimer = null
 
 // Station 状态
 const stationBusy = ref(false)
@@ -756,10 +762,27 @@ function getImportFailureMessage(result, verify) {
   return messages[String(result)] || '导入验证失败'
 }
 
-function closeStationImportAfter(milliseconds) {
+function clearStationImportCloseSchedule() {
   clearTimeout(stationImportCloseTimer)
+  clearInterval(stationImportCountdownTimer)
+  stationImportCloseTimer = null
+  stationImportCountdownTimer = null
+  stationImportCloseSeconds.value = null
+}
+
+function closeStationImport() {
+  clearStationImportCloseSchedule()
+  stationImport.value.visible = false
+}
+
+function closeStationImportAfter(milliseconds) {
+  clearStationImportCloseSchedule()
+  stationImportCloseSeconds.value = Math.ceil(milliseconds / 1000)
+  stationImportCountdownTimer = setInterval(() => {
+    stationImportCloseSeconds.value = Math.max(1, stationImportCloseSeconds.value - 1)
+  }, 1000)
   stationImportCloseTimer = setTimeout(() => {
-    stationImport.value.visible = false
+    closeStationImport()
   }, milliseconds)
 }
 
@@ -832,7 +855,7 @@ async function handleImportStation(station) {
   if (!client) return
 
   stationBusy.value = true
-  clearTimeout(stationImportCloseTimer)
+  clearStationImportCloseSchedule()
   stationImport.value = {
     visible: true,
     status: '正在导入',
@@ -1588,7 +1611,7 @@ const _unregSpeakingHistory = registerModal(
 )
 
 onUnmounted(() => {
-  clearTimeout(stationImportCloseTimer)
+  clearStationImportCloseSchedule()
   _unregCallsignRecords()
   _unregStationList()
   _unregQuickNav()
@@ -1933,21 +1956,69 @@ provide('protocol', settings.protocol)
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--overlay-bg);
+  background: transparent;
 }
 
 .station-import-status {
+  position: relative;
   width: min(300px, calc(100vw - 3rem));
   min-height: 190px;
   padding: 1.75rem 1.5rem;
   border-radius: 10px;
   background: var(--bg-card);
-  box-shadow: 0 8px 28px var(--shadow-modal);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--bg-card) 38%, transparent),
+    color-mix(in srgb, var(--bg-card) 22%, transparent)
+  );
+  border: 1px solid var(--alpha-white-30);
+  box-shadow:
+    0 12px 32px var(--alpha-black-15),
+    inset 0 1px 0 var(--alpha-white-30);
+  -webkit-backdrop-filter: blur(6px) saturate(115%);
+  backdrop-filter: blur(6px) saturate(115%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.station-import-close-control {
+  position: absolute;
+  top: 0.7rem;
+  right: 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  line-height: 1.1rem;
+  white-space: nowrap;
+}
+
+.station-import-close-control button {
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: inherit;
+  font-weight: 400;
+  line-height: 1.1rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media (hover: hover) {
+  .station-import-close-control button:hover {
+    color: var(--text-primary);
+  }
 }
 
 .station-import-spinner {
@@ -1989,4 +2060,14 @@ provide('protocol', settings.protocol)
     transform: rotate(360deg);
   }
 }
+
+@media (prefers-color-scheme: light) {
+  .station-import-status {
+    border-color: var(--alpha-black-15);
+    box-shadow:
+      0 12px 32px var(--alpha-black-15),
+      inset 0 1px 0 var(--alpha-white-35);
+  }
+}
+
 </style>
