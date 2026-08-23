@@ -7,7 +7,7 @@
             v-model="searchQuery"
             type="text"
             class="search-input"
-            placeholder="查询信道"
+            placeholder="查询/导入信道"
             @keydown.enter.prevent
           />
           <div class="station-summary" aria-live="polite">
@@ -24,14 +24,14 @@
             </div>
             <div v-if="hasSearchQuery" class="summary-item summary-item-match">
               <span>匹配</span>
-              <span class="summary-value">{{ filteredStationList.length }}</span>
+              <span class="summary-value">{{ displayStationList.length }}</span>
             </div>
           </div>
         </div>
         <div class="header-actions">
           <button
             class="refresh-btn"
-            :disabled="loading"
+            :disabled="loading || importing"
             title="刷新列表"
             @click="$emit('refresh')"
           >
@@ -41,19 +41,26 @@
         </div>
       </div>
       <div ref="modalBodyRef" class="modal-body">
-        <div v-if="filteredStationList.length > 0" class="station-grid">
+        <div v-if="displayStationList.length > 0" class="station-grid">
           <button
-            v-for="station in filteredStationList"
-            :key="station.uid"
+            v-for="station in displayStationList"
+            :key="station.parsedPacket ? `packet-${station.uid}` : station.uid"
             class="station-item"
             :class="{
               active: currentStation && String(currentStation.uid) === String(station.uid)
             }"
-            :disabled="loading"
+            :disabled="loading || importing"
             :title="station.name"
-            @click="handleSelect(station.uid)"
+            @click="handleStationClick(station)"
           >
             <span v-if="station.isPinned" class="pin-badge">收藏</span>
+            <span
+              v-if="station.parsedPacket"
+              class="import-badge"
+              :class="{ imported: station.imported }"
+            >
+              {{ station.imported ? '已导入' : '未导入' }}
+            </span>
             {{ station.name }}
             <span
               v-if="
@@ -75,6 +82,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
+import { parseFmoStationPacket } from '../../../utils/fmoStationPacket'
 
 const props = defineProps({
   visible: {
@@ -96,10 +104,14 @@ const props = defineProps({
   showPrimaryBadge: {
     type: Boolean,
     default: false
+  },
+  importing: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['close', 'select', 'refresh'])
+const emit = defineEmits(['close', 'select', 'refresh', 'import-station'])
 
 const searchQuery = ref('')
 const modalBodyRef = ref(null)
@@ -107,6 +119,22 @@ const modalBodyRef = ref(null)
 const stationCount = computed(() => props.stationList.length)
 const pinnedCount = computed(() => props.stationList.filter((station) => station.isPinned).length)
 const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+const parsedStation = computed(() => parseFmoStationPacket(searchQuery.value))
+const parsedStationImported = computed(
+  () =>
+    parsedStation.value &&
+    props.stationList.some((station) => String(station.uid) === String(parsedStation.value.uid))
+)
+const displayStationList = computed(() => {
+  const list = [...filteredStationList.value]
+  if (!parsedStation.value) return list
+  list.push({
+    ...parsedStation.value,
+    parsedPacket: true,
+    imported: parsedStationImported.value
+  })
+  return list
+})
 
 // 弹框关闭后重置开关状态，打开时滚动到当前选中项
 watch(
@@ -169,6 +197,14 @@ const filteredStationList = computed(() => {
 function handleSelect(uid) {
   emit('select', uid)
   emit('close')
+}
+
+function handleStationClick(station) {
+  if (!station.parsedPacket || station.imported) {
+    handleSelect(station.uid)
+    return
+  }
+  emit('import-station', station)
 }
 </script>
 
@@ -417,6 +453,22 @@ function handleSelect(uid) {
   text-align: center;
   padding: 2rem;
   color: var(--text-tertiary);
+}
+
+.import-badge {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  padding: 3px;
+  border-radius: 3px;
+  background: var(--alpha-warning-22);
+  color: var(--color-warning);
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.import-badge.imported {
+  background: var(--component-station-primary-badge-bg);
+  color: var(--component-station-primary-badge-text);
 }
 
 @media (max-width: 600px) {

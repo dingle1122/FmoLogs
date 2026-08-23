@@ -181,10 +181,20 @@
       :current-station="speakingStatus.primaryServerInfo.value"
       :loading="stationListLoading"
       :show-primary-badge="settings.multiSelectMode.value"
+      :importing="stationImport.visible"
       @close="handleCloseStationList"
       @select="handleStationSelect"
       @refresh="handleRefreshStationList"
+      @import-station="handleImportStation"
     />
+    <div v-if="stationImport.visible" class="station-import-overlay">
+      <section class="station-import-status" role="status" aria-live="polite">
+        <div v-if="!stationImport.failed" class="station-import-spinner" aria-hidden="true"></div>
+        <div v-else class="station-import-failed-icon" aria-hidden="true">!</div>
+        <h3>{{ stationImport.failed ? '导入失败' : stationImport.status }}</h3>
+        <p v-if="stationImport.failed" class="station-import-error">{{ stationImport.error }}</p>
+      </section>
+    </div>
 
     <!-- 快捷导航弹框 -->
     <QuickNavModal :visible="showQuickNav" :db-loaded="dbLoaded" @close="showQuickNav = false" />
@@ -237,6 +247,7 @@ import confirmDialog from '../composables/useConfirm'
 import { exportDataToDbFile, exportDataToFmoZip, exportDataToAdif } from '../services/db'
 import { FmoApiClient } from '../services/fmoApi'
 import { normalizeHost } from '../utils/urlUtils'
+import { getPlatform } from '../platform'
 import { NAV_ROUTES } from '../components/home/constants'
 import { getMessageService } from '../services/messageService'
 import packageInfo from '../../package.json'
@@ -400,6 +411,8 @@ const cachedStations = getCachedStationList()
 const stationList = ref(cachedStations.list)
 const stationListLoading = ref(false)
 const stationListFetchedAt = ref(cachedStations.fetchedAt)
+const stationImport = ref({ visible: false, status: '', failed: false, error: '' })
+let stationImportCloseTimer = null
 
 // Station 状态
 const stationBusy = ref(false)
@@ -716,11 +729,167 @@ async function fetchAllStations() {
     } catch (e) {
       console.error('保存服务器列表缓存失败:', e)
     }
+    return mergedList
   } catch (e) {
     console.error('获取服务器列表失败:', e)
+    return null
   } finally {
     stationListLoading.value = false
     client.close()
+  }
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+function getImportFailureMessage(result, verify) {
+  const messages = {
+    '-1': '报文格式无效',
+    '-2': '报文缺少位置信息',
+    '-3': '不是 FMO V4 报文',
+    '-4': '设备证书未就绪',
+    '-5': '不是 STATION 报文',
+    '-6': '信道字段解析失败'
+  }
+  if (result === -7 && verify === -13) return '签名无效，报文可能已过期'
+  return messages[String(result)] || '导入验证失败'
+}
+
+function closeStationImportAfter(milliseconds) {
+  clearTimeout(stationImportCloseTimer)
+  stationImportCloseTimer = setTimeout(() => {
+    stationImport.value.visible = false
+  }, milliseconds)
+}
+
+function createStationImportEventWaiter(addressId, timeout = 25000) {
+  let settled = false
+  let unsubscribeMessage = null
+  let unsubscribeStatus = null
+  let resolveReady
+  let rejectReady
+  let resolveResult
+  let rejectResult
+  const ready = new Promise((resolve, reject) => {
+    resolveReady = resolve
+    rejectReady = reject
+  })
+  const result = new Promise((resolve, reject) => {
+    resolveResult = resolve
+    rejectResult = reject
+  })
+  const cleanup = () => {
+    clearTimeout(timer)
+    unsubscribeMessage?.()
+    unsubscribeStatus?.()
+  }
+  const fail = (error) => {
+    if (settled) return
+    settled = true
+    cleanup()
+    rejectReady(error)
+    rejectResult(error)
+  }
+  const succeed = (data) => {
+    if (settled) return
+    settled = true
+    cleanup()
+    resolveResult(data)
+  }
+  const events = getPlatform().events
+  unsubscribeMessage = events.onMessage((receivedAddressId, rawData) => {
+    if (receivedAddressId !== addressId) return
+    try {
+      const message = JSON.parse(rawData)
+      if (message?.type === 'station' && message?.subType === 'import') succeed(message.data || {})
+    } catch {}
+  })
+  unsubscribeStatus = events.onStatus((receivedAddressId, status) => {
+    if (receivedAddressId === addressId && status === 'connected') resolveReady()
+  })
+  const timer = setTimeout(() => fail(new Error('等待项目事件连接或导入结果超时')), timeout)
+
+  if (
+    speakingStatus.primaryAddressId.value === addressId &&
+    speakingStatus.primaryConnected.value
+  ) {
+    resolveReady()
+  }
+
+  return {
+    ready,
+    result,
+    cancel() {
+      fail(new Error('导入流程已取消'))
+    }
+  }
+}
+
+async function handleImportStation(station) {
+  if (stationBusy.value || stationImport.value.visible) return
+  const client = createStationClient()
+  if (!client) return
+
+  stationBusy.value = true
+  clearTimeout(stationImportCloseTimer)
+  stationImport.value = {
+    visible: true,
+    status: '正在导入',
+    failed: false,
+    error: ''
+  }
+  const addressId = speakingStatus.primaryAddressId.value
+  if (!addressId) {
+    stationImport.value.failed = true
+    stationImport.value.error = '项目事件连接未就绪'
+    closeStationImportAfter(5000)
+    client.close()
+    stationBusy.value = false
+    return
+  }
+  let importWaiter = null
+
+  try {
+    importWaiter = createStationImportEventWaiter(addressId)
+    // 若提交请求本身失败，结果 Promise 仍可能在稍后被取消；提前标记为已处理。
+    importWaiter.result.catch(() => {})
+    await importWaiter.ready
+    const response = await client.importRawStationPacket(station.rawPacket)
+    if (response?.result !== 0) throw new Error('设备拒绝导入请求')
+
+    const result = await importWaiter.result
+    if (Number(result.result) !== 0) {
+      throw new Error(getImportFailureMessage(Number(result.result), Number(result.verify)))
+    }
+
+    stationImport.value.status = '等待刷新'
+    await wait(1500)
+    stationImport.value.status = '正在刷新'
+    const refreshedList = await fetchAllStations()
+    if (!refreshedList?.some((item) => String(item.uid) === String(station.uid))) {
+      throw new Error('刷新后未找到已导入的信道')
+    }
+
+    stationImport.value.status = '正在切换信道'
+    const switchResult = await client.setCurrentStation(station.uid)
+    if (switchResult?.result !== 0) throw new Error('切换信道失败')
+    const primaryId = speakingStatus.primaryAddressId.value
+    if (primaryId) {
+      const current = await speakingStatus.getServerInfo(primaryId, true)
+      if (String(current?.uid) !== String(station.uid)) throw new Error('切换信道确认失败')
+    }
+    stationImport.value.status = '切换完成'
+    closeStationImportAfter(1500)
+  } catch (error) {
+    console.error('导入信道失败:', error)
+    stationImport.value.failed = true
+    stationImport.value.error = error instanceof Error ? error.message : '导入失败，请重试'
+    closeStationImportAfter(5000)
+  } finally {
+    importWaiter?.cancel()
+    client.close()
+    stationBusy.value = false
   }
 }
 
@@ -890,13 +1059,16 @@ async function handleBackupLogs() {
     backupError.value = err.message || '备份失败'
     backupStatusText.value = backupError.value
   } finally {
-    setTimeout(() => {
-      backupBusy.value = false
-      if (!backupError.value) {
-        backupStatusText.value = ''
-        backupProgress.value = 0
-      }
-    }, backupError.value ? 0 : 1200)
+    setTimeout(
+      () => {
+        backupBusy.value = false
+        if (!backupError.value) {
+          backupStatusText.value = ''
+          backupProgress.value = 0
+        }
+      },
+      backupError.value ? 0 : 1200
+    )
   }
 }
 
@@ -1416,6 +1588,7 @@ const _unregSpeakingHistory = registerModal(
 )
 
 onUnmounted(() => {
+  clearTimeout(stationImportCloseTimer)
   _unregCallsignRecords()
   _unregStationList()
   _unregQuickNav()
@@ -1748,6 +1921,70 @@ provide('protocol', settings.protocol)
   from {
     transform: rotate(0deg);
   }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.station-import-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-bg);
+}
+
+.station-import-status {
+  width: min(300px, calc(100vw - 3rem));
+  min-height: 190px;
+  padding: 1.75rem 1.5rem;
+  border-radius: 10px;
+  background: var(--bg-card);
+  box-shadow: 0 8px 28px var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.station-import-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--component-station-item-active-border);
+  border-radius: 50%;
+  animation: station-import-spin 0.8s linear infinite;
+}
+
+.station-import-failed-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-danger);
+  color: white;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.station-import-status h3 {
+  margin: 1rem 0 0.45rem;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.station-import-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+@keyframes station-import-spin {
   to {
     transform: rotate(360deg);
   }

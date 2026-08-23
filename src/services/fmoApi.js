@@ -218,6 +218,10 @@ export class FmoApiClient {
     return this.sendRequest('station', 'prev', {})
   }
 
+  async importRawStationPacket(rawPacket) {
+    return this.sendRequest('station', 'importRawPacket', { rawPacket })
+  }
+
   async getUserInfo() {
     return this.sendRequest('user', 'getInfo', {})
   }
