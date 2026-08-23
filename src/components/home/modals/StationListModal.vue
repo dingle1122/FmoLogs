@@ -74,6 +74,7 @@
           </button>
         </div>
         <div v-else-if="loading" class="station-loading">加载中...</div>
+        <div v-else-if="remoteQueryLoading" class="station-loading">正在查询...</div>
         <div v-else class="station-empty">暂无服务器</div>
       </div>
     </div>
@@ -81,8 +82,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { parseFmoStationPacket } from '../../../utils/fmoStationPacket'
+import {
+  getFmoMapDeviceQueryPath,
+  isFmoMapQueryAbort,
+  queryFmoMapStationPackets
+} from '../../../services/fmoMapApi'
 
 const props = defineProps({
   visible: {
@@ -115,6 +121,10 @@ const emit = defineEmits(['close', 'select', 'refresh', 'import-station'])
 
 const searchQuery = ref('')
 const modalBodyRef = ref(null)
+const remotePackets = ref([])
+const remoteQueryLoading = ref(false)
+let remoteQueryTimer = null
+let remoteQueryController = null
 
 const stationCount = computed(() => props.stationList.length)
 const pinnedCount = computed(() => props.stationList.filter((station) => station.isPinned).length)
@@ -125,14 +135,38 @@ const parsedStationImported = computed(
     parsedStation.value &&
     props.stationList.some((station) => String(station.uid) === String(parsedStation.value.uid))
 )
+const remoteStations = computed(() => {
+  const stationsByUid = new Map()
+  for (const rawPacket of remotePackets.value) {
+    const station = parseFmoStationPacket(rawPacket)
+    if (station) stationsByUid.set(String(station.uid), station)
+  }
+  return [...stationsByUid.values()]
+})
 const displayStationList = computed(() => {
   const list = [...filteredStationList.value]
-  if (!parsedStation.value) return list
-  list.push({
-    ...parsedStation.value,
-    parsedPacket: true,
-    imported: parsedStationImported.value
-  })
+  const localByUid = new Map(props.stationList.map((station) => [String(station.uid), station]))
+  const displayedUids = new Set(list.map((station) => String(station.uid)))
+
+  if (parsedStation.value) {
+    const station = localByUid.get(String(parsedStation.value.uid)) || {
+      ...parsedStation.value,
+      parsedPacket: true,
+      imported: parsedStationImported.value
+    }
+    if (!displayedUids.has(String(station.uid))) list.push(station)
+    displayedUids.add(String(station.uid))
+  }
+
+  for (const remoteStation of remoteStations.value) {
+    const station = localByUid.get(String(remoteStation.uid)) || {
+      ...remoteStation,
+      parsedPacket: true,
+      imported: false
+    }
+    if (!displayedUids.has(String(station.uid))) list.push(station)
+    displayedUids.add(String(station.uid))
+  }
   return list
 })
 
@@ -142,12 +176,52 @@ watch(
   async (val) => {
     if (!val) {
       searchQuery.value = ''
+      clearRemoteQuery()
       return
     }
     await nextTick()
     scrollToActiveStation()
   }
 )
+
+watch(searchQuery, () => scheduleRemoteQuery())
+
+function clearRemoteQuery() {
+  clearTimeout(remoteQueryTimer)
+  remoteQueryTimer = null
+  remoteQueryController?.abort()
+  remoteQueryController = null
+  remotePackets.value = []
+  remoteQueryLoading.value = false
+}
+
+function scheduleRemoteQuery() {
+  clearRemoteQuery()
+  const query = searchQuery.value.trim()
+  // 粘贴的 APRS 报文完全由本地解析，不再重复请求在线接口。
+  if (parseFmoStationPacket(query) || !getFmoMapDeviceQueryPath(query)) return
+
+  remoteQueryLoading.value = true
+  remoteQueryTimer = setTimeout(async () => {
+    const controller = new AbortController()
+    remoteQueryController = controller
+    try {
+      const packets = await queryFmoMapStationPackets(query, { signal: controller.signal })
+      if (searchQuery.value.trim() !== query || controller.signal.aborted) return
+      remotePackets.value = packets.filter((packet) => parseFmoStationPacket(packet))
+    } catch (error) {
+      if (searchQuery.value.trim() !== query || controller.signal.aborted) return
+      if (!isFmoMapQueryAbort(error)) console.warn('在线信道查询失败:', error)
+    } finally {
+      if (remoteQueryController === controller) {
+        remoteQueryController = null
+        remoteQueryLoading.value = false
+      }
+    }
+  }, 400)
+}
+
+onUnmounted(clearRemoteQuery)
 
 function scrollToActiveStation() {
   const container = modalBodyRef.value
