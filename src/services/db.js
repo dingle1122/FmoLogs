@@ -1401,8 +1401,10 @@ export async function getDailyContactStatsFromIndexedDB(fromCallsign = null) {
 
 // 获取指定月份的每日通联统计（按需查询）
 // year: 年份，month: 月份(1-12)
+// visibleRange 可选：{ startDate, endDate }，用于返回日历可见的跨月每日统计。
+// 月、年总数仍只统计指定月份和年份。
 // 返回格式: { dailyStats: { '2024-01-15': 5 }, monthTotal: 100, yearTotal: 1200 }
-export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, month) {
+export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, month, visibleRange) {
   if (!fromCallsign) return { dailyStats: {}, monthTotal: 0, yearTotal: 0 }
 
   const db = await openLogsDatabase()
@@ -1420,10 +1422,12 @@ export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, mo
     const store = tx.objectStore(storeName)
     const index = store.index('utcDate')
 
-    // 使用游标遍历该年的所有数据
+    // 一次游标统计当前年份，必要时扩展到跨年日历格，避免逐月重复扫描。
     const yearStart = `${year}-01-01`
     const yearEnd = `${year}-12-31`
-    const range = IDBKeyRange.bound(yearStart, yearEnd)
+    const rangeStart = visibleRange?.startDate < yearStart ? visibleRange.startDate : yearStart
+    const rangeEnd = visibleRange?.endDate > yearEnd ? visibleRange.endDate : yearEnd
+    const range = IDBKeyRange.bound(rangeStart, rangeEnd)
 
     const dailyStats = {}
     let monthTotal = 0
@@ -1440,8 +1444,15 @@ export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, mo
           yearTotal++
           if (utcDate.startsWith(monthPrefix)) {
             monthTotal++
-            dailyStats[utcDate] = (dailyStats[utcDate] || 0) + 1
           }
+        }
+        if (
+          utcDate &&
+          (visibleRange
+            ? utcDate >= visibleRange.startDate && utcDate <= visibleRange.endDate
+            : utcDate.startsWith(monthPrefix))
+        ) {
+          dailyStats[utcDate] = (dailyStats[utcDate] || 0) + 1
         }
         cursor.continue()
       } else {

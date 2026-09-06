@@ -35,14 +35,14 @@
           class="day-cell"
           :class="{
             'other-month': !day.isCurrentMonth,
-            'has-data': day.count > 0 && day.isCurrentMonth,
+            'has-data': day.count > 0,
             selected: day.dateStr === selectedDate,
             today: day.isToday
           }"
           @click="selectDate(day)"
         >
           <span class="day-number">{{ day.day }}</span>
-          <span v-if="day.count > 0 && day.isCurrentMonth" class="day-badge">{{ day.count }}</span>
+          <span v-if="day.count > 0" class="day-badge">{{ day.count }}</span>
         </div>
       </div>
     </div>
@@ -81,6 +81,7 @@ const dailyStats = ref({})
 const yearStats = ref(0)
 const monthStats = ref(0)
 const loading = ref(false)
+let statsRequestId = 0
 
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -96,12 +97,14 @@ const displayText = computed(() => {
   return props.placeholder
 })
 
-// 加载当前月份的统计数据
+// 加载当前月/年总数，以及日历可见日期（含相邻月份）的每日统计。
 async function loadMonthStats() {
+  const requestId = ++statsRequestId
+  dailyStats.value = {}
+  yearStats.value = 0
+  monthStats.value = 0
   if (!props.fromCallsign) {
-    dailyStats.value = {}
-    yearStats.value = 0
-    monthStats.value = 0
+    loading.value = false
     return
   }
 
@@ -110,18 +113,25 @@ async function loadMonthStats() {
     const result = await getMonthlyContactStatsFromIndexedDB(
       props.fromCallsign,
       currentYear.value,
-      currentMonth.value + 1
+      currentMonth.value + 1,
+      {
+        startDate: calendarDays.value[0].dateStr,
+        endDate: calendarDays.value[calendarDays.value.length - 1].dateStr
+      }
     )
+    if (requestId !== statsRequestId) return
     dailyStats.value = result.dailyStats
     yearStats.value = result.yearTotal
     monthStats.value = result.monthTotal
   } catch (err) {
+    if (requestId !== statsRequestId) return
     console.error('加载月度统计失败:', err)
     dailyStats.value = {}
     yearStats.value = 0
     monthStats.value = 0
+  } finally {
+    if (requestId === statsRequestId) loading.value = false
   }
-  loading.value = false
 }
 
 // 生成日历天数
@@ -142,7 +152,7 @@ const calendarDays = computed(() => {
       day,
       dateStr,
       isCurrentMonth: false,
-      count: 0,
+      count: dailyStats.value[dateStr] || 0,
       isToday: false
     })
   }
@@ -170,7 +180,7 @@ const calendarDays = computed(() => {
       day,
       dateStr,
       isCurrentMonth: false,
-      count: 0,
+      count: dailyStats.value[dateStr] || 0,
       isToday: false
     })
   }
@@ -215,10 +225,8 @@ function nextMonth() {
 }
 
 function selectDate(day) {
-  if (day.isCurrentMonth) {
-    selectedDate.value = day.dateStr
-    showCalendar.value = false
-  }
+  selectedDate.value = day.dateStr
+  showCalendar.value = false
 }
 
 function clearDate() {
@@ -242,6 +250,19 @@ watch(
   }
 )
 
+// 切换呼号时刷新或失效旧统计，避免不同台站的数据混用。
+watch(() => props.fromCallsign, () => {
+  if (showCalendar.value) {
+    loadMonthStats()
+  } else {
+    statsRequestId++
+    dailyStats.value = {}
+    yearStats.value = 0
+    monthStats.value = 0
+    loading.value = false
+  }
+})
+
 // ESC 关闭日历
 function handleKeydown(e) {
   if (e.key === 'Escape' && showCalendar.value) {
@@ -254,6 +275,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  statsRequestId++
   document.removeEventListener('keydown', handleKeydown)
 })
 </script>
@@ -413,22 +435,6 @@ onUnmounted(() => {
 @media (hover: hover) {
   .day-cell:hover {
     background: var(--component-date-picker-day-hover-bg);
-  }
-
-  .day-cell.other-month:hover {
-    background: var(--color-transparent);
-  }
-
-  .day-cell.has-data:hover {
-    background: var(--component-date-picker-day-has-data-hover-bg);
-  }
-
-  .day-cell.selected:hover {
-    background: var(--component-date-picker-day-selected-bg);
-  }
-
-  .day-cell.other-month:hover {
-    background: var(--color-transparent);
   }
 
   .day-cell.has-data:hover {
