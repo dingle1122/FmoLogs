@@ -15,7 +15,7 @@
 
         <!-- 操作按钮组 -->
         <div class="action-buttons">
-          <button class="btn-text refresh-btn" :disabled="loading" @click="refreshMessages">
+          <button class="btn-secondary refresh-btn" :disabled="loading" @click="refreshMessages">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
@@ -61,11 +61,16 @@
               v-for="msg in messageList"
               :key="msg.messageId"
               class="message-item"
+              role="button"
+              tabindex="0"
+              :aria-pressed="selectedMessageId === msg.messageId"
               :class="{
                 unread: !msg.isRead,
                 active: selectedMessageId === msg.messageId
               }"
               @click="selectMessage(msg)"
+              @keydown.enter.prevent="!$event.repeat && selectMessage(msg)"
+              @keydown.space.prevent="!$event.repeat && selectMessage(msg)"
             >
               <div class="message-item-header">
                 <div class="message-item-sender">
@@ -174,6 +179,9 @@
           </div>
         </div>
       </div>
+      <div v-else class="message-detail-section detail-placeholder">
+        <p>选择一条消息查看详情</p>
+      </div>
     </div>
 
     <!-- 发送消息弹窗 -->
@@ -186,7 +194,7 @@
 
         <div class="modal-body">
           <div class="form-group">
-            <label>目标呼号</label>
+            <label for="target-callsign">目标呼号</label>
             <CallsignInput
               id="target-callsign"
               v-model="sendForm.callsign"
@@ -197,14 +205,15 @@
           </div>
 
           <div class="form-group">
-            <label>SSID</label>
+            <label for="target-ssid">SSID</label>
             <select id="target-ssid" v-model="sendForm.ssid">
+              <option :value="0">0</option>
               <option v-for="n in 15" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label>消息内容</label>
+            <label for="message-content">消息内容</label>
             <textarea
               id="message-content"
               v-model="sendForm.message"
@@ -259,6 +268,7 @@ const selectedMessageId = ref(0)
 const currentDetail = ref(null)
 const showDetail = ref(false)
 const showSendModal = ref(false)
+let detailRequestId = 0
 
 // ---- 弹框返回键拦截 ----
 useModalBackHandler([showSendModal])
@@ -320,6 +330,8 @@ function formatDateTime(timestamp) {
 }
 
 async function selectMessage(msg) {
+  const requestId = ++detailRequestId
+  markingRead.value = false
   selectedMessageId.value = msg.messageId
   showDetail.value = true
   openDetailState()
@@ -328,6 +340,7 @@ async function selectMessage(msg) {
 
   try {
     const result = await messageService.getDetail(fmoAddress.value, protocol.value, msg.messageId)
+    if (requestId !== detailRequestId) return
     if (result.status === 'success' && result.messageId) {
       currentDetail.value = result
       // 自动标记已读 (注意 isRead 可能是数字 0/1)
@@ -338,13 +351,16 @@ async function selectMessage(msg) {
       toast.error('获取消息详情失败')
     }
   } catch (err) {
-    toast.error(`获取详情失败: ${err.message}`)
+    if (requestId === detailRequestId) toast.error(`获取详情失败: ${err.message}`)
   } finally {
-    detailLoading.value = false
+    if (requestId === detailRequestId) detailLoading.value = false
   }
 }
 
 function closeDetail(manual = false) {
+  detailRequestId++
+  detailLoading.value = false
+  markingRead.value = false
   if (manual && detailPushedState && isMobileLayout()) {
     closeDetailState()
     return
@@ -386,21 +402,24 @@ function handlePopState(event) {
 async function markAsRead() {
   if (!currentDetail.value) return
 
+  const requestId = detailRequestId
+  const detail = currentDetail.value
   markingRead.value = true
   try {
     const result = await messageService.setRead(
       fmoAddress.value,
       protocol.value,
-      currentDetail.value.messageId
+      detail.messageId
     )
+    if (requestId !== detailRequestId || currentDetail.value !== detail) return
     if (result.status === 'success') {
       currentDetail.value.isRead = true
       toast.success('已标记为已读')
     }
   } catch (err) {
-    toast.error('标记失败')
+    if (requestId === detailRequestId) toast.error('标记失败')
   } finally {
-    markingRead.value = false
+    if (requestId === detailRequestId) markingRead.value = false
   }
 }
 
@@ -584,6 +603,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  detailRequestId++
   if (sendResultTimer.value) {
     clearTimeout(sendResultTimer.value)
   }
@@ -623,6 +643,8 @@ onUnmounted(() => {
 .message-layout {
   display: flex;
   flex: 1;
+  min-height: 0;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -655,7 +677,8 @@ onUnmounted(() => {
   margin: 0 1rem 0.75rem;
 }
 
-.action-buttons .btn-text {
+.action-buttons .btn-text,
+.action-buttons .btn-secondary {
   flex: 1;
   justify-content: center;
   padding: 0.5rem;
@@ -663,18 +686,14 @@ onUnmounted(() => {
 }
 
 .action-buttons svg {
-  width: 14px;
-  height: 14px;
-}
-
-@media (hover: hover) {
-  .refresh-btn:hover:not(:disabled) {
-    color: var(--component-message-hover-text);
-  }
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .message-list-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 1rem 1rem;
 }
@@ -777,15 +796,21 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.25rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .message-item-sender {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .sender {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
@@ -795,7 +820,7 @@ onUnmounted(() => {
   flex-shrink: 0;
   background: var(--bg-error-light);
   color: var(--color-danger);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 400;
   padding: 0.125rem 0.375rem;
   border-radius: 4px;
@@ -804,13 +829,9 @@ onUnmounted(() => {
 
 .detail-tag {
   flex-shrink: 0;
-  background: var(--bg-table-hover);
   color: var(--text-tertiary);
-  font-size: 0.625rem;
-  font-weight: 500;
-  padding: 0.125rem 0.375rem;
-  border-radius: 4px;
-  border: 1px solid var(--border-light);
+  font-size: 0.75rem;
+  font-weight: 300;
 }
 
 .message-item-time {
@@ -858,10 +879,21 @@ onUnmounted(() => {
 /* 消息详情区域 */
 .message-detail-section {
   flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-page);
   overflow: hidden;
+}
+
+.detail-placeholder {
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: var(--text-tertiary);
+  font-weight: 300;
+  text-align: center;
 }
 
 .detail-header {
@@ -906,6 +938,7 @@ onUnmounted(() => {
 
 .detail-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0;
   background: var(--bg-page);
@@ -915,7 +948,11 @@ onUnmounted(() => {
 .email-style {
   display: flex;
   flex-direction: column;
-  height: 100%;
+}
+
+.email-header,
+.email-footer {
+  flex-shrink: 0;
 }
 
 /* 邮件头部 */
@@ -986,9 +1023,6 @@ onUnmounted(() => {
 .reply-hint {
   font-size: 0.75rem;
   color: var(--text-tertiary);
-  padding: 0.125rem 0.375rem;
-  background: var(--bg-table-hover);
-  border-radius: 4px;
 }
 
 .email-time {
@@ -1003,7 +1037,7 @@ onUnmounted(() => {
 
 /* 邮件正文 */
 .email-body {
-  flex: 1;
+  flex: 1 0 auto;
   padding: 1.5rem;
   background: var(--bg-page);
 }
@@ -1045,6 +1079,21 @@ onUnmounted(() => {
   color: var(--text-secondary);
 }
 
+.email-subject,
+.email-time,
+.email-recipient,
+.footer-value,
+.sender-name-highlight {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.email-sender-btn {
+  min-width: 0;
+  flex-wrap: wrap;
+  text-align: left;
+}
+
 .email-actions {
   margin-top: 1rem;
   padding-top: 1rem;
@@ -1073,6 +1122,19 @@ onUnmounted(() => {
 }
 
 /* 按钮样式 */
+.message-view button:focus,
+.message-item:focus {
+  outline: 2px solid var(--theme-accent-primary);
+  outline-offset: 2px;
+}
+
+@supports selector(:focus-visible) {
+  .message-view button:focus:not(:focus-visible),
+  .message-item:focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
 .btn-primary,
 .btn-secondary,
 .btn-text,
@@ -1139,6 +1201,8 @@ onUnmounted(() => {
 @media (hover: hover) {
   .btn-danger:hover:not(:disabled) {
     background: var(--bg-error-light);
+    color: var(--color-danger);
+    border-color: var(--color-danger);
   }
 }
 
@@ -1172,6 +1236,8 @@ onUnmounted(() => {
 }
 
 .modal-content {
+  display: flex;
+  flex-direction: column;
   background: var(--bg-card);
   border-radius: 12px;
   width: 100%;
@@ -1182,6 +1248,7 @@ onUnmounted(() => {
 }
 
 .modal-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1196,6 +1263,8 @@ onUnmounted(() => {
 }
 
 .modal-body {
+  min-height: 0;
+  overflow-y: auto;
   padding: 1.25rem;
 }
 
@@ -1261,6 +1330,7 @@ onUnmounted(() => {
 }
 
 .modal-footer {
+  flex-shrink: 0;
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
@@ -1269,6 +1339,7 @@ onUnmounted(() => {
 }
 
 .send-result {
+  flex-shrink: 0;
   padding: 0.75rem 1.25rem;
   text-align: center;
   font-size: 0.875rem;
@@ -1286,6 +1357,10 @@ onUnmounted(() => {
 
 /* 移动端适配 */
 @media (max-width: 760px) {
+  .detail-placeholder {
+    display: none;
+  }
+
   .message-list-section {
     width: 100%;
     min-width: auto;
@@ -1301,21 +1376,24 @@ onUnmounted(() => {
   }
 
   .detail-content {
+    padding: 0;
+  }
+
+  .email-header,
+  .email-body,
+  .email-footer {
     padding: 1rem;
-  }
-
-  .detail-meta {
-    padding: 0.875rem;
-  }
-
-  .meta-label {
-    width: 70px;
   }
 }
 
 @media (max-width: 480px) {
   .send-message-btn {
     margin: 0.75rem;
+  }
+
+  .action-buttons {
+    margin-right: 0.75rem;
+    margin-left: 0.75rem;
   }
 
   .message-list-container {

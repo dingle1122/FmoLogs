@@ -12,19 +12,20 @@
 
       <div class="theme-toolbar">
         <button class="btn-add" type="button" @click="triggerThemeUpload">上传主题</button>
-        <button class="btn-secondary" @click="toggleThemeExample">
-          {{ showThemeExample ? '隐藏示例' : '查看示例' }}
-        </button>
-        <button class="btn-ghost" @click="downloadSampleTheme">下载示例</button>
-        <button class="btn-ghost" @click="copySampleTheme">
-          {{ sampleCopied ? '已复制' : '复制示例' }}
-        </button>
         <button
           class="btn-ghost"
           :disabled="activeThemeId === DEFAULT_THEME_ID"
           @click="handleActivateTheme(DEFAULT_THEME_ID)"
         >
-          恢复默认主题
+          恢复默认
+        </button>
+        <button
+          class="btn-secondary"
+          :aria-expanded="showThemeExample"
+          aria-controls="theme-example-panel"
+          @click="toggleThemeExample"
+        >
+          {{ showThemeExample ? '隐藏示例' : '查看示例' }}
         </button>
       </div>
 
@@ -53,10 +54,20 @@
         {{ themeStatusMessage }}
       </div>
 
-      <div v-if="showThemeExample" class="theme-example-panel">
+      <div v-if="showThemeExample" id="theme-example-panel" class="theme-example-panel">
         <div class="theme-example-header">
-          <span class="theme-example-title">示例主题</span>
-          <span class="theme-example-caption">可以先下载一份示例，改好后再上传使用。</span>
+          <span class="theme-example-title">默认主题开发示例</span>
+          <span class="theme-example-caption">
+            以当前默认主题为起点，直接导入保持默认外观。按注释修改所需变量，
+            保存为 .css 后上传；同名导入会更新。完整说明见开发文档。
+          </span>
+        </div>
+        <div class="theme-example-actions">
+          <button class="btn-ghost" @click="copySampleTheme">
+            {{ sampleCopied ? '已复制' : '复制示例' }}
+          </button>
+          <button class="btn-ghost" @click="downloadSampleTheme">下载示例</button>
+          <button class="btn-ghost" @click="downloadThemeGuide">下载开发文档</button>
         </div>
         <pre class="theme-example-code"><code>{{ THEME_SAMPLE_CSS }}</code></pre>
       </div>
@@ -180,6 +191,8 @@ import confirmDialog from '../composables/useConfirm'
 import { useSettingsStore } from '../stores/settingsStore'
 import themeBaseCss from '../styles/colors.css?raw'
 import THEME_SAMPLE_CSS from '../styles/theme-sample.css?raw'
+import THEME_DEVELOPMENT_GUIDE from '../../doc/theme-development.md?raw'
+import { exportFile } from '../utils/exportFile'
 import {
   DEFAULT_THEME_ID,
   downloadThemeCss,
@@ -627,6 +640,21 @@ async function downloadSampleTheme() {
   }
 }
 
+async function downloadThemeGuide() {
+  try {
+    const result = await exportFile(
+      'FmoLogs-主题开发指南.md',
+      THEME_DEVELOPMENT_GUIDE,
+      'text/markdown;charset=utf-8'
+    )
+    const message = formatDownloadResultMessage(result, '开发文档已下载')
+    showThemeStatus(message, 'success')
+    await showNativeDownloadCompleted(result, message)
+  } catch {
+    showThemeStatus('开发文档下载失败，请稍后重试', 'error')
+  }
+}
+
 async function copySampleTheme() {
   try {
     await navigator.clipboard.writeText(THEME_SAMPLE_CSS)
@@ -695,6 +723,7 @@ onUnmounted(() => {
 }
 
 .theme-toolbar,
+.theme-example-actions,
 .theme-card-actions,
 .theme-title-wrap,
 .theme-example-header {
@@ -706,13 +735,25 @@ onUnmounted(() => {
 
 .theme-toolbar {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 1rem;
   gap: 0.5rem;
 }
 
 .theme-toolbar > button {
   width: 100%;
+}
+
+.theme-example-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.theme-example-actions > button {
+  width: 100%;
+  min-height: 36px;
 }
 
 .theme-toolbar > button,
@@ -752,7 +793,7 @@ onUnmounted(() => {
 .theme-url-input:focus,
 .theme-url-name-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px var(--shadow-focus-primary);
+  box-shadow: 0 0 0 2px var(--theme-shadow-focus-primary);
 }
 
 .theme-status {
@@ -1113,7 +1154,7 @@ onUnmounted(() => {
   }
 
   .theme-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
   }
 

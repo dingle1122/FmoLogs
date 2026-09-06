@@ -282,11 +282,6 @@ onUnmounted(() => {
 }
 
 @media (hover: hover) {
-  .date-picker-trigger:hover {
-    border-color: var(--filter-control-hover-border);
-    background: var(--filter-chip-hover-bg);
-  }
-
   .clear-btn:hover {
     color: var(--component-date-picker-clear-hover-text);
   }
