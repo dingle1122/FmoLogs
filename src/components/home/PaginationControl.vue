@@ -35,15 +35,29 @@
     </button>
     <div class="page-info">
       <input
+        v-if="isEditing"
+        ref="pageInput"
         type="number"
         class="page-jump-input"
         :value="currentPage"
         :min="1"
         :max="totalPages"
         :disabled="disabled"
-        @change="handleJump"
-        @focus="$event.target.select()"
+        aria-label="跳转页码"
+        @blur="handleJump"
+        @keydown.enter.prevent="$event.target.blur()"
+        @keydown.esc.prevent="isEditing = false"
       />
+      <button
+        v-else
+        class="page-current"
+        :disabled="disabled"
+        title="点击修改页码"
+        aria-label="当前页码，点击修改"
+        @click="startEditing"
+      >
+        {{ currentPage }}
+      </button>
       <span class="page-sep">/</span>
       <span class="page-total">{{ totalPages }}</span>
       <template v-if="totalRecords !== undefined">
@@ -87,6 +101,18 @@
 </template>
 
 <script setup>
+import { nextTick, ref } from 'vue'
+
+const isEditing = ref(false)
+const pageInput = ref(null)
+
+async function startEditing() {
+  isEditing.value = true
+  await nextTick()
+  pageInput.value?.focus()
+  pageInput.value?.select()
+}
+
 const props = defineProps({
   currentPage: {
     type: Number,
@@ -109,8 +135,10 @@ const props = defineProps({
 const emit = defineEmits(['page-change'])
 
 function handleJump(event) {
-  const val = parseInt(event.target.value, 10)
-  if (!isNaN(val) && val >= 1 && val <= props.totalPages) {
+  if (!isEditing.value) return
+  isEditing.value = false
+  const val = Number(event.target.value)
+  if (!props.disabled && Number.isInteger(val) && val >= 1 && val <= props.totalPages) {
     emit('page-change', val)
   } else {
     event.target.value = props.currentPage
@@ -170,6 +198,7 @@ function handleJump(event) {
   flex-shrink: 0;
 }
 
+.page-current,
 .page-jump-input {
   width: 42px;
   height: 30px;
@@ -177,13 +206,27 @@ function handleJump(event) {
   font-size: 0.9rem;
   font-weight: 600;
   font-family: inherit;
-  border: 1px solid var(--border-primary);
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--bg-input);
+  background: transparent;
   color: var(--text-primary);
   padding: 0 0.2rem;
   -moz-appearance: textfield;
   appearance: textfield;
+  box-sizing: border-box;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-current {
+  border-color: transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.page-current:focus-visible {
+  outline: 2px solid var(--component-page-nav-input-focus-border);
+  outline-offset: 1px;
 }
 
 .page-jump-input::-webkit-outer-spin-button,
@@ -195,10 +238,11 @@ function handleJump(event) {
 
 .page-jump-input:focus {
   outline: none;
-  border-color: var(--component-page-nav-input-focus-border);
-  box-shadow: 0 0 0 2px var(--shadow-primary);
+  border-color: transparent;
+  box-shadow: none;
 }
 
+.page-current:disabled,
 .page-jump-input:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -213,6 +257,8 @@ function handleJump(event) {
   color: var(--text-secondary);
   font-weight: 600;
   font-size: 0.9rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .page-total-records {
@@ -237,6 +283,7 @@ function handleJump(event) {
     margin: 0 0.3rem;
   }
 
+  .page-current,
   .page-jump-input {
     width: 36px;
     height: 28px;
