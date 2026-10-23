@@ -166,6 +166,7 @@ public class FmoEventsPlugin extends Plugin {
             FmoAudioService.updateSpeakerFromEvents(getContext(), null, null, null);
             FmoAudioPlugin audioPlugin = FmoAudioPlugin.getInstance();
             if (audioPlugin != null) audioPlugin.setHostMuted(false);
+            FmoSpeakerNotification.cancel(getContext());
         } else {
             pushPrimaryToNotification();
         }
@@ -219,6 +220,7 @@ public class FmoEventsPlugin extends Plugin {
             }
         }
         FmoAudioService.updateSpeakerFromEvents(getContext(), sn, cs, addr);
+        FmoSpeakerNotification.show(getContext(), sn, cs, addr);
         // 当前发言人为 host 时自动静音，否则取消自动静音
         FmoAudioPlugin audioPlugin = FmoAudioPlugin.getInstance();
         if (audioPlugin != null) {
@@ -286,6 +288,7 @@ public class FmoEventsPlugin extends Plugin {
                 Log.i(TAG, "[" + state.addressId + "] onOpen");
                 state.reconnectAttempts.set(0);
                 emitStatus(state.addressId, "connected");
+                if (state.addressId.equals(primaryAddressId)) pushPrimaryToNotification();
                 // 上线后启动服务器信息轮询（立即拉一次 + 定时 30s）
                 startServerInfoPolling(state);
             }
@@ -329,6 +332,7 @@ public class FmoEventsPlugin extends Plugin {
     private void scheduleReconnect(final ConnectionState state) {
         // 连接断开期间停掉轮询，等 onOpen 再重启
         stopServerInfoPolling(state);
+        if (state.addressId.equals(primaryAddressId)) FmoSpeakerNotification.cancel(getContext());
         // 已被主动关闭或已被新连接替换，不再重连
         if (state.manualClose.get() || connections.get(state.addressId) != state) {
             emitStatus(state.addressId, "disconnected");

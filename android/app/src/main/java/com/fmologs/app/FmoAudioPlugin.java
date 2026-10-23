@@ -315,6 +315,7 @@ public class FmoAudioPlugin extends Plugin {
                 // WebSocket 真正连接成功后才启动前台服务、显示带媒体控件的通知
                 Context ctx = getContext();
                 if (ctx != null) {
+                    FmoSpeakerNotification.setAudioPlaying(ctx, true);
                     FmoAudioService.startService(ctx);
                     serviceStarted.set(true);
                     FmoAudioService.setConnected(ctx, true);
@@ -494,7 +495,10 @@ public class FmoAudioPlugin extends Plugin {
         if (serviceStarted.compareAndSet(true, false)) {
             try {
                 Context ctx = getContext();
-                if (ctx != null) FmoAudioService.stopService(ctx);
+                if (ctx != null) {
+                    FmoAudioService.stopService(ctx);
+                    FmoSpeakerNotification.setAudioPlaying(ctx, false);
+                }
             } catch (Exception ignore) {}
         }
     }
