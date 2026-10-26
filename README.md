@@ -104,14 +104,18 @@ npm run format
 
 # 代码检查
 npm run lint
+
+# 类型检查
+npm run typecheck
 ```
 
 ## 📝 技术栈
 
 - **核心框架**：Vue 3 (Composition API) + Vite 7
 - **状态管理**：Pinia
-- **数据存储**：SQLite (sql.js) + IndexedDB
+- **数据存储**：sql.js（SQLite）+ IndexedDB
 - **通信协议**：WebSocket (实时事件) + HTTP/HTTPS
+- **跨平台能力**：Capacitor Android、Tauri 桌面端和 Web 运行时
 - **路由管理**：Vue Router
 - **加密算法**：crypto-js (HMAC-SHA1)
 - **代码规范**：ESLint + Prettier
@@ -132,26 +136,29 @@ npm run preview
 
 ```
 src/
-├── adif/                  # ADIF 解析与格式化
-├── components/            # Vue 组件
-│   ├── common/            # 通用控件、弹框、提示组件
-│   └── home/              # 日志页、排行榜、老朋友等业务组件
-│       └── modals/        # APRS 远控、呼号记录、服务器列表等弹窗
-├── composables/           # 少量可复用组合式逻辑
-├── core/                  # APRS、网格校验、同步引擎等核心逻辑
-│   └── sync/              # FMO 日志同步实现
-├── platform/              # Web / Android Capacitor 平台抽象
+├── adif/                  # ADIF 解析器
+├── components/            # 可复用 Vue 组件
+│   ├── common/            # 通用控件、提示和弹窗
+│   └── home/              # 日志、排行榜、老朋友及业务弹窗
+├── composables/           # 页面级组合式逻辑
+├── core/                  # 与平台无关的协议和业务逻辑
+│   ├── aprsCodec.ts       # APRS 编解码
+│   ├── aprsPasscode.ts    # APRS Passcode 计算
+│   └── sync/              # 日志同步引擎
+├── platform/              # Web / Capacitor 平台能力抽象
 │   ├── interfaces/        # 平台能力接口
-│   ├── native-capacitor/  # Android 原生插件适配
+│   ├── native-capacitor/  # Capacitor 原生实现
 │   ├── types/             # 平台共享类型
-│   └── web/               # Web / Tauri 实现
+│   └── web/               # Web / Tauri 兼容实现
 ├── router/                # Vue Router 路由配置
-├── services/              # 数据库、FMO API、音频、消息、更新等服务
-├── stores/                # Pinia 状态管理
-├── styles/                # 主题与样式覆盖
-├── utils/                 # URL、导出、视口、主题等工具函数
+├── services/              # 数据库、FMO API、音频、消息和更新服务
+├── stores/                # Pinia 全局状态
+├── styles/                # 全局样式和主题变量
+├── utils/                 # URL、导出、视口和主题工具
 └── views/                 # 页面视图和主布局
 ```
+
+平台相关原生代码位于 `android/`，桌面端 Tauri 配置和 Rust 入口位于 `src-tauri/`。构建脚本和发布辅助脚本位于 `scripts/`，项目说明和设计文档位于 `doc/`。
 
 ## 🎨 自定义主题开发
 
