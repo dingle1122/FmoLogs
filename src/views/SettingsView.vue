@@ -304,8 +304,13 @@
       </div>
     </div>
 
-    <!-- 地址编辑弹框 -->
-    <div v-if="showAddressDialog" class="dialog-overlay" @click.self="cancelAddressDialog">
+    <!-- 地址编辑弹框：Teleport 到 body，避免受 MainLayout content-area 的 transform 影响 -->
+    <Teleport to="body">
+      <div
+        v-if="showAddressDialog"
+        class="dialog-overlay address-dialog-overlay"
+        @click.self="cancelAddressDialog"
+      >
       <div class="dialog">
         <div class="dialog-header">
           <span class="dialog-title">{{ editingId ? '编辑地址' : '添加地址' }}</span>
@@ -354,9 +359,11 @@
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </Teleport>
     <!-- FMO 页面预览弹框 -->
-    <div v-if="showFmoPreview" class="dialog-overlay" @click.self="closeFmoPreview">
+    <Teleport to="body">
+      <div v-if="showFmoPreview" class="dialog-overlay" @click.self="closeFmoPreview">
       <div class="fmo-preview-dialog">
         <div class="fmo-preview-toolbar">
           <button class="btn-icon" title="上一页" @click="fmoPreviewGoBack">
@@ -386,7 +393,8 @@
           ></iframe>
         </div>
       </div>
-    </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1704,6 +1712,14 @@ function handleVolumeChange(e) {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding:
+    calc(16px + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
+    calc(16px + var(--safe-inset-right, env(safe-area-inset-right, 0px)))
+    16px
+    calc(16px + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 1100;
 }
 
@@ -1711,8 +1727,9 @@ function handleVolumeChange(e) {
   background: var(--bg-card);
   border-radius: 8px;
   width: 420px;
-  max-width: 90%;
+  max-width: 100%;
   box-shadow: 0 4px 20px var(--shadow-modal);
+  overflow: hidden;
 }
 
 .dialog-header {
@@ -1835,6 +1852,45 @@ function handleVolumeChange(e) {
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-light);
+  background: var(--bg-card);
+  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+@media (max-height: 350px) {
+  .address-dialog-overlay {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding:
+      var(--safe-inset-top, env(safe-area-inset-top, 0px))
+      var(--safe-inset-right, env(safe-area-inset-right, 0px))
+      0
+      var(--safe-inset-left, env(safe-area-inset-left, 0px));
+  }
+
+  .dialog {
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+  }
+
+  .dialog-header {
+    padding-top: 0.75rem;
+  }
+
+  .dialog-footer {
+    padding-top: 0.75rem;
+    padding-bottom: calc(
+      0.75rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px))
+    );
+  }
+
+  .dialog-body {
+    padding: 1rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
 }
 
 /* FMO 页面预览弹框 */

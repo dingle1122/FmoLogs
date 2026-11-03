@@ -9,6 +9,20 @@ const modalRegistry = []
 let modalHistoryPushed = false
 let popstateInstalled = false
 
+function syncBodyScrollLock() {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('modal-scroll-locked', countOpenModals() > 0)
+}
+
+function syncModalInteractionState() {
+  if (countOpenModals() > 0) {
+    ensureModalHistoryState()
+  } else {
+    resetModalHistoryState()
+  }
+  syncBodyScrollLock()
+}
+
 /**
  * 注册一个弹框到全局拦截器
  * @param {() => boolean} check - 检查弹框是否可见
@@ -23,6 +37,7 @@ export function registerModal(check, close, priority = 100) {
   return () => {
     const idx = modalRegistry.indexOf(entry)
     if (idx !== -1) modalRegistry.splice(idx, 1)
+    syncBodyScrollLock()
   }
 }
 
@@ -59,6 +74,7 @@ function handleModalPopState(event) {
     event.stopImmediatePropagation()
     closeTopModal()
     modalHistoryPushed = false
+    syncBodyScrollLock()
     if (countOpenModals() > 0) {
       history.pushState({ modalOpen: true }, '')
       modalHistoryPushed = true
@@ -90,13 +106,7 @@ export function useModalBackHandler(modalRefs = []) {
     const scope = getCurrentScope()
     const stopWatch = watch(
       modalRefs,
-      () => {
-        if (countOpenModals() > 0) {
-          ensureModalHistoryState()
-        } else {
-          resetModalHistoryState()
-        }
-      },
+      syncModalInteractionState,
       { deep: true, flush: 'sync' }
     )
     if (scope) {

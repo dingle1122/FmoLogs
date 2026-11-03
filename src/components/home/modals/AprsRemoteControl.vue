@@ -239,40 +239,42 @@
     </div>
   </div>
 
-  <!-- 添加/编辑服务器弹窗 -->
-  <div
-    v-if="showAddServerDialog || showEditServerDialog"
-    class="dialog-overlay"
-    @click.self="closeServerDialog"
-  >
-    <div class="dialog">
-      <div class="dialog-header">
-        <span class="dialog-title">{{ showEditServerDialog ? '编辑服务器' : '添加服务器' }}</span>
-        <button class="close-btn" @click="closeServerDialog">&times;</button>
-      </div>
-      <div class="dialog-body">
-        <div class="form-group">
-          <label class="form-label">服务器地址</label>
-          <input
-            id="server-url"
-            v-model="serverFormData.url"
-            type="text"
-            placeholder="ws://your-server:8090/api/ws"
-            class="form-input"
-          />
+  <!-- 添加/编辑服务器弹窗：Teleport 到 body，避免受 content-area transform 影响 -->
+  <Teleport to="body">
+    <div
+      v-if="showAddServerDialog || showEditServerDialog"
+      class="dialog-overlay"
+      @click.self="closeServerDialog"
+    >
+      <div class="dialog">
+        <div class="dialog-header">
+          <span class="dialog-title">{{ showEditServerDialog ? '编辑服务器' : '添加服务器' }}</span>
+          <button class="close-btn" @click="closeServerDialog">&times;</button>
         </div>
-        <div v-if="serverFormError" class="form-error">
-          {{ serverFormError }}
+        <div class="dialog-body">
+          <div class="form-group">
+            <label class="form-label">服务器地址</label>
+            <input
+              id="server-url"
+              v-model="serverFormData.url"
+              type="text"
+              placeholder="ws://your-server:8090/api/ws"
+              class="form-input"
+            />
+          </div>
+          <div v-if="serverFormError" class="form-error">
+            {{ serverFormError }}
+          </div>
         </div>
-      </div>
-      <div class="dialog-footer">
-        <button class="btn-secondary" @click="closeServerDialog">取消</button>
-        <button class="btn-primary" @click="submitServerForm">
-          {{ showEditServerDialog ? '保存' : '添加' }}
-        </button>
+        <div class="dialog-footer">
+          <button class="btn-secondary" @click="closeServerDialog">取消</button>
+          <button class="btn-primary" @click="submitServerForm">
+            {{ showEditServerDialog ? '保存' : '添加' }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -1166,6 +1168,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding:
+    calc(16px + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
+    calc(16px + var(--safe-inset-right, env(safe-area-inset-right, 0px)))
+    16px
+    calc(16px + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 1100;
 }
 
@@ -1173,7 +1183,7 @@ onUnmounted(() => {
   background: var(--bg-card);
   border-radius: 8px;
   width: 420px;
-  max-width: 90%;
+  max-width: 100%;
   box-shadow: 0 4px 20px var(--shadow-modal);
 }
 
@@ -1219,6 +1229,40 @@ onUnmounted(() => {
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-light);
+  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+@media (max-height: 350px) {
+  .dialog-overlay {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding:
+      var(--safe-inset-top, env(safe-area-inset-top, 0px))
+      var(--safe-inset-right, env(safe-area-inset-right, 0px))
+      0
+      var(--safe-inset-left, env(safe-area-inset-left, 0px));
+  }
+
+  .dialog {
+    width: 100%;
+    max-width: none;
+    border-radius: 0;
+  }
+
+  .dialog-header {
+    padding-top: 0.75rem;
+  }
+
+  .dialog-footer {
+    padding-top: 0.75rem;
+    padding-bottom: calc(
+      0.75rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px))
+    );
+  }
+
+  .dialog-body {
+    padding: 1rem;
+  }
 }
 
 .btn-secondary {

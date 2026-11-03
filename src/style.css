@@ -110,6 +110,17 @@ body {
   scrollbar-width: none;
 }
 
+html.modal-scroll-locked,
+html.modal-scroll-locked body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.modal-scroll-locked .content-area {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 *::-webkit-scrollbar {

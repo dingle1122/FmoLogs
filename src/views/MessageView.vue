@@ -184,61 +184,63 @@
       </div>
     </div>
 
-    <!-- 发送消息弹窗 -->
-    <div v-if="showSendModal" class="modal-overlay" @click.self="closeSendModal">
-      <div class="modal-content send-modal">
-        <div class="modal-header">
-          <h3>发送消息</h3>
-          <button class="close-btn" @click="closeSendModal">&times;</button>
-        </div>
-
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="target-callsign">目标呼号</label>
-            <CallsignInput
-              id="target-callsign"
-              v-model="sendForm.callsign"
-              placeholder="输入呼号 (如: BG1AAA)"
-              maxlength="15"
-            />
-            <span v-if="callsignError" class="error-text">{{ callsignError }}</span>
+    <!-- 发送消息弹窗：Teleport 到 body，避免受 content-area transform 影响 -->
+    <Teleport to="body">
+      <div v-if="showSendModal" class="modal-overlay" @click.self="closeSendModal">
+        <div class="modal-content send-modal">
+          <div class="modal-header">
+            <h3>发送消息</h3>
+            <button class="close-btn" @click="closeSendModal">&times;</button>
           </div>
 
-          <div class="form-group">
-            <label for="target-ssid">SSID</label>
-            <select id="target-ssid" v-model="sendForm.ssid">
-              <option :value="0">0</option>
-              <option v-for="n in 15" :key="n" :value="n">{{ n }}</option>
-            </select>
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="target-callsign">目标呼号</label>
+              <CallsignInput
+                id="target-callsign"
+                v-model="sendForm.callsign"
+                placeholder="输入呼号 (如: BG1AAA)"
+                maxlength="15"
+              />
+              <span v-if="callsignError" class="error-text">{{ callsignError }}</span>
+            </div>
+
+            <div class="form-group">
+              <label for="target-ssid">SSID</label>
+              <select id="target-ssid" v-model="sendForm.ssid">
+                <option :value="0">0</option>
+                <option v-for="n in 15" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="message-content">消息内容</label>
+              <textarea
+                id="message-content"
+                v-model="sendForm.message"
+                rows="4"
+                placeholder="输入消息内容..."
+                maxlength="500"
+              ></textarea>
+              <span class="char-count">{{ sendForm.message.length }}/500</span>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label for="message-content">消息内容</label>
-            <textarea
-              id="message-content"
-              v-model="sendForm.message"
-              rows="4"
-              placeholder="输入消息内容..."
-              maxlength="500"
-            ></textarea>
-            <span class="char-count">{{ sendForm.message.length }}/500</span>
+          <div class="modal-footer">
+            <button class="btn-secondary" @click="closeSendModal">取消</button>
+            <button class="btn-primary" :disabled="!canSend || sending" @click="handleSend">
+              <span v-if="sending" class="spinner-small"></span>
+              <span v-else>发送</span>
+            </button>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button class="btn-secondary" @click="closeSendModal">取消</button>
-          <button class="btn-primary" :disabled="!canSend || sending" @click="handleSend">
-            <span v-if="sending" class="spinner-small"></span>
-            <span v-else>发送</span>
-          </button>
-        </div>
-
-        <!-- 发送结果提示 -->
-        <div v-if="sendResult" class="send-result" :class="sendResult.type">
-          {{ sendResult.message }}
+          <!-- 发送结果提示 -->
+          <div v-if="sendResult" class="send-result" :class="sendResult.type">
+            {{ sendResult.message }}
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1232,7 +1234,13 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+  padding:
+    calc(1rem + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
+    calc(1rem + var(--safe-inset-right, env(safe-area-inset-right, 0px)))
+    1rem
+    calc(1rem + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
 }
 
 .modal-content {
@@ -1336,6 +1344,7 @@ onUnmounted(() => {
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border-light);
+  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 .send-result {
@@ -1401,12 +1410,18 @@ onUnmounted(() => {
   }
 
   .modal-content {
-    max-height: calc(var(--vh, 1vh) * 100);
+    max-height: calc(
+      var(--app-height, 100vh) - var(--safe-inset-top, env(safe-area-inset-top, 0px))
+    );
     border-radius: 0;
   }
 
   .modal-overlay {
-    padding: 0;
+    padding:
+      var(--safe-inset-top, env(safe-area-inset-top, 0px))
+      var(--safe-inset-right, env(safe-area-inset-right, 0px))
+      0
+      var(--safe-inset-left, env(safe-area-inset-left, 0px));
     align-items: flex-end;
   }
 }
