@@ -186,9 +186,13 @@
 
     <!-- 发送消息弹窗：Teleport 到 body，避免受 content-area transform 影响 -->
     <Teleport to="body">
-      <div v-if="showSendModal" class="modal-overlay" @click.self="closeSendModal">
-        <div class="modal-content send-modal">
-          <div class="modal-header">
+      <div
+        v-if="showSendModal"
+        class="modal-overlay-common modal-overlay-short-fullscreen modal-overlay"
+        @click.self="closeSendModal"
+      >
+        <div class="modal-content send-modal modal-panel-common">
+          <div class="modal-header modal-header-common">
             <h3>发送消息</h3>
             <button class="close-btn" @click="closeSendModal">&times;</button>
           </div>
@@ -226,7 +230,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer modal-footer-common">
             <button class="btn-secondary" @click="closeSendModal">取消</button>
             <button class="btn-primary" :disabled="!canSend || sending" @click="handleSend">
               <span v-if="sending" class="spinner-small"></span>
@@ -1224,23 +1228,7 @@ onUnmounted(() => {
 
 /* 弹窗 */
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--overlay-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  box-sizing: border-box;
-  overscroll-behavior: contain;
-  padding:
-    calc(1rem + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
-    calc(1rem + var(--safe-inset-right, env(safe-area-inset-right, 0px)))
-    1rem
-    calc(1rem + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
+  --modal-overlay-z-index: 1000;
 }
 
 .modal-content {
@@ -1250,7 +1238,6 @@ onUnmounted(() => {
   border-radius: 12px;
   width: 100%;
   max-width: 480px;
-  max-height: calc(var(--vh, 1vh) * 90);
   overflow: hidden;
   box-shadow: 0 20px 60px var(--shadow-modal);
 }
@@ -1271,8 +1258,6 @@ onUnmounted(() => {
 }
 
 .modal-body {
-  min-height: 0;
-  overflow-y: auto;
   padding: 1.25rem;
 }
 
@@ -1342,9 +1327,9 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1rem 1.25rem;
+  padding-right: 1.25rem;
+  padding-left: 1.25rem;
   border-top: 1px solid var(--border-light);
-  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 .send-result {
@@ -1407,22 +1392,6 @@ onUnmounted(() => {
 
   .message-list-container {
     padding: 0 0.75rem 0.75rem;
-  }
-
-  .modal-content {
-    max-height: calc(
-      var(--app-height, 100vh) - var(--safe-inset-top, env(safe-area-inset-top, 0px))
-    );
-    border-radius: 0;
-  }
-
-  .modal-overlay {
-    padding:
-      var(--safe-inset-top, env(safe-area-inset-top, 0px))
-      var(--safe-inset-right, env(safe-area-inset-right, 0px))
-      0
-      var(--safe-inset-left, env(safe-area-inset-left, 0px));
-    align-items: flex-end;
   }
 }
 </style>

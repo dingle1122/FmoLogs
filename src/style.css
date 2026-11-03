@@ -121,6 +121,59 @@ html.modal-scroll-locked .content-area {
   overscroll-behavior: none;
 }
 
+.modal-overlay-common {
+  position: fixed;
+  inset: 0;
+  z-index: var(--modal-overlay-z-index, 1100);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: calc(16px + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
+    calc(16px + var(--safe-inset-right, env(safe-area-inset-right, 0px))) 16px
+    calc(16px + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
+  background: var(--modal-overlay-background, var(--overlay-bg));
+}
+
+.modal-panel-common {
+  max-width: 100%;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.modal-footer-common {
+  padding-top: 1rem;
+  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+@media (max-height: 350px) {
+  .modal-overlay-common.modal-overlay-short-fullscreen {
+    justify-content: flex-start;
+    padding: var(--safe-inset-top, env(safe-area-inset-top, 0px))
+      var(--safe-inset-right, env(safe-area-inset-right, 0px)) 0
+      var(--safe-inset-left, env(safe-area-inset-left, 0px));
+  }
+
+  .modal-overlay-common.modal-overlay-short-fullscreen > .modal-panel-common {
+    width: 100%;
+    max-width: none;
+    margin-top: 0;
+    margin-bottom: 0;
+    border-radius: 0;
+  }
+
+  .modal-overlay-common.modal-overlay-short-fullscreen .modal-header-common {
+    padding-top: 0.75rem;
+  }
+
+  .modal-overlay-common.modal-overlay-short-fullscreen .modal-footer-common {
+    padding-top: 0.75rem;
+    padding-bottom: calc(0.75rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
+  }
+}
+
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 *::-webkit-scrollbar {

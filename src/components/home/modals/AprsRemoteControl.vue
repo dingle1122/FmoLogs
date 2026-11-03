@@ -243,11 +243,11 @@
   <Teleport to="body">
     <div
       v-if="showAddServerDialog || showEditServerDialog"
-      class="dialog-overlay"
+      class="modal-overlay-common modal-overlay-short-fullscreen dialog-overlay"
       @click.self="closeServerDialog"
     >
-      <div class="dialog">
-        <div class="dialog-header">
+      <div class="dialog modal-panel-common">
+        <div class="dialog-header modal-header-common">
           <span class="dialog-title">{{ showEditServerDialog ? '编辑服务器' : '添加服务器' }}</span>
           <button class="close-btn" @click="closeServerDialog">&times;</button>
         </div>
@@ -266,7 +266,7 @@
             {{ serverFormError }}
           </div>
         </div>
-        <div class="dialog-footer">
+        <div class="dialog-footer modal-footer-common">
           <button class="btn-secondary" @click="closeServerDialog">取消</button>
           <button class="btn-primary" @click="submitServerForm">
             {{ showEditServerDialog ? '保存' : '添加' }}
@@ -1158,32 +1158,10 @@ onUnmounted(() => {
 }
 
 /* 弹窗样式 */
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--overlay-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding:
-    calc(16px + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
-    calc(16px + var(--safe-inset-right, env(safe-area-inset-right, 0px)))
-    16px
-    calc(16px + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
-  box-sizing: border-box;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  z-index: 1100;
-}
-
 .dialog {
   background: var(--bg-card);
   border-radius: 8px;
   width: 420px;
-  max-width: 100%;
   box-shadow: 0 4px 20px var(--shadow-modal);
 }
 
@@ -1227,39 +1205,12 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1rem 1.25rem;
+  padding-right: 1.25rem;
+  padding-left: 1.25rem;
   border-top: 1px solid var(--border-light);
-  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 @media (max-height: 350px) {
-  .dialog-overlay {
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding:
-      var(--safe-inset-top, env(safe-area-inset-top, 0px))
-      var(--safe-inset-right, env(safe-area-inset-right, 0px))
-      0
-      var(--safe-inset-left, env(safe-area-inset-left, 0px));
-  }
-
-  .dialog {
-    width: 100%;
-    max-width: none;
-    border-radius: 0;
-  }
-
-  .dialog-header {
-    padding-top: 0.75rem;
-  }
-
-  .dialog-footer {
-    padding-top: 0.75rem;
-    padding-bottom: calc(
-      0.75rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px))
-    );
-  }
-
   .dialog-body {
     padding: 1rem;
   }

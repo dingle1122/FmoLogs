@@ -308,91 +308,95 @@
     <Teleport to="body">
       <div
         v-if="showAddressDialog"
-        class="dialog-overlay address-dialog-overlay"
+        class="modal-overlay-common modal-overlay-short-fullscreen dialog-overlay"
         @click.self="cancelAddressDialog"
       >
-      <div class="dialog">
-        <div class="dialog-header">
-          <span class="dialog-title">{{ editingId ? '编辑地址' : '添加地址' }}</span>
-          <button class="close-btn" @click="cancelAddressDialog">&times;</button>
-        </div>
-        <div class="dialog-body">
-          <div class="form-group">
-            <label class="form-label">名称（可选）</label>
-            <input
-              id="address-name"
-              v-model="formData.name"
-              type="text"
-              placeholder="如：家里的FMO"
-              class="form-input"
-            />
+        <div class="dialog modal-panel-common">
+          <div class="dialog-header modal-header-common">
+            <span class="dialog-title">{{ editingId ? '编辑地址' : '添加地址' }}</span>
+            <button class="close-btn" @click="cancelAddressDialog">&times;</button>
           </div>
-          <div class="form-group">
-            <label class="form-label">地址</label>
-            <div class="form-row">
-              <select id="address-protocol" v-model="formData.protocol" class="protocol-select">
-                <option value="ws">ws://</option>
-                <option value="wss">wss://</option>
-              </select>
+          <div class="dialog-body">
+            <div class="form-group">
+              <label class="form-label">名称（可选）</label>
               <input
-                id="address-host"
-                v-model="formData.host"
+                id="address-name"
+                v-model="formData.name"
                 type="text"
-                :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
-                class="form-input-flex"
+                placeholder="如：家里的FMO"
+                class="form-input"
               />
             </div>
+            <div class="form-group">
+              <label class="form-label">地址</label>
+              <div class="form-row">
+                <select id="address-protocol" v-model="formData.protocol" class="protocol-select">
+                  <option value="ws">ws://</option>
+                  <option value="wss">wss://</option>
+                </select>
+                <input
+                  id="address-host"
+                  v-model="formData.host"
+                  type="text"
+                  :placeholder="isMobileDevice ? '输入设备IP' : '输入设备IP或域名(fmo.local)'"
+                  class="form-input-flex"
+                />
+              </div>
+            </div>
+            <div v-if="!isMobileDevice" class="form-hint">
+              支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
+            </div>
+            <div v-if="formError" class="form-error">
+              {{ formError }}
+            </div>
           </div>
-          <div v-if="!isMobileDevice" class="form-hint">
-            支持mDNS服务，可直接输入 <code>fmo.local</code> 连接设备
-          </div>
-          <div v-if="formError" class="form-error">
-            {{ formError }}
+          <div class="dialog-footer modal-footer-common">
+            <button class="btn-secondary" :disabled="formValidating" @click="cancelAddressDialog">
+              取消
+            </button>
+            <button class="btn-primary" :disabled="formValidating" @click="submitAddressForm">
+              {{ formValidating ? '验证中...' : '确定' }}
+            </button>
           </div>
         </div>
-        <div class="dialog-footer">
-          <button class="btn-secondary" :disabled="formValidating" @click="cancelAddressDialog">
-            取消
-          </button>
-          <button class="btn-primary" :disabled="formValidating" @click="submitAddressForm">
-            {{ formValidating ? '验证中...' : '确定' }}
-          </button>
-        </div>
-      </div>
       </div>
     </Teleport>
     <!-- FMO 页面预览弹框 -->
     <Teleport to="body">
-      <div v-if="showFmoPreview" class="dialog-overlay" @click.self="closeFmoPreview">
-      <div class="fmo-preview-dialog">
-        <div class="fmo-preview-toolbar">
-          <button class="btn-icon" title="上一页" @click="fmoPreviewGoBack">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
-            </svg>
-          </button>
-          <div class="fmo-preview-toolbar-spacer"></div>
-          <button class="btn-icon" title="在浏览器中打开" @click="openFmoExternal">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path
-                d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
-              />
-            </svg>
-          </button>
-          <button class="close-btn" @click="closeFmoPreview">&times;</button>
+      <div
+        v-if="showFmoPreview"
+        class="modal-overlay-common dialog-overlay"
+        @click.self="closeFmoPreview"
+      >
+        <div class="fmo-preview-dialog modal-panel-common">
+          <div class="fmo-preview-toolbar">
+            <button class="btn-icon" title="上一页" @click="fmoPreviewGoBack">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z" />
+              </svg>
+            </button>
+            <div class="fmo-preview-toolbar-spacer"></div>
+            <button class="btn-icon" title="在浏览器中打开" @click="openFmoExternal">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path
+                  d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"
+                />
+              </svg>
+            </button>
+            <button class="close-btn" @click="closeFmoPreview">&times;</button>
+          </div>
+          <div class="fmo-preview-body">
+            <iframe
+              :key="fmoPreviewKey"
+              ref="fmoPreviewIframe"
+              :src="fmoPreviewUrl"
+              class="fmo-preview-iframe"
+              referrerpolicy="no-referrer"
+              sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
+              @load="onFmoIframeLoad"
+            ></iframe>
+          </div>
         </div>
-        <div class="fmo-preview-body">
-          <iframe
-            :key="fmoPreviewKey"
-            ref="fmoPreviewIframe"
-            :src="fmoPreviewUrl"
-            class="fmo-preview-iframe"
-            referrerpolicy="no-referrer"
-            sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"
-            @load="onFmoIframeLoad"
-          ></iframe>
-        </div>
-      </div>
       </div>
     </Teleport>
   </div>
@@ -1703,31 +1707,13 @@ function handleVolumeChange(e) {
 
 /* 地址编辑弹框 */
 .dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--alpha-black-50);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding:
-    calc(16px + var(--safe-inset-top, env(safe-area-inset-top, 0px)))
-    calc(16px + var(--safe-inset-right, env(safe-area-inset-right, 0px)))
-    16px
-    calc(16px + var(--safe-inset-left, env(safe-area-inset-left, 0px)));
-  box-sizing: border-box;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  z-index: 1100;
+  --modal-overlay-background: var(--alpha-black-50);
 }
 
 .dialog {
   background: var(--bg-card);
   border-radius: 8px;
   width: 420px;
-  max-width: 100%;
   box-shadow: 0 4px 20px var(--shadow-modal);
   overflow: hidden;
 }
@@ -1850,40 +1836,13 @@ function handleVolumeChange(e) {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1rem 1.25rem;
+  padding-right: 1.25rem;
+  padding-left: 1.25rem;
   border-top: 1px solid var(--border-light);
   background: var(--bg-card);
-  padding-bottom: calc(1rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 @media (max-height: 350px) {
-  .address-dialog-overlay {
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding:
-      var(--safe-inset-top, env(safe-area-inset-top, 0px))
-      var(--safe-inset-right, env(safe-area-inset-right, 0px))
-      0
-      var(--safe-inset-left, env(safe-area-inset-left, 0px));
-  }
-
-  .dialog {
-    width: 100%;
-    max-width: none;
-    border-radius: 0;
-  }
-
-  .dialog-header {
-    padding-top: 0.75rem;
-  }
-
-  .dialog-footer {
-    padding-top: 0.75rem;
-    padding-bottom: calc(
-      0.75rem + var(--safe-inset-bottom, env(safe-area-inset-bottom, 0px))
-    );
-  }
-
   .dialog-body {
     padding: 1rem;
   }
