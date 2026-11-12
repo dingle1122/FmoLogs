@@ -10,12 +10,16 @@
           <input ref="fileInput" class="file-input" type="file" accept=".wav,audio/wav" @change="loadFile" />
           </div>
         </div>
-        <div class="result-section">
+        <div ref="resultSection" class="result-section">
           <div class="image-wrap"><img v-if="imageUrl" :src="imageUrl" alt="SSTV 解析图像" /><span v-else class="image-placeholder">选择音频或开始监听</span></div>
           <div class="result-bar">
             <div class="result-status" role="status">{{ resultStatus }}</div>
-            <div class="result-actions"><button class="btn-secondary" :disabled="!result || busy" @click="clearResult">清空</button><button class="btn-secondary" :disabled="!result || busy" @click="downloadImage">导出 PNG</button></div>
+            <div class="result-actions"><button v-if="currentHistory" class="btn-secondary" :disabled="historyBusy" @click="renameHistory(currentHistory)">重命名</button><button v-if="currentHistory" class="btn-secondary" :disabled="historyBusy" @click="removeHistory(currentHistory)">删除</button><button class="btn-secondary" :disabled="!result || busy" @click="clearResult">清空</button><button class="btn-secondary" :disabled="!result || busy || exportBusy" @click="downloadImage">导出 PNG</button></div>
           </div>
+          <form v-if="!selectedHistoryIds.length && currentHistory && renameIds.length === 1 && renameIds[0] === currentHistory.id" class="rename-form result-rename" @submit.prevent="applyRename">
+            <label for="current-history-name">名称</label><input id="current-history-name" v-model="renameValue" class="field rename-input" maxlength="80" required />
+            <button class="btn-secondary" :disabled="historyBusy || !renameValue.trim()">保存</button><button class="btn-secondary" type="button" @click="renameIds = []">取消</button>
+          </form>
           <div v-if="result" class="result-info"><span>{{ modeName }}</span><span>起点 {{ result.startSeconds.toFixed(3) }} 秒</span><span>频移 {{ Math.round(result.frequencyOffsetHz) }} Hz</span></div>
           <p v-for="warning in visibleWarnings" :key="warning" class="setting-hint">{{ warning }}</p>
         </div>
@@ -38,16 +42,19 @@
         </details>
       </section>
       <section class="card">
-        <div class="card-header"><span class="card-title">解析历史</span><button v-if="history.length || historyManage" class="btn-secondary" :disabled="historyBusy || busy" @click="toggleHistoryManage">{{ historyManage ? '完成' : '管理' }}</button></div>
-        <p v-if="historyError" class="error" role="alert">{{ historyError }}</p>
-        <div v-if="historyManage && history.length" class="history-toolbar">
-          <label><input type="checkbox" :checked="allHistorySelected" :disabled="historyBusy" @change="toggleAllHistory" /> 全选</label>
-          <span>已选 {{ selectedHistoryIds.length }} 项</span>
-          <button class="btn-secondary" :disabled="!selectedHistoryIds.length || historyBusy" @click="beginRenameSelected">重命名</button>
-          <button class="btn-secondary" :disabled="!selectedHistoryIds.length || historyBusy" @click="downloadSelectedHistory">下载</button>
-          <button class="btn-secondary" :disabled="!selectedHistoryIds.length || historyBusy" @click="removeSelectedHistory">删除</button>
+        <div class="card-header">
+          <div v-if="!selectedHistoryIds.length" class="history-heading"><span class="card-title">解析历史</span><span v-if="history.length && showSelectionHint" class="history-hint">长按图片可多选</span></div>
+          <div v-else class="history-toolbar">
+            <label><input type="checkbox" :checked="allHistorySelected" :disabled="historyBusy" @change="toggleAllHistory" /> 全选</label>
+            <span>已选 {{ selectedHistoryIds.length }} 项</span>
+            <button class="btn-secondary" :disabled="historyBusy" @click="beginRenameSelected">重命名</button>
+            <button class="btn-secondary" :disabled="historyBusy" @click="downloadSelectedHistory">下载</button>
+            <button class="btn-secondary" :disabled="historyBusy" @click="removeSelectedHistory">删除</button>
+            <button class="btn-secondary" :disabled="historyBusy" @click="clearHistorySelection">取消</button>
+          </div>
         </div>
-        <form v-if="renameIds.length" class="rename-form" @submit.prevent="applyRename">
+        <p v-if="historyError" class="error" role="alert">{{ historyError }}</p>
+        <form v-if="renameIds.length && (selectedHistoryIds.length || !currentHistory || renameIds.length !== 1 || renameIds[0] !== currentHistory.id)" class="rename-form" @submit.prevent="applyRename">
           <label for="history-name">{{ renameIds.length > 1 ? '批量名称' : '名称' }}</label>
           <input id="history-name" v-model="renameValue" class="field rename-input" maxlength="80" required placeholder="输入名称" />
           <span v-if="renameIds.length > 1" class="setting-hint">按时间从早到晚追加编号</span>
@@ -57,13 +64,13 @@
         <div v-if="!history.length" class="empty history-empty">暂无解析记录</div>
         <div v-else class="history-grid">
           <div v-for="item in history" :key="item.id" class="history-item" :class="{ 'is-selected': item.id !== undefined && selectedHistoryIds.includes(item.id) }">
-            <button class="history-preview" :disabled="busy || historyBusy" :aria-pressed="historyManage ? selectedHistoryIds.includes(item.id!) : undefined" :title="`${historyName(item)} · ${item.fileName} · ${formatTime(item.createdAt)}`" @click="historyManage ? toggleHistorySelection(item) : showHistory(item)">
-              <span v-if="historyManage" class="selection-indicator" aria-hidden="true">{{ selectedHistoryIds.includes(item.id!) ? '✓' : '' }}</span>
+            <button class="history-preview" :disabled="busy || historyBusy" :title="`${historyName(item)} · ${item.fileName} · ${formatTime(item.createdAt)}`" @pointerdown="startHistoryPress($event, item)" @pointermove="moveHistoryPress" @pointerup="cancelHistoryPress" @pointercancel="cancelHistoryPress" @contextmenu.prevent="cancelHistoryPress" @click="handleHistoryClick(item)">
               <img :src="item.preview" :alt="`${SSTV_MODES[item.mode].name} 解析预览`" />
-              <span class="history-name">{{ historyName(item) }}</span>
-              <span v-if="item.displayName" class="history-detail">{{ SSTV_MODES[item.mode].name }}</span>
               <time class="history-time" :datetime="new Date(item.createdAt).toISOString()">{{ formatHistoryTime(item.createdAt) }}</time>
             </button>
+            <label class="history-select" :class="{ 'is-visible': historyManage }" @click.stop>
+              <input type="checkbox" :checked="selectedHistoryIds.includes(item.id!)" :disabled="busy || historyBusy" :aria-label="`选择 ${historyName(item)}`" @change="toggleHistorySelection(item)" />
+            </label>
           </div>
         </div>
       </section>
@@ -76,15 +83,17 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { decodeSstv, readPcmWav, SSTV_MODES } from '../core'
 import type { DecodedImage, SstvModeId } from '../core'
 import { deleteSstvHistories, listSstvHistory, renameSstvHistories, saveSstvHistory } from '../services/sstvHistory'
-import { createSstvZip, historyImageName } from '../services/sstvZip'
+import { createSstvZip, historyImageName, safeImageName } from '../services/sstvZip'
 import type { SstvHistoryEntry } from '../services/sstvHistory'
 import { getPlatform } from '../platform'
 import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import confirmDialog from '../composables/useConfirm'
+import { exportFile } from '../utils/exportFile'
 
 const modeId = ref<SstvModeId | 'auto'>('auto')
 const fileInput = ref<HTMLInputElement | null>(null)
+const resultSection = ref<HTMLElement | null>(null)
 const startInput = ref('')
 const fileName = ref('')
 const resultFileName = ref('')
@@ -95,6 +104,7 @@ const imageUrl = ref('')
 const result = shallowRef<DecodedImage | null>(null)
 const livePreview = ref(false)
 const busy = ref(false)
+const exportBusy = ref(false)
 const audioStore = useAudioPlayerStore()
 const settingsStore = useSettingsStore()
 const liveActive = ref(false)
@@ -108,6 +118,10 @@ let liveGeneration = 0
 let ownedAudioStart: Promise<void> | null = null
 let stopPromise: Promise<void> | null = null
 let mounted = false
+let historyPressTimer: ReturnType<typeof setTimeout> | null = null
+let historyPressStart: { x: number; y: number } | null = null
+let suppressHistoryClick = false
+const showSelectionHint = ref(false)
 const error = ref('')
 const historyError = ref('')
 const historyBusy = ref(false)
@@ -117,6 +131,7 @@ const renameIds = ref<number[]>([])
 const renameValue = ref('')
 const selectedHistoryId = ref<number | null>(null)
 const history = shallowRef<Array<SstvHistoryEntry & { preview: string }>>([])
+const currentHistory = computed(() => history.value.find((item) => item.id === selectedHistoryId.value) ?? null)
 const modeName = computed(() => result.value ? SSTV_MODES[result.value.mode].name : '')
 const allHistorySelected = computed(() => history.value.length > 0 && history.value.every((item) => item.id !== undefined && selectedHistoryIds.value.includes(item.id)))
 const resultStatus = computed(() => {
@@ -153,9 +168,14 @@ async function refreshHistory() {
   }
 }
 
-onMounted(() => { mounted = true; refreshHistory() })
+onMounted(() => {
+  mounted = true
+  try { showSelectionHint.value = !localStorage.getItem('sstv-selection-hint-seen') } catch { /* ignore */ }
+  refreshHistory()
+})
 onBeforeUnmount(() => {
   mounted = false
+  cancelHistoryPress()
   void stopLive()
   for (const item of history.value) URL.revokeObjectURL(item.preview)
 })
@@ -286,21 +306,67 @@ function historyName(item: SstvHistoryEntry) {
   return item.displayName || SSTV_MODES[item.mode].name
 }
 
-function toggleHistoryManage() {
-  historyManage.value = !historyManage.value
-  selectedHistoryIds.value = []
-  renameIds.value = []
-}
-
 function toggleAllHistory() {
   selectedHistoryIds.value = allHistorySelected.value ? [] : history.value.flatMap((item) => item.id === undefined ? [] : [item.id])
+  if (!selectedHistoryIds.value.length) { historyManage.value = false; renameIds.value = [] }
 }
 
 function toggleHistorySelection(item: SstvHistoryEntry) {
   if (item.id === undefined) return
+  showSelectionHint.value = false
+  try { localStorage.setItem('sstv-selection-hint-seen', '1') } catch { /* ignore */ }
   selectedHistoryIds.value = selectedHistoryIds.value.includes(item.id)
     ? selectedHistoryIds.value.filter((id) => id !== item.id)
     : [...selectedHistoryIds.value, item.id]
+  historyManage.value = selectedHistoryIds.value.length > 0
+  if (!historyManage.value) renameIds.value = []
+}
+
+function cancelHistoryPress() {
+  if (historyPressTimer) clearTimeout(historyPressTimer)
+  historyPressTimer = null
+  historyPressStart = null
+}
+
+function startHistoryPress(event: PointerEvent, item: SstvHistoryEntry) {
+  suppressHistoryClick = false
+  if (event.pointerType !== 'touch' || historyManage.value) return
+  cancelHistoryPress()
+  historyPressStart = { x: event.clientX, y: event.clientY }
+  historyPressTimer = setTimeout(() => {
+    historyPressTimer = null
+    suppressHistoryClick = true
+    toggleHistorySelection(item)
+  }, 500)
+}
+
+function moveHistoryPress(event: PointerEvent) {
+  if (historyPressStart && Math.hypot(event.clientX - historyPressStart.x, event.clientY - historyPressStart.y) > 10) cancelHistoryPress()
+}
+
+function handleHistoryClick(item: SstvHistoryEntry & { preview: string }) {
+  if (suppressHistoryClick) { suppressHistoryClick = false; return }
+  if (historyManage.value) toggleHistorySelection(item)
+  else {
+    showHistory(item)
+    resultSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+function clearHistorySelection() {
+  selectedHistoryIds.value = []
+  historyManage.value = false
+  renameIds.value = []
+}
+
+function renameHistory(item: SstvHistoryEntry) {
+  if (item.id === undefined) return
+  renameIds.value = [item.id]
+  renameValue.value = historyName(item)
+}
+
+async function removeHistory(item: SstvHistoryEntry) {
+  if (item.id !== undefined) await removeHistoryIds([item.id])
 }
 
 function beginRenameSelected() {
@@ -324,32 +390,34 @@ async function applyRename() {
 }
 
 async function removeSelectedHistory() {
-  const ids = [...selectedHistoryIds.value]
+  await removeHistoryIds([...selectedHistoryIds.value])
+}
+
+async function removeHistoryIds(ids: number[]) {
   if (!ids.length || historyBusy.value) return
   if (!await confirmDialog.show(`确定删除选中的 ${ids.length} 条 SSTV 解析记录吗？此操作无法撤销。`)) return
   historyBusy.value = true
-  try { await deleteSstvHistories(ids); selectedHistoryIds.value = []; renameIds.value = []; await refreshHistory() }
+  try { await deleteSstvHistories(ids); selectedHistoryIds.value = []; renameIds.value = []; historyManage.value = false; await refreshHistory() }
   catch (err) { historyError.value = err instanceof Error ? err.message : '删除历史记录失败' }
   finally { historyBusy.value = false }
 }
 
 async function downloadSelectedHistory() {
-  if (historyBusy.value) return
   const selected = history.value.filter((item) => item.id !== undefined && selectedHistoryIds.value.includes(item.id))
+  await downloadHistoryItems(selected)
+}
+
+async function downloadHistoryItems(selected: SstvHistoryEntry[]) {
+  if (historyBusy.value) return
   if (!selected.length) return
   historyBusy.value = true
   try {
     const images = selected.map((item) => ({ name: historyImageName(historyName(item), item.createdAt), image: item.image, createdAt: item.createdAt }))
     const blob = images.length === 1 ? images[0].image : await createSstvZip(images)
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = images.length === 1 ? `${images[0].name}.png` : 'SSTV-历史.zip'
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 60000)
+    const filename = images.length === 1 ? `${images[0].name}.png` : 'SSTV-历史.zip'
+    const saved = await exportFile(filename, blob, images.length === 1 ? 'image/png' : 'application/zip')
     historyError.value = ''
+    if (saved.platform !== 'web') await confirmDialog.show({ message: `文件已保存至 ${saved.displayPath}`, confirmText: '知道了', showCancel: false })
   } catch (err) { historyError.value = err instanceof Error ? err.message : '下载失败' }
   finally { historyBusy.value = false }
 }
@@ -429,9 +497,18 @@ function clearResult() {
   resultFileName.value = ''
 }
 
-function downloadImage() {
-  const link = document.createElement('a'); link.href = imageUrl.value
-  link.download = `${resultFileName.value.replace(/\.wav$/i, '')}-${result.value?.mode ?? 'sstv'}.png`; link.click()
+async function downloadImage() {
+  if (!imageUrl.value || exportBusy.value) return
+  exportBusy.value = true
+  try {
+    const response = await fetch(imageUrl.value)
+    if (!response.ok) throw new Error('读取图片失败')
+    const filename = `${safeImageName(resultFileName.value.replace(/\.wav$/i, ''))}-${result.value?.mode ?? 'sstv'}.png`
+    const saved = await exportFile(filename, await response.blob(), 'image/png')
+    error.value = ''
+    if (saved.platform !== 'web') await confirmDialog.show({ message: `文件已保存至 ${saved.displayPath}`, confirmText: '知道了', showCancel: false })
+  } catch (err) { error.value = err instanceof Error ? err.message : '导出图片失败' }
+  finally { exportBusy.value = false }
 }
 </script>
 
@@ -439,7 +516,7 @@ function downloadImage() {
 .sstv-view { height: 100%; overflow-y: auto; padding: 1.5rem; }
 .sstv-content { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
 .card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 12px; padding: 1rem 1.25rem; }
-.card-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .75rem; }
+.card-header { display: flex; align-items: center; height: 2.5rem; min-width: 0; margin-bottom: .75rem; }
 .card-title { font-weight: 600; font-size: .95rem; color: var(--text-primary); }
 .setting-hint, .file-info { margin: .3rem 0 0; color: var(--text-tertiary); font-size: .8rem; line-height: 1.5; }
 .file-info { overflow-wrap: anywhere; }
@@ -453,7 +530,7 @@ function downloadImage() {
 @media (hover: hover) {
   .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
   .btn-secondary:hover:not(:disabled) { background: var(--bg-table-hover); }
-  .history-item:hover { border-color: var(--component-settings-address-hover-border); }
+  .history-item:hover .history-select { opacity: 1; pointer-events: auto; }
 }
 .advanced { margin-top: 1rem; color: var(--text-secondary); font-size: .85rem; }
 .advanced summary { cursor: pointer; }
@@ -464,7 +541,8 @@ function downloadImage() {
 .result-section { margin-top: 1rem; }
 .result-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; }
 .result-status { color: var(--text-secondary); font-size: .85rem; line-height: 1.5; }
-.result-actions { display: flex; gap: .5rem; }
+.result-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.result-rename { margin-top: .75rem; }
 .result-info { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin-top: .5rem; color: var(--text-tertiary); font-size: .8rem; }
 .image-wrap { position: relative; width: 100%; margin: 0 auto; background: var(--bg-container); border: 1px solid var(--border-light); border-radius: 4px; overflow: hidden; }
 .image-wrap::before { content: ''; display: block; padding-top: 75%; }
@@ -472,19 +550,30 @@ function downloadImage() {
 .image-placeholder { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: .85rem; }
 .empty { padding: 1rem 0; text-align: center; color: var(--text-tertiary); font-size: .85rem; }
 .history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .75rem; }
-.history-toolbar, .rename-form { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem .75rem; margin-bottom: .75rem; color: var(--text-secondary); font-size: .8rem; }
+.history-toolbar, .rename-form { display: flex; align-items: center; gap: .5rem .75rem; color: var(--text-secondary); font-size: .8rem; }
+.history-toolbar { width: 100%; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.history-toolbar::-webkit-scrollbar { display: none; }
+.history-toolbar > * { flex-shrink: 0; }
+.rename-form { flex-wrap: wrap; }
+.rename-form { margin-bottom: .75rem; }
 .history-toolbar label { display: inline-flex; align-items: center; gap: .3rem; }
+.history-heading { display: flex; align-items: center; gap: .75rem; }
+.history-hint { display: none; color: var(--text-tertiary); font-size: .75rem; }
 .rename-input { flex: 1 1 160px; min-width: 0; }
-.history-item { padding: .5rem; min-width: 0; color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 8px; }
-.history-item.is-selected { border-color: var(--color-primary); }
+.history-item { position: relative; min-width: 0; color: var(--text-primary); }
+.history-item.is-selected img { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .history-preview { position: relative; display: block; width: 100%; padding: 0; text-align: left; color: inherit; background: none; border: 0; cursor: pointer; }
-.selection-indicator { position: absolute; z-index: 1; top: .35rem; right: .35rem; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border: 1px solid var(--border-primary); border-radius: 50%; background: var(--bg-card); color: var(--color-primary); font-size: .85rem; }
+.history-select { position: absolute; z-index: 1; top: .4rem; left: .4rem; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--border-primary); border-radius: 50%; background: var(--bg-card); cursor: pointer; opacity: 0; pointer-events: none; }
+.history-select.is-visible, .history-select:focus-within { opacity: 1; pointer-events: auto; }
+.history-select input { appearance: none; display: grid; place-items: center; width: 1.15rem; height: 1.15rem; margin: 0; border: 1.5px solid var(--text-secondary); border-radius: 50%; cursor: pointer; }
+.history-select input:checked { border-color: var(--color-primary); background: var(--color-primary); }
+.history-select input:checked::after { content: ''; width: .42rem; height: .23rem; border: solid var(--text-white); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+.history-select input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 .history-preview:disabled { opacity: .6; cursor: not-allowed; }
 .reparse { margin-top: .75rem; }
 .history-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: var(--bg-container); border-radius: 4px; }
-.history-time, .history-detail, .history-name { display: block; margin-top: .4rem; font-size: .75rem; }
-.history-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history-detail { color: var(--text-tertiary); }
+.history-time { display: block; margin-top: .35rem; color: var(--text-tertiary); font-size: .75rem; }
+@media (hover: none) { .history-hint { display: block; } }
 @media (max-width: 760px) {
   .sstv-view { padding: 1rem; }
   .card { padding: 1rem; }

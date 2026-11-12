@@ -342,10 +342,11 @@ async function doPullRefresh() {
 
   // 记住刷新前的音频播放状态
   const wasAudioPlaying = isAudioPlaying.value
+  const wasAudioMuted = isAudioMuted.value
 
   try {
     // 停止音频
-    if (wasAudioPlaying) stopAudio()
+    if (wasAudioPlaying) await stopAudio()
 
     // 断开所有连接
     messageService.disconnect()
@@ -381,9 +382,9 @@ async function doPullRefresh() {
 
     // 恢复音频播放
     if (wasAudioPlaying && settings.fmoAddress.value) {
-      toggleAudio(settings.fmoAddress.value, settings.protocol.value)
+      await _audioStore.startAudio(settings.fmoAddress.value, settings.protocol.value, wasAudioMuted)
       if (isAudioPlaying.value && !isAudioMuted.value) {
-        setAudioVolumePlayer(settings.audioVolume.value)
+        await setAudioVolumePlayer(settings.audioVolume.value)
       }
     }
 
