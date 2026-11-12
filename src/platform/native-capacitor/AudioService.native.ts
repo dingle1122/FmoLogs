@@ -1,6 +1,6 @@
 import { registerPlugin } from '@capacitor/core'
 import type { IAudioService } from '../interfaces/IAudioService'
-import type { AudioStartConfig, AudioStatus } from '../types/audio'
+import type { AudioPcmChunk, AudioStartConfig, AudioStatus } from '../types/audio'
 
 /**
  * FmoAudio 原生插件契约。
@@ -14,8 +14,9 @@ interface FmoAudioPlugin {
   stop(): Promise<void>
   setVolume(params: { volumePercent: number }): Promise<void>
   setMuted(params: { muted: boolean }): Promise<void>
+  setPcmCaptureEnabled(params: { enabled: boolean }): Promise<void>
   addListener(
-    event: 'status' | 'muteChanged',
+    event: 'status' | 'muteChanged' | 'pcm',
     cb: (payload: any) => void
   ): Promise<{ remove: () => Promise<void> }>
 }
@@ -51,6 +52,7 @@ export class NativeAudioService implements IAudioService {
   private statusHandle: { remove: () => Promise<void> } | null = null
   private muteHandle: { remove: () => Promise<void> } | null = null
   private listenersInstalled = false
+  private pcmSubscribed = false
 
   private installListeners() {
     if (this.listenersInstalled) return
@@ -128,5 +130,33 @@ export class NativeAudioService implements IAudioService {
     this.installListeners()
     this.muteListeners.add(cb)
     return () => this.muteListeners.delete(cb)
+  }
+
+  async onPcmChunk(cb: (chunk: AudioPcmChunk) => void): Promise<() => Promise<void>> {
+    if (this.pcmSubscribed) throw new Error('实时音频已被订阅')
+    this.pcmSubscribed = true
+    let handle: { remove: () => Promise<void> } | null = null
+    try {
+      handle = await FmoAudio.addListener('pcm', (payload: any) => {
+        try {
+          const bytes = atob(payload.data)
+          const samples = new Int16Array(Math.floor(bytes.length / 2))
+          for (let i = 0; i < samples.length; i++) {
+            const value = bytes.charCodeAt(i * 2) | (bytes.charCodeAt(i * 2 + 1) << 8)
+            samples[i] = value >= 32768 ? value - 65536 : value
+          }
+          cb({ samples, sampleRate: payload.sampleRate, generation: payload.generation, sampleOffset: payload.sampleOffset })
+        } catch (err) { console.warn('[Audio] PCM listener error', err) }
+      })
+      await FmoAudio.setPcmCaptureEnabled({ enabled: true })
+    } catch (err) {
+      this.pcmSubscribed = false
+      if (handle) await handle.remove()
+      throw err
+    }
+    return async () => {
+      try { await FmoAudio.setPcmCaptureEnabled({ enabled: false }) }
+      finally { this.pcmSubscribed = false; await handle?.remove() }
+    }
   }
 }

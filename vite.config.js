@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { aboutConfigPlugin } from './scripts/about-data-plugin.mjs'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd())
 
   return {
@@ -19,7 +19,8 @@ export default defineConfig(({ mode }) => {
       })
     ],
     esbuild: {
-      target: 'chrome51'
+      // 开发服务器的 HMR 依赖 import.meta，不能降级成 Chrome 51 语法。
+      target: command === 'serve' ? 'esnext' : 'chrome51'
     },
     optimizeDeps: {
       esbuildOptions: {

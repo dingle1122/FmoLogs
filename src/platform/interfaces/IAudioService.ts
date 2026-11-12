@@ -1,4 +1,4 @@
-import type { AudioStartConfig, AudioStatus } from '../types/audio'
+import type { AudioPcmChunk, AudioStartConfig, AudioStatus } from '../types/audio'
 
 export interface IAudioService {
   start(cfg: AudioStartConfig): Promise<void>
@@ -23,4 +23,7 @@ export interface IAudioService {
    * Web：从不触发（返回空订阅）
    */
   onMuteChanged(cb: (muted: boolean) => void): () => void
+
+  /** 订阅播放增益和静音之前的 PCM，返回异步解除订阅函数。 */
+  onPcmChunk(cb: (chunk: AudioPcmChunk) => void): Promise<() => Promise<void>>
 }

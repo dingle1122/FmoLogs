@@ -47,6 +47,7 @@ export const useAudioPlayerStore = defineStore('audioPlayer', () => {
   let unsubStatus: (() => void) | null = null
   let unsubMute: (() => void) | null = null
   let visibilityBound = false
+  let awaitingStartStatus = false
 
   // 非响应式：记录用户设置的音量（用于 hostMuted 恢复/取消静音）
   let currentVolumePercent = 100
@@ -57,6 +58,8 @@ export const useAudioPlayerStore = defineStore('audioPlayer', () => {
     const p = getPlatform()
 
     unsubStatus = p.audio.onStatus((s) => {
+      if (awaitingStartStatus && (s === 'disconnected' || s === 'error')) return
+      if (s === 'connecting' || s === 'connected' || s === 'playing') awaitingStartStatus = false
       audioStatus.value = statusToText(s)
       if (s === 'disconnected' || s === 'error') {
         isPlaying.value = false
@@ -83,18 +86,19 @@ export const useAudioPlayerStore = defineStore('audioPlayer', () => {
   }
 
   // ========== 公共 actions ==========
-  async function startAudio(host: string, protocol: string) {
+  async function startAudio(host: string, protocol: string, muted = false) {
     if (!host) return
     installListeners()
 
     // 先停旧的
+    awaitingStartStatus = true
     await stopAudio()
 
     const url = buildWebSocketUrl(host, '/audio', protocol)
 
     currentVolumePercent = 100
     isPlaying.value = true
-    isMuted.value = false
+    isMuted.value = muted
 
     // 启动保活（Android 前台服务；Web 申请 WakeLock）
     try {
@@ -103,11 +107,13 @@ export const useAudioPlayerStore = defineStore('audioPlayer', () => {
       /* ignore */
     }
     try {
-      await getPlatform().audio.start({ url, volumePercent: 100, muted: false })
+      await getPlatform().audio.start({ url, volumePercent: 100, muted })
     } catch (e) {
+      awaitingStartStatus = false
       console.warn('[Audio] start failed', e)
       audioStatus.value = '音频连接错误'
       isPlaying.value = false
+      isMuted.value = false
       try {
         await getPlatform().background.disable()
       } catch {

@@ -13,6 +13,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
 import android.util.Log;
+import android.util.Base64;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
@@ -26,6 +27,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.io.ByteArrayOutputStream;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -63,6 +66,11 @@ public class FmoAudioPlugin extends Plugin {
     private final AtomicBoolean wasEverConnected = new AtomicBoolean(false);
 
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final Object pcmCaptureLock = new Object();
+    private final ByteArrayOutputStream pcmCaptureBuffer = new ByteArrayOutputStream();
+    private boolean pcmCaptureEnabled = false;
+    private int pcmCaptureGeneration = -1;
+    private long pcmCaptureOffset = 0;
     private final AtomicBoolean manualStop = new AtomicBoolean(false);
     private final AtomicBoolean muted = new AtomicBoolean(false);
     private final AtomicBoolean hostMuted = new AtomicBoolean(false); // 当前用户发言时自动静音，与用户手动静音独立
@@ -137,6 +145,17 @@ public class FmoAudioPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void setPcmCaptureEnabled(PluginCall call) {
+        synchronized (pcmCaptureLock) {
+            pcmCaptureEnabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+            pcmCaptureBuffer.reset();
+            pcmCaptureGeneration = -1;
+            pcmCaptureOffset = 0;
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
     public void start(PluginCall call) {
         String url = call.getString("url");
         if (url == null || url.isEmpty()) {
@@ -148,6 +167,8 @@ public class FmoAudioPlugin extends Plugin {
 
         gain.set(percentToGain(volumePercent));
         muted.set(Boolean.TRUE.equals(mutedInit));
+        Context context = getContext();
+        if (context != null) FmoAudioService.updateNotification(context, null, null, muted.get());
         currentUrl = url;
         manualStop.set(false);
 
@@ -326,6 +347,7 @@ public class FmoAudioPlugin extends Plugin {
             @Override
             public void onMessage(@NonNull WebSocket ws, @NonNull ByteString bytes) {
                 if (myGen != connGen) return;
+                capturePcm(bytes, myGen);
                 handlePcm(bytes);
             }
 
@@ -353,6 +375,35 @@ public class FmoAudioPlugin extends Plugin {
                 handleDisconnect();
             }
         });
+    }
+
+    private void capturePcm(ByteString bytes, int generation) {
+        synchronized (pcmCaptureLock) {
+            if (!pcmCaptureEnabled || !running.get()) return;
+            if (pcmCaptureGeneration != generation) {
+                pcmCaptureBuffer.reset();
+                pcmCaptureGeneration = generation;
+                pcmCaptureOffset = 0;
+            }
+            byte[] data = bytes.toByteArray();
+            pcmCaptureBuffer.write(data, 0, data.length);
+            byte[] buffered = pcmCaptureBuffer.toByteArray();
+            int consumed = 0;
+            final int batchBytes = SAMPLE_RATE * BYTES_PER_SAMPLE / 5;
+            while (buffered.length - consumed >= batchBytes) {
+                byte[] batch = Arrays.copyOfRange(buffered, consumed, consumed + batchBytes);
+                JSObject payload = new JSObject();
+                payload.put("data", Base64.encodeToString(batch, Base64.NO_WRAP));
+                payload.put("sampleRate", SAMPLE_RATE);
+                payload.put("generation", generation);
+                payload.put("sampleOffset", pcmCaptureOffset);
+                notifyListeners("pcm", payload);
+                pcmCaptureOffset += batchBytes / BYTES_PER_SAMPLE;
+                consumed += batchBytes;
+            }
+            pcmCaptureBuffer.reset();
+            pcmCaptureBuffer.write(buffered, consumed, buffered.length - consumed);
+        }
     }
 
     private void handlePcm(ByteString bytes) {

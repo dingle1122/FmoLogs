@@ -1,5 +1,5 @@
 import type { IAudioService } from '../interfaces/IAudioService'
-import type { AudioStartConfig, AudioStatus } from '../types/audio'
+import type { AudioPcmChunk, AudioStartConfig, AudioStatus } from '../types/audio'
 // @ts-ignore - legacy JS
 import { AudioStreamPlayer } from '../../services/audioPlayer'
 
@@ -47,6 +47,9 @@ export class WebAudioService implements IAudioService {
   private muteListeners = new Set<(muted: boolean) => void>()
   private lastVolumePercent = 100
   private muted = false
+  private pcmListeners = new Set<(chunk: AudioPcmChunk) => void>()
+  private pcmGeneration = 0
+  private pcmOffset = 0
 
   async start(cfg: AudioStartConfig): Promise<void> {
     // 已有连接则先停
@@ -56,8 +59,11 @@ export class WebAudioService implements IAudioService {
     this.player = new (AudioStreamPlayer as any)({ url: cfg.url })
     this.player.onStatus = (text: string) => {
       const s = mapWebStatus(text)
+      if (s === 'connected') { this.pcmGeneration++; this.pcmOffset = 0 }
       this.emitStatus(s)
     }
+    this.updatePcmCapture()
+    this.emitStatus('connecting')
     this.player.connect()
     // 应用初始音量 / 静音
     if (this.muted) {
@@ -67,9 +73,21 @@ export class WebAudioService implements IAudioService {
     }
   }
 
+  private updatePcmCapture() {
+    if (!this.player) return
+    this.player.onPCMChunk = this.pcmListeners.size ? ({ samples, sampleRate }: { samples: Int16Array; sampleRate: number }) => {
+      const chunk = { samples, sampleRate, generation: this.pcmGeneration, sampleOffset: this.pcmOffset }
+      this.pcmOffset += samples.length
+      for (const cb of this.pcmListeners) {
+        try { cb(chunk) } catch (err) { console.warn('[Audio] PCM listener error', err) }
+      }
+    } : null
+  }
+
   async stop(): Promise<void> {
     if (!this.player) return
     try {
+      this.player.onStatus = null
       this.player.disconnect()
     } catch {
       /* ignore */
@@ -111,6 +129,12 @@ export class WebAudioService implements IAudioService {
     // Web 不会触发，但仍登记以保持对称
     this.muteListeners.add(cb)
     return () => this.muteListeners.delete(cb)
+  }
+
+  async onPcmChunk(cb: (chunk: AudioPcmChunk) => void): Promise<() => Promise<void>> {
+    this.pcmListeners.add(cb)
+    this.updatePcmCapture()
+    return async () => { this.pcmListeners.delete(cb); this.updatePcmCapture() }
   }
 
   private emitStatus(s: AudioStatus) {

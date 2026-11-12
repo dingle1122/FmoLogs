@@ -10,6 +10,7 @@ import MoreView from '../views/MoreView.vue'
 import OldFriendsView from '../views/OldFriendsView.vue'
 import RemoteControlView from '../views/RemoteControlView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import SstvView from '../views/SstvView.vue'
 import ThemeSettingsView from '../views/ThemeSettingsView.vue'
 import Top20View from '../views/Top20View.vue'
 import { getPlatform } from '../platform'
@@ -73,6 +74,11 @@ const children = [
     path: 'themes',
     name: 'themes',
     component: ThemeSettingsView
+  },
+  {
+    path: 'sstv',
+    name: 'sstv',
+    component: SstvView
   }
 ]
 

@@ -107,6 +107,15 @@
     <template v-else-if="name === 'dashboard'">
       <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </template>
+
+    <!-- sstv: 图像与无线信号 -->
+    <template v-else-if="name === 'sstv'">
+      <rect x="3" y="8" width="18" height="13" rx="2" />
+      <circle cx="8" cy="12" r="1" />
+      <path d="m4 18 4-3 3 2 3-4 6 5" />
+      <path d="M9 5a5 5 0 0 1 6 0" />
+      <path d="M11 7a2 2 0 0 1 2 0" />
+    </template>
   </svg>
 </template>
 
@@ -128,7 +137,8 @@ defineProps({
         'settings',
         'themes',
         'locationReport',
-        'dashboard'
+        'dashboard',
+        'sstv'
       ].includes(value)
     }
   },

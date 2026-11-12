@@ -58,6 +58,13 @@ export const MORE_ROUTES = [
     description: '上传、切换与管理自定义主题'
   },
   {
+    path: '/sstv',
+    label: 'SSTV',
+    type: 'sstv',
+    icon: 'sstv',
+    description: '从 PD90、PD120 或 Robot36 音频恢复图像'
+  },
+  {
     path: '/remote-control',
     label: '远程控制',
     type: 'remoteControl',

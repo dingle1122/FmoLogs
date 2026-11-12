@@ -40,6 +40,9 @@ export class AudioStreamPlayer {
 
     // 状态回调
     this.onStatus = null // (statusText) => void
+    // 原始 PCM 旁路回调，供 SSTV 等分析功能使用；不经过播放滤波链
+    this.onPCMChunk = null // ({ samples: Int16Array, sampleRate, sequence }) => void
+    this._pcmSequence = 0
 
     // 调度定时器
     this._tickTimer = null
@@ -259,6 +262,7 @@ export class AudioStreamPlayer {
     this.scheduledEndTime = this.audioCtx ? this.audioCtx.currentTime : 0
     this.buffering = true
     this.started = false
+    this._pcmSequence = 0
   }
 
   /**
@@ -268,6 +272,17 @@ export class AudioStreamPlayer {
    */
   _ingestPCM16(arrayBuffer) {
     const view = new Int16Array(arrayBuffer)
+    if (this.onPCMChunk) {
+      try {
+        this.onPCMChunk({
+          samples: new Int16Array(view),
+          sampleRate: this.inputSampleRate,
+          sequence: this._pcmSequence++
+        })
+      } catch (err) {
+        console.warn('[Audio] PCM listener error', err)
+      }
+    }
     // 转换为 Float32 [-1, 1]
     const f32 = new Float32Array(view.length)
     for (let i = 0; i < view.length; i++) {
