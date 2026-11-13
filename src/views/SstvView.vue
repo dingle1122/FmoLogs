@@ -820,7 +820,10 @@ async function downloadImage() {
   try {
     const response = await fetch(imageUrl.value)
     if (!response.ok) throw new Error('读取图片失败')
-    const filename = `${safeImageName(resultFileName.value.replace(/\.wav$/i, ''))}-${result.value?.mode ?? 'sstv'}.png`
+    const baseName = currentHistory.value
+      ? historyName(currentHistory.value)
+      : resultFileName.value.replace(/\.wav$/i, '')
+    const filename = `${historyImageName(baseName, currentHistory.value?.createdAt ?? Date.now())}-${result.value?.mode ?? 'sstv'}.png`
     const saved = await exportFile(filename, await response.blob(), 'image/png')
     error.value = ''
     if (saved.platform !== 'web') await confirmDialog.show({ message: `文件已保存至 ${saved.displayPath}`, confirmText: '知道了', showCancel: false })
