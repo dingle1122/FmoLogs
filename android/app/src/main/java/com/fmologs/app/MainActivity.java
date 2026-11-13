@@ -1,5 +1,6 @@
 package com.fmologs.app;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
@@ -7,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
@@ -19,12 +21,15 @@ import android.webkit.WebSettings;
 import android.webkit.CookieManager;
 import android.webkit.URLUtil;
 import android.webkit.WebView;
+import android.webkit.PermissionRequest;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.FileProvider;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeWebViewClient;
@@ -39,8 +44,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class MainActivity extends BridgeActivity {
     private static final String APK_MIME_TYPE = "application/vnd.android.package-archive";
+    private static final int REQUEST_RECORD_AUDIO = 4101;
 
     private ValueCallback<Uri[]> pendingFilePathCallback;
+    private PermissionRequest pendingWebPermissionRequest;
     private static final class WebViewDownloadRecord {
         final File file;
         final boolean installAfterDownload;
@@ -85,6 +92,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FmoAudioPlugin.class);
+        registerPlugin(FmoMicrophonePlugin.class);
         registerPlugin(FmoEventsPlugin.class);
         registerPlugin(FmoAprsPlugin.class);
         registerPlugin(FmoGridPlugin.class);
@@ -307,12 +315,54 @@ public class MainActivity extends BridgeActivity {
         }
 
         @Override
+        public void onPermissionRequest(PermissionRequest request) {
+            runOnUiThread(() -> {
+                boolean wantsAudio = false;
+                for (String resource : request.getResources()) {
+                    if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
+                        wantsAudio = true;
+                        break;
+                    }
+                }
+                if (!wantsAudio) {
+                    request.deny();
+                    return;
+                }
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                    return;
+                }
+                pendingWebPermissionRequest = request;
+                ActivityCompat.requestPermissions(
+                        MainActivity.this,
+                        new String[]{Manifest.permission.RECORD_AUDIO},
+                        REQUEST_RECORD_AUDIO
+                );
+            });
+        }
+
+        @Override
         public boolean onShowFileChooser(
                 WebView webView,
                 ValueCallback<Uri[]> filePathCallback,
                 WebChromeClient.FileChooserParams fileChooserParams
         ) {
             return showSafeFileChooser(filePathCallback, fileChooserParams);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQUEST_RECORD_AUDIO) return;
+        PermissionRequest request = pendingWebPermissionRequest;
+        pendingWebPermissionRequest = null;
+        if (request == null) return;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+        } else {
+            request.deny();
         }
     }
 

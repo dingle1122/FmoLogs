@@ -8,7 +8,7 @@
             <div class="actions">
               <select v-model="inputSource" class="field source-select" :disabled="busy || liveActive || liveStarting" aria-label="音频来源">
                 <option value="fmo">FMO</option>
-                <option value="microphone">麦克风</option>
+                <option v-if="microphoneAvailable" value="microphone">麦克风</option>
                 <option value="file">文件</option>
               </select>
               <button v-if="inputSource === 'file'" class="btn-secondary" :disabled="busy || liveActive || liveStarting" @click="fileInput?.click()">选择文件</button>
@@ -85,8 +85,8 @@
                 <div class="setting-hint">可选择手机、蓝牙耳机或电脑外接麦克风</div>
               </div>
               <select id="sstv-microphone" v-model="microphoneDeviceId" class="field" :disabled="liveStarting || liveStopping" @change="handleMicrophoneChange">
-                <option value="">系统默认麦克风</option>
-                <option v-for="device in microphoneDevices" :key="device.deviceId" :value="device.deviceId">{{ device.label || `麦克风 ${device.deviceId.slice(0, 6)}` }}</option>
+                <option value="">自动</option>
+                <option v-for="device in microphoneDevices" :key="device.deviceId" :value="device.deviceId">{{ microphoneLabel(device) }}</option>
               </select>
             </div>
             <div class="setting-row">
@@ -176,6 +176,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { decodeSstv, readPcmWav, SSTV_MODES } from '../core'
 import type { DecodedImage, SstvModeId } from '../core'
 import { deleteSstvHistories, listSstvHistory, renameSstvHistories, saveSstvHistory } from '../services/sstvHistory'
@@ -189,10 +190,18 @@ import confirmDialog from '../composables/useConfirm'
 import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
 import { exportFile } from '../utils/exportFile'
 
+const NativeMicrophone = registerPlugin<{
+  listDevices(): Promise<{ devices: Array<{ deviceId: string; label: string; type?: string }> }>
+  start(options: { deviceId?: string }): Promise<void>
+  stop(): Promise<void>
+  addListener(event: 'pcm', callback: (payload: { data: string; sampleRate: number; sampleOffset?: number }) => void): Promise<{ remove: () => Promise<void> }>
+}>('FmoMicrophone')
+
 const modeId = ref<SstvModeId | 'auto'>('auto')
 const inputSource = ref<'fmo' | 'microphone' | 'file'>('fmo')
-const microphoneDevices = ref<MediaDeviceInfo[]>([])
+const microphoneDevices = ref<Array<{ deviceId: string; label: string; type?: string }>>([])
 const microphoneDeviceId = ref('')
+const microphoneUnavailable = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const resultSection = ref<HTMLElement | null>(null)
 const startInput = ref('')
@@ -225,6 +234,7 @@ let microphoneSource: MediaStreamAudioSourceNode | null = null
 let microphoneProcessor: ScriptProcessorNode | null = null
 let microphoneSink: GainNode | null = null
 let microphoneOffset = 0
+let nativeMicrophoneHandle: { remove: () => Promise<void> } | null = null
 const error = ref('')
 const historyError = ref('')
 const historyBusy = ref(false)
@@ -240,6 +250,7 @@ const handleDeviceChange = () => void refreshMicrophones()
 const currentHistory = computed(() => history.value.find((item) => item.id === selectedHistoryId.value) ?? null)
 const modeName = computed(() => result.value ? SSTV_MODES[result.value.mode].name : '')
 const inputSourceName = computed(() => inputSource.value === 'microphone' ? '设备麦克风' : inputSource.value === 'fmo' ? 'FMO 实时音频' : '音频文件')
+const microphoneAvailable = computed(() => !microphoneUnavailable.value && typeof window !== 'undefined' && (Capacitor.isNativePlatform() || (window.isSecureContext && !!navigator.mediaDevices?.getUserMedia)))
 const allHistorySelected = computed(() => history.value.length > 0 && history.value.every((item) => item.id !== undefined && selectedHistoryIds.value.includes(item.id)))
 const resultStatus = computed(() => {
   if (busy.value) return '正在解析音频'
@@ -250,6 +261,11 @@ const resultStatus = computed(() => {
   return '等待音频'
 })
 const visibleWarnings = computed(() => (result.value?.warnings || []).filter((warning) => !livePreview.value || !warning.startsWith('音频不足')))
+
+function microphoneLabel(device: { label: string; type?: string; deviceId: string }) {
+  const name = device.label || `麦克风 ${device.deviceId.slice(0, 6)}`
+  return device.type ? `${device.type} · ${name}` : name
+}
 
 async function refreshHistory() {
   try {
@@ -290,8 +306,15 @@ onBeforeUnmount(() => {
 })
 
 watch(inputSource, (source) => {
-  if (source === 'microphone') void refreshMicrophones(true)
+  if (source === 'microphone') {
+    microphoneUnavailable.value = false
+    void refreshMicrophones(true)
+  }
 })
+
+watch(microphoneAvailable, (available) => {
+  if (!available && inputSource.value === 'microphone') inputSource.value = 'fmo'
+}, { immediate: true })
 
 useModalBackHandler([showMobileHistory])
 const _unregisterMobileHistory = registerModal(
@@ -399,13 +422,13 @@ async function toggleLive() {
       const samples = chunk.samples.slice().buffer
       queuedChunks++
       worker.postMessage({ type: 'pcm', samples, sampleRate: chunk.sampleRate, generation: chunk.generation, sampleOffset: chunk.sampleOffset }, [samples])
-    }) : await startMicrophoneCapture((samples, sampleRate) => {
+    }) : await startMicrophoneCapture((samples, sampleRate, generation = 1, sampleOffset) => {
       if (run !== liveGeneration) return
       const pcm = new Int16Array(samples.length)
       for (let i = 0; i < samples.length; i++) pcm[i] = Math.max(-1, Math.min(1, samples[i])) * 32767
       const buffer = pcm.buffer
       queuedChunks++
-      worker.postMessage({ type: 'pcm', samples: buffer, sampleRate, generation: 1, sampleOffset: microphoneOffset }, [buffer])
+      worker.postMessage({ type: 'pcm', samples: buffer, sampleRate, generation, sampleOffset: sampleOffset ?? microphoneOffset }, [buffer])
       microphoneOffset += pcm.length
     })
     if (run !== liveGeneration) { await unsubscribe(); return }
@@ -423,19 +446,51 @@ async function toggleLive() {
     if (run === liveGeneration) {
       await stopLive('实时接收未启动')
       error.value = err instanceof Error ? err.message : '无法订阅实时音频'
+      if (inputSource.value === 'microphone') {
+        microphoneUnavailable.value = true
+        inputSource.value = 'fmo'
+      }
     }
   } finally { if (run === liveGeneration) liveStarting.value = false }
 }
 
 async function refreshMicrophones(requestPermission = false) {
-  if (!navigator.mediaDevices?.enumerateDevices) return
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const result = await NativeMicrophone.listDevices()
+      microphoneDevices.value = result.devices || []
+      if (microphoneDevices.value.length || !requestPermission) return
+    } catch {
+      // 原生权限尚未授予时，继续尝试 WebView 权限流程。
+    }
+  }
+  if (!window.isSecureContext) {
+    if (requestPermission) error.value = '浏览器麦克风需要 HTTPS 安全连接；当前地址不是 HTTPS'
+    return
+  }
+  if (!navigator.mediaDevices?.enumerateDevices) {
+    if (requestPermission) error.value = '当前浏览器不支持麦克风访问'
+    return
+  }
   try {
     if (requestPermission && navigator.mediaDevices.getUserMedia) {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       stream.getTracks().forEach((track) => track.stop())
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const result = await NativeMicrophone.listDevices()
+          microphoneDevices.value = result.devices || []
+          if (microphoneDevices.value.length) return
+        } catch { /* fall back to WebView enumeration */ }
+      }
     }
     microphoneDevices.value = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'audioinput')
-  } catch { /* permission may not be available yet */ }
+  } catch (err) {
+    microphoneDevices.value = []
+    if (requestPermission && err instanceof DOMException && err.name === 'NotAllowedError') {
+      error.value = '麦克风权限被拒绝，请在浏览器的网站权限中允许麦克风访问'
+    }
+  }
 }
 
 async function handleMicrophoneChange() {
@@ -444,21 +499,49 @@ async function handleMicrophoneChange() {
   if (inputSource.value === 'microphone') await toggleLive()
 }
 
-async function startMicrophoneCapture(onChunk: (samples: Float32Array, sampleRate: number) => void): Promise<() => Promise<void>> {
-  if (!navigator.mediaDevices?.getUserMedia) throw new Error('当前环境不支持麦克风访问')
-  microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: microphoneDeviceId.value ? { exact: microphoneDeviceId.value } : undefined, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
-  await refreshMicrophones()
-  microphoneContext = new AudioContext()
-  microphoneSource = microphoneContext.createMediaStreamSource(microphoneStream)
-  microphoneProcessor = microphoneContext.createScriptProcessor(4096, 1, 1)
-  microphoneSink = microphoneContext.createGain()
-  microphoneSink.gain.value = 0
-  microphoneProcessor.onaudioprocess = (event) => onChunk(new Float32Array(event.inputBuffer.getChannelData(0)), microphoneContext!.sampleRate)
-  microphoneSource.connect(microphoneProcessor)
-  microphoneProcessor.connect(microphoneSink)
-  microphoneSink.connect(microphoneContext.destination)
+async function startMicrophoneCapture(onChunk: (samples: Float32Array, sampleRate: number, generation?: number, sampleOffset?: number) => void): Promise<() => Promise<void>> {
   microphoneOffset = 0
-  return async () => stopMicrophoneCapture()
+  try {
+    nativeMicrophoneHandle = await NativeMicrophone.addListener('pcm', (payload) => {
+      const binary = atob(payload.data)
+      const pcm = new Int16Array(binary.length / 2)
+      for (let i = 0; i < pcm.length; i++) pcm[i] = binary.charCodeAt(i * 2) | (binary.charCodeAt(i * 2 + 1) << 8)
+      const samples = new Float32Array(pcm.length)
+      for (let i = 0; i < pcm.length; i++) samples[i] = pcm[i] / 32768
+      onChunk(samples, payload.sampleRate, 1, Number(payload.sampleOffset ?? 0))
+    })
+    await NativeMicrophone.start({ deviceId: microphoneDeviceId.value || undefined })
+    return async () => {
+      await NativeMicrophone.stop()
+      await nativeMicrophoneHandle?.remove()
+      nativeMicrophoneHandle = null
+    }
+  } catch {
+    if (nativeMicrophoneHandle) { await nativeMicrophoneHandle.remove(); nativeMicrophoneHandle = null }
+  }
+  if (!window.isSecureContext) throw new Error('浏览器麦克风需要 HTTPS 安全连接；当前地址不是 HTTPS')
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error('当前浏览器不支持麦克风访问')
+  microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: microphoneDeviceId.value ? { exact: microphoneDeviceId.value } : undefined, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+  if (!microphoneStream.getAudioTracks().length) throw new Error('未获取到可用的麦克风音频轨道')
+  try {
+    await refreshMicrophones()
+    microphoneContext = new AudioContext()
+    if (microphoneContext.state === 'suspended') await microphoneContext.resume()
+    microphoneSource = microphoneContext.createMediaStreamSource(microphoneStream)
+    microphoneProcessor = microphoneContext.createScriptProcessor(4096, 1, 1)
+    microphoneSink = microphoneContext.createGain()
+    microphoneSink.gain.value = 0
+    microphoneProcessor.onaudioprocess = (event) => onChunk(new Float32Array(event.inputBuffer.getChannelData(0)), microphoneContext!.sampleRate)
+    microphoneSource.connect(microphoneProcessor)
+    microphoneProcessor.connect(microphoneSink)
+    microphoneSink.connect(microphoneContext.destination)
+    microphoneOffset = 0
+    return async () => stopMicrophoneCapture()
+  } catch (err) {
+    await stopMicrophoneCapture()
+    if (err instanceof DOMException && err.name === 'NotReadableError') throw new Error('麦克风无法启动，可能正被其他应用占用或系统音频输入不可用')
+    throw err
+  }
 }
 
 async function stopMicrophoneCapture() {
