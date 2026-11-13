@@ -45,16 +45,28 @@
             </form>
             <div v-if="result" class="result-info">
               <span>{{ modeName }}</span>
-              <span>起点 {{ result.startSeconds.toFixed(3) }} 秒</span>
-              <span>频移 {{ Math.round(result.frequencyOffsetHz) }} Hz</span>
             </div>
-            <p v-for="warning in visibleWarnings" :key="warning" class="setting-hint">{{ warning }}</p>
           </div>
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <details class="advanced">
             <summary>高级设置</summary>
             <div v-if="fileName" class="file-info">{{ fileName }} · {{ duration.toFixed(1) }} 秒</div>
             <p v-if="liveActive" class="setting-hint">离开页面后停止监听；后台接收可能受系统限制。</p>
+            <div v-if="result" class="diagnostics">
+              <div class="diagnostics-title">解析诊断</div>
+              <div class="diagnostics-grid">
+                <span>模式</span><strong>{{ modeName }}</strong>
+                <span>图像尺寸</span><strong>{{ result.width }} × {{ result.height }}</strong>
+                <span>恢复行数</span><strong>{{ result.decodedRows }}/{{ result.height }}</strong>
+                <span>图像起点</span><strong>{{ result.startSeconds.toFixed(3) }} 秒</strong>
+                <span>频率偏移</span><strong>{{ Math.round(result.frequencyOffsetHz) }} Hz</strong>
+                <span>音频采样率</span><strong>{{ sampleRate ? `${sampleRate} Hz` : '未知' }}</strong>
+              </div>
+              <div v-if="visibleWarnings.length" class="diagnostics-warnings">
+                <div class="diagnostics-title">解析提示</div>
+                <p v-for="warning in visibleWarnings" :key="warning" class="setting-hint">{{ warning }}</p>
+              </div>
+            </div>
             <div class="setting-row">
               <label class="setting-label" for="sstv-mode">解析模式</label>
               <select id="sstv-mode" v-model="modeId" class="field">
@@ -722,6 +734,40 @@ async function downloadImage() {
 
 .advanced summary {
   cursor: pointer;
+}
+
+.diagnostics {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-container) 72%, transparent);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+}
+
+.diagnostics-title {
+  margin-bottom: 0.45rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  font-size: 0.8rem;
+}
+
+.diagnostics-grid strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.diagnostics-warnings {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--border-light);
 }
 
 .setting-row {
