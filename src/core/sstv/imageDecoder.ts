@@ -98,7 +98,12 @@ export function detectSstvHeader(samples: Float32Array, rate: number) {
   return findHeader(frequencyTrace(samples, rate), rate)
 }
 
-/** Infer a mode only from several consecutive, consistently spaced sync pulses. */
+/**
+ * Infer a mode only from a sufficiently long run of consecutive, consistently
+ * spaced sync pulses.  Four pulses are easy to obtain by chance from speech
+ * or broadband microphone noise; requiring six makes the lock substantially
+ * more stable during long-running live capture.
+ */
 export function detectSstvLineSync(samples: Float32Array, rate: number): { mode: SstvModeId; start: number; offset: number } | null {
   if (rate < 6000 || samples.length < rate * 2) return null
   const trace = frequencyTrace(samples, rate)
@@ -122,8 +127,8 @@ export function detectSstvLineSync(samples: Float32Array, rate: number): { mode:
   for (const mode of Object.values(SSTV_MODES)) {
     const expected = mode.lineDurationMs / 1000
     const sync = mode.syncDurationMs / 1000
-    for (let i = 0; i + 3 < pulses.length; i++) {
-      const group = pulses.slice(i, i + 4)
+    for (let i = 0; i + 5 < pulses.length; i++) {
+      const group = pulses.slice(i, i + 6)
       if (group.some((pulse) => Math.abs(pulse.duration - sync) > 0.004)) continue
       const distances = group.slice(1).map((pulse, index) => pulse.start - group[index].start)
       if (distances.some((distance) => Math.abs(distance - expected) > 0.004)) continue
@@ -174,13 +179,17 @@ function alignSync(trace: Float32Array, rate: number, expected: number, duration
   let best = expected
   let bestScore = Infinity
   const end = expected + duration
-  for (let candidate = end - 0.012; candidate <= end + 0.012; candidate += 0.0005) {
+  // A small sample-clock mismatch accumulates over a long image.  Searching
+  // only ±12 ms lets one noisy line permanently shift the decoder; use a
+  // wider window, while keeping a strong distance penalty to reject random
+  // 1200 Hz tones.
+  for (let candidate = end - 0.035; candidate <= end + 0.035; candidate += 0.0005) {
     const before = average(trace, rate, candidate - 0.002, 0.002) - offset
     const after = average(trace, rate, candidate + 0.001, 0.0015) - offset
-    const score = Math.abs(before - 1200) + Math.abs(after - 1500) + Math.abs(candidate - end) * 1000
+    const score = Math.abs(before - 1200) + Math.abs(after - 1500) + Math.abs(candidate - end) * 1500
     if (score < bestScore) { bestScore = score; best = candidate - duration }
   }
-  return bestScore < 180 ? best : null
+  return bestScore < 220 ? best : null
 }
 
 /** 用多行同步拟合采样时钟，避免逐行量化误差造成水平抖动。 */
@@ -190,9 +199,13 @@ function lineClock(trace: Float32Array, rate: number, start: number, duration: n
   let expected = start
   for (let row = 0; row < count && expected < trace.length / rate; row++) {
     const matched = alignSync(trace, rate, expected, sync, offset)
-    const time = matched ?? expected
+    // Do not let a single noisy pulse jump the clock by a whole fraction of a
+    // line.  The next iteration will continue from the predicted clock and
+    // the robust multi-line fit can absorb normal sample-rate drift.
+    const trusted = matched !== null && Math.abs(matched - expected) <= 0.018 ? matched : null
+    const time = trusted ?? expected
     starts.push(time)
-    if (matched !== null) observations.push({ row, time })
+    if (trusted !== null) observations.push({ row, time })
     expected = time + duration
   }
   if (observations.length < 3) return { starts, uncertain: true }

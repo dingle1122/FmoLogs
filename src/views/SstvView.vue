@@ -233,7 +233,12 @@ let microphoneContext: AudioContext | null = null
 let microphoneSource: MediaStreamAudioSourceNode | null = null
 let microphoneProcessor: ScriptProcessorNode | null = null
 let microphoneSink: GainNode | null = null
+let microphoneHighpass: BiquadFilterNode | null = null
+let microphoneLowpass: BiquadFilterNode | null = null
 let microphoneOffset = 0
+let microphoneGeneration = 1
+let microphoneLastProcessTime = 0
+let microphoneNoiseFloor = 0.004
 let nativeMicrophoneHandle: { remove: () => Promise<void> } | null = null
 const error = ref('')
 const historyError = ref('')
@@ -429,7 +434,8 @@ async function toggleLive() {
       const buffer = pcm.buffer
       queuedChunks++
       worker.postMessage({ type: 'pcm', samples: buffer, sampleRate, generation, sampleOffset: sampleOffset ?? microphoneOffset }, [buffer])
-      microphoneOffset += pcm.length
+      // Browser capture supplies the authoritative offset; native capture
+      // already includes sampleOffset in its event payload.
     })
     if (run !== liveGeneration) { await unsubscribe(); return }
     unsubscribePcm = unsubscribe
@@ -528,11 +534,55 @@ async function startMicrophoneCapture(onChunk: (samples: Float32Array, sampleRat
     microphoneContext = new AudioContext()
     if (microphoneContext.state === 'suspended') await microphoneContext.resume()
     microphoneSource = microphoneContext.createMediaStreamSource(microphoneStream)
-    microphoneProcessor = microphoneContext.createScriptProcessor(4096, 1, 1)
+    // SSTV tones are concentrated roughly between 1.1 and 2.3 kHz.  Filter
+    // the browser microphone path before zero-crossing analysis so room noise,
+    // handling noise and high-frequency hiss do not become false frequencies.
+    microphoneHighpass = microphoneContext.createBiquadFilter()
+    microphoneHighpass.type = 'highpass'
+    microphoneHighpass.frequency.value = 700
+    microphoneHighpass.Q.value = 0.7
+    microphoneLowpass = microphoneContext.createBiquadFilter()
+    microphoneLowpass.type = 'lowpass'
+    microphoneLowpass.frequency.value = 3000
+    microphoneLowpass.Q.value = 0.7
+    microphoneProcessor = microphoneContext.createScriptProcessor(2048, 1, 1)
     microphoneSink = microphoneContext.createGain()
     microphoneSink.gain.value = 0
-    microphoneProcessor.onaudioprocess = (event) => onChunk(new Float32Array(event.inputBuffer.getChannelData(0)), microphoneContext!.sampleRate)
-    microphoneSource.connect(microphoneProcessor)
+    microphoneGeneration = 1
+    microphoneLastProcessTime = 0
+    microphoneNoiseFloor = 0.004
+    microphoneProcessor.onaudioprocess = (event) => {
+      const context = microphoneContext
+      if (!context) return
+      const now = performance.now()
+      const expectedMs = event.inputBuffer.length / context.sampleRate * 1000
+      // ScriptProcessor runs on the main thread. If it is blocked long enough
+      // to miss an audio callback, the next block is not contiguous in time.
+      // Force a new generation instead of pretending the samples are adjacent.
+      if (microphoneLastProcessTime && now - microphoneLastProcessTime > expectedMs * 2.5) {
+        microphoneGeneration++
+        microphoneOffset = 0
+      }
+      microphoneLastProcessTime = now
+      const input = event.inputBuffer.getChannelData(0)
+      let energy = 0
+      for (let i = 0; i < input.length; i++) energy += input[i] * input[i]
+      const rms = Math.sqrt(energy / Math.max(1, input.length))
+      // Learn the quiet-room floor slowly. Suppress only clearly quieter
+      // blocks; valid SSTV tones are normally well above this level.
+      if (rms < microphoneNoiseFloor * 1.8) {
+        microphoneNoiseFloor = microphoneNoiseFloor * 0.98 + rms * 0.02
+      } else {
+        microphoneNoiseFloor = microphoneNoiseFloor * 0.999 + Math.min(rms, microphoneNoiseFloor * 2) * 0.001
+      }
+      const gated = new Float32Array(input)
+      if (rms < Math.max(0.006, microphoneNoiseFloor * 1.35)) gated.fill(0)
+      onChunk(gated, context.sampleRate, microphoneGeneration, microphoneOffset)
+      microphoneOffset += event.inputBuffer.length
+    }
+    microphoneSource.connect(microphoneHighpass)
+    microphoneHighpass.connect(microphoneLowpass)
+    microphoneLowpass.connect(microphoneProcessor)
     microphoneProcessor.connect(microphoneSink)
     microphoneSink.connect(microphoneContext.destination)
     microphoneOffset = 0
@@ -547,9 +597,10 @@ async function startMicrophoneCapture(onChunk: (samples: Float32Array, sampleRat
 async function stopMicrophoneCapture() {
   if (microphoneProcessor) microphoneProcessor.onaudioprocess = null
   microphoneProcessor?.disconnect(); microphoneSource?.disconnect(); microphoneSink?.disconnect()
+  microphoneHighpass?.disconnect(); microphoneLowpass?.disconnect()
   microphoneStream?.getTracks().forEach((track) => track.stop())
   if (microphoneContext && microphoneContext.state !== 'closed') await microphoneContext.close()
-  microphoneProcessor = null; microphoneSource = null; microphoneSink = null; microphoneStream = null; microphoneContext = null
+  microphoneProcessor = null; microphoneSource = null; microphoneSink = null; microphoneHighpass = null; microphoneLowpass = null; microphoneStream = null; microphoneContext = null
 }
 
 function historyName(item: SstvHistoryEntry) {

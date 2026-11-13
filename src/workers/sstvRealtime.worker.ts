@@ -147,9 +147,17 @@ self.onmessage = (event: MessageEvent<IncomingChunk | { type: 'reset' } | { type
   if (message.type === 'reset') { reset(true); self.postMessage({ type: 'waiting' }); return }
   try {
     if (!message.sampleRate || message.samples.byteLength % 2) { reset(true); return }
-    if (generation !== null && (generation !== message.generation || expectedOffset !== message.sampleOffset || sampleRate !== message.sampleRate)) {
+    const generationChanged = generation !== null && generation !== message.generation
+    const rateChanged = sampleRate !== 0 && sampleRate !== message.sampleRate
+    const offsetGap = expectedOffset !== null && expectedOffset !== message.sampleOffset
+    if (generationChanged || rateChanged || offsetGap) {
       reset(true)
-      self.postMessage({ type: 'notice', message: '音频流不连续，已重新等待 SSTV 信号' })
+      // Offset gaps are expected when the UI drops queued chunks to keep the
+      // worker real-time.  Re-sync silently; only a new connection or sample
+      // rate is worth showing as a user-facing interruption.
+      if (generationChanged || rateChanged) {
+        self.postMessage({ type: 'notice', message: '音频连接已变化，重新等待 SSTV 信号' })
+      }
     }
     generation = message.generation
     sampleRate = message.sampleRate
