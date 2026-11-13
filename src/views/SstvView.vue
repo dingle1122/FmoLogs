@@ -1,94 +1,165 @@
 <template>
   <div class="sstv-view">
-    <div class="sstv-content">
-      <section class="card">
-        <div class="workspace-header">
-          <span class="card-title">SSTV</span>
-          <div class="actions">
-          <button class="btn-secondary" :disabled="busy || liveActive || liveStarting" @click="fileInput?.click()">选择音频</button>
-          <button class="btn-secondary" :disabled="busy || liveStarting || liveStopping" @click="toggleLive">{{ liveActive ? '停止监听' : '开始监听' }}</button>
-          <input ref="fileInput" class="file-input" type="file" accept=".wav,audio/wav" @change="loadFile" />
+    <div class="sstv-layout">
+      <main class="sstv-main">
+        <section class="card">
+          <div class="workspace-header">
+            <span class="card-title">SSTV</span>
+            <div class="actions">
+              <button class="btn-secondary" :disabled="busy || liveActive || liveStarting" @click="fileInput?.click()">选择音频</button>
+              <button class="btn-secondary" :disabled="busy || liveStarting || liveStopping" @click="toggleLive">{{ liveActive ? '停止监听' : '开始监听' }}</button>
+              <button class="btn-secondary mobile-history-button" @click="openMobileHistory">
+                解析历史
+                <span class="mobile-history-count">{{ history.length }}</span>
+              </button>
+              <input ref="fileInput" class="file-input" type="file" accept=".wav,audio/wav" @change="loadFile" />
+            </div>
           </div>
-        </div>
-        <div ref="resultSection" class="result-section">
-          <div class="image-wrap"><img v-if="imageUrl" :src="imageUrl" alt="SSTV 解析图像" /><span v-else class="image-placeholder">选择音频或开始监听</span></div>
-          <div class="result-bar">
-            <div class="result-status" role="status">{{ resultStatus }}</div>
-            <div class="result-actions"><button v-if="currentHistory" class="btn-secondary" :disabled="historyBusy" @click="renameHistory(currentHistory)">重命名</button><button v-if="currentHistory" class="btn-secondary" :disabled="historyBusy" @click="removeHistory(currentHistory)">删除</button><button class="btn-secondary" :disabled="!result || busy" @click="clearResult">清空</button><button class="btn-secondary" :disabled="!result || busy || exportBusy" @click="downloadImage">导出 PNG</button></div>
+          <div ref="resultSection" class="result-section">
+            <div class="image-wrap">
+              <img v-if="imageUrl" :src="imageUrl" alt="SSTV 解析图像" />
+              <span v-else class="image-placeholder">选择音频或开始监听</span>
+              <span v-if="currentHistory" class="active-history-label">
+                历史记录
+                <strong>{{ historyName(currentHistory) }}</strong>
+              </span>
+            </div>
+            <div class="result-bar">
+              <div class="result-status" role="status">{{ resultStatus }}</div>
+              <div class="result-actions">
+                <button v-if="currentHistory" class="btn-secondary" :disabled="historyBusy" @click="renameHistory(currentHistory)">重命名</button>
+                <button v-if="currentHistory" class="btn-secondary" :disabled="historyBusy" @click="removeHistory(currentHistory)">删除</button>
+                <button class="btn-secondary" :disabled="!result || busy" @click="clearResult">清空</button>
+                <button class="btn-secondary" :disabled="!result || busy || exportBusy" @click="downloadImage">导出 PNG</button>
+              </div>
+            </div>
+            <form
+              v-if="!selectedHistoryIds.length && currentHistory && renameIds.length === 1 && renameIds[0] === currentHistory.id"
+              class="rename-form result-rename"
+              @submit.prevent="applyRename"
+            >
+              <label for="current-history-name">名称</label>
+              <input id="current-history-name" v-model="renameValue" class="field rename-input" maxlength="80" required />
+              <button class="btn-secondary" :disabled="historyBusy || !renameValue.trim()">保存</button>
+              <button class="btn-secondary" type="button" @click="renameIds = []">取消</button>
+            </form>
+            <div v-if="result" class="result-info">
+              <span>{{ modeName }}</span>
+              <span>起点 {{ result.startSeconds.toFixed(3) }} 秒</span>
+              <span>频移 {{ Math.round(result.frequencyOffsetHz) }} Hz</span>
+            </div>
+            <p v-for="warning in visibleWarnings" :key="warning" class="setting-hint">{{ warning }}</p>
           </div>
-          <form v-if="!selectedHistoryIds.length && currentHistory && renameIds.length === 1 && renameIds[0] === currentHistory.id" class="rename-form result-rename" @submit.prevent="applyRename">
-            <label for="current-history-name">名称</label><input id="current-history-name" v-model="renameValue" class="field rename-input" maxlength="80" required />
-            <button class="btn-secondary" :disabled="historyBusy || !renameValue.trim()">保存</button><button class="btn-secondary" type="button" @click="renameIds = []">取消</button>
-          </form>
-          <div v-if="result" class="result-info"><span>{{ modeName }}</span><span>起点 {{ result.startSeconds.toFixed(3) }} 秒</span><span>频移 {{ Math.round(result.frequencyOffsetHz) }} Hz</span></div>
-          <p v-for="warning in visibleWarnings" :key="warning" class="setting-hint">{{ warning }}</p>
-        </div>
-        <p v-if="error" class="error" role="alert">{{ error }}</p>
-        <details class="advanced">
-          <summary>高级设置</summary>
-          <div v-if="fileName" class="file-info">{{ fileName }} · {{ duration.toFixed(1) }} 秒</div>
-          <p v-if="liveActive" class="setting-hint">离开页面后停止监听；后台接收可能受系统限制。</p>
-          <div class="setting-row">
-            <label class="setting-label" for="sstv-mode">解析模式</label>
-            <select id="sstv-mode" v-model="modeId" class="field">
-              <option value="auto">自动识别</option><option v-for="mode in SSTV_MODES" :key="mode.id" :value="mode.id">{{ mode.name }}</option>
-            </select>
-          </div>
-          <div class="setting-row">
-            <div><label class="setting-label" for="sstv-start">图像起点（秒）</label><div class="setting-hint">留空自动检测，头部缺失时可手动指定</div></div>
-            <input id="sstv-start" v-model="startInput" class="field offset" type="number" min="0" step="0.001" placeholder="自动" />
-          </div>
-          <button v-if="samples.length" class="btn-secondary reparse" :disabled="busy || liveActive || liveStarting" @click="decode">应用设置并重新解析</button>
-        </details>
-      </section>
-      <section class="card">
-        <div class="card-header">
-          <div v-if="!selectedHistoryIds.length" class="history-heading"><span class="card-title">解析历史</span><span v-if="history.length && showSelectionHint" class="history-hint">长按图片可多选</span></div>
-          <div v-else class="history-toolbar">
-            <label><input type="checkbox" :checked="allHistorySelected" :disabled="historyBusy" @change="toggleAllHistory" /> 全选</label>
-            <span>已选 {{ selectedHistoryIds.length }} 项</span>
-            <button class="btn-secondary" :disabled="historyBusy" @click="beginRenameSelected">重命名</button>
-            <button class="btn-secondary" :disabled="historyBusy" @click="downloadSelectedHistory">下载</button>
-            <button class="btn-secondary" :disabled="historyBusy" @click="removeSelectedHistory">删除</button>
-            <button class="btn-secondary" :disabled="historyBusy" @click="clearHistorySelection">取消</button>
-          </div>
-        </div>
-        <p v-if="historyError" class="error" role="alert">{{ historyError }}</p>
-        <form v-if="renameIds.length && (selectedHistoryIds.length || !currentHistory || renameIds.length !== 1 || renameIds[0] !== currentHistory.id)" class="rename-form" @submit.prevent="applyRename">
-          <label for="history-name">{{ renameIds.length > 1 ? '批量名称' : '名称' }}</label>
-          <input id="history-name" v-model="renameValue" class="field rename-input" maxlength="80" required placeholder="输入名称" />
-          <span v-if="renameIds.length > 1" class="setting-hint">按时间从早到晚追加编号</span>
-          <button class="btn-secondary" :disabled="historyBusy || !renameValue.trim()" type="submit">保存</button>
-          <button class="btn-secondary" :disabled="historyBusy" type="button" @click="renameIds = []">取消</button>
-        </form>
-        <div v-if="!history.length" class="empty history-empty">暂无解析记录</div>
-        <div v-else class="history-grid">
-          <div v-for="item in history" :key="item.id" class="history-item" :class="{ 'is-selected': item.id !== undefined && selectedHistoryIds.includes(item.id) }">
-            <button class="history-preview" :disabled="busy || historyBusy" :title="`${historyName(item)} · ${item.fileName} · ${formatTime(item.createdAt)}`" @pointerdown="startHistoryPress($event, item)" @pointermove="moveHistoryPress" @pointerup="cancelHistoryPress" @pointercancel="cancelHistoryPress" @contextmenu.prevent="cancelHistoryPress" @click="handleHistoryClick(item)">
-              <img :src="item.preview" :alt="`${SSTV_MODES[item.mode].name} 解析预览`" />
-              <time class="history-time" :datetime="new Date(item.createdAt).toISOString()">{{ formatHistoryTime(item.createdAt) }}</time>
+          <p v-if="error" class="error" role="alert">{{ error }}</p>
+          <details class="advanced">
+            <summary>高级设置</summary>
+            <div v-if="fileName" class="file-info">{{ fileName }} · {{ duration.toFixed(1) }} 秒</div>
+            <p v-if="liveActive" class="setting-hint">离开页面后停止监听；后台接收可能受系统限制。</p>
+            <div class="setting-row">
+              <label class="setting-label" for="sstv-mode">解析模式</label>
+              <select id="sstv-mode" v-model="modeId" class="field">
+                <option value="auto">自动识别</option>
+                <option v-for="mode in SSTV_MODES" :key="mode.id" :value="mode.id">{{ mode.name }}</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <div>
+                <label class="setting-label" for="sstv-start">图像起点（秒）</label>
+                <div class="setting-hint">留空自动检测，头部缺失时可手动指定</div>
+              </div>
+              <input id="sstv-start" v-model="startInput" class="field offset" type="number" min="0" step="0.001" placeholder="自动" />
+            </div>
+            <button v-if="samples.length" class="btn-secondary reparse" :disabled="busy || liveActive || liveStarting" @click="decode">
+              应用设置并重新解析
             </button>
-            <label class="history-select" :class="{ 'is-visible': historyManage }" @click.stop>
-              <input type="checkbox" :checked="selectedHistoryIds.includes(item.id!)" :disabled="busy || historyBusy" :aria-label="`选择 ${historyName(item)}`" @change="toggleHistorySelection(item)" />
-            </label>
-          </div>
-        </div>
-      </section>
+          </details>
+        </section>
+      </main>
+
+      <aside class="history-sidebar" aria-label="解析历史">
+        <SstvHistoryPanel
+          :history="history"
+          :busy="busy"
+          :history-busy="historyBusy"
+          :history-error="historyError"
+          :manage="historyManage"
+          :selected-ids="selectedHistoryIds"
+          :selected-history-id="selectedHistoryId"
+          :all-selected="allHistorySelected"
+          :rename-ids="renameIds"
+          :rename-value="renameValue"
+          variant="sidebar"
+          @select="handleHistoryClick"
+          @manage="enterHistorySelection"
+          @toggle-all="toggleAllHistory"
+          @rename-selected="beginRenameSelected"
+          @download-selected="downloadSelectedHistory"
+          @delete-selected="removeSelectedHistory"
+          @cancel-selection="clearHistorySelection"
+          @clear-all="clearAllHistory"
+          @apply-rename="applyRename"
+          @cancel-rename="renameIds = []"
+          @update:rename-value="renameValue = $event"
+        />
+      </aside>
     </div>
+
+    <Teleport to="body">
+      <Transition name="mobile-history">
+        <div v-if="showMobileHistory" class="mobile-history-overlay" @click.self="closeMobileHistory">
+          <section
+            ref="mobileHistorySheet"
+            class="mobile-history-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="解析历史"
+          >
+            <SstvHistoryPanel
+              :history="history"
+              :busy="busy"
+              :history-busy="historyBusy"
+              :history-error="historyError"
+              :manage="historyManage"
+              :selected-ids="selectedHistoryIds"
+              :selected-history-id="selectedHistoryId"
+              :all-selected="allHistorySelected"
+              :rename-ids="renameIds"
+              :rename-value="renameValue"
+              variant="sheet"
+              closeable
+              @select="handleHistoryClick"
+              @manage="enterHistorySelection"
+              @toggle-all="toggleAllHistory"
+              @rename-selected="beginRenameSelected"
+              @download-selected="downloadSelectedHistory"
+              @delete-selected="removeSelectedHistory"
+              @cancel-selection="clearHistorySelection"
+              @clear-all="clearAllHistory"
+              @apply-rename="applyRename"
+              @cancel-rename="renameIds = []"
+              @update:rename-value="renameValue = $event"
+              @close="closeMobileHistory"
+            />
+          </section>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { decodeSstv, readPcmWav, SSTV_MODES } from '../core'
 import type { DecodedImage, SstvModeId } from '../core'
 import { deleteSstvHistories, listSstvHistory, renameSstvHistories, saveSstvHistory } from '../services/sstvHistory'
 import { createSstvZip, historyImageName, safeImageName } from '../services/sstvZip'
 import type { SstvHistoryEntry } from '../services/sstvHistory'
+import SstvHistoryPanel from '../components/sstv/SstvHistoryPanel.vue'
 import { getPlatform } from '../platform'
 import { useAudioPlayerStore } from '../stores/audioPlayerStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import confirmDialog from '../composables/useConfirm'
+import { useModalBackHandler, registerModal } from '../composables/useModalBackHandler'
 import { exportFile } from '../utils/exportFile'
 
 const modeId = ref<SstvModeId | 'auto'>('auto')
@@ -118,10 +189,6 @@ let liveGeneration = 0
 let ownedAudioStart: Promise<void> | null = null
 let stopPromise: Promise<void> | null = null
 let mounted = false
-let historyPressTimer: ReturnType<typeof setTimeout> | null = null
-let historyPressStart: { x: number; y: number } | null = null
-let suppressHistoryClick = false
-const showSelectionHint = ref(false)
 const error = ref('')
 const historyError = ref('')
 const historyBusy = ref(false)
@@ -130,6 +197,8 @@ const selectedHistoryIds = ref<number[]>([])
 const renameIds = ref<number[]>([])
 const renameValue = ref('')
 const selectedHistoryId = ref<number | null>(null)
+const showMobileHistory = ref(false)
+const mobileHistorySheet = ref<HTMLElement | null>(null)
 const history = shallowRef<Array<SstvHistoryEntry & { preview: string }>>([])
 const currentHistory = computed(() => history.value.find((item) => item.id === selectedHistoryId.value) ?? null)
 const modeName = computed(() => result.value ? SSTV_MODES[result.value.mode].name : '')
@@ -170,15 +239,23 @@ async function refreshHistory() {
 
 onMounted(() => {
   mounted = true
-  try { showSelectionHint.value = !localStorage.getItem('sstv-selection-hint-seen') } catch { /* ignore */ }
+  window.addEventListener('keydown', handleGlobalKeydown)
   refreshHistory()
 })
 onBeforeUnmount(() => {
   mounted = false
-  cancelHistoryPress()
+  window.removeEventListener('keydown', handleGlobalKeydown)
+  _unregisterMobileHistory()
   void stopLive()
   for (const item of history.value) URL.revokeObjectURL(item.preview)
 })
+
+useModalBackHandler([showMobileHistory])
+const _unregisterMobileHistory = registerModal(
+  () => showMobileHistory.value,
+  () => closeMobileHistory(),
+  50
+)
 
 function stopLive(message = '实时接收已停止'): Promise<void> {
   if (stopPromise) return stopPromise
@@ -308,48 +385,31 @@ function historyName(item: SstvHistoryEntry) {
 
 function toggleAllHistory() {
   selectedHistoryIds.value = allHistorySelected.value ? [] : history.value.flatMap((item) => item.id === undefined ? [] : [item.id])
-  if (!selectedHistoryIds.value.length) { historyManage.value = false; renameIds.value = [] }
+  if (!selectedHistoryIds.value.length) renameIds.value = []
 }
 
 function toggleHistorySelection(item: SstvHistoryEntry) {
   if (item.id === undefined) return
-  showSelectionHint.value = false
-  try { localStorage.setItem('sstv-selection-hint-seen', '1') } catch { /* ignore */ }
   selectedHistoryIds.value = selectedHistoryIds.value.includes(item.id)
     ? selectedHistoryIds.value.filter((id) => id !== item.id)
     : [...selectedHistoryIds.value, item.id]
-  historyManage.value = selectedHistoryIds.value.length > 0
-  if (!historyManage.value) renameIds.value = []
+  if (!selectedHistoryIds.value.length) renameIds.value = []
 }
 
-function cancelHistoryPress() {
-  if (historyPressTimer) clearTimeout(historyPressTimer)
-  historyPressTimer = null
-  historyPressStart = null
-}
-
-function startHistoryPress(event: PointerEvent, item: SstvHistoryEntry) {
-  suppressHistoryClick = false
-  if (event.pointerType !== 'touch' || historyManage.value) return
-  cancelHistoryPress()
-  historyPressStart = { x: event.clientX, y: event.clientY }
-  historyPressTimer = setTimeout(() => {
-    historyPressTimer = null
-    suppressHistoryClick = true
-    toggleHistorySelection(item)
-  }, 500)
-}
-
-function moveHistoryPress(event: PointerEvent) {
-  if (historyPressStart && Math.hypot(event.clientX - historyPressStart.x, event.clientY - historyPressStart.y) > 10) cancelHistoryPress()
+function enterHistorySelection() {
+  historyManage.value = true
+  renameIds.value = []
 }
 
 function handleHistoryClick(item: SstvHistoryEntry & { preview: string }) {
-  if (suppressHistoryClick) { suppressHistoryClick = false; return }
   if (historyManage.value) toggleHistorySelection(item)
   else {
+    const openedFromMobile = showMobileHistory.value
     showHistory(item)
-    resultSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (openedFromMobile) {
+      closeMobileHistory()
+      void nextTick(() => resultSection.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
   }
 }
 
@@ -357,6 +417,23 @@ function clearHistorySelection() {
   selectedHistoryIds.value = []
   historyManage.value = false
   renameIds.value = []
+}
+
+async function openMobileHistory() {
+  showMobileHistory.value = true
+  await nextTick()
+  mobileHistorySheet.value?.querySelector<HTMLButtonElement>('.mobile-close-button')?.focus()
+}
+
+function closeMobileHistory() {
+  showMobileHistory.value = false
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && showMobileHistory.value) {
+    event.preventDefault()
+    closeMobileHistory()
+  }
 }
 
 function renameHistory(item: SstvHistoryEntry) {
@@ -391,6 +468,21 @@ async function applyRename() {
 
 async function removeSelectedHistory() {
   await removeHistoryIds([...selectedHistoryIds.value])
+}
+
+async function clearAllHistory() {
+  if (historyBusy.value || !history.value.length) return
+  if (!await confirmDialog.show(`确定清空全部 ${history.value.length} 条 SSTV 解析记录吗？此操作无法撤销。`)) return
+  historyBusy.value = true
+  try {
+    await deleteSstvHistories(history.value.flatMap((item) => item.id === undefined ? [] : [item.id]))
+    clearHistorySelection()
+    await refreshHistory()
+  } catch (err) {
+    historyError.value = err instanceof Error ? err.message : '清空历史失败'
+  } finally {
+    historyBusy.value = false
+  }
 }
 
 async function removeHistoryIds(ids: number[]) {
@@ -513,72 +605,382 @@ async function downloadImage() {
 </script>
 
 <style scoped>
-.sstv-view { height: 100%; overflow-y: auto; padding: 1.5rem; }
-.sstv-content { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
-.card { background: var(--bg-card); border: 1px solid var(--border-light); border-radius: 12px; padding: 1rem 1.25rem; }
-.card-header { display: flex; align-items: center; height: 2.5rem; min-width: 0; margin-bottom: .75rem; }
-.card-title { font-weight: 600; font-size: .95rem; color: var(--text-primary); }
-.setting-hint, .file-info { margin: .3rem 0 0; color: var(--text-tertiary); font-size: .8rem; line-height: 1.5; }
-.file-info { overflow-wrap: anywhere; }
-.workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.file-input { display: none; }
-.btn-primary, .btn-secondary { padding: .5rem 1rem; font-size: .9rem; border-radius: 4px; cursor: pointer; }
-.btn-primary { background: var(--color-primary); color: var(--text-white); border: none; }
-.btn-secondary { background: var(--bg-container); color: var(--text-secondary); border: 1px solid var(--border-primary); }
-.btn-primary:disabled, .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
-@media (hover: hover) {
-  .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
-  .btn-secondary:hover:not(:disabled) { background: var(--bg-table-hover); }
-  .history-item:hover .history-select { opacity: 1; pointer-events: auto; }
+.sstv-view {
+  height: 100%;
+  padding: 1.5rem;
+  overflow-y: auto;
 }
-.advanced { margin-top: 1rem; color: var(--text-secondary); font-size: .85rem; }
-.advanced summary { cursor: pointer; }
-.setting-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .75rem 0 0; }
-.setting-label { color: var(--text-primary); font-size: .875rem; }
-.field { width: 130px; padding: .45rem .6rem; color: var(--text-primary); background: var(--bg-container); border: 1px solid var(--border-primary); border-radius: 4px; }
-.error { color: var(--color-danger); font-size: .85rem; }
-.result-section { margin-top: 1rem; }
-.result-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; }
-.result-status { color: var(--text-secondary); font-size: .85rem; line-height: 1.5; }
-.result-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-.result-rename { margin-top: .75rem; }
-.result-info { display: flex; flex-wrap: wrap; gap: .4rem 1rem; margin-top: .5rem; color: var(--text-tertiary); font-size: .8rem; }
-.image-wrap { position: relative; width: 100%; margin: 0 auto; background: var(--bg-container); border: 1px solid var(--border-light); border-radius: 4px; overflow: hidden; }
-.image-wrap::before { content: ''; display: block; padding-top: 75%; }
-.image-wrap img { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
-.image-placeholder { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); font-size: .85rem; }
-.empty { padding: 1rem 0; text-align: center; color: var(--text-tertiary); font-size: .85rem; }
-.history-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: .75rem; }
-.history-toolbar, .rename-form { display: flex; align-items: center; gap: .5rem .75rem; color: var(--text-secondary); font-size: .8rem; }
-.history-toolbar { width: 100%; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
-.history-toolbar::-webkit-scrollbar { display: none; }
-.history-toolbar > * { flex-shrink: 0; }
-.rename-form { flex-wrap: wrap; }
-.rename-form { margin-bottom: .75rem; }
-.history-toolbar label { display: inline-flex; align-items: center; gap: .3rem; }
-.history-heading { display: flex; align-items: center; gap: .75rem; }
-.history-hint { display: none; color: var(--text-tertiary); font-size: .75rem; }
-.rename-input { flex: 1 1 160px; min-width: 0; }
-.history-item { position: relative; min-width: 0; color: var(--text-primary); }
-.history-item.is-selected img { outline: 2px solid var(--color-primary); outline-offset: -2px; }
-.history-preview { position: relative; display: block; width: 100%; padding: 0; text-align: left; color: inherit; background: none; border: 0; cursor: pointer; }
-.history-select { position: absolute; z-index: 1; top: .4rem; left: .4rem; display: grid; place-items: center; width: 2rem; height: 2rem; border: 1px solid var(--border-primary); border-radius: 50%; background: var(--bg-card); cursor: pointer; opacity: 0; pointer-events: none; }
-.history-select.is-visible, .history-select:focus-within { opacity: 1; pointer-events: auto; }
-.history-select input { appearance: none; display: grid; place-items: center; width: 1.15rem; height: 1.15rem; margin: 0; border: 1.5px solid var(--text-secondary); border-radius: 50%; cursor: pointer; }
-.history-select input:checked { border-color: var(--color-primary); background: var(--color-primary); }
-.history-select input:checked::after { content: ''; width: .42rem; height: .23rem; border: solid var(--text-white); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
-.history-select input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
-.history-preview:disabled { opacity: .6; cursor: not-allowed; }
-.reparse { margin-top: .75rem; }
-.history-item img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: var(--bg-container); border-radius: 4px; }
-.history-time { display: block; margin-top: .35rem; color: var(--text-tertiary); font-size: .75rem; }
-@media (hover: none) { .history-hint { display: block; } }
+
+.sstv-layout {
+  display: block;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.card {
+  padding: 1rem 1.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+}
+
+.card-title {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.setting-hint,
+.file-info {
+  margin: 0.3rem 0 0;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.file-info {
+  overflow-wrap: anywhere;
+}
+
+.workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.actions,
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.file-input {
+  display: none;
+}
+
+.btn-primary,
+.btn-secondary {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-primary {
+  color: var(--text-white);
+  background: var(--color-primary);
+  border: 0;
+}
+
+.btn-secondary {
+  color: var(--text-secondary);
+  background: var(--bg-container);
+  border: 1px solid var(--border-primary);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mobile-history-button {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mobile-history-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  color: var(--color-primary);
+  font-size: 0.7rem;
+  line-height: 1;
+  background: color-mix(in srgb, var(--color-primary) 11%, transparent);
+  border-radius: 999px;
+}
+
+.advanced {
+  margin-top: 1rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.advanced summary {
+  cursor: pointer;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0 0;
+}
+
+.setting-label {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.field {
+  width: 130px;
+  padding: 0.45rem 0.6rem;
+  color: var(--text-primary);
+  background: var(--bg-container);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+}
+
+.result-section {
+  margin-top: 1rem;
+}
+
+.result-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.result-status {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.result-rename {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.rename-input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.result-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin-top: 0.5rem;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.image-wrap {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--bg-container);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+}
+
+.image-wrap::before {
+  display: block;
+  padding-top: 75%;
+  content: '';
+}
+
+.image-wrap img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+.active-history-label {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: calc(100% - 1.3rem);
+  padding: 0.35rem 0.55rem;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-light) 80%, transparent);
+  border-radius: 5px;
+  backdrop-filter: blur(8px);
+}
+
+.active-history-label strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reparse {
+  margin-top: 0.75rem;
+}
+
+.history-sidebar {
+  display: none;
+  min-width: 0;
+}
+
+.mobile-history-overlay {
+  position: fixed;
+  z-index: 1050;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  box-sizing: border-box;
+  padding-top: calc(0.5rem + var(--safe-inset-top, env(safe-area-inset-top, 0px)));
+  background: rgb(0 0 0 / 42%);
+}
+
+.mobile-history-sheet {
+  width: 100%;
+  height: calc(100dvh - var(--safe-inset-top, env(safe-area-inset-top, 0px)) - 0.5rem);
+  overflow: hidden;
+  background: var(--bg-card);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 30px rgb(0 0 0 / 18%);
+}
+
+.mobile-history-enter-active,
+.mobile-history-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.mobile-history-enter-active .mobile-history-sheet,
+.mobile-history-leave-active .mobile-history-sheet {
+  transition: transform 0.24s cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.mobile-history-enter-from,
+.mobile-history-leave-to {
+  opacity: 0;
+}
+
+.mobile-history-enter-from .mobile-history-sheet,
+.mobile-history-leave-to .mobile-history-sheet {
+  transform: translateY(100%);
+}
+
+@media (hover: hover) {
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-primary-hover);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--bg-table-hover);
+  }
+}
+
+@media (min-width: 960px) {
+  .sstv-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 350px;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .history-sidebar {
+    position: sticky;
+    top: 0;
+    display: block;
+    height: calc(100dvh - 9rem);
+    min-height: 30rem;
+    max-height: 52rem;
+  }
+}
+
+@media (max-width: 959px) {
+  .mobile-history-button {
+    display: inline-flex;
+  }
+}
+
 @media (max-width: 760px) {
-  .sstv-view { padding: 1rem; }
-  .card { padding: 1rem; }
-  .workspace-header { flex-wrap: wrap; }
-  .field { width: 110px; }
-  .history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sstv-view {
+    padding: 0.75rem;
+  }
+
+  .card {
+    padding: 0.85rem;
+  }
+
+  .workspace-header {
+    flex-wrap: wrap;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions .btn-secondary {
+    flex: 1 1 auto;
+    padding-inline: 0.7rem;
+  }
+
+  .field {
+    width: 110px;
+  }
+
+  .setting-row {
+    align-items: flex-start;
+  }
+
+  .result-actions {
+    width: 100%;
+  }
+
+  .result-actions .btn-secondary {
+    flex: 1 1 auto;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 959px) {
+  .mobile-history-overlay {
+    padding-right: 1rem;
+    padding-bottom: 1rem;
+    padding-left: 1rem;
+  }
+
+  .mobile-history-sheet {
+    max-width: 640px;
+    height: min(88dvh, 820px);
+    border-radius: 16px;
+  }
 }
 </style>
