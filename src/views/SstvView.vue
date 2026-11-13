@@ -322,6 +322,13 @@ async function toggleLive() {
       else if (message.type === 'progress') liveStatus.value = message.inferred ? `正在接收 ${SSTV_MODES[message.mode as SstvModeId].name}（推测）` : `正在接收 ${SSTV_MODES[message.mode as SstvModeId].name} · ${message.progress}%`
       else if (message.type === 'waiting') liveStatus.value = '等待 SSTV 信号'
       else if (message.type === 'notice') liveStatus.value = message.message
+      else if (message.type === 'started') {
+        livePreview.value = true
+        selectedHistoryId.value = null
+        imageUrl.value = ''
+        result.value = null
+        resultFileName.value = 'FMO 实时音频'
+      }
       else if (message.type === 'preview') {
         try { displayPreview(message.result as DecodedImage, 'FMO 实时音频'); livePreview.value = true }
         catch (err) { error.value = err instanceof Error ? err.message : '预览失败' }

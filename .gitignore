@@ -90,3 +90,6 @@ ios/App/build/
 ios/DerivedData/
 
 web-console/
+
+# Local SSTV decoder comparison images and generated fixtures
+sstv-test-results/

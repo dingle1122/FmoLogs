@@ -33,7 +33,32 @@ function frequencyTrace(samples: Float32Array, rate: number): Float32Array {
     }
   }
   if (previous >= 0) trace.fill(previousFrequency, Math.ceil(previous))
+  // A short median filter removes isolated zero-crossing spikes from clipped
+  // or noisy FM audio without blurring real SSTV tone transitions.
+  for (let i = 1; i + 1 < trace.length; i++) {
+    const a = trace[i - 1]; const b = trace[i]; const c = trace[i + 1]
+    if (a > 0 && b > 0 && c > 0) {
+      trace[i] = a + b + c - Math.min(a, b, c) - Math.max(a, b, c)
+    }
+  }
   return trace
+}
+
+// Remove a quiet tail left by squelch or transmitter release. It cannot carry
+// valid SSTV pixels and otherwise may become colored garbage at the bottom.
+function trimQuietTail(samples: Float32Array, rate: number): Float32Array {
+  const window = Math.max(1, Math.round(rate * 0.02))
+  const quietLimit = Math.max(window * 4, Math.round(rate * 0.08))
+  let quiet = 0
+  for (let end = samples.length; end > 0; end -= window) {
+    const start = Math.max(0, end - window)
+    let energy = 0
+    for (let i = start; i < end; i++) energy += samples[i] * samples[i]
+    if (energy / (end - start) < 0.000025) quiet += end - start
+    else break
+  }
+  if (quiet < quietLimit) return samples
+  return samples.slice(0, Math.max(1, samples.length - quiet))
 }
 
 function average(trace: Float32Array, rate: number, seconds: number, width = 0.008): number {
@@ -180,10 +205,13 @@ function lineClock(trace: Float32Array, rate: number, start: number, duration: n
     return { slope, intercept: meanTime - slope * meanRow }
   }
   let model = fit(observations)
-  const inliers = observations.filter((p) => Math.abs(p.time - (model.intercept + p.row * model.slope)) <= 0.002)
+  let inliers = observations.filter((p) => Math.abs(p.time - (model.intercept + p.row * model.slope)) <= 0.002)
   if (inliers.length < Math.max(3, observations.length * 0.8) || Math.abs(model.slope / duration - 1) > 0.01) {
     return { starts, uncertain: true }
   }
+  model = fit(inliers)
+  inliers = inliers.filter((p) => Math.abs(p.time - (model.intercept + p.row * model.slope)) <= 0.0015)
+  if (inliers.length < Math.max(3, observations.length * 0.7)) return { starts, uncertain: true }
   model = fit(inliers)
   return {
     starts: starts.map((_, row) => model.intercept + row * model.slope),
@@ -193,19 +221,22 @@ function lineClock(trace: Float32Array, rate: number, start: number, duration: n
 
 export function decodeSstv(samples: Float32Array, rate: number, selectedMode: SstvModeId | 'auto', manualStart?: number, estimatedOffset?: number): DecodedImage {
   if (!samples.length || rate < 6000) throw new Error('音频为空或采样率过低')
-  const trace = frequencyTrace(samples, rate)
+  const audio = trimQuietTail(samples, rate)
+  const trace = frequencyTrace(audio, rate)
   const header = findHeader(trace, rate)
-  const modeId = selectedMode === 'auto' ? header?.mode : selectedMode
+  const inferred = header ? null : detectSstvLineSync(samples, rate)
+  const modeId = selectedMode === 'auto' ? (header?.mode ?? inferred?.mode) : selectedMode
   if (!modeId) throw new Error('未识别到受支持的 VIS 模式，请手动选择模式及图像起点')
   const mode = SSTV_MODES[modeId]
-  const start = manualStart ?? header?.start
+  const start = manualStart ?? header?.start ?? inferred?.start
   if (start === undefined || !Number.isFinite(start) || start < 0) throw new Error('未检测到完整头部，请手动填写图像起点')
-  const offset = header?.offset ?? estimatedOffset ?? 0
+  const offset = header?.offset ?? estimatedOffset ?? inferred?.offset ?? 0
   const pixels = new Uint8ClampedArray(mode.width * mode.height * 4)
   const warnings: string[] = []
   let rows = 0
   if (selectedMode !== 'auto' && header?.mode && header.mode !== selectedMode) warnings.push(`VIS 识别为 ${SSTV_MODES[header.mode].name}，与手选模式不一致`)
-  if (!header && estimatedOffset === undefined) warnings.push('未检测到完整头部，频率偏移无法自动校准')
+  if (!header && inferred) warnings.push('未检测到完整 VIS，模式和图像起点由连续行同步推测；缺失的顶部行数未知')
+  else if (!header && estimatedOffset === undefined) warnings.push('未检测到完整头部，频率偏移无法自动校准')
   if (modeId === 'robot36') {
     const line = 0.15
     const ys: Float32Array[] = []
@@ -217,7 +248,7 @@ export function decodeSstv(samples: Float32Array, rate: number, selectedMode: Ss
     for (let row = 0; row < mode.height; row++) {
       const t = clock.starts[row]
       if (t === undefined) break
-      if (t + line > samples.length / rate + 0.002) break
+      if (t + line > audio.length / rate + 0.002) break
       ys.push(channel(trace, rate, t + 0.012, 0.088, mode.width, offset))
       chroma.push(channel(trace, rate, t + 0.106, 0.044, mode.width, offset))
       rows++
@@ -233,7 +264,7 @@ export function decodeSstv(samples: Float32Array, rate: number, selectedMode: Ss
     if (clock.uncertain) warnings.push('部分行同步不可靠，图像可能出现错位')
     for (let row = 0; row < mode.height; row++) {
       const t = clock.starts[row]
-      if (t === undefined || t + line > samples.length / rate + 0.002) break
+      if (t === undefined || t + line > audio.length / rate + 0.002) break
       const y = channel(trace, rate, t + 0.012, 0.138, mode.width, offset)
       const cr = channel(trace, rate, t + 0.156, 0.069, mode.width, offset)
       const cb = channel(trace, rate, t + 0.231, 0.069, mode.width, offset)
@@ -248,7 +279,7 @@ export function decodeSstv(samples: Float32Array, rate: number, selectedMode: Ss
     for (let row = 0; row < mode.height; row += 2) {
       const t = clock.starts[row / 2]
       if (t === undefined) break
-      if (t + line > samples.length / rate + 0.002) break
+      if (t + line > audio.length / rate + 0.002) break
       const base = t + 0.02208
       const y0 = channel(trace, rate, base, scan, mode.width, offset)
       const cr = channel(trace, rate, base + scan, scan, mode.width, offset)

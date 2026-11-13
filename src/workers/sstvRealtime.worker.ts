@@ -16,7 +16,7 @@ interface Session {
   target: number
   lastProgress: number
   lastPreviewLength: number
-  previewInterval: number
+  previewLineSamples: number
   inferredStart?: number
   inferredOffset?: number
   quietSamples: number
@@ -103,9 +103,10 @@ function process(samples: Float32Array) {
       self.postMessage({ type: 'waiting' })
       process(remainder)
     } else {
-      if (session.length - session.lastPreviewLength >= session.previewInterval) {
+      // Decode at completed line boundaries. This follows the SSTV signal
+      // instead of polling on a wall-clock interval.
+      if (session.length - session.lastPreviewLength >= session.previewLineSamples) {
         session.lastPreviewLength = session.length
-        const started = performance.now()
         try {
           const preview = decodeSstv(join(session.chunks, session.length), sampleRate, session.mode, session.inferredStart, session.inferredOffset)
           if (session.inferredStart !== undefined) preview.warnings.push('未接收到图像头部，模式由行同步推测；缺失的顶部行数未知')
@@ -113,9 +114,6 @@ function process(samples: Float32Array) {
         } catch {
           // A complete image line may not have arrived yet.
         }
-        // Bound preview CPU use as the buffered recording grows.
-        const elapsedSeconds = (performance.now() - started) / 1000
-        session.previewInterval = Math.ceil(sampleRate * Math.min(8, Math.max(0.1, elapsedSeconds * 10)))
       }
       scheduleIdleFinish()
     }
@@ -135,8 +133,9 @@ function process(samples: Float32Array) {
   const mode = SSTV_MODES[modeId]
   const lineCount = mode.id.startsWith('robot') ? mode.height : mode.height / 2
   const target = Math.ceil((start + lineCount * mode.lineDurationMs / 1000 + 0.05) * sampleRate)
-  session = { mode: mode.id, chunks: [search], length: search.length, target, lastProgress: -1, lastPreviewLength: 0, previewInterval: Math.ceil(sampleRate * 0.1), inferredStart: inferred?.start, inferredOffset: inferred?.offset, quietSamples: 0 }
+  session = { mode: mode.id, chunks: [search], length: search.length, target, lastProgress: -1, lastPreviewLength: 0, previewLineSamples: Math.max(1, Math.ceil(sampleRate * mode.lineDurationMs / 1000)), inferredStart: inferred?.start, inferredOffset: inferred?.offset, quietSamples: 0 }
   search = new Float32Array(0)
+  self.postMessage({ type: 'started', mode: mode.id })
   self.postMessage({ type: 'progress', mode: mode.id, progress: Math.min(100, Math.round(session.length / target * 100)), inferred: !!inferred })
   if (session.length >= target) { const remainder = finish(false); self.postMessage({ type: 'waiting' }); process(remainder) }
   else scheduleIdleFinish()
