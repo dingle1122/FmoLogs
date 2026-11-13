@@ -64,7 +64,7 @@
               </div>
               <div v-if="visibleWarnings.length" class="diagnostics-warnings">
                 <div class="diagnostics-title">解析提示</div>
-                <p v-for="warning in visibleWarnings" :key="warning" class="setting-hint">{{ warning }}</p>
+                <p class="setting-hint diagnostics-summary" :title="visibleWarnings.join('；')">{{ visibleWarnings.join('；') }}</p>
               </div>
             </div>
             <div class="setting-row">
@@ -769,6 +769,12 @@ async function downloadImage() {
   border-top: 1px solid var(--border-light);
 }
 
+.diagnostics-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .setting-row {
   display: flex;
   align-items: center;
@@ -810,6 +816,10 @@ async function downloadImage() {
 }
 
 .result-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-secondary);
   font-size: 0.85rem;
   line-height: 1.5;
