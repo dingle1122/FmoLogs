@@ -218,10 +218,9 @@ const allHistorySelected = computed(() => history.value.length > 0 && history.va
 const resultStatus = computed(() => {
   if (busy.value) return '正在解析音频'
   if (liveActive.value || liveStarting.value || liveStopping.value) {
-    const status = liveStatus.value || '正在启动监听'
-    return livePreview.value && result.value ? `${status} · 已恢复 ${result.value.decodedRows}/${result.value.height} 行（未保存）` : status
+    return liveStatus.value || '正在启动监听'
   }
-  if (result.value) return `${livePreview.value ? '未保存的预览' : '解析完成'} · 已恢复 ${result.value.decodedRows}/${result.value.height} 行`
+  if (result.value) return livePreview.value ? '未保存的预览' : '解析完成'
   return '等待音频'
 })
 const visibleWarnings = computed(() => (result.value?.warnings || []).filter((warning) => !livePreview.value || !warning.startsWith('音频不足')))
