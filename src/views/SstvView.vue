@@ -6,8 +6,13 @@
           <div class="workspace-header">
             <span class="card-title">SSTV</span>
             <div class="actions">
-              <button class="btn-secondary" :disabled="busy || liveActive || liveStarting" @click="fileInput?.click()">选择音频</button>
-              <button class="btn-secondary" :disabled="busy || liveStarting || liveStopping" @click="toggleLive">{{ liveActive ? '停止监听' : '开始监听' }}</button>
+              <select v-model="inputSource" class="field source-select" :disabled="busy || liveActive || liveStarting" aria-label="音频来源">
+                <option value="fmo">FMO</option>
+                <option value="microphone">麦克风</option>
+                <option value="file">文件</option>
+              </select>
+              <button v-if="inputSource === 'file'" class="btn-secondary" :disabled="busy || liveActive || liveStarting" @click="fileInput?.click()">选择文件</button>
+              <button v-else class="btn-secondary" :disabled="busy || liveStarting || liveStopping" @click="toggleLive">{{ liveActive ? '停止监听' : '开始监听' }}</button>
               <button class="btn-secondary mobile-history-button" @click="openMobileHistory">
                 解析历史
                 <span class="mobile-history-count">{{ history.length }}</span>
@@ -50,7 +55,7 @@
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <details class="advanced">
             <summary>高级设置</summary>
-            <div v-if="fileName" class="file-info">{{ fileName }} · {{ duration.toFixed(1) }} 秒</div>
+            <div v-if="inputSource === 'file' && fileName" class="file-info">{{ fileName }} · {{ duration.toFixed(1) }} 秒</div>
             <p v-if="liveActive" class="setting-hint">离开页面后停止监听；后台接收可能受系统限制。</p>
             <div v-if="result" class="diagnostics">
               <div class="diagnostics-title">解析诊断</div>
@@ -72,6 +77,16 @@
               <select id="sstv-mode" v-model="modeId" class="field">
                 <option value="auto">自动识别</option>
                 <option v-for="mode in SSTV_MODES" :key="mode.id" :value="mode.id">{{ mode.name }}</option>
+              </select>
+            </div>
+            <div v-if="inputSource === 'microphone'" class="setting-row">
+              <div>
+                <label class="setting-label" for="sstv-microphone">麦克风设备</label>
+                <div class="setting-hint">可选择手机、蓝牙耳机或电脑外接麦克风</div>
+              </div>
+              <select id="sstv-microphone" v-model="microphoneDeviceId" class="field" :disabled="liveStarting || liveStopping" @change="handleMicrophoneChange">
+                <option value="">系统默认麦克风</option>
+                <option v-for="device in microphoneDevices" :key="device.deviceId" :value="device.deviceId">{{ device.label || `麦克风 ${device.deviceId.slice(0, 6)}` }}</option>
               </select>
             </div>
             <div class="setting-row">
@@ -160,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { decodeSstv, readPcmWav, SSTV_MODES } from '../core'
 import type { DecodedImage, SstvModeId } from '../core'
 import { deleteSstvHistories, listSstvHistory, renameSstvHistories, saveSstvHistory } from '../services/sstvHistory'
@@ -175,6 +190,9 @@ import { useModalBackHandler, registerModal } from '../composables/useModalBackH
 import { exportFile } from '../utils/exportFile'
 
 const modeId = ref<SstvModeId | 'auto'>('auto')
+const inputSource = ref<'fmo' | 'microphone' | 'file'>('fmo')
+const microphoneDevices = ref<MediaDeviceInfo[]>([])
+const microphoneDeviceId = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const resultSection = ref<HTMLElement | null>(null)
 const startInput = ref('')
@@ -201,6 +219,12 @@ let liveGeneration = 0
 let ownedAudioStart: Promise<void> | null = null
 let stopPromise: Promise<void> | null = null
 let mounted = false
+let microphoneStream: MediaStream | null = null
+let microphoneContext: AudioContext | null = null
+let microphoneSource: MediaStreamAudioSourceNode | null = null
+let microphoneProcessor: ScriptProcessorNode | null = null
+let microphoneSink: GainNode | null = null
+let microphoneOffset = 0
 const error = ref('')
 const historyError = ref('')
 const historyBusy = ref(false)
@@ -212,8 +236,10 @@ const selectedHistoryId = ref<number | null>(null)
 const showMobileHistory = ref(false)
 const mobileHistorySheet = ref<HTMLElement | null>(null)
 const history = shallowRef<Array<SstvHistoryEntry & { preview: string }>>([])
+const handleDeviceChange = () => void refreshMicrophones()
 const currentHistory = computed(() => history.value.find((item) => item.id === selectedHistoryId.value) ?? null)
 const modeName = computed(() => result.value ? SSTV_MODES[result.value.mode].name : '')
+const inputSourceName = computed(() => inputSource.value === 'microphone' ? '设备麦克风' : inputSource.value === 'fmo' ? 'FMO 实时音频' : '音频文件')
 const allHistorySelected = computed(() => history.value.length > 0 && history.value.every((item) => item.id !== undefined && selectedHistoryIds.value.includes(item.id)))
 const resultStatus = computed(() => {
   if (busy.value) return '正在解析音频'
@@ -252,13 +278,19 @@ onMounted(() => {
   mounted = true
   window.addEventListener('keydown', handleGlobalKeydown)
   refreshHistory()
+  navigator.mediaDevices?.addEventListener('devicechange', handleDeviceChange)
 })
 onBeforeUnmount(() => {
   mounted = false
   window.removeEventListener('keydown', handleGlobalKeydown)
   _unregisterMobileHistory()
   void stopLive()
+  navigator.mediaDevices?.removeEventListener('devicechange', handleDeviceChange)
   for (const item of history.value) URL.revokeObjectURL(item.preview)
+})
+
+watch(inputSource, (source) => {
+  if (source === 'microphone') void refreshMicrophones(true)
 })
 
 useModalBackHandler([showMobileHistory])
@@ -317,7 +349,7 @@ function stopLive(message = '实时接收已停止'): Promise<void> {
 async function toggleLive() {
   if (liveActive.value) { await stopLive(); return }
   if (liveStarting.value || liveStopping.value) return
-  if (!audioStore.isPlaying && !settingsStore.fmoAddress) { error.value = '请先配置 FMO 地址'; return }
+  if (inputSource.value === 'fmo' && !audioStore.isPlaying && !settingsStore.fmoAddress) { error.value = '请先配置 FMO 地址'; return }
   error.value = ''
   liveStarting.value = true
   const run = ++liveGeneration
@@ -338,22 +370,22 @@ async function toggleLive() {
         selectedHistoryId.value = null
         imageUrl.value = ''
         result.value = null
-        resultFileName.value = 'FMO 实时音频'
+        resultFileName.value = inputSourceName.value
       }
       else if (message.type === 'preview') {
-        try { displayPreview(message.result as DecodedImage, 'FMO 实时音频'); livePreview.value = true }
+        try { displayPreview(message.result as DecodedImage, inputSourceName.value); livePreview.value = true }
         catch (err) { error.value = err instanceof Error ? err.message : '预览失败' }
       }
-      else if (message.type === 'result') void displayAndSave(message.result as DecodedImage, 'FMO 实时音频')
+      else if (message.type === 'result') void displayAndSave(message.result as DecodedImage, inputSourceName.value)
     }
     worker.onerror = () => { error.value = '实时解析工作线程异常'; void stopLive('实时接收已停止') }
-    unsubscribeStatus = getPlatform().audio.onStatus((status) => {
+    unsubscribeStatus = inputSource.value === 'fmo' ? getPlatform().audio.onStatus((status) => {
       if (status === 'reconnecting' || status === 'disconnected' || status === 'error') {
         worker.postMessage({ type: 'reset' })
         liveStatus.value = '音频连接中断，等待重新连接'
       } else if (status === 'connected') liveStatus.value = '等待 SSTV 信号'
-    })
-    const unsubscribe = await getPlatform().audio.onPcmChunk((chunk) => {
+    }) : null
+    const unsubscribe = inputSource.value === 'fmo' ? await getPlatform().audio.onPcmChunk((chunk) => {
       if (run !== liveGeneration) return
       if (queuedChunks >= 32) {
         if (!dropping) {
@@ -367,10 +399,18 @@ async function toggleLive() {
       const samples = chunk.samples.slice().buffer
       queuedChunks++
       worker.postMessage({ type: 'pcm', samples, sampleRate: chunk.sampleRate, generation: chunk.generation, sampleOffset: chunk.sampleOffset }, [samples])
+    }) : await startMicrophoneCapture((samples, sampleRate) => {
+      if (run !== liveGeneration) return
+      const pcm = new Int16Array(samples.length)
+      for (let i = 0; i < samples.length; i++) pcm[i] = Math.max(-1, Math.min(1, samples[i])) * 32767
+      const buffer = pcm.buffer
+      queuedChunks++
+      worker.postMessage({ type: 'pcm', samples: buffer, sampleRate, generation: 1, sampleOffset: microphoneOffset }, [buffer])
+      microphoneOffset += pcm.length
     })
     if (run !== liveGeneration) { await unsubscribe(); return }
     unsubscribePcm = unsubscribe
-    if (!audioStore.isPlaying) {
+    if (inputSource.value === 'fmo' && !audioStore.isPlaying) {
       const audioStart = audioStore.startAudio(settingsStore.fmoAddress, settingsStore.protocol, true)
       ownedAudioStart = audioStart
       await audioStart
@@ -387,14 +427,46 @@ async function toggleLive() {
   } finally { if (run === liveGeneration) liveStarting.value = false }
 }
 
-function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleString('zh-CN', { hour12: false })
+async function refreshMicrophones(requestPermission = false) {
+  if (!navigator.mediaDevices?.enumerateDevices) return
+  try {
+    if (requestPermission && navigator.mediaDevices.getUserMedia) {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((track) => track.stop())
+    }
+    microphoneDevices.value = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind === 'audioinput')
+  } catch { /* permission may not be available yet */ }
 }
 
-function formatHistoryTime(timestamp: number) {
-  const date = new Date(timestamp)
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+async function handleMicrophoneChange() {
+  if (!liveActive.value || liveStarting.value || liveStopping.value) return
+  await stopLive('正在切换麦克风')
+  if (inputSource.value === 'microphone') await toggleLive()
+}
+
+async function startMicrophoneCapture(onChunk: (samples: Float32Array, sampleRate: number) => void): Promise<() => Promise<void>> {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error('当前环境不支持麦克风访问')
+  microphoneStream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: microphoneDeviceId.value ? { exact: microphoneDeviceId.value } : undefined, channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+  await refreshMicrophones()
+  microphoneContext = new AudioContext()
+  microphoneSource = microphoneContext.createMediaStreamSource(microphoneStream)
+  microphoneProcessor = microphoneContext.createScriptProcessor(4096, 1, 1)
+  microphoneSink = microphoneContext.createGain()
+  microphoneSink.gain.value = 0
+  microphoneProcessor.onaudioprocess = (event) => onChunk(new Float32Array(event.inputBuffer.getChannelData(0)), microphoneContext!.sampleRate)
+  microphoneSource.connect(microphoneProcessor)
+  microphoneProcessor.connect(microphoneSink)
+  microphoneSink.connect(microphoneContext.destination)
+  microphoneOffset = 0
+  return async () => stopMicrophoneCapture()
+}
+
+async function stopMicrophoneCapture() {
+  if (microphoneProcessor) microphoneProcessor.onaudioprocess = null
+  microphoneProcessor?.disconnect(); microphoneSource?.disconnect(); microphoneSink?.disconnect()
+  microphoneStream?.getTracks().forEach((track) => track.stop())
+  if (microphoneContext && microphoneContext.state !== 'closed') await microphoneContext.close()
+  microphoneProcessor = null; microphoneSource = null; microphoneSink = null; microphoneStream = null; microphoneContext = null
 }
 
 function historyName(item: SstvHistoryEntry) {
@@ -567,7 +639,8 @@ async function decode() {
   busy.value = true; error.value = ''; imageUrl.value = ''; result.value = null
   await new Promise((resolve) => setTimeout(resolve, 20))
   try {
-    const start = startInput.value.trim() === '' ? undefined : Number(startInput.value)
+    const startText = String(startInput.value ?? '').trim()
+    const start = startText === '' ? undefined : Number(startText)
     const decoded = decodeSstv(samples.value, sampleRate.value, modeId.value, start)
     await displayAndSave(decoded, fileName.value)
   } catch (err) { error.value = err instanceof Error ? err.message : '解析失败' }
@@ -680,11 +753,16 @@ async function downloadImage() {
 
 .btn-primary,
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 2.5rem;
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   border-radius: 4px;
   cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  -webkit-tap-highlight-color: var(--tap-highlight-color);
 }
 
 .btn-primary {
@@ -708,6 +786,7 @@ async function downloadImage() {
 .mobile-history-button {
   display: none;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
 }
 
@@ -733,6 +812,19 @@ async function downloadImage() {
 
 .advanced summary {
   cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.advanced summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .advanced summary:hover {
+    color: var(--color-primary);
+  }
 }
 
 .diagnostics {
@@ -795,6 +887,33 @@ async function downloadImage() {
   background: var(--bg-container);
   border: 1px solid var(--border-primary);
   border-radius: 4px;
+  accent-color: var(--color-primary);
+  transition: border-color 0.2s ease, outline-color 0.2s ease;
+}
+
+.field.offset {
+  text-align: center;
+}
+
+.field select,
+select.field {
+  text-align: center;
+  text-align-last: center;
+}
+
+select.field option {
+  color: var(--text-primary);
+  background: var(--bg-container);
+}
+
+select.field {
+  cursor: pointer;
+}
+
+.field:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  outline-offset: 1px;
+  border-color: var(--color-primary);
 }
 
 .error {
@@ -927,7 +1046,7 @@ async function downloadImage() {
   justify-content: center;
   box-sizing: border-box;
   padding-top: calc(0.5rem + var(--safe-inset-top, env(safe-area-inset-top, 0px)));
-  background: rgb(0 0 0 / 42%);
+  background: color-mix(in srgb, var(--bg-page) 42%, transparent);
 }
 
 .mobile-history-sheet {
@@ -936,7 +1055,7 @@ async function downloadImage() {
   overflow: hidden;
   background: var(--bg-card);
   border-radius: 16px 16px 0 0;
-  box-shadow: 0 -8px 30px rgb(0 0 0 / 18%);
+  box-shadow: 0 -8px 30px color-mix(in srgb, var(--text-primary) 18%, transparent);
 }
 
 .mobile-history-enter-active,
@@ -966,7 +1085,14 @@ async function downloadImage() {
 
   .btn-secondary:hover:not(:disabled) {
     background: var(--bg-table-hover);
+    border-color: var(--color-primary);
+    color: var(--text-primary);
   }
+}
+
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled) {
+  opacity: 0.85;
 }
 
 @media (min-width: 960px) {
