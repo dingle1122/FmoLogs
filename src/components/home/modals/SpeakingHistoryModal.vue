@@ -46,6 +46,11 @@
                 <div class="callsign-badge">
                   <span v-if="record.callsign === selectedFromCallsign" class="self-tag">您</span>
                   <template v-else>
+                    <span
+                      class="contact-count"
+                      :title="`累计通联 ${contactCounts.get(record.callsign) || 0} 次`"
+                      >x{{ formatContactCount(contactCounts.get(record.callsign) || 0) }}</span
+                    >
                     <img
                       class="today-star-icon"
                       :src="
@@ -57,9 +62,6 @@
                         todayContactedCallsigns.has(record.callsign) ? '今日已通联' : '今日未通联'
                       "
                     />
-                    <span class="contact-count"
-                      >x{{ contactCounts.get(record.callsign) || 0 }}</span
-                    >
                   </template>
                 </div>
               </div>
@@ -239,6 +241,14 @@ function getServerName(addressId) {
 function formatServerInfo(uid, name) {
   const serverName = name || ''
   return serverName.length > 10 ? serverName.slice(0, 10) + '...' : serverName
+}
+
+// 通联次数最多显示 5 位数字，超出时截断显示，完整次数可通过 title 查看
+const MAX_CONTACT_COUNT_DISPLAY = 99999
+
+function formatContactCount(count) {
+  const value = Math.max(0, Math.floor(Number(count) || 0))
+  return value > MAX_CONTACT_COUNT_DISPLAY ? MAX_CONTACT_COUNT_DISPLAY : value
 }
 
 defineEmits([
@@ -447,15 +457,20 @@ defineEmits([
   width: 1rem;
   height: 1rem;
   object-fit: contain;
+  flex-shrink: 0;
 }
 
 .contact-count {
+  /* 星星固定在数字右侧，数字位数变化时星星位置保持统一 */
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
   font-size: 1rem;
   font-weight: 400;
   color: var(--text-tertiary);
   line-height: 1;
-  display: inline-flex;
-  align-items: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .history-server-tag {
@@ -494,8 +509,8 @@ defineEmits([
 }
 
 .self-tag {
-  font-size: 0.7em;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 300;
   color: var(--text-tertiary);
   line-height: 1;
 }
@@ -564,7 +579,8 @@ defineEmits([
     font-size: 0.7rem;
   }
 
-  .contact-count {
+  .contact-count,
+  .self-tag {
     font-size: 0.9rem;
   }
 
@@ -592,7 +608,8 @@ defineEmits([
     font-size: 0.65rem;
   }
 
-  .contact-count {
+  .contact-count,
+  .self-tag {
     font-size: 0.85rem;
   }
 
