@@ -33,12 +33,7 @@
             <div class="history-main">
               <div class="history-callsign-area">
                 <span class="history-indicator" :class="{ speaking: !record.endTime }"></span>
-                <span
-                  class="history-callsign"
-                  :title="record.callsign"
-                  @click="showFullCallsign($event, record.callsign)"
-                  >{{ record.callsign }}</span
-                >
+                <span class="history-callsign" :title="record.callsign">{{ record.callsign }}</span>
               </div>
               <div class="history-time">
                 <div class="speaking-time">
@@ -90,12 +85,6 @@
         <div v-else class="speaking-history-empty">暂无1小时内的发言记录</div>
       </div>
     </div>
-    <div v-if="fullCallsign" class="callsign-overlay" @click.self="fullCallsign = ''">
-      <div class="callsign-dialog" role="dialog" aria-modal="true" aria-label="完整呼号">
-        <div class="callsign-dialog-text">{{ fullCallsign }}</div>
-        <button class="callsign-dialog-close" @click="fullCallsign = ''">关闭</button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -106,16 +95,7 @@ import { gridToAddress } from '../../../services/gridService'
 import StationControl from '../StationControl.vue'
 
 const now = ref(Date.now())
-const fullCallsign = ref('')
 let nowTimer = null
-
-function showFullCallsign(event, callsign) {
-  const element = event.currentTarget
-  if (element.scrollHeight > element.clientHeight) {
-    event.stopPropagation()
-    fullCallsign.value = callsign
-  }
-}
 
 // grid -> 格式化地址的缓存映射
 const gridAddressMap = reactive({})
@@ -289,36 +269,6 @@ defineEmits([
   background: var(--bg-card);
   border-radius: 8px;
   box-shadow: 0 4px 20px var(--shadow-modal);
-}
-
-.callsign-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background: var(--overlay-bg);
-}
-
-.callsign-dialog {
-  width: min(100%, 400px);
-  padding: 1rem;
-  border-radius: 8px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-}
-
-.callsign-dialog-text {
-  font-size: 1.3rem;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.callsign-dialog-close {
-  display: block;
-  margin: 1rem 0 0 auto;
 }
 
 .modal-speaking-history {
