@@ -87,10 +87,7 @@
           </div>
           <div class="speaking-history-end">没有更多了</div>
         </div>
-        <div v-else class="speaking-history-empty">
-          <div class="empty-divider"></div>
-          <div class="empty-text">暂无1小时内的发言记录</div>
-        </div>
+        <div v-else class="speaking-history-empty">暂无1小时内的发言记录</div>
       </div>
     </div>
     <div v-if="fullCallsign" class="callsign-overlay" @click.self="fullCallsign = ''">
@@ -361,7 +358,8 @@ defineEmits([
   flex-direction: column;
 }
 
-.speaking-history-end {
+.speaking-history-end,
+.speaking-history-empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -372,11 +370,17 @@ defineEmits([
 }
 
 .speaking-history-end::before,
-.speaking-history-end::after {
+.speaking-history-end::after,
+.speaking-history-empty::before,
+.speaking-history-empty::after {
   content: '';
   width: 1.5rem;
   height: 1px;
   background: var(--border-secondary);
+}
+
+.speaking-history-empty {
+  padding-top: 2rem;
 }
 
 .speaking-history-item {
@@ -582,21 +586,6 @@ defineEmits([
 .speaking-history-item.is-speaking .speaking-time,
 .speaking-history-item.is-speaking .duration-time {
   color: var(--color-speaking);
-}
-
-.speaking-history-empty {
-  text-align: center;
-  padding: 2rem 1rem;
-}
-
-.empty-divider {
-  border-top: 1px dashed var(--border-secondary);
-  margin-bottom: 1rem;
-}
-
-.empty-text {
-  color: var(--text-tertiary);
-  font-size: 0.9rem;
 }
 
 @media (max-width: 760px) {
