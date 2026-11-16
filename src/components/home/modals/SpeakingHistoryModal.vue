@@ -63,10 +63,7 @@
                   </template>
                 </div>
               </div>
-              <div
-                v-if="(multiSelectMode && record.addressId) || record.grid || record.serverUid"
-                class="history-address-row"
-              >
+              <div class="history-address-row">
                 <span v-if="multiSelectMode && record.addressId" class="server-tag">{{
                   getServerName(record.addressId)
                 }}</span>
@@ -335,7 +332,7 @@ defineEmits([
 
 .speaking-history-item {
   display: flex;
-  padding: 0.25rem 1rem;
+  padding: 0.45rem 1rem 0.25rem;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-secondary);
   transition: background 0.2s;
@@ -395,6 +392,7 @@ defineEmits([
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 0.5rem;
+  row-gap: 0.1rem;
   min-width: 0;
 }
 
@@ -450,7 +448,7 @@ defineEmits([
 }
 
 .contact-count {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 400;
   color: var(--text-tertiary);
   line-height: 1;
@@ -515,12 +513,12 @@ defineEmits([
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  gap: 0;
+  gap: 0.2rem;
   line-height: 1.1;
 }
 
 .speaking-time {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: var(--text-tertiary);
   font-weight: 400;
   line-height: 1.1;
@@ -565,15 +563,15 @@ defineEmits([
   }
 
   .contact-count {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .speaking-time {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   .duration-time {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -597,11 +595,11 @@ defineEmits([
   }
 
   .speaking-time {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   .duration-time {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 }
 </style>
