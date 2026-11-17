@@ -430,8 +430,9 @@ defineEmits([
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
+  width: 100%;
   min-height: 1.1rem;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .history-address-row .server-tag {
@@ -507,7 +508,7 @@ defineEmits([
 }
 
 .self-tag {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 300;
   color: var(--text-tertiary);
   line-height: 1;
@@ -528,6 +529,7 @@ defineEmits([
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
+  width: 4.6rem;
   gap: 0.2rem;
   line-height: 1.1;
 }
