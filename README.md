@@ -8,12 +8,13 @@ FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提�
 
 ### 📁 数据导入与导出
 
-- **导入 FMO 日志**：支持导入一个或多个 `.db` 格式的日志文件
+- **导入 FMO 日志**：支持导入一个或多个 `.db`、`.zip` 格式的 FMO 日志或备份文件
+- **导入 ADIF**：支持导入 `.adi`、`.adif` 格式的通联记录
 - **FMO 同步**：
-  - **自动同步**：配置 FMO 地址后，自动检测并提示同步今日消息
+  - **自动同步**：配置 FMO 地址后，自动检测并提示同步今日通联记录
   - **手动同步**：一键同步今日通联记录
 - **数据持久化**：使用 IndexedDB 存储，刷新页面数据不丢失
-- **数据导出**：将当前查看的日志数据导出为 `.db` 文件
+- **数据导出**：将当前查看的日志数据导出为 `.db` 或 `.adif` 文件
 - **日志备份**：一键从 FMO 设备下载完整的日志备份文件
 
 ### 📡 服务器与设备管理
@@ -59,12 +60,22 @@ FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提�
 - **暗色模式**：自动跟随系统主题，提供舒适的夜间使用体验
 - **回到顶部**：移动端长列表滚动时，右下角自动浮现回到顶部按钮
 
+### 📻 SSTV 图像解析
+
+- **多种音频来源**：支持 FMO 实时音频、设备麦克风和本地 WAV 文件
+- **常见模式**：支持 PD 50/90/120/160/180/240/290、Robot 36/72
+- **实时接收**：显示解析进度、实时预览和模式识别结果
+- **解析诊断**：展示图像尺寸、恢复行数、图像起点、频率偏移和采样率
+- **历史相册**：保存解析结果，支持重命名、删除、清空和批量管理
+- **导出结果**：支持导出 PNG，历史图片可批量导出为 ZIP
+- **麦克风访问**：浏览器使用麦克风时需要 HTTPS，并需要用户授权麦克风权限
+
 ## 🚀 使用指南
 
 ### 快速开始
 
 1. **配置设备**：点击右上角设置图标，输入 FMO 设备地址（如 `fmo.local` 或 IP）
-2. **同步数据**：点击"同步今日通联"获取最新数据，或手动导入 `.db` 文件
+2. **同步数据**：点击“同步今日通联”获取最新数据，或手动导入 `.db`、`.zip`、`.adi`、`.adif` 文件
 3. **开始使用**：在首页查看日志、统计或管理服务器
 
 ### mDNS 支持
@@ -75,6 +86,7 @@ FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提�
 ### 常见操作
 
 - **切换服务器**：在"发言状态条"点击服务器名称，或在"发言历史"弹框中切换
+- **解析 SSTV**：进入「更多 → SSTV」，选择 FMO、麦克风或 WAV 文件后开始接收
 - **导出/备份**：
   - **导出数据文件**：将当前网页中查看到的日志保存到本地
   - **备份 FMO 日志**：从 FMO 设备下载原始日志文件
@@ -83,8 +95,10 @@ FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提�
 
 ### 环境要求
 
-- Node.js 16+
+- Node.js 20+（建议使用 LTS 版本）
 - npm 或 yarn
+- Android 构建还需要 JDK 21
+- Tauri 桌面构建还需要安装 Rust 工具链
 
 ### 快速开始
 
@@ -93,7 +107,7 @@ FMO 日志查看器是一款专业的 **FMO 日志管理与分析工具**，提�
 git clone https://github.com/dingle1122/FmoLogs.git
 cd FmoLogs
 
-# 安装依赖
+# 安装依赖（postinstall 会同步 Capacitor Android WebView 最低版本补丁）
 npm install
 
 # 启动开发服务器（支持局域网访问）
@@ -102,11 +116,17 @@ npm run dev -- --host
 # 代码格式化
 npm run format
 
-# 代码检查
+# 代码检查并自动修复
 npm run lint
 
 # 类型检查
 npm run typecheck
+
+# 执行测试脚本
+node tests/audio-mute-start.test.mjs
+node tests/sstv.test.mjs
+node tests/sstv-zip.test.mjs
+node tests/sstv-realtime.test.mjs
 ```
 
 ## 📝 技术栈
@@ -144,6 +164,7 @@ src/
 ├── core/                  # 与平台无关的协议和业务逻辑
 │   ├── aprsCodec.ts       # APRS 编解码
 │   ├── aprsPasscode.ts    # APRS Passcode 计算
+│   ├── sstv/              # SSTV 解码、模式识别和音频分析
 │   └── sync/              # 日志同步引擎
 ├── platform/              # Web / Capacitor 平台能力抽象
 │   ├── interfaces/        # 平台能力接口
@@ -151,7 +172,7 @@ src/
 │   ├── types/             # 平台共享类型
 │   └── web/               # Web / Tauri 兼容实现
 ├── router/                # Vue Router 路由配置
-├── services/              # 数据库、FMO API、音频、消息和更新服务
+├── services/              # 数据库、FMO API、音频、SSTV、消息和更新服务
 ├── stores/                # Pinia 全局状态
 ├── styles/                # 全局样式和主题变量
 ├── utils/                 # URL、导出、视口和主题工具
@@ -159,6 +180,14 @@ src/
 ```
 
 平台相关原生代码位于 `android/`，桌面端 Tauri 配置和 Rust 入口位于 `src-tauri/`。构建脚本和发布辅助脚本位于 `scripts/`，项目说明和设计文档位于 `doc/`。
+
+## 📚 相关文档
+
+- [FMO 接口文档](doc/fmo-interface.md)
+- [平台抽象重构记录](doc/platform-abstraction-refactor.md)
+- [SSTV 实时音频设计](doc/sstv-realtime-design.md)
+- [主题开发指南](doc/theme-development.md)
+- [项目分析报告（2026-06-18）](doc/project-analysis-2026-06-18.md)
 
 ## 🎨 自定义主题开发
 
