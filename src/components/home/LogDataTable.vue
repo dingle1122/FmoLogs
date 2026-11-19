@@ -92,7 +92,9 @@
               <template v-else-if="col === 'relayName'">
                 <div class="relay-cell">
                   <div class="relay-name" :title="row.relayName">{{ row.relayName }}</div>
-                  <div class="relay-admin">（{{ row.relayAdmin }}）</div>
+                  <div v-if="row.relayAdmin?.trim()" class="relay-admin">
+                    （{{ row.relayAdmin }}）
+                  </div>
                 </div>
               </template>
               <template v-else-if="col === 'toCallsign'">

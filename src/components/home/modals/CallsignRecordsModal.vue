@@ -46,11 +46,13 @@
               <span class="record-label">频率：</span>
               <span class="record-value">{{ formatFreqHz(record.freqHz) }} MHz</span>
             </div>
-            <div class="record-row">
+            <div v-if="record.relayName?.trim() || record.relayAdmin?.trim()" class="record-row">
               <span class="record-label">信道：</span>
               <span class="record-value"
-                >{{ record.relayName || '-'
-                }}<template v-if="record.relayAdmin">（{{ record.relayAdmin }}）</template></span
+                >{{ record.relayName
+                }}<template v-if="record.relayAdmin?.trim()"
+                  >（{{ record.relayAdmin }}）</template
+                ></span
               >
             </div>
             <div v-if="record.toComment" class="record-row">
