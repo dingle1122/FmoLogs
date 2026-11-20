@@ -12,8 +12,12 @@ export function normalizeHost(address) {
 }
 
 export function resolveWebSocketProtocol(addressOrProtocol, fallback = 'ws') {
-  const value = String(addressOrProtocol || '').trim().toLowerCase()
-  const fallbackValue = String(fallback || '').trim().toLowerCase()
+  const value = String(addressOrProtocol || '')
+    .trim()
+    .toLowerCase()
+  const fallbackValue = String(fallback || '')
+    .trim()
+    .toLowerCase()
 
   if (
     value === 'wss' ||

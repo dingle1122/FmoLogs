@@ -92,7 +92,11 @@ export async function fetchFriendLinks() {
   try {
     let xml
     if (getEffectivePlatform() === 'android') {
-      const response = await CapacitorHttp.request({ url: RSS_URL, method: 'GET', responseType: 'text' })
+      const response = await CapacitorHttp.request({
+        url: RSS_URL,
+        method: 'GET',
+        responseType: 'text'
+      })
       xml = response.data
     } else {
       const response = await fetch(RSS_URL)

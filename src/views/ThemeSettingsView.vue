@@ -58,8 +58,8 @@
         <div class="theme-example-header">
           <span class="theme-example-title">默认主题开发示例</span>
           <span class="theme-example-caption">
-            以当前默认主题为起点，直接导入保持默认外观。按注释修改所需变量，
-            保存为 .css 后上传；同名导入会更新。完整说明见开发文档。
+            以当前默认主题为起点，直接导入保持默认外观。按注释修改所需变量， 保存为 .css
+            后上传；同名导入会更新。完整说明见开发文档。
           </span>
         </div>
         <div class="theme-example-actions">
@@ -193,11 +193,7 @@ import themeBaseCss from '../styles/colors.css?raw'
 import THEME_SAMPLE_CSS from '../styles/theme-sample.css?raw'
 import THEME_DEVELOPMENT_GUIDE from '../../doc/theme-development.md?raw'
 import { exportFile } from '../utils/exportFile'
-import {
-  DEFAULT_THEME_ID,
-  downloadThemeCss,
-  fileNameToThemeName
-} from '../utils/themeManager'
+import { DEFAULT_THEME_ID, downloadThemeCss, fileNameToThemeName } from '../utils/themeManager'
 
 const settingsStore = useSettingsStore()
 const { themeList, activeThemeId } = storeToRefs(settingsStore)
@@ -1186,7 +1182,6 @@ onUnmounted(() => {
   .theme-list {
     grid-template-columns: 1fr;
   }
-
 }
 
 @media (max-width: 520px) {

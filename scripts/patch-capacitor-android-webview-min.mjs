@@ -10,8 +10,14 @@ const bridgePath = resolve(
 
 let source = readFileSync(bridgePath, 'utf8')
 const next = source
-  .replace('public static final int DEFAULT_ANDROID_WEBVIEW_VERSION = 60;', 'public static final int DEFAULT_ANDROID_WEBVIEW_VERSION = 51;')
-  .replace('public static final int MINIMUM_ANDROID_WEBVIEW_VERSION = 55;', 'public static final int MINIMUM_ANDROID_WEBVIEW_VERSION = 51;')
+  .replace(
+    'public static final int DEFAULT_ANDROID_WEBVIEW_VERSION = 60;',
+    'public static final int DEFAULT_ANDROID_WEBVIEW_VERSION = 51;'
+  )
+  .replace(
+    'public static final int MINIMUM_ANDROID_WEBVIEW_VERSION = 55;',
+    'public static final int MINIMUM_ANDROID_WEBVIEW_VERSION = 51;'
+  )
 
 if (next !== source) {
   writeFileSync(bridgePath, next)

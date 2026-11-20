@@ -382,7 +382,11 @@ async function doPullRefresh() {
 
     // 恢复音频播放
     if (wasAudioPlaying && settings.fmoAddress.value) {
-      await _audioStore.startAudio(settings.fmoAddress.value, settings.protocol.value, wasAudioMuted)
+      await _audioStore.startAudio(
+        settings.fmoAddress.value,
+        settings.protocol.value,
+        wasAudioMuted
+      )
       if (isAudioPlaying.value && !isAudioMuted.value) {
         await setAudioVolumePlayer(settings.audioVolume.value)
       }
@@ -451,6 +455,10 @@ const {
   clearAllData
 } = useDbManager()
 
+function normalizeCallsign(callsign) {
+  return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
+}
+
 // settings：内联 useSettings 薄层（store + storeToRefs）
 const _settingsStore = useSettingsStore()
 const _settingsRefs = storeToRefs(_settingsStore)
@@ -480,6 +488,7 @@ const settings = {
   selectFmoAddress: _settingsStore.selectFmoAddress,
   clearAllAddresses: _settingsStore.clearAllAddresses,
   refreshUserInfo: _settingsStore.refreshUserInfo,
+  updateAddressCallsign: _settingsStore.updateAddressCallsign,
   validateConnection: _settingsStore.validateConnection,
   toggleAddressSelection: _settingsStore.toggleAddressSelection,
   setMultiSelectMode: _settingsStore.setMultiSelectMode,
@@ -541,7 +550,7 @@ _syncStore.setContext({
     if (callsigns.length > 0) {
       availableFromCallsigns.value = callsigns
       if (!selectedFromCallsign.value) {
-        selectedFromCallsign.value = callsigns[0]
+        selectedFromCallsign.value = normalizeCallsign(callsigns[0])
       }
       dbLoaded.value = true
       dbCount.value = callsigns.length
@@ -561,6 +570,16 @@ _syncStore.setContext({
   },
   getSpeakingHistory: (addressId) => speakingStatus.getSpeakingHistoryFor(addressId),
   getSelectedFromCallsign: () => selectedFromCallsign.value,
+  getAddressCallsign: (addressId) => {
+    const address = settings.addressList.value.find((item) => item.id === addressId)
+    return normalizeCallsign(address?.userInfo?.callsign)
+  },
+  onAddressCallsign: (addressId, callsign, updateCurrent = true) => {
+    if (updateCurrent && addressId === settings.activeAddressId.value) {
+      selectedFromCallsign.value = callsign
+    }
+    settings.updateAddressCallsign(addressId, callsign)
+  },
   getDbLoaded: () => dbLoaded.value,
   getTotalLogs: () => totalLogs.value,
   getEventsConnected: (addressId) => speakingStatus.isAddressConnected(addressId)
@@ -622,9 +641,9 @@ async function executeQuery() {
 // 呼号自动推断：根据当前激活地址的 userInfo 自动推断
 function inferFromCallsign() {
   const activeAddr = settings.activeAddress.value
-  const callsignFromAddr = activeAddr?.userInfo?.callsign
+  const callsignFromAddr = normalizeCallsign(activeAddr?.userInfo?.callsign)
 
-  if (callsignFromAddr && availableFromCallsigns.value.includes(callsignFromAddr)) {
+  if (callsignFromAddr) {
     selectedFromCallsign.value = callsignFromAddr
   } else if (availableFromCallsigns.value.length > 0) {
     // 退回到第一个可用呼号
@@ -1111,6 +1130,7 @@ async function handleAddAddress({ name, host, protocol }) {
 
   // 添加成功后重连到新地址
   if (result.reconnect) {
+    inferFromCallsign()
     speakingStatus.disconnectEventWs('single')
     fmoSync.stopAutoSyncTask()
     messageService.disconnect()
@@ -1129,7 +1149,9 @@ async function handleUpdateAddress({ id, name, host, protocol }) {
   const result = await settings.updateFmoAddress(id, name, host, protocol)
   if (!result.success) {
     toast.warning(result.message)
+    return
   }
+  if (id === settings.activeAddressId.value) inferFromCallsign()
 }
 
 async function handleDeleteAddress(id) {
@@ -1186,6 +1208,7 @@ async function handleSelectAddress(id) {
   const result = await settings.selectFmoAddress(id)
 
   if (result.success) {
+    inferFromCallsign()
     if (result.reconnect) {
       // 切换主服务器时需要重建 events 连接（因为 primaryId 变了）
       if (settings.multiSelectMode.value && settings.selectedAddressIds.value.length > 0) {
@@ -1283,6 +1306,7 @@ async function handleSyncMultiple({ syncType, days }) {
 
   try {
     await fmoSync.syncMultiple(addresses, syncType, days)
+    inferFromCallsign()
 
     // 同步完成后，检查失败的地址并取消选中
     const failedResults = fmoSync.multiSyncProgress.value.results.filter((r) => !r.success)
@@ -1309,6 +1333,7 @@ async function handleValidateAndSelect({ id, host, protocol }) {
     const isConnected = await settings.validateConnection(host, protocol)
 
     if (isConnected) {
+      inferFromCallsign()
       // 连接成功，选中该地址
       settings.toggleAddressSelection(id)
 
@@ -1344,6 +1369,7 @@ async function handleSetMultiSelectMode(value) {
 
   // 如果模式发生变化，重建 events 连接和定时同步
   if (oldMode !== newMode) {
+    inferFromCallsign()
     if (newMode) {
       // 从单选切到多选
       speakingStatus.disconnectEventWs('single')
@@ -1398,6 +1424,7 @@ async function handleToggleAddressSelection(id) {
         // 设置新的主服务器
         await settings.setActiveAddressId(smallestAddr.id)
       }
+      inferFromCallsign()
     }
 
     // 重建剩余服务器的 events 连接
@@ -1452,9 +1479,7 @@ watch(
 watch(
   () => settings.activeAddress.value,
   () => {
-    if (dbLoaded.value && availableFromCallsigns.value.length > 0) {
-      inferFromCallsign()
-    }
+    inferFromCallsign()
   },
   { deep: true }
 )
@@ -1463,7 +1488,7 @@ watch(
 watch(
   () => availableFromCallsigns.value,
   (newVal) => {
-    if (newVal.length > 0 && dbLoaded.value) {
+    if (!settings.activeAddress.value?.userInfo?.callsign && newVal.length > 0 && dbLoaded.value) {
       inferFromCallsign()
     }
   }
@@ -2070,5 +2095,4 @@ provide('protocol', settings.protocol)
       inset 0 1px 0 var(--alpha-white-35);
   }
 }
-
 </style>

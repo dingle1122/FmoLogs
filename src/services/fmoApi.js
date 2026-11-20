@@ -226,6 +226,15 @@ export class FmoApiClient {
     return this.sendRequest('user', 'getInfo', {})
   }
 
+  async getUserInfoOnce() {
+    try {
+      return await this.sendRequest('user', 'getInfo', {})
+    } catch (err) {
+      console.warn('获取用户信息失败，按服务器未提供呼号处理:', err?.message || err)
+      return null
+    }
+  }
+
   // Config 相关方法
   async getCoordinate() {
     return this.sendRequest('config', 'getCordinate', {})

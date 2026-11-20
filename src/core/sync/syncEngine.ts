@@ -38,6 +38,10 @@ export interface SyncContext {
   isAborted?: () => boolean
 }
 
+function normalizeCallsign(callsign: unknown): string {
+  return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
+}
+
 function noop() {
   /* no-op */
 }
@@ -96,6 +100,10 @@ export function getDaysAgoTimestamp(days: number): number {
   return Math.floor(target.setUTCHours(0, 0, 0, 0) / 1000)
 }
 
+function resolveExpectedCallsign(item: any, ctx: SyncContext): string {
+  return normalizeCallsign(ctx.currentFromCallsign || item?.fromCallsign)
+}
+
 /**
  * 处理单条 QSO：判断是否需要拉详情 + 入库。
  * 返回实际落库的 qso（否则 null）。
@@ -110,7 +118,7 @@ export async function processSingleQsoItem(
   if (item.timestamp < rangeStart) return null
 
   const onFailed = ctx.onFailed ?? noop
-  const currentFromCallsign = ctx.currentFromCallsign || ''
+  const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign || item.fromCallsign)
 
   try {
     let qso: any = null
@@ -125,7 +133,8 @@ export async function processSingleQsoItem(
         await new Promise((r) => setTimeout(r, 100))
         const detailResponse = await client.getQsoDetail(item.logId)
         qso = detailResponse.log
-        if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+        const qsoCallsign = normalizeCallsign(qso?.fromCallsign)
+        if (qso && qsoCallsign !== currentFromCallsign) qso = null
       }
     } else {
       await new Promise((r) => setTimeout(r, 100))
@@ -133,7 +142,7 @@ export async function processSingleQsoItem(
       qso = detailResponse.log
       if (qso) {
         const exists = await isQsoExistsInIndexedDB(
-          qso.fromCallsign,
+          normalizeCallsign(qso.fromCallsign),
           qso.timestamp,
           qso.toCallsign
         )
@@ -147,10 +156,7 @@ export async function processSingleQsoItem(
 
     return qso
   } catch (err: any) {
-    console.warn(
-      `获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`,
-      err?.message
-    )
+    console.warn(`获取详情失败 logId=${item.logId}, toCallsign=${item.toCallsign}:`, err?.message)
     onFailed({
       logId: item.logId,
       toCallsign: item.toCallsign,
@@ -164,15 +170,11 @@ export async function processSingleQsoItem(
 /**
  * 同步最近 N 天（默认 1 天）的 QSO。
  */
-export async function syncRecentData(
-  client: any,
-  days: number,
-  ctx: SyncContext
-): Promise<number> {
+export async function syncRecentData(client: any, days: number, ctx: SyncContext): Promise<number> {
   const rangeStart = getDaysAgoTimestamp(days)
   const statusCallback = ctx.statusCallback ?? noop
   const isAborted = ctx.isAborted ?? never
-  const currentFromCallsign = ctx.currentFromCallsign || ''
+  const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
 
   let page = 0
   let hasMoreInRange = true
@@ -193,7 +195,11 @@ export async function syncRecentData(
       }
 
       if (item.timestamp >= rangeStart) {
-        const qso = await processSingleQsoItem(item, rangeStart, client, ctx)
+        const itemCtx = {
+          ...ctx,
+          currentFromCallsign: resolveExpectedCallsign(item, ctx)
+        }
+        const qso = await processSingleQsoItem(item, rangeStart, client, itemCtx)
         if (qso) {
           statusCallback(`保存记录: ${qso.toCallsign}...`)
           totalSynced++
@@ -218,7 +224,7 @@ export async function syncIncrementalForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
-  const currentFromCallsign = ctx.currentFromCallsign || ''
+  const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
   const statusCallback = ctx.statusCallback ?? noop
   const onFailed = ctx.onFailed ?? noop
   const isAborted = ctx.isAborted ?? never
@@ -248,12 +254,16 @@ export async function syncIncrementalForAddress(
       if (!isValidQsoListItem(item)) continue
 
       try {
+        const itemCtx = {
+          ...ctx,
+          currentFromCallsign: resolveExpectedCallsign(item, ctx)
+        }
         let qso: any = null
         let exists = false
 
-        if (currentFromCallsign) {
+        if (itemCtx.currentFromCallsign) {
           exists = await isQsoExistsInIndexedDB(
-            currentFromCallsign,
+            itemCtx.currentFromCallsign,
             item.timestamp,
             item.toCallsign
           )
@@ -261,18 +271,15 @@ export async function syncIncrementalForAddress(
             await new Promise((r) => setTimeout(r, 100))
             const detailResponse = await client.getQsoDetail(item.logId)
             qso = detailResponse.log
-            if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+            const qsoCallsign = normalizeCallsign(qso?.fromCallsign)
+            if (qso && qsoCallsign !== itemCtx.currentFromCallsign) qso = null
           }
         } else {
           await new Promise((r) => setTimeout(r, 100))
           const detailResponse = await client.getQsoDetail(item.logId)
           qso = detailResponse.log
           if (qso) {
-            exists = await isQsoExistsInIndexedDB(
-              qso.fromCallsign,
-              qso.timestamp,
-              qso.toCallsign
-            )
+            exists = await isQsoExistsInIndexedDB(qso.fromCallsign, qso.timestamp, qso.toCallsign)
           }
         }
 
@@ -312,7 +319,7 @@ async function syncFullViaWebSocketForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
-  const currentFromCallsign = ctx.currentFromCallsign || ''
+  const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
   const statusCallback = ctx.statusCallback ?? noop
   const onFailed = ctx.onFailed ?? noop
   const isAborted = ctx.isAborted ?? never
@@ -343,12 +350,14 @@ async function syncFullViaWebSocketForAddress(
 
       try {
         let qso: any = null
+        const expectedCallsign = resolveExpectedCallsign(item, ctx)
 
-        if (currentFromCallsign) {
+        if (expectedCallsign) {
           await new Promise((r) => setTimeout(r, 100))
           const detailResponse = await client.getQsoDetail(item.logId)
           qso = detailResponse.log
-          if (qso && qso.fromCallsign !== currentFromCallsign) qso = null
+          const qsoCallsign = normalizeCallsign(qso?.fromCallsign)
+          if (qso && qsoCallsign !== expectedCallsign) qso = null
         } else {
           await new Promise((r) => setTimeout(r, 100))
           const detailResponse = await client.getQsoDetail(item.logId)
@@ -391,7 +400,7 @@ async function syncFullViaDbBackupForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
-  const currentFromCallsign = ctx.currentFromCallsign || ''
+  const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
   const statusCallback = ctx.statusCallback ?? noop
   const isAborted = ctx.isAborted ?? never
 

@@ -10,16 +10,9 @@ import {
 // @ts-ignore - legacy JS
 import { FmoApiClient } from '../services/fmoApi'
 // @ts-ignore - legacy JS
-import {
-  buildWebSocketUrl,
-  normalizeHost,
-  normalizeWebSocketEndpoint
-} from '../utils/urlUtils'
+import { buildWebSocketUrl, normalizeHost, normalizeWebSocketEndpoint } from '../utils/urlUtils'
 import { getPlatform } from '../platform'
-import {
-  backupLogsWithCompatibility,
-  type BackupProgressState
-} from '../services/fmoBackupService'
+import { backupLogsWithCompatibility, type BackupProgressState } from '../services/fmoBackupService'
 import {
   DEFAULT_THEME_ID,
   applyThemeCss,
@@ -130,6 +123,10 @@ interface AddressStorage {
   activeId: string | null
   selectedIds: string[]
   multiSelectMode?: boolean
+}
+
+function normalizeCallsign(callsign: unknown): string {
+  return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
 }
 
 interface ActionResult {
@@ -723,7 +720,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
       if (storage.activeId) {
         const activeAddr = storage.addresses.find((a) => a.id === storage.activeId)
-        if (activeAddr && !activeAddr.userInfo) {
+        if (activeAddr && !activeAddr.userInfo?.callsign) {
           try {
             const host = normalizeHost(activeAddr.host)
             const fullAddress = `${activeAddr.protocol}://${host}`
@@ -737,7 +734,7 @@ export const useSettingsStore = defineStore('settings', () => {
               fmoAddressStorage.value.addresses[index] = {
                 ...fmoAddressStorage.value.addresses[index],
                 userInfo: {
-                  callsign: userInfo.callsign || '',
+                  callsign: normalizeCallsign(userInfo.callsign),
                   uid: userInfo.uid || null,
                   wlanIP: userInfo.wlanIP || ''
                 }
@@ -836,7 +833,7 @@ export const useSettingsStore = defineStore('settings', () => {
       const apiClient = new FmoApiClient(fullAddress)
       const userInfo = await apiClient.getUserInfo()
       newAddress.userInfo = {
-        callsign: userInfo.callsign || '',
+        callsign: normalizeCallsign(userInfo.callsign),
         uid: userInfo.uid || null,
         wlanIP: userInfo.wlanIP || ''
       }
@@ -938,7 +935,7 @@ export const useSettingsStore = defineStore('settings', () => {
           fmoAddressStorage.value.addresses[index] = {
             ...fmoAddressStorage.value.addresses[index],
             userInfo: {
-              callsign: userInfo.callsign || '',
+              callsign: normalizeCallsign(userInfo.callsign),
               uid: userInfo.uid || null,
               wlanIP: userInfo.wlanIP || ''
             }
@@ -991,7 +988,7 @@ export const useSettingsStore = defineStore('settings', () => {
         fmoAddressStorage.value.addresses[index] = {
           ...fmoAddressStorage.value.addresses[index],
           userInfo: {
-            callsign: userInfo.callsign || '',
+            callsign: normalizeCallsign(userInfo.callsign),
             uid: userInfo.uid || null,
             wlanIP: userInfo.wlanIP || ''
           }
@@ -1004,6 +1001,18 @@ export const useSettingsStore = defineStore('settings', () => {
       console.log('刷新用户信息失败:', err)
       return { success: false, message: '获取用户信息失败' }
     }
+  }
+
+  async function updateAddressCallsign(id: string, callsign: string): Promise<boolean> {
+    const address = fmoAddressStorage.value.addresses.find((item) => item.id === id)
+    if (!address) return false
+
+    address.userInfo = {
+      ...(address.userInfo || { uid: null, wlanIP: '' }),
+      callsign: normalizeCallsign(callsign)
+    }
+    await saveFmoAddresses(fmoAddressStorage.value)
+    return true
   }
 
   async function validateAndSaveFmoAddress(): Promise<ActionResult> {
@@ -1123,6 +1132,7 @@ export const useSettingsStore = defineStore('settings', () => {
     selectFmoAddress,
     clearAllAddresses,
     refreshUserInfo,
+    updateAddressCallsign,
     validateConnection,
     toggleAddressSelection,
     setMultiSelectMode,

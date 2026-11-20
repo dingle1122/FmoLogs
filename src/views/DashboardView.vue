@@ -817,8 +817,11 @@ const dashboardHeroElementOptions = [
 const selectedFromCallsign = inject('selectedFromCallsign', ref(''))
 const fmoAddress = inject('fmoAddress', ref(''))
 const protocol = inject('protocol', ref('ws'))
-const { isPlaying: isAudioPlaying, isMuted: isAudioMuted, hostMuted: isAudioHostMuted } =
-  storeToRefs(audioStore)
+const {
+  isPlaying: isAudioPlaying,
+  isMuted: isAudioMuted,
+  hostMuted: isAudioHostMuted
+} = storeToRefs(audioStore)
 
 const now = ref(Date.now())
 let nowTimer = null
@@ -1046,7 +1049,9 @@ const dashboardAudioStatus = computed(() => {
   if (!fmoAddress.value) return 'disabled'
   return isAudioPlaying.value ? 'playing' : 'idle'
 })
-const dashboardAudioVolumeText = computed(() => `${String(settingsStore.audioVolume).padStart(3, '0')}%`)
+const dashboardAudioVolumeText = computed(
+  () => `${String(settingsStore.audioVolume).padStart(3, '0')}%`
+)
 const stationInfoCards = computed(() => {
   const serverInfo = speakingStore.primaryServerInfo
   const cards = {
@@ -2098,7 +2103,13 @@ watch(
 .dashboard-layout-section-divider {
   width: 100%;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0, var(--border-light) 8%, var(--border-light) 92%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0,
+    var(--border-light) 8%,
+    var(--border-light) 92%,
+    transparent 100%
+  );
   opacity: 0.78;
 }
 

@@ -412,11 +412,7 @@ async function markAsRead() {
   const detail = currentDetail.value
   markingRead.value = true
   try {
-    const result = await messageService.setRead(
-      fmoAddress.value,
-      protocol.value,
-      detail.messageId
-    )
+    const result = await messageService.setRead(fmoAddress.value, protocol.value, detail.messageId)
     if (requestId !== detailRequestId || currentDetail.value !== detail) return
     if (result.status === 'success') {
       currentDetail.value.isRead = true

@@ -5,11 +5,7 @@ function isEditableFocused() {
   const active = document.activeElement
   if (!active) return false
   const tagName = active.tagName
-  return (
-    tagName === 'INPUT' ||
-    tagName === 'TEXTAREA' ||
-    active.isContentEditable
-  )
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || active.isContentEditable
 }
 
 function setViewportCssVars() {
@@ -17,9 +13,7 @@ function setViewportCssVars() {
   const nextHeight = viewport?.height || window.innerHeight
   const nextWidth = viewport?.width || window.innerWidth
   const keyboardLikelyOpen =
-    isEditableFocused() &&
-    lastStableHeight > 0 &&
-    nextHeight < lastStableHeight * 0.8
+    isEditableFocused() && lastStableHeight > 0 && nextHeight < lastStableHeight * 0.8
   const height = keyboardLikelyOpen ? lastStableHeight : nextHeight
   const width = keyboardLikelyOpen ? lastStableWidth || nextWidth : nextWidth
   const rootStyle = document.documentElement.style
