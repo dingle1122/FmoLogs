@@ -10,6 +10,10 @@ import {
   getUniqueCallsignCountFromIndexedDB
 } from '../services/db'
 
+function normalizeCallsign(callsign) {
+  return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
+}
+
 export function useDbManager() {
   const dbLoaded = ref(false)
   const dbCount = ref(0)
@@ -69,11 +73,12 @@ export function useDbManager() {
       availableFromCallsigns.value = currentCallsigns
     }
 
+    selectedFromCallsign.value = normalizeCallsign(selectedFromCallsign.value)
     if (
       !selectedFromCallsign.value ||
       !availableFromCallsigns.value.includes(selectedFromCallsign.value)
     ) {
-      selectedFromCallsign.value = availableFromCallsigns.value[0]
+      selectedFromCallsign.value = availableFromCallsigns.value[0] || ''
     }
 
     await updateStats()
@@ -96,7 +101,7 @@ export function useDbManager() {
       const callsigns = await getAvailableFromCallsigns()
       if (callsigns.length > 0) {
         availableFromCallsigns.value = callsigns
-        selectedFromCallsign.value = callsigns[0]
+        selectedFromCallsign.value = normalizeCallsign(callsigns[0])
         await updateStats()
         dbLoaded.value = true
         dbCount.value = callsigns.length
@@ -117,23 +122,23 @@ export function useDbManager() {
     try {
       // 验证文件类型
       const validFiles = []
-    for (const file of files) {
-      const name = file.name.toLowerCase()
-      if (
-        name.endsWith('.db') ||
-        name.endsWith('.zip') ||
-        name.endsWith('.adi') ||
-        name.endsWith('.adif')
-      ) {
-        validFiles.push(file)
+      for (const file of files) {
+        const name = file.name.toLowerCase()
+        if (
+          name.endsWith('.db') ||
+          name.endsWith('.zip') ||
+          name.endsWith('.adi') ||
+          name.endsWith('.adif')
+        ) {
+          validFiles.push(file)
+        }
       }
-    }
 
-    if (validFiles.length === 0) {
-      error.value = '所选文件中没有有效的 .db/.zip 或 .adi/.adif 文件'
-      loading.value = false
-      return false
-    }
+      if (validFiles.length === 0) {
+        error.value = '所选文件中没有有效的 .db/.zip 或 .adi/.adif 文件'
+        loading.value = false
+        return false
+      }
 
       // .db 文件需要先通过 loadDbFilesFromFileList 验证
       const dbFiles = await loadDbFilesFromFileList(validFiles)

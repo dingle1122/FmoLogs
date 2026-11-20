@@ -3,7 +3,13 @@ import { Worker } from 'node:worker_threads'
 import { build } from 'esbuild'
 import { spawnSync } from 'node:child_process'
 
-const output = await build({ entryPoints: ['src/workers/sstvRealtime.worker.ts'], bundle: true, platform: 'browser', format: 'iife', write: false })
+const output = await build({
+  entryPoints: ['src/workers/sstvRealtime.worker.ts'],
+  bundle: true,
+  platform: 'browser',
+  format: 'iife',
+  write: false
+})
 const workerCode = `const { parentPort } = require('node:worker_threads');
 globalThis.self = { postMessage: (value, options) => parentPort.postMessage(value, options?.transfer) };
 parentPort.on('message', (data) => self.onmessage({ data }));\n${output.outputFiles[0].text}`
@@ -13,15 +19,24 @@ function recording(lines) {
   let phase = 0
   function tone(frequency, seconds) {
     for (let i = 0; i < Math.round(seconds * 8000); i++) {
-      samples.push(Math.round(Math.sin(phase) * 30000)); phase += 2 * Math.PI * frequency / 8000
+      samples.push(Math.round(Math.sin(phase) * 30000))
+      phase += (2 * Math.PI * frequency) / 8000
     }
   }
-  tone(1900, .3); tone(1200, .01); tone(1900, .3); tone(1200, .03)
-  for (let bit = 0; bit < 7; bit++) tone((8 >> bit) & 1 ? 1100 : 1300, .03)
-  tone(1100, .03); tone(1200, .03)
+  tone(1900, 0.3)
+  tone(1200, 0.01)
+  tone(1900, 0.3)
+  tone(1200, 0.03)
+  for (let bit = 0; bit < 7; bit++) tone((8 >> bit) & 1 ? 1100 : 1300, 0.03)
+  tone(1100, 0.03)
+  tone(1200, 0.03)
   for (let row = 0; row < lines; row++) {
-    tone(1200, .009); tone(1500, .003); tone(1900, .088)
-    tone(row % 2 ? 2300 : 1500, .0045); tone(1900, .0015); tone(1900, .044)
+    tone(1200, 0.009)
+    tone(1500, 0.003)
+    tone(1900, 0.088)
+    tone(row % 2 ? 2300 : 1500, 0.0045)
+    tone(1900, 0.0015)
+    tone(1900, 0.044)
   }
   return Int16Array.from(samples)
 }
@@ -29,7 +44,10 @@ function recording(lines) {
 function send(worker, pcm, generation) {
   for (let offset = 0; offset < pcm.length; offset += 1600) {
     const chunk = pcm.slice(offset, offset + 1600)
-    worker.postMessage({ type: 'pcm', samples: chunk.buffer, sampleRate: 8000, generation, sampleOffset: offset }, [chunk.buffer])
+    worker.postMessage(
+      { type: 'pcm', samples: chunk.buffer, sampleRate: 8000, generation, sampleOffset: offset },
+      [chunk.buffer]
+    )
   }
 }
 
@@ -38,7 +56,10 @@ function waitForResult(worker) {
     const timer = setTimeout(() => reject(new Error('实时解码超时')), 10000)
     worker.on('error', reject)
     worker.on('message', (message) => {
-      if (message.type === 'result') { clearTimeout(timer); resolve(message.result) }
+      if (message.type === 'result') {
+        clearTimeout(timer)
+        resolve(message.result)
+      }
     })
   })
 }
@@ -53,7 +74,8 @@ completeWorker.on('message', (message) => {
 })
 const completePromise = waitForResult(completeWorker)
 const full = recording(240)
-const padded = new Int16Array(full.length + 1600); padded.set(full)
+const padded = new Int16Array(full.length + 1600)
+padded.set(full)
 send(completeWorker, padded, 1)
 const complete = await completePromise
 assert.equal(complete.mode, 'robot36')
@@ -100,7 +122,11 @@ console.log('实时分块解码和断流处理检查通过')
 
 for (const [index, path] of process.argv.slice(2).entries()) {
   const expected = ['pd120', 'pd90', 'robot36'][index]
-  const converted = spawnSync('ffmpeg', ['-v', 'error', '-i', path, '-f', 's16le', '-ac', '1', '-ar', '8000', 'pipe:1'], { maxBuffer: 32 * 1024 * 1024 })
+  const converted = spawnSync(
+    'ffmpeg',
+    ['-v', 'error', '-i', path, '-f', 's16le', '-ac', '1', '-ar', '8000', 'pipe:1'],
+    { maxBuffer: 32 * 1024 * 1024 }
+  )
   assert.equal(converted.status, 0, converted.stderr.toString())
   const bytes = converted.stdout
   const pcm = new Int16Array(bytes.length / 2)

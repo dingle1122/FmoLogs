@@ -15,6 +15,10 @@ import {
   type SyncContext
 } from '../core/sync'
 
+function normalizeCallsign(callsign: unknown): string {
+  return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
+}
+
 export interface SyncAddress {
   id: string
   name?: string
@@ -39,6 +43,8 @@ export interface SyncOptions {
   }) => void | Promise<void>
   getSpeakingHistory?: (addressId: string) => Array<any>
   getSelectedFromCallsign?: () => string
+  getAddressCallsign?: (addressId: string) => string
+  onAddressCallsign?: (addressId: string, callsign: string, updateCurrent?: boolean) => void
   getDbLoaded?: () => boolean
   getTotalLogs?: () => number
   getEventsConnected?: (addressId: string) => boolean
@@ -89,7 +95,37 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function getCurrentFromCallsign(): string {
-    return ctx.getSelectedFromCallsign?.() || ''
+    return normalizeCallsign(ctx.getSelectedFromCallsign?.())
+  }
+
+  function getAddressCallsign(addressId?: string): string {
+    return normalizeCallsign(addressId && ctx.getAddressCallsign?.(addressId))
+  }
+
+  async function refreshAddressCallsign(
+    client: any,
+    addressId?: string,
+    fallbackCallsign = '',
+    updateCurrent = true,
+    allowCache = true
+  ): Promise<string> {
+    if (!addressId) return normalizeCallsign(fallbackCallsign || getCurrentFromCallsign())
+    const cachedCallsign = getAddressCallsign(addressId)
+
+    if (cachedCallsign && (allowCache || updateCurrent)) return cachedCallsign
+
+    try {
+      const userInfo = await client.getUserInfoOnce()
+      const callsign = normalizeCallsign(userInfo?.callsign)
+      if (callsign) {
+        ctx.onAddressCallsign?.(addressId, callsign, updateCurrent)
+        return callsign
+      }
+    } catch (err) {
+      console.warn('获取服务器呼号失败:', err)
+    }
+
+    return updateCurrent ? normalizeCallsign(fallbackCallsign || cachedCallsign) : ''
   }
 
   function buildSyncContext(overrides?: Partial<SyncContext>): SyncContext {
@@ -130,11 +166,7 @@ export const useSyncStore = defineStore('sync', () => {
     }, 5000)
   }
 
-  async function updateAfterSync(
-    wasEmpty: boolean,
-    syncedCount: number,
-    message: string | null
-  ) {
+  async function updateAfterSync(wasEmpty: boolean, syncedCount: number, message: string | null) {
     if (syncedCount === 0) return { callsigns: [] as string[], wasEmpty }
 
     const callsigns: string[] = await getAvailableFromCallsigns()
@@ -155,12 +187,12 @@ export const useSyncStore = defineStore('sync', () => {
   function checkShouldSync(addressId: string): boolean {
     const eventsConnected = ctx.getEventsConnected?.(addressId) || false
     const speakingHistory = ctx.getSpeakingHistory?.(addressId) || []
-    const currentCallsign = ctx.getSelectedFromCallsign?.()
+    const currentCallsign = getAddressCallsign(addressId) || getCurrentFromCallsign()
 
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000
     const hasRecentSpeaking = speakingHistory.some((h: any) => {
       const time = h.endTime || h.startTime
-      return h.callsign === currentCallsign && time > fiveMinutesAgo
+      return normalizeCallsign(h.callsign) === currentCallsign && time > fiveMinutesAgo
     })
 
     if (eventsConnected) return hasRecentSpeaking
@@ -170,7 +202,12 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   // ========== 自动同步后台任务内部逻辑 ==========
-  async function performIncrementalSync(fmoAddress: string, protocol: string) {
+  async function performIncrementalSync(
+    fmoAddress: string,
+    protocol: string,
+    addressId?: string,
+    allowCache = true
+  ) {
     if (isAborted) return
 
     const host = normalizeHost(fmoAddress)
@@ -179,6 +216,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       if (isAborted) return
+      const expectedCallsign = await refreshAddressCallsign(client, addressId, '', true, allowCache)
       const wasEmpty = !ctx.getDbLoaded?.() || (ctx.getTotalLogs?.() || 0) === 0
       const todayStart = Math.floor(new Date().setUTCHours(0, 0, 0, 0) / 1000)
       const response = await client.getQsoList(0, 10)
@@ -186,7 +224,9 @@ export const useSyncStore = defineStore('sync', () => {
       const newCallsigns: string[] = []
 
       // 使用静默上下文，不更新UI状态
-      const innerCtx = buildSilentSyncContext()
+      const innerCtx = buildSilentSyncContext({
+        currentFromCallsign: expectedCallsign
+      })
       for (const item of list) {
         if (isAborted) break
         const qso = await processSingleQsoItem(item, todayStart, client, innerCtx)
@@ -208,7 +248,12 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
-  async function performTodaySync(fmoAddress: string, protocol: string) {
+  async function performTodaySync(
+    fmoAddress: string,
+    protocol: string,
+    addressId?: string,
+    allowCache = true
+  ) {
     if (isAborted) return
 
     const host = normalizeHost(fmoAddress)
@@ -217,9 +262,16 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       if (isAborted) return
+      const expectedCallsign = await refreshAddressCallsign(client, addressId, '', true, allowCache)
       const wasEmpty = !ctx.getDbLoaded?.() || (ctx.getTotalLogs?.() || 0) === 0
       // 使用静默上下文，不更新UI状态
-      const totalSynced = await syncRecentData(client, 1, buildSilentSyncContext())
+      const totalSynced = await syncRecentData(
+        client,
+        1,
+        buildSilentSyncContext({
+          currentFromCallsign: expectedCallsign
+        })
+      )
 
       if (!isAborted) {
         await updateAfterSync(
@@ -260,11 +312,11 @@ export const useSyncStore = defineStore('sync', () => {
           try {
             if (needsFullSync) {
               console.log(`执行每小时今日数据同步: ${address.host}`)
-              await performTodaySync(address.host, address.protocol)
+              await performTodaySync(address.host, address.protocol, address.id, false)
             } else {
               const shouldSync = checkShouldSync(address.id)
               if (shouldSync) {
-                await performIncrementalSync(address.host, address.protocol)
+                await performIncrementalSync(address.host, address.protocol, address.id, false)
               } else {
                 console.log(`当前呼号5分钟内未在 ${address.host} 发言，跳过本次同步`)
               }
@@ -304,7 +356,12 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       if (isAborted) return
-      const totalSynced = await syncRecentData(client, days, buildSyncContext())
+      const expectedCallsign = await refreshAddressCallsign(client, undefined, '', true, false)
+      const totalSynced = await syncRecentData(
+        client,
+        days,
+        buildSyncContext({ currentFromCallsign: expectedCallsign })
+      )
 
       const failedCount = syncFailedRecords.value.length
       syncStatus.value =
@@ -345,9 +402,10 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       if (isAborted) return
+      const expectedCallsign = await refreshAddressCallsign(client, undefined, '', true, false)
       const { totalSynced, totalProcessed } = await syncIncrementalForAddress(
         client,
-        buildSyncContext()
+        buildSyncContext({ currentFromCallsign: expectedCallsign })
       )
 
       const failedCount = syncFailedRecords.value.length
@@ -392,9 +450,10 @@ export const useSyncStore = defineStore('sync', () => {
 
     try {
       if (isAborted) return
+      const expectedCallsign = await refreshAddressCallsign(client, undefined, '', true, false)
       const { totalSynced, totalProcessed } = await syncFullForAddress(
         client,
-        buildSyncContext()
+        buildSyncContext({ currentFromCallsign: expectedCallsign })
       )
 
       const failedCount = syncFailedRecords.value.length
@@ -464,7 +523,18 @@ export const useSyncStore = defineStore('sync', () => {
           syncStatus.value = `正在同步 ${address.name || address.host}...`
 
           const label = address.name || address.host
+          const expectedCallsign = await refreshAddressCallsign(
+            client,
+            address.id,
+            '',
+            false,
+            false
+          )
+          if (!expectedCallsign) {
+            throw new Error('服务器未提供可用呼号')
+          }
           const innerCtx = buildSyncContext({
+            currentFromCallsign: expectedCallsign,
             statusCallback: (msg) => {
               syncStatus.value = `${label}: ${msg}`
             }

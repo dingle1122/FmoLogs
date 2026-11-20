@@ -12,6 +12,10 @@ const ZIP_LOCAL_FILE_SIGNATURE = 0x04034b50
 const ZIP_STORE_METHOD = 0
 const FMO_EXPORT_SHARD_SIZE = 500
 
+function normalizeCallsign(callsign) {
+  return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
+}
+
 async function smokeTestSQL(sql) {
   const db = new sql.Database()
   try {
@@ -626,12 +630,14 @@ function getCurrentDbVersion() {
 
 // 打开或升级日志数据库
 async function openLogsDatabase(newCallsigns = []) {
+  const normalizedCallsigns = [...new Set(newCallsigns.map(normalizeCallsign).filter(Boolean))]
+
   // 如果已经有一个打开过程在进行，或者已经打开了，先等待它
   if (logsDbPromise) {
     try {
       const db = await logsDbPromise
       // 检查当前已打开的实例是否满足所有需要的 newCallsigns
-      const allExist = newCallsigns.every((callsign) =>
+      const allExist = normalizedCallsigns.every((callsign) =>
         db.objectStoreNames.contains(`logs_from_${callsign}`)
       )
       if (allExist) {
@@ -670,8 +676,8 @@ async function openLogsDatabase(newCallsigns = []) {
           needsUpgrade = true
         }
         // 检查 callsign 存储
-        if (!needsUpgrade && newCallsigns.length > 0) {
-          for (const callsign of newCallsigns) {
+        if (!needsUpgrade && normalizedCallsigns.length > 0) {
+          for (const callsign of normalizedCallsigns) {
             if (!db.objectStoreNames.contains(`logs_from_${callsign}`)) {
               needsUpgrade = true
               break
@@ -718,7 +724,7 @@ async function openLogsDatabase(newCallsigns = []) {
         }
 
         // 为每个新的fromCallsign创建对象存储
-        for (const callsign of newCallsigns) {
+        for (const callsign of normalizedCallsigns) {
           const storeName = `logs_from_${callsign}`
           if (!db.objectStoreNames.contains(storeName)) {
             const store = db.createObjectStore(storeName, {
@@ -744,6 +750,8 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
   // 收集所有fromCallsign
   const allCallsigns = new Set()
   for (const record of records) {
+    record.fromCallsign = normalizeCallsign(record.fromCallsign)
+    record.toCallsign = normalizeCallsign(record.toCallsign)
     if (record.fromCallsign) {
       allCallsigns.add(record.fromCallsign)
     }
@@ -803,7 +811,7 @@ export async function importFmoDbFilesToIndexedDB(dbFiles, onProgress = null, op
 
   // 解析SQLite文件
   const allRecords = []
-  const fromCallsignFilter = options?.fromCallsign || ''
+  const fromCallsignFilter = normalizeCallsign(options?.fromCallsign)
 
   for (const file of dbFiles) {
     try {
@@ -819,7 +827,10 @@ export async function importFmoDbFilesToIndexedDB(dbFiles, onProgress = null, op
           columns.forEach((col, index) => {
             record[col] = row[index]
           })
-          if (!fromCallsignFilter || record.fromCallsign === fromCallsignFilter) {
+          if (
+            !fromCallsignFilter ||
+            normalizeCallsign(record.fromCallsign) === fromCallsignFilter
+          ) {
             allRecords.push(record)
           }
         }
@@ -900,9 +911,9 @@ export async function importAdifFilesToIndexedDB(adifFiles, onProgress = null) {
         allRecords.push({
           timestamp: parseAdifDateTime(r.qso_date, r.time_on),
           freqHz: r.freq ? Math.round(parseFloat(r.freq) * 10000) : null,
-          fromCallsign: r.station_callsign || '',
+          fromCallsign: normalizeCallsign(r.station_callsign),
           fromGrid: r.my_gridsquare || '',
-          toCallsign: r.call || '',
+          toCallsign: normalizeCallsign(r.call),
           toGrid: r.gridsquare || '',
           toComment: r.app_fmo_comment_utf8 || r.comment || '',
           mode: r.app_fmo_mode || 'FMO',
@@ -922,7 +933,7 @@ export async function importAdifFilesToIndexedDB(adifFiles, onProgress = null) {
 // 将记录写入指定存储（基于UTC日期+toCallsign去重，重复时覆盖）
 async function writeRecordsToStore(storeName, records) {
   // 从存储名称中提取呼号 (logs_from_CALLSIGN)
-  const fromCallsign = storeName.replace('logs_from_', '')
+  const fromCallsign = normalizeCallsign(storeName.replace('logs_from_', ''))
   // 确保存储空间存在
   const db = await openLogsDatabase([fromCallsign])
 
@@ -996,7 +1007,9 @@ async function saveCallsignList(newCallsigns) {
   })
 
   // 合并并去重
-  const mergedSet = new Set([...existingList, ...newCallsigns])
+  const mergedSet = new Set(
+    [...existingList, ...newCallsigns].map(normalizeCallsign).filter(Boolean)
+  )
   const mergedList = Array.from(mergedSet).sort()
 
   return new Promise((resolve, reject) => {
@@ -1017,7 +1030,10 @@ export async function getAvailableFromCallsigns() {
       const store = tx.objectStore(META_STORE_NAME)
       const request = store.get('callsignList')
       request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result || [])
+      request.onsuccess = () => {
+        const callsigns = (request.result || []).map(normalizeCallsign).filter(Boolean)
+        resolve([...new Set(callsigns)].sort())
+      }
     })
   } catch {
     return []
@@ -1041,7 +1057,7 @@ function filterSystemFields(record) {
 
 export async function getDataFromIndexedDB(fromCallsign) {
   const db = await openLogsDatabase()
-  const storeName = `logs_from_${fromCallsign}`
+  const storeName = `logs_from_${normalizeCallsign(fromCallsign)}`
 
   if (!db.objectStoreNames.contains(storeName)) {
     return []
@@ -1185,7 +1201,8 @@ export async function getCallsignRecordsFromIndexedDB(callsign, fromCallsign = n
   const allRecords = await getDataFromIndexedDB(fromCallsign)
 
   // 筛选指定呼号的记录
-  const filtered = allRecords.filter((r) => r.toCallsign === callsign)
+  const normalizedCallsign = normalizeCallsign(callsign)
+  const filtered = allRecords.filter((r) => normalizeCallsign(r.toCallsign) === normalizedCallsign)
 
   // 按时间倒序排序
   filtered.sort((a, b) => b.timestamp - a.timestamp)
@@ -1244,7 +1261,7 @@ export async function getAllRecordsFromIndexedDB(
   // 如果有日期筛选，使用索引查询
   if (filterDate) {
     const db = await openLogsDatabase()
-    const storeName = `logs_from_${fromCallsign}`
+    const storeName = `logs_from_${normalizeCallsign(fromCallsign)}`
 
     if (!db.objectStoreNames.contains(storeName)) {
       allRecords = []
@@ -1334,7 +1351,7 @@ export async function getTodayRecordsCountFromIndexedDB(fromCallsign = null) {
   const utcDate = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
 
   const db = await openLogsDatabase()
-  const storeName = `logs_from_${fromCallsign}`
+  const storeName = `logs_from_${normalizeCallsign(fromCallsign)}`
 
   if (db.objectStoreNames.contains(storeName)) {
     return new Promise((resolve, reject) => {
@@ -1371,7 +1388,7 @@ export async function getDailyContactStatsFromIndexedDB(fromCallsign = null) {
   if (!fromCallsign) return {}
 
   const db = await openLogsDatabase()
-  const storeName = `logs_from_${fromCallsign}`
+  const storeName = `logs_from_${normalizeCallsign(fromCallsign)}`
 
   if (!db.objectStoreNames.contains(storeName)) {
     return {}
@@ -1408,7 +1425,7 @@ export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, mo
   if (!fromCallsign) return { dailyStats: {}, monthTotal: 0, yearTotal: 0 }
 
   const db = await openLogsDatabase()
-  const storeName = `logs_from_${fromCallsign}`
+  const storeName = `logs_from_${normalizeCallsign(fromCallsign)}`
 
   if (!db.objectStoreNames.contains(storeName)) {
     return { dailyStats: {}, monthTotal: 0, yearTotal: 0 }
@@ -1464,17 +1481,18 @@ export async function getMonthlyContactStatsFromIndexedDB(fromCallsign, year, mo
 
 // 检查QSO记录是否已存在
 export async function isQsoExistsInIndexedDB(fromCallsign, timestamp, toCallsign) {
-  if (!fromCallsign) return false
+  const normalizedFromCallsign = normalizeCallsign(fromCallsign)
+  if (!normalizedFromCallsign) return false
 
   const db = await openLogsDatabase()
-  const storeName = `logs_from_${fromCallsign}`
+  const storeName = `logs_from_${normalizedFromCallsign}`
 
   if (!db.objectStoreNames.contains(storeName)) {
     return false
   }
 
   const utcDate = timestampToUTCDate(timestamp)
-  const dedupKey = `${utcDate}_${toCallsign || ''}`
+  const dedupKey = `${utcDate}_${normalizeCallsign(toCallsign)}`
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, 'readonly')
@@ -1487,6 +1505,8 @@ export async function isQsoExistsInIndexedDB(fromCallsign, timestamp, toCallsign
 
 // 保存单个QSO记录到IndexedDB
 export async function saveSingleQsoToIndexedDB(record) {
+  record.fromCallsign = normalizeCallsign(record.fromCallsign)
+  record.toCallsign = normalizeCallsign(record.toCallsign)
   if (!record.fromCallsign) return
 
   // 确保存储空间存在

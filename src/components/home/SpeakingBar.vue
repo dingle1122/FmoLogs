@@ -18,10 +18,12 @@
               class="speaker-item"
             >
               <strong>{{ speaker.callsign }}[{{ getServerName(speaker.addressId) }}]</strong>
-              <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag">&nbsp;您</span>
+              <span v-if="speaker.callsign === selectedFromCallsign" class="self-tag"
+                >&nbsp;您</span
+              >
               <strong v-if="todayContactedCallsigns.has(speaker.callsign)">&nbsp;&#9733;</strong>
               <span v-if="contactCounts.get(speaker.callsign)" class="contact-count">
-              &nbsp;x{{ contactCounts.get(speaker.callsign) }}
+                &nbsp;x{{ contactCounts.get(speaker.callsign) }}
               </span>
               <span v-if="speaker.address" class="speaker-address">{{ speaker.address }}</span>
               <strong v-if="index < allCurrentSpeakers.length - 1">&nbsp;&nbsp;&nbsp;&nbsp;</strong>
@@ -33,7 +35,7 @@
             <span v-if="currentSpeaker === selectedFromCallsign" class="self-tag">&nbsp;您</span>
             <strong v-if="todayContactedCallsigns.has(currentSpeaker)">&nbsp;&#9733;</strong>
             <span v-if="contactCounts.get(currentSpeaker)" class="contact-count">
-            &nbsp;x{{ contactCounts.get(currentSpeaker) }}
+              &nbsp;x{{ contactCounts.get(currentSpeaker) }}
             </span>
             <span v-if="currentSpeakerAddress" class="speaker-address">{{
               currentSpeakerAddress
@@ -268,9 +270,9 @@ defineEmits(['click', 'toggle-audio'])
 } */
 
 .self-tag {
-    font-size: 0.85em;
-    color: var(--text-tertiary);
-    font-weight: 600;
+  font-size: 0.85em;
+  color: var(--text-tertiary);
+  font-weight: 600;
 }
 
 /* 地址显示样式 */

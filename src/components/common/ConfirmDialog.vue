@@ -10,7 +10,9 @@
             <p>{{ message }}</p>
           </div>
           <div class="confirm-footer">
-            <button v-if="showCancel" class="btn btn-cancel" @click="cancel">{{ cancelText }}</button>
+            <button v-if="showCancel" class="btn btn-cancel" @click="cancel">
+              {{ cancelText }}
+            </button>
             <button class="btn btn-confirm" @click="confirm">{{ confirmText }}</button>
           </div>
         </div>

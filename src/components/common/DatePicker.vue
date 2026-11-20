@@ -251,17 +251,20 @@ watch(
 )
 
 // 切换呼号时刷新或失效旧统计，避免不同台站的数据混用。
-watch(() => props.fromCallsign, () => {
-  if (showCalendar.value) {
-    loadMonthStats()
-  } else {
-    statsRequestId++
-    dailyStats.value = {}
-    yearStats.value = 0
-    monthStats.value = 0
-    loading.value = false
+watch(
+  () => props.fromCallsign,
+  () => {
+    if (showCalendar.value) {
+      loadMonthStats()
+    } else {
+      statsRequestId++
+      dailyStats.value = {}
+      yearStats.value = 0
+      monthStats.value = 0
+      loading.value = false
+    }
   }
-})
+)
 
 // ESC 关闭日历
 function handleKeydown(e) {

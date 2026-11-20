@@ -35,10 +35,7 @@ function requireEnv(name) {
 }
 
 function base64Url(input) {
-  return Buffer.from(input)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
+  return Buffer.from(input).toString('base64').replace(/\+/g, '-').replace(/\//g, '_')
 }
 
 function normalizePrefix(prefix) {

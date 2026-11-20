@@ -104,11 +104,7 @@ export function useModalBackHandler(modalRefs = []) {
   // 自动 watch 传入的 ref，同步 history 状态
   if (modalRefs.length > 0) {
     const scope = getCurrentScope()
-    const stopWatch = watch(
-      modalRefs,
-      syncModalInteractionState,
-      { deep: true, flush: 'sync' }
-    )
+    const stopWatch = watch(modalRefs, syncModalInteractionState, { deep: true, flush: 'sync' })
     if (scope) {
       onScopeDispose(stopWatch)
     }
