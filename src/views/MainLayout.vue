@@ -83,6 +83,7 @@
           :backup-progress="backupProgress"
           :backup-status-text="backupStatusText"
           :backup-error="backupError"
+          :repairing-data="repairingData"
           :contact-counts="settings.contactCounts.value"
           :today-logs="todayLogs"
           :total-logs="totalLogs"
@@ -99,6 +100,7 @@
           @sync-incremental="handleSyncIncremental"
           @sync-full="handleSyncFull"
           @backup-logs="handleBackupLogs"
+          @repair-data="handleRepairData"
           @clear-all-data="handleClearAllData"
           @update:multi-select-mode="handleSetMultiSelectMode"
           @toggle-address-selection="handleToggleAddressSelection"
@@ -431,6 +433,7 @@ const backupBusy = ref(false)
 const backupProgress = ref(0)
 const backupStatusText = ref('')
 const backupError = ref('')
+const repairingData = ref(false)
 
 // 消息未读状态
 const hasUnreadMessages = computed(() => {
@@ -452,7 +455,8 @@ const {
   updateStats,
   tryRestoreDirectory,
   selectFiles,
-  clearAllData
+  clearAllData,
+  repairAbnormalData
 } = useDbManager()
 
 function normalizeCallsign(callsign) {
@@ -846,7 +850,9 @@ function createStationImportEventWaiter(addressId, timeout = 25000) {
     try {
       const message = JSON.parse(rawData)
       if (message?.type === 'station' && message?.subType === 'import') succeed(message.data || {})
-    } catch {}
+    } catch {
+      // 非目标事件格式忽略
+    }
   })
   unsubscribeStatus = events.onStatus((receivedAddressId, status) => {
     if (receivedAddressId === addressId && status === 'connected') resolveReady()
@@ -1029,6 +1035,35 @@ async function handleClearAllData() {
   dataQuery.oldFriendsResult.value = null
   dataQuery.searchKeyword.value = ''
   dataQuery.oldFriendsSearchKeyword.value = ''
+}
+
+async function handleRepairData() {
+  const confirmed = await confirmDialog.show({
+    title: '修复异常通联数据',
+    message: '将检查本地通联日志，删除明显异常的数据，并按剩余数据重建索引。正常数据会保留。',
+    confirmText: '开始修复'
+  })
+  if (!confirmed || repairingData.value) return
+
+  repairingData.value = true
+  try {
+    const result = await repairAbnormalData()
+    dataQuery.queryResult.value = null
+    dataQuery.top20Result.value = null
+    dataQuery.oldFriendsResult.value = null
+    dataQuery.searchKeyword.value = ''
+    dataQuery.oldFriendsSearchKeyword.value = ''
+    executeQuery()
+    if (result.removed > 0) {
+      toast.success(`修复完成，已移除异常数据 ${result.removed} 条，保留 ${result.repaired} 条`)
+    } else {
+      toast.success('检查完成，未发现异常数据')
+    }
+  } catch (err) {
+    toast.error(`修复失败: ${err?.message || err}`)
+  } finally {
+    repairingData.value = false
+  }
 }
 
 // 导出数据

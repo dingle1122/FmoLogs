@@ -2,6 +2,12 @@ import initSqlJsWasm from 'sql.js'
 import sqlJsAsmUrl from 'sql.js/dist/sql-asm.js?url'
 import { AdifFormatter, AdifParser } from '../adif/index.js'
 import { exportFile } from '../utils/exportFile.js'
+import {
+  FUTURE_TIMESTAMP_TOLERANCE_SECONDS,
+  getLatestValidQsoTimestamp,
+  getStoredQsoRecordInvalidReason,
+  isValidQsoRecord
+} from '../core/qsoValidation'
 
 let SQL = null
 let sqlJsAsmLoader = null
@@ -11,9 +17,47 @@ const ZIP_CENTRAL_DIR_SIGNATURE = 0x02014b50
 const ZIP_LOCAL_FILE_SIGNATURE = 0x04034b50
 const ZIP_STORE_METHOD = 0
 const FMO_EXPORT_SHARD_SIZE = 500
+function getImportOptions(options = {}) {
+  const nowSeconds = options.nowSeconds ?? Math.floor(Date.now() / 1000)
+  return {
+    nowSeconds,
+    futureToleranceSeconds: options.futureToleranceSeconds ?? FUTURE_TIMESTAMP_TOLERANCE_SECONDS,
+    allowInvalid: options.allowInvalid === true
+  }
+}
 
 function normalizeCallsign(callsign) {
   return typeof callsign === 'string' ? callsign.trim().toUpperCase() : ''
+}
+
+function isSafeQsoRecord(record, options = {}) {
+  const config = getImportOptions(options)
+  const timestamp = getLatestValidQsoTimestamp(
+    record?.timestamp,
+    config.nowSeconds,
+    config.futureToleranceSeconds
+  )
+  return (
+    config.allowInvalid ||
+    (timestamp !== null &&
+      isValidQsoRecord(record, config.nowSeconds, config.futureToleranceSeconds))
+  )
+}
+
+function filterValidQsoRecords(records, options = {}) {
+  const config = getImportOptions(options)
+  const validRecords = []
+  let skipped = 0
+
+  for (const record of records || []) {
+    if (config.allowInvalid || isSafeQsoRecord(record, config)) {
+      validRecords.push(record)
+    } else {
+      skipped++
+    }
+  }
+
+  return { validRecords, skipped }
 }
 
 async function smokeTestSQL(sql) {
@@ -746,10 +790,18 @@ async function openLogsDatabase(newCallsigns = []) {
 }
 
 // 将记录数组导入到IndexedDB（共用逻辑）
-async function importRecordsToIndexedDB(records, onProgress = null) {
+async function importRecordsToIndexedDB(records, onProgress = null, options = {}) {
+  const config = getImportOptions(options)
+  const { validRecords: validInputRecords, skipped: skippedByValidation } = filterValidQsoRecords(
+    records.map((record) => ({ ...record })),
+    config
+  )
+  if (skippedByValidation > 0) {
+    console.warn(`导入日志时跳过异常数据 ${skippedByValidation} 条`)
+  }
   // 收集所有fromCallsign
   const allCallsigns = new Set()
-  for (const record of records) {
+  for (const record of validInputRecords) {
     record.fromCallsign = normalizeCallsign(record.fromCallsign)
     record.toCallsign = normalizeCallsign(record.toCallsign)
     if (record.fromCallsign) {
@@ -758,7 +810,7 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
   }
 
   if (allCallsigns.size === 0) {
-    return { totalRecords: 0, callsigns: [] }
+    return { totalRecords: 0, callsigns: [], skipped: skippedByValidation }
   }
 
   // 打开/升级IndexedDB，确保所有需要的存储都存在
@@ -770,7 +822,7 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
   for (const callsign of callsignArray) {
     recordsByCallsign.set(callsign, [])
   }
-  for (const record of records) {
+  for (const record of validInputRecords) {
     if (record.fromCallsign && recordsByCallsign.has(record.fromCallsign)) {
       recordsByCallsign.get(record.fromCallsign).push(record)
     }
@@ -778,12 +830,14 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
 
   let totalImported = 0
   let processed = 0
-  const totalToProcess = records.length
+  const totalToProcess = validInputRecords.length
+  let skipped = skippedByValidation
 
   for (const [callsign, recs] of recordsByCallsign) {
     const storeName = `logs_from_${callsign}`
-    const imported = await writeRecordsToStore(storeName, recs)
+    const { imported, skipped: writeSkipped } = await writeRecordsToStore(storeName, recs, config)
     totalImported += imported
+    skipped += writeSkipped
 
     processed += recs.length
     if (onProgress) {
@@ -801,7 +855,8 @@ async function importRecordsToIndexedDB(records, onProgress = null) {
 
   return {
     totalRecords: totalImported,
-    callsigns: callsignArray
+    callsigns: callsignArray,
+    skipped
   }
 }
 
@@ -842,7 +897,7 @@ export async function importFmoDbFilesToIndexedDB(dbFiles, onProgress = null, op
   }
 
   // 统一导入
-  return importRecordsToIndexedDB(allRecords, onProgress)
+  return importRecordsToIndexedDB(allRecords, onProgress, options)
 }
 
 export async function importFmoBackupDataToIndexedDB(backupFile, onProgress = null, options = {}) {
@@ -931,7 +986,7 @@ export async function importAdifFilesToIndexedDB(adifFiles, onProgress = null) {
 }
 
 // 将记录写入指定存储（基于UTC日期+toCallsign去重，重复时覆盖）
-async function writeRecordsToStore(storeName, records) {
+async function writeRecordsToStore(storeName, records, options = {}) {
   // 从存储名称中提取呼号 (logs_from_CALLSIGN)
   const fromCallsign = normalizeCallsign(storeName.replace('logs_from_', ''))
   // 确保存储空间存在
@@ -947,15 +1002,20 @@ async function writeRecordsToStore(storeName, records) {
     const tx = db.transaction(storeName, 'readwrite')
     const store = tx.objectStore(storeName)
 
+    const config = getImportOptions(options)
+    const validRecords = config.allowInvalid
+      ? records
+      : records.filter((record) => isSafeQsoRecord(record, config))
+    let skipped = records.length - validRecords.length
     let imported = 0
-    let pending = records.length
+    let pending = validRecords.length
 
     if (pending === 0) {
-      resolve(0)
+      resolve({ imported: 0, skipped })
       return
     }
 
-    for (const record of records) {
+    for (const record of validRecords) {
       // 使用UTC日期 + toCallsign作为去重键
       const utcDate = timestampToUTCDate(record.timestamp)
       const dedupKey = `${utcDate}_${record.toCallsign || ''}`
@@ -979,16 +1039,18 @@ async function writeRecordsToStore(storeName, records) {
       putRequest.onsuccess = () => {
         imported++
         pending--
-        if (pending === 0) resolve(imported)
+        if (pending === 0) resolve({ imported, skipped })
       }
 
       putRequest.onerror = () => {
+        skipped++
         pending--
-        if (pending === 0) resolve(imported)
+        if (pending === 0) resolve({ imported, skipped })
       }
     }
 
     tx.onerror = () => reject(tx.error)
+    tx.oncomplete = () => resolve({ imported, skipped })
   })
 }
 
@@ -1333,6 +1395,57 @@ export async function clearIndexedDBData() {
       resolve()
     }
   })
+}
+
+export async function repairQsoData(options = {}) {
+  const config = getImportOptions(options)
+  const callsigns = await getAvailableFromCallsigns()
+  const removedRecords = []
+  let scanned = 0
+  let repaired = 0
+
+  for (const callsign of callsigns) {
+    const storeName = `logs_from_${normalizeCallsign(callsign)}`
+    const db = await openLogsDatabase([callsign])
+    if (!db.objectStoreNames.contains(storeName)) continue
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite')
+      const store = tx.objectStore(storeName)
+      const request = store.openCursor()
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = (event) => {
+        const cursor = event.target.result
+        if (!cursor) {
+          resolve()
+          return
+        }
+
+        scanned++
+        const reason = getStoredQsoRecordInvalidReason(
+          cursor.value,
+          config.nowSeconds,
+          config.futureToleranceSeconds
+        )
+        if (reason) {
+          removedRecords.push({ callsign, reason })
+          cursor.delete()
+        } else {
+          repaired++
+        }
+        cursor.continue()
+      }
+      tx.onabort = () => reject(tx.error)
+      tx.onerror = () => reject(tx.error)
+    })
+  }
+
+  return {
+    scanned,
+    repaired,
+    skipped: removedRecords.length,
+    removed: removedRecords
+  }
 }
 
 // 获取IndexedDB中的总记录数

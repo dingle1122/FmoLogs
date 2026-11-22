@@ -288,10 +288,22 @@
               导出ADIF
             </button>
           </div>
-          <div v-if="dbLoaded" class="setting-item-data-clear">
+          <div v-if="dbLoaded" class="setting-item-data-clear setting-item-data-clear-mt">
             <div class="data-clear-info">
-              <span class="data-clear-warning">此操作将永久删除所有本地通联日志，不可恢复！</span>
+              <div class="data-action-content">
+                <span class="data-action-desc">永久删除所有本地通联日志，此操作不可恢复</span>
+              </div>
               <button class="btn-danger" @click="$emit('clear-all-data')">清空通联日志</button>
+            </div>
+          </div>
+          <div v-if="dbLoaded" class="setting-item-data-clear setting-item-data-clear-mt">
+            <div class="grid-cache-info">
+              <div class="data-action-content">
+                <span class="grid-cache-desc">检查并移除明显异常的数据，正常数据会保留</span>
+              </div>
+              <button class="btn-secondary" :disabled="repairingData" @click="$emit('repair-data')">
+                {{ repairingData ? '处理中...' : '修复异常数据' }}
+              </button>
             </div>
           </div>
           <div class="setting-item-data-clear setting-item-data-clear-mt">
@@ -482,6 +494,10 @@ const props = defineProps({
   backupError: {
     type: String,
     default: ''
+  },
+  repairingData: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -494,6 +510,7 @@ const emit = defineEmits([
   'sync-incremental',
   'sync-full',
   'backup-logs',
+  'repair-data',
   'clear-all-data',
   'add-address',
   'update-address',
@@ -856,7 +873,7 @@ async function handleSelectAddress(id) {
         host: addr.host,
         protocol: addr.protocol
       })
-    } catch (err) {
+    } catch {
       // 验证失败
     } finally {
       connectingId.value = null
@@ -1247,8 +1264,8 @@ function handleVolumeChange(e) {
 }
 
 .setting-item-data-clear {
-  display: flex;
-  gap: 0.5rem;
+  display: block;
+  width: 100%;
 }
 
 .data-clear-info {
@@ -1285,12 +1302,22 @@ function handleVolumeChange(e) {
   flex: 1;
 }
 
-.data-clear-warning {
-  font-size: 0.85rem;
-  color: var(--color-danger);
+.data-action-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
   flex: 1;
 }
 
+.data-action-desc {
+  font-size: 0.8rem;
+}
+
+.data-clear-info .data-action-desc {
+  color: var(--color-danger);
+}
+
+.setting-item-data-clear .btn-secondary,
 .setting-item-data-clear .btn-danger {
   white-space: nowrap;
   flex-shrink: 0;

@@ -19,12 +19,25 @@ import {
 import { backupLogsDataWithCompatibility } from '../../services/fmoBackupService'
 // @ts-ignore - legacy JS
 import { buildHttpUrl } from '../../utils/urlUtils'
+import {
+  FUTURE_TIMESTAMP_TOLERANCE_SECONDS,
+  getLatestValidQsoTimestamp,
+  isValidQsoRecord,
+  isValidQsoTimestamp
+} from '../qsoValidation'
 
 export interface SyncFailedRecord {
   logId: any
   toCallsign: string
   timestamp: number
   error: string
+}
+
+export interface SyncSkippedRecord {
+  logId: any
+  toCallsign: string
+  timestamp: number
+  reason: string
 }
 
 export interface SyncContext {
@@ -34,6 +47,8 @@ export interface SyncContext {
   statusCallback?: (msg: string) => void
   /** 失败记录回调 */
   onFailed?: (rec: SyncFailedRecord) => void
+  /** 明显异常数据跳过回调 */
+  onSkipped?: (rec: SyncSkippedRecord) => void
   /** 中止信号（编排层 unmount / 主动取消时会变 true） */
   isAborted?: () => boolean
 }
@@ -49,16 +64,63 @@ function never() {
   return false
 }
 
-function isValidQsoTimestamp(timestamp: number): boolean {
-  return Number.isFinite(timestamp) && timestamp > 0
-}
-
 function isValidQsoListItem(item: any): boolean {
   return (
-    isValidQsoTimestamp(item?.timestamp) &&
-    typeof item?.toCallsign === 'string' &&
+    item &&
+    typeof item.logId !== 'undefined' &&
+    isValidQsoTimestamp(item.timestamp) &&
+    typeof item.toCallsign === 'string' &&
     item.toCallsign.trim().length > 0
   )
+}
+
+function isSafeQsoListItem(item: any, nowSeconds: number): boolean {
+  return (
+    isValidQsoListItem(item) &&
+    getLatestValidQsoTimestamp(item.timestamp, nowSeconds, FUTURE_TIMESTAMP_TOLERANCE_SECONDS) !==
+      null
+  )
+}
+
+function getSkipReason(item: any, nowSeconds: number): string {
+  if (!isValidQsoListItem(item)) return 'invalid-list-record'
+  return getLatestValidQsoTimestamp(
+    item.timestamp,
+    nowSeconds,
+    FUTURE_TIMESTAMP_TOLERANCE_SECONDS
+  ) === null
+    ? 'future-timestamp'
+    : ''
+}
+
+function notifyListSkip(item: any, nowSeconds: number, ctx: SyncContext): void {
+  ctx.onSkipped?.({
+    logId: item?.logId,
+    toCallsign: typeof item?.toCallsign === 'string' ? item.toCallsign : '',
+    timestamp: typeof item?.timestamp === 'number' ? item.timestamp : 0,
+    reason: getSkipReason(item, nowSeconds)
+  })
+}
+
+function notifyDetailSkip(item: any, ctx: SyncContext): void {
+  ctx.onSkipped?.({
+    logId: item.logId,
+    toCallsign: item.toCallsign,
+    timestamp: item.timestamp,
+    reason: 'invalid-detail-record'
+  })
+}
+
+function validateDetailRecord(
+  item: any,
+  record: any,
+  nowSeconds: number,
+  ctx: SyncContext
+): boolean {
+  if (record && isValidQsoRecord(record, nowSeconds, FUTURE_TIMESTAMP_TOLERANCE_SECONDS))
+    return true
+  notifyDetailSkip(item, ctx)
+  return false
 }
 
 function parseBaseUrl(baseUrl: string): { host: string; protocol: string } {
@@ -112,9 +174,19 @@ export async function processSingleQsoItem(
   item: any,
   rangeStart: number,
   client: any,
-  ctx: SyncContext
+  ctx: SyncContext,
+  nowSeconds = Math.floor(Date.now() / 1000)
 ): Promise<any | null> {
-  if (!isValidQsoListItem(item)) return null
+  const skipReason = getSkipReason(item, nowSeconds)
+  if (skipReason) {
+    ctx.onSkipped?.({
+      logId: item?.logId,
+      toCallsign: typeof item?.toCallsign === 'string' ? item.toCallsign : '',
+      timestamp: typeof item?.timestamp === 'number' ? item.timestamp : 0,
+      reason: skipReason
+    })
+    return null
+  }
   if (item.timestamp < rangeStart) return null
 
   const onFailed = ctx.onFailed ?? noop
@@ -133,6 +205,7 @@ export async function processSingleQsoItem(
         await new Promise((r) => setTimeout(r, 100))
         const detailResponse = await client.getQsoDetail(item.logId)
         qso = detailResponse.log
+        if (qso && !validateDetailRecord(item, qso, nowSeconds, ctx)) qso = null
         const qsoCallsign = normalizeCallsign(qso?.fromCallsign)
         if (qso && qsoCallsign !== currentFromCallsign) qso = null
       }
@@ -140,6 +213,7 @@ export async function processSingleQsoItem(
       await new Promise((r) => setTimeout(r, 100))
       const detailResponse = await client.getQsoDetail(item.logId)
       qso = detailResponse.log
+      if (qso && !validateDetailRecord(item, qso, nowSeconds, ctx)) qso = null
       if (qso) {
         const exists = await isQsoExistsInIndexedDB(
           normalizeCallsign(qso.fromCallsign),
@@ -172,6 +246,7 @@ export async function processSingleQsoItem(
  */
 export async function syncRecentData(client: any, days: number, ctx: SyncContext): Promise<number> {
   const rangeStart = getDaysAgoTimestamp(days)
+  const nowSeconds = Math.floor(Date.now() / 1000)
   const statusCallback = ctx.statusCallback ?? noop
   const isAborted = ctx.isAborted ?? never
   const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
@@ -190,7 +265,8 @@ export async function syncRecentData(client: any, days: number, ctx: SyncContext
 
     for (const item of list) {
       if (isAborted()) break
-      if (!isValidQsoListItem(item)) {
+      if (!isSafeQsoListItem(item, nowSeconds)) {
+        notifyListSkip(item, nowSeconds, ctx)
         continue
       }
 
@@ -199,7 +275,7 @@ export async function syncRecentData(client: any, days: number, ctx: SyncContext
           ...ctx,
           currentFromCallsign: resolveExpectedCallsign(item, ctx)
         }
-        const qso = await processSingleQsoItem(item, rangeStart, client, itemCtx)
+        const qso = await processSingleQsoItem(item, rangeStart, client, itemCtx, nowSeconds)
         if (qso) {
           statusCallback(`保存记录: ${qso.toCallsign}...`)
           totalSynced++
@@ -224,6 +300,7 @@ export async function syncIncrementalForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
+  const nowSeconds = Math.floor(Date.now() / 1000)
   const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
   const statusCallback = ctx.statusCallback ?? noop
   const onFailed = ctx.onFailed ?? noop
@@ -251,7 +328,10 @@ export async function syncIncrementalForAddress(
 
     for (const item of list) {
       if (isAborted()) break
-      if (!isValidQsoListItem(item)) continue
+      if (!isSafeQsoListItem(item, nowSeconds)) {
+        notifyListSkip(item, nowSeconds, ctx)
+        continue
+      }
 
       try {
         const itemCtx = {
@@ -271,6 +351,7 @@ export async function syncIncrementalForAddress(
             await new Promise((r) => setTimeout(r, 100))
             const detailResponse = await client.getQsoDetail(item.logId)
             qso = detailResponse.log
+            if (qso && !validateDetailRecord(item, qso, nowSeconds, itemCtx)) qso = null
             const qsoCallsign = normalizeCallsign(qso?.fromCallsign)
             if (qso && qsoCallsign !== itemCtx.currentFromCallsign) qso = null
           }
@@ -278,6 +359,7 @@ export async function syncIncrementalForAddress(
           await new Promise((r) => setTimeout(r, 100))
           const detailResponse = await client.getQsoDetail(item.logId)
           qso = detailResponse.log
+          if (qso && !validateDetailRecord(item, qso, nowSeconds, itemCtx)) qso = null
           if (qso) {
             exists = await isQsoExistsInIndexedDB(qso.fromCallsign, qso.timestamp, qso.toCallsign)
           }
@@ -319,6 +401,7 @@ async function syncFullViaWebSocketForAddress(
   client: any,
   ctx: SyncContext
 ): Promise<{ totalSynced: number; totalProcessed: number }> {
+  const nowSeconds = Math.floor(Date.now() / 1000)
   const currentFromCallsign = normalizeCallsign(ctx.currentFromCallsign)
   const statusCallback = ctx.statusCallback ?? noop
   const onFailed = ctx.onFailed ?? noop
@@ -346,7 +429,10 @@ async function syncFullViaWebSocketForAddress(
 
     for (const item of list) {
       if (isAborted()) break
-      if (!isValidQsoListItem(item)) continue
+      if (!isSafeQsoListItem(item, nowSeconds)) {
+        notifyListSkip(item, nowSeconds, ctx)
+        continue
+      }
 
       try {
         let qso: any = null
@@ -356,12 +442,14 @@ async function syncFullViaWebSocketForAddress(
           await new Promise((r) => setTimeout(r, 100))
           const detailResponse = await client.getQsoDetail(item.logId)
           qso = detailResponse.log
+          if (qso && !validateDetailRecord(item, qso, nowSeconds, ctx)) qso = null
           const qsoCallsign = normalizeCallsign(qso?.fromCallsign)
           if (qso && qsoCallsign !== expectedCallsign) qso = null
         } else {
           await new Promise((r) => setTimeout(r, 100))
           const detailResponse = await client.getQsoDetail(item.logId)
           qso = detailResponse.log
+          if (qso && !validateDetailRecord(item, qso, nowSeconds, ctx)) qso = null
         }
 
         if (qso) {

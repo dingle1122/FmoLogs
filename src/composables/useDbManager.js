@@ -7,7 +7,8 @@ import {
   clearIndexedDBData,
   getTotalRecordsCountFromIndexedDB,
   getTodayRecordsCountFromIndexedDB,
-  getUniqueCallsignCountFromIndexedDB
+  getUniqueCallsignCountFromIndexedDB,
+  repairQsoData
 } from '../services/db'
 
 function normalizeCallsign(callsign) {
@@ -174,6 +175,23 @@ export function useDbManager() {
     selectedFromCallsign.value = ''
   }
 
+  async function repairAbnormalData() {
+    const result = await repairQsoData()
+    const callsigns = await getAvailableFromCallsigns()
+    availableFromCallsigns.value = callsigns
+    selectedFromCallsign.value = normalizeCallsign(selectedFromCallsign.value)
+    if (
+      !selectedFromCallsign.value ||
+      !availableFromCallsigns.value.includes(selectedFromCallsign.value)
+    ) {
+      selectedFromCallsign.value = availableFromCallsigns.value[0] || ''
+    }
+    dbLoaded.value = callsigns.length > 0
+    dbCount.value = callsigns.length
+    await updateStats()
+    return result
+  }
+
   return {
     dbLoaded,
     dbCount,
@@ -188,6 +206,7 @@ export function useDbManager() {
     updateStats,
     tryRestoreDirectory,
     selectFiles,
-    clearAllData
+    clearAllData,
+    repairAbnormalData
   }
 }

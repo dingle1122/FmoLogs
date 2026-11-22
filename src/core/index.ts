@@ -7,6 +7,7 @@
 // - sync/：同步算法（PR-6）
 export {}
 
+export * from './qsoValidation'
 export * from './sstv/sstvTypes'
 export * from './sstv/sstvModes'
 export * from './sstv/toneDetector'

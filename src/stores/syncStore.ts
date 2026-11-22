@@ -12,6 +12,7 @@ import {
   syncFullForAddress,
   processSingleQsoItem,
   type SyncFailedRecord,
+  type SyncSkippedRecord,
   type SyncContext
 } from '../core/sync'
 
@@ -32,6 +33,7 @@ export interface MultiSyncResult {
   success: boolean
   syncedCount: number
   error: string
+  skippedCount?: number
 }
 
 export interface SyncOptions {
@@ -64,6 +66,7 @@ export const useSyncStore = defineStore('sync', () => {
   const syncStatus = ref('')
   const autoSyncMessage = ref('')
   const syncFailedRecords = ref<SyncFailedRecord[]>([])
+  const syncSkippedRecords = ref<SyncSkippedRecord[]>([])
   const multiSyncProgress = ref<{
     current: number
     total: number
@@ -137,6 +140,9 @@ export const useSyncStore = defineStore('sync', () => {
       onFailed: (rec) => {
         syncFailedRecords.value.push(rec)
       },
+      onSkipped: (rec) => {
+        syncSkippedRecords.value.push(rec)
+      },
       isAborted: () => isAborted,
       ...overrides
     }
@@ -151,6 +157,9 @@ export const useSyncStore = defineStore('sync', () => {
       },
       onFailed: (rec) => {
         syncFailedRecords.value.push(rec)
+      },
+      onSkipped: (rec) => {
+        syncSkippedRecords.value.push(rec)
       },
       isAborted: () => isAborted,
       ...overrides
@@ -213,6 +222,7 @@ export const useSyncStore = defineStore('sync', () => {
     const host = normalizeHost(fmoAddress)
     const client = new FmoApiClient(`${protocol}://${host}`)
     activeClients.add(client)
+    const skippedBefore = syncSkippedRecords.value.length
 
     try {
       if (isAborted) return
@@ -234,10 +244,15 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       if (!isAborted) {
+        const skippedCount = syncSkippedRecords.value.length - skippedBefore
         await updateAfterSync(
           wasEmpty,
           newCallsigns.length,
-          newCallsigns.length > 0 ? `同步到和 ${newCallsigns.join(', ')} 的通联` : null
+          newCallsigns.length > 0
+            ? `同步到和 ${newCallsigns.join(', ')} 的通联${skippedCount > 0 ? `，跳过异常数据 ${skippedCount} 条` : ''}`
+            : skippedCount > 0
+              ? `同步完成，跳过异常数据 ${skippedCount} 条`
+              : null
         )
       }
     } catch (err) {
@@ -259,6 +274,7 @@ export const useSyncStore = defineStore('sync', () => {
     const host = normalizeHost(fmoAddress)
     const client = new FmoApiClient(`${protocol}://${host}`)
     activeClients.add(client)
+    const skippedBefore = syncSkippedRecords.value.length
 
     try {
       if (isAborted) return
@@ -274,10 +290,15 @@ export const useSyncStore = defineStore('sync', () => {
       )
 
       if (!isAborted) {
+        const skippedCount = syncSkippedRecords.value.length - skippedBefore
         await updateAfterSync(
           wasEmpty,
           totalSynced,
-          totalSynced > 0 ? `每小时同步完成，共更新 ${totalSynced} 条记录` : null
+          totalSynced > 0
+            ? `每小时同步完成，共更新 ${totalSynced} 条记录${skippedCount > 0 ? `，跳过异常数据 ${skippedCount} 条` : ''}`
+            : skippedCount > 0
+              ? `每小时同步完成，跳过异常数据 ${skippedCount} 条`
+              : null
         )
       }
 
@@ -349,6 +370,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncing.value = true
     syncStatus.value = '连接 FMO...'
     syncFailedRecords.value = []
+    syncSkippedRecords.value = []
 
     const host = normalizeHost(fmoAddress)
     const client = new FmoApiClient(`${protocol}://${host}`)
@@ -364,11 +386,16 @@ export const useSyncStore = defineStore('sync', () => {
       )
 
       const failedCount = syncFailedRecords.value.length
-      syncStatus.value =
-        failedCount > 0
-          ? `同步完成，共更新 ${totalSynced} 条记录，${failedCount} 条失败`
-          : `同步完成，共更新 ${totalSynced} 条记录`
+      const skippedCount = syncSkippedRecords.value.length
+      syncStatus.value = [
+        `同步完成，共更新 ${totalSynced} 条记录`,
+        skippedCount > 0 ? `跳过异常数据 ${skippedCount} 条` : '',
+        failedCount > 0 ? `${failedCount} 条失败` : ''
+      ]
+        .filter(Boolean)
+        .join('，')
       if (failedCount > 0) console.warn('同步失败的记录:', syncFailedRecords.value)
+      if (skippedCount > 0) console.warn('同步跳过的异常记录:', syncSkippedRecords.value)
 
       const callsigns: string[] = await getAvailableFromCallsigns()
       await ctx.onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
@@ -395,6 +422,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncing.value = true
     syncStatus.value = '连接 FMO...'
     syncFailedRecords.value = []
+    syncSkippedRecords.value = []
 
     const host = normalizeHost(fmoAddress)
     const client = new FmoApiClient(`${protocol}://${host}`)
@@ -409,11 +437,17 @@ export const useSyncStore = defineStore('sync', () => {
       )
 
       const failedCount = syncFailedRecords.value.length
-      syncStatus.value =
-        failedCount > 0
-          ? `增量同步完成，共处理 ${totalProcessed} 条记录，新增 ${totalSynced} 条，${failedCount} 条失败`
-          : `增量同步完成，共处理 ${totalProcessed} 条记录，新增 ${totalSynced} 条`
+      const skippedCount = syncSkippedRecords.value.length
+      syncStatus.value = [
+        `增量同步完成，共处理 ${totalProcessed} 条记录`,
+        `新增 ${totalSynced} 条`,
+        skippedCount > 0 ? `跳过异常数据 ${skippedCount} 条` : '',
+        failedCount > 0 ? `${failedCount} 条失败` : ''
+      ]
+        .filter(Boolean)
+        .join('，')
       if (failedCount > 0) console.warn('同步失败的记录:', syncFailedRecords.value)
+      if (skippedCount > 0) console.warn('同步跳过的异常记录:', syncSkippedRecords.value)
 
       const callsigns: string[] = await getAvailableFromCallsigns()
       await ctx.onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
@@ -443,6 +477,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncing.value = true
     syncStatus.value = '连接 FMO...'
     syncFailedRecords.value = []
+    syncSkippedRecords.value = []
 
     const host = normalizeHost(fmoAddress)
     const client = new FmoApiClient(`${protocol}://${host}`)
@@ -457,11 +492,17 @@ export const useSyncStore = defineStore('sync', () => {
       )
 
       const failedCount = syncFailedRecords.value.length
-      syncStatus.value =
-        failedCount > 0
-          ? `全量同步完成，共处理 ${totalProcessed} 条记录，已同步 ${totalSynced} 条，${failedCount} 条失败`
-          : `全量同步完成，共处理 ${totalProcessed} 条记录，已同步 ${totalSynced} 条`
+      const skippedCount = syncSkippedRecords.value.length
+      syncStatus.value = [
+        `全量同步完成，共处理 ${totalProcessed} 条记录`,
+        `已同步 ${totalSynced} 条`,
+        skippedCount > 0 ? `跳过异常数据 ${skippedCount} 条` : '',
+        failedCount > 0 ? `${failedCount} 条失败` : ''
+      ]
+        .filter(Boolean)
+        .join('，')
       if (failedCount > 0) console.warn('同步失败的记录:', syncFailedRecords.value)
+      if (skippedCount > 0) console.warn('同步跳过的异常记录:', syncSkippedRecords.value)
 
       const callsigns: string[] = await getAvailableFromCallsigns()
       await ctx.onSyncComplete?.({ callsigns, syncedCount: totalSynced, reload: true })
@@ -494,6 +535,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     syncing.value = true
     syncFailedRecords.value = []
+    syncSkippedRecords.value = []
     multiSyncProgress.value = {
       current: 0,
       total: addresses.length,
@@ -518,6 +560,7 @@ export const useSyncStore = defineStore('sync', () => {
         let syncedCount = 0
         let success = true
         let errorMsg = ''
+        const skippedBefore = syncSkippedRecords.value.length
 
         try {
           syncStatus.value = `正在同步 ${address.name || address.host}...`
@@ -563,7 +606,8 @@ export const useSyncStore = defineStore('sync', () => {
           name: address.name || address.host,
           success,
           syncedCount,
-          error: errorMsg
+          error: errorMsg,
+          skippedCount: syncSkippedRecords.value.length - skippedBefore
         }
         allResults.push(result)
         multiSyncProgress.value.results.push(result)
@@ -577,11 +621,17 @@ export const useSyncStore = defineStore('sync', () => {
       const callsigns: string[] = await getAvailableFromCallsigns()
 
       const failedCount = syncFailedRecords.value.length
-      syncStatus.value =
-        failedCount > 0
-          ? `多地址同步完成，共 ${addresses.length} 个地址，新增 ${totalSynced} 条记录，${failedCount} 条失败`
-          : `多地址同步完成，共 ${addresses.length} 个地址，新增 ${totalSynced} 条记录`
+      const skippedCount = syncSkippedRecords.value.length
+      syncStatus.value = [
+        `多地址同步完成，共 ${addresses.length} 个地址`,
+        `新增 ${totalSynced} 条记录`,
+        skippedCount > 0 ? `跳过异常数据 ${skippedCount} 条` : '',
+        failedCount > 0 ? `${failedCount} 条失败` : ''
+      ]
+        .filter(Boolean)
+        .join('，')
       if (failedCount > 0) console.warn('同步失败的记录:', syncFailedRecords.value)
+      if (skippedCount > 0) console.warn('同步跳过的异常记录:', syncSkippedRecords.value)
 
       await ctx.onSyncComplete?.({
         callsigns,
@@ -641,6 +691,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncStatus,
     autoSyncMessage,
     syncFailedRecords,
+    syncSkippedRecords,
     multiSyncProgress,
     // actions
     setContext,
